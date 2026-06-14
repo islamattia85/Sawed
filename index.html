@@ -1871,6 +1871,14 @@ async function loadTariffs(){
   } catch(e){ return false; }
 }
 
+// Active (non-discontinued) tariffs sorted by company then plan name, for any
+// user-facing plan picker. Keeps the engine's TARIFFS order untouched.
+function activeTariffsSorted(){
+  return TARIFFS.filter(t => !t.discontinued).slice().sort((a,b) => {
+    const s = (a.supplier || '').localeCompare(b.supplier || '', 'en', { sensitivity:'base' });
+    return s !== 0 ? s : (a.plan || '').localeCompare(b.plan || '', 'en', { sensitivity:'base' });
+  });
+}
 function getPlanById(id){
   const base = TARIFFS.find(t => t.id === id);
   if (!base) return TARIFFS[0];
@@ -3687,7 +3695,7 @@ function setObBaseline(planId){
 }
 
 function obStep2CurrentPlan(){
-  const plans = TARIFFS.filter(t => !t.discontinued);
+  const plans = activeTariffsSorted();
   const typeLabel = { flat: '24h Flat', tou: 'Day/Night', ev: 'EV', dynamic: 'Dynamic', dn: 'Day/Night' };
   return `
     <div class="ob-step-num">Step 2 of 6 · Current Plan</div>
@@ -3875,9 +3883,9 @@ function obStep5Solar(){
 
     ${_ob.has_solar ? `
       <div class="ob-mini-section">
-        <div class="ob-mini-title">${ic('home',14)} Main roof (Roof A)</div>
-        <div class="ob-mini-label">Panels</div>
-        ${obStepper('count_A', _ob.count_A, 1, 40, 'panels')}
+        <div class="ob-mini-title">${ic('home',14)} Front roof</div>
+        <div class="ob-mini-label">Number of panels</div>
+        <input id="ob-cA" class="ob-mini-input" type="number" inputmode="numeric" min="1" max="40" step="1" value="${_ob.count_A}">
         <div class="ob-mini-label" style="margin-top:14px">Roof tilt</div>
         ${obPills('tilt_A', _ob.tilt_A, [[20,'20° shallow'],[30,'30° typical'],[40,'40° steep'],[10,'10° flat-ish']])}
         <div class="ob-mini-label" style="margin-top:14px">Which way does this roof face?</div>
@@ -3886,17 +3894,17 @@ function obStep5Solar(){
 
       <div class="ob-toggle-row ${_ob.count_B > 0 ? 'active' : ''}" onclick="toggleRoofB()">
         <div class="ob-toggle-row-label">
-          <div>${_ob.count_B > 0 ? '✓ Two-roof setup' : '+ Add a second roof'}</div>
-          <div>${_ob.count_B > 0 ? `Roof B: ${_ob.count_B} panels facing ${COMPASS_POINTS.reduce((a,b)=>Math.abs(b.az-_ob.azimuth_B)<Math.abs(a.az-_ob.azimuth_B)?b:a).label}` : 'For homes with panels on two slopes'}</div>
+          <div>${_ob.count_B > 0 ? '✓ Two-roof setup' : '+ Add a back roof'}</div>
+          <div>${_ob.count_B > 0 ? `Back roof: ${_ob.count_B} panels facing ${COMPASS_POINTS.reduce((a,b)=>Math.abs(b.az-_ob.azimuth_B)<Math.abs(a.az-_ob.azimuth_B)?b:a).label}` : 'For homes with panels on two slopes'}</div>
         </div>
         <div class="toggle ${_ob.count_B > 0 ? 'active' : ''}"><div class="toggle-track"><div class="toggle-thumb"></div></div></div>
       </div>
 
       ${_ob.count_B > 0 ? `
         <div class="ob-mini-section">
-          <div class="ob-mini-title">${ic('home',14)} Second roof (Roof B)</div>
-          <div class="ob-mini-label">Panels</div>
-          ${obStepper('count_B', _ob.count_B, 1, 40, 'panels')}
+          <div class="ob-mini-title">${ic('home',14)} Back roof</div>
+          <div class="ob-mini-label">Number of panels</div>
+          <input id="ob-cB" class="ob-mini-input" type="number" inputmode="numeric" min="1" max="40" step="1" value="${_ob.count_B}">
           <div class="ob-mini-label" style="margin-top:14px">Roof tilt</div>
           ${obPills('tilt_B', _ob.tilt_B, [[20,'20° shallow'],[30,'30° typical'],[40,'40° steep'],[10,'10° flat-ish']])}
           <div class="ob-mini-label" style="margin-top:14px">Which way does this roof face?</div>
@@ -3906,12 +3914,9 @@ function obStep5Solar(){
 
       <div class="ob-mini-section">
         <div class="ob-mini-title">${ic('battery',14)} Battery</div>
-        <div class="ob-mini-label">Tap your size — common Irish installs</div>
-        ${obPills('battery_kwh', _ob.battery_kwh, [[0,'None'],[5,'5 kWh'],[8,'8 kWh — Sigenergy'],[9.5,'9.5 — GivEnergy'],[10,'10 kWh'],[13.5,'13.5 — Powerwall']])}
-        ${_ob._batt_custom ? `
-        <div class="ob-mini-label" style="margin-top:12px">Exact capacity (kWh)</div>
-        <input id="ob-batt" class="ob-mini-input" type="number" inputmode="decimal" min="0" max="50" step="0.1" value="${_ob.battery_kwh}">` : `
-        <div onclick="_ob._batt_custom=true;renderApp();" style="margin-top:10px;font-size:11.5px;color:var(--ink-soft);text-decoration:underline;cursor:pointer;font-family:var(--mono)">My exact size isn't listed — type it ›</div>`}
+        <div class="ob-mini-label">Capacity in kWh (enter 0 if no battery)</div>
+        <input id="ob-batt" class="ob-mini-input" type="number" inputmode="decimal" min="0" max="50" step="0.1" value="${_ob.battery_kwh}">
+        <div style="margin-top:8px;font-size:10.5px;color:var(--ink-dim);font-family:var(--mono);line-height:1.5">Typical Irish installs: 5–13.5 kWh. Common: Powerwall 13.5, GivEnergy 9.5, Sigenergy 8.</div>
       </div>
 
       ${_ob.battery_kwh > 0 ? `
@@ -7943,20 +7948,20 @@ function renderRefine(){
         ${state.usage_input_mode === 'kwh'
           ? refineRow('Yearly consumption (kWh)', 'Ground truth — we shape it across the year by heating type. Derived bill: ~€' + (state.bimonthly_bill_eur || 0) + '/2mo', refineNum('rf-kwh', state.annual_kwh || (state.bills && Object.keys(state.bills).length ? Object.values(state.bills).reduce((a,b)=>a+b,0) : 4200), 500, 40000, 100, 'kWh'))
           : refineRow('Bimonthly bill (€)', 'Auto-derives kWh', refineNum('rf-bill', state.bimonthly_bill_eur, 0, 1500, 10, '€'))}`}
-        ${refineRow('Currently on', 'Plan to compare against', refineSel('rf-base', state.baseline, TARIFFS.filter(t => !t.discontinued).map(t => [t.id, t.supplier + ' — ' + t.plan])))}
+        ${refineRow('Currently on', 'Plan to compare against', refineSel('rf-base', state.baseline, activeTariffsSorted().map(t => [t.id, t.supplier + ' — ' + t.plan])))}
         ${refineRow('Discount on your plan (%)', 'Sign-up discount or equivalent older rates — % off unit rates on YOUR current plan only. Standing charge stays full price.', refineNum('rf-disc', state.baseline_discount_pct || 0, 0, 60, 1, '%'))}
       </div>
     `)}
 
     ${section('solar', ic('sun',17), 'Solar system', solarSummary, state.considering_solar ? `
-      ${refineRow('Roof A — panels', 'Main roof — tap to adjust', rfStepper('count_A', state.count_A, 0, 40, ''))}
-      ${refineRow('Roof A — orientation', sectorFromAzimuth(state.azimuth_A) + ' (' + state.azimuth_A + '°)', refineSel('rf-azA', sectorFromAzimuth(state.azimuth_A), [['S','South'],['SE','Southeast'],['SW','Southwest'],['E','East'],['W','West'],['NE','Northeast'],['NW','Northwest'],['N','North']]))}
-      ${refineRow('Roof A — tilt', '', refineNum('rf-tiltA', state.tilt_A, 0, 90, 1, '°'))}
-      ${refineRow('Roof B — panels', '0 if single roof', rfStepper('count_B', state.count_B, 0, 40, ''))}
-      ${state.count_B > 0 ? refineRow('Roof B — orientation', sectorFromAzimuth(state.azimuth_B) + ' (' + state.azimuth_B + '°)', refineSel('rf-azB', sectorFromAzimuth(state.azimuth_B), [['S','South'],['SE','Southeast'],['SW','Southwest'],['E','East'],['W','West'],['NE','Northeast'],['NW','Northwest'],['N','North']])) + refineRow('Roof B — tilt', '', refineNum('rf-tiltB', state.tilt_B, 0, 90, 1, '°')) : ''}
+      ${refineRow('Front roof — panels', 'Number of panels on your main roof', refineNum('rf-cA', state.count_A, 0, 40, 1, ''))}
+      ${refineRow('Front roof — orientation', sectorFromAzimuth(state.azimuth_A) + ' (' + state.azimuth_A + '°)', refineSel('rf-azA', sectorFromAzimuth(state.azimuth_A), [['S','South'],['SE','Southeast'],['SW','Southwest'],['E','East'],['W','West'],['NE','Northeast'],['NW','Northwest'],['N','North']]))}
+      ${refineRow('Front roof — tilt', '', refineNum('rf-tiltA', state.tilt_A, 0, 90, 1, '°'))}
+      ${refineRow('Back roof — panels', '0 if single roof', refineNum('rf-cB', state.count_B, 0, 40, 1, ''))}
+      ${state.count_B > 0 ? refineRow('Back roof — orientation', sectorFromAzimuth(state.azimuth_B) + ' (' + state.azimuth_B + '°)', refineSel('rf-azB', sectorFromAzimuth(state.azimuth_B), [['S','South'],['SE','Southeast'],['SW','Southwest'],['E','East'],['W','West'],['NE','Northeast'],['NW','Northwest'],['N','North']])) + refineRow('Back roof — tilt', '', refineNum('rf-tiltB', state.tilt_B, 0, 90, 1, '°')) : ''}
       ${refineRow('Panel wattage (W)', 'Check your installer spec sheet — modern N-type: 420–480W, older panels: 250–350W.', refineNum('rf-pw', state.panel_w, 200, 700, 5, 'W'))}
       ${refineRow('Inverter size (kW)', 'Max AC output. Typical Irish home: 4.6–6kW. Should roughly match your total array kWp.', refineNum('rf-inv', state.inverter_kw, 1, 20, 0.5, 'kW'))}
-      ${refineRow('Battery storage', 'Tap a common size, or fine-tune ±0.5. A 9 kWh battery covers a typical family evening.', rfBatteryControl())}
+      ${refineRow('Battery storage (kWh)', 'Enter 0 if no battery. A 9 kWh battery covers a typical family evening.', refineNum('rf-batt', state.battery_kwh, 0, 50, 0.5, 'kWh'))}
       ${refineRow('Install cost (gross)', '', refineNum('rf-cost', state.install_cost, 0, 50000, 100, '€'))}
       ${refineRow('SEAI grant', state.grant_is_manual ? 'Your value — auto-calc paused until you edit it again' : 'Auto-calculated from your system — sticks once you edit it', refineNum('rf-grant', state.grant_seai, 0, 5000, 100, '€'))}
     ` : `
