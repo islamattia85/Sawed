@@ -124,6 +124,86 @@
   .bottom-nav-item .nav-label{font-size:9.5px;font-weight:650;letter-spacing:.01em;font-family:var(--display)}
 
   /* ======================================================
+     DESKTOP — wider, sidebar nav, multi-column content.
+     Activates >=900px only; mobile layout untouched below it.
+     Pure CSS: the same markup becomes a sidebar + roomy canvas.
+     ====================================================== */
+  @media (min-width: 900px){
+    body{ --desk-sidebar: 232px; }
+    /* A soft page backdrop so the app reads as a site, not a phone strip */
+    html[data-theme="dark"], html[data-theme="dark"] body{ background:radial-gradient(1200px 800px at 18% -10%, #0F1713 0%, #090D0A 60%); }
+    html[data-theme="light"], html[data-theme="light"] body{ background:radial-gradient(1200px 800px at 18% -10%, #EAF1EC 0%, #F2F5F2 60%); }
+
+    /* App becomes a centred two-pane shell: sidebar + content.
+       Only when chrome is present (post-onboarding); welcome & onboarding
+       stay full-width single-column. */
+    .app[data-chrome="app"]{
+      max-width:1180px; width:calc(100% - 48px); margin:24px auto;
+      min-height:calc(100vh - 48px);
+      display:grid; grid-template-columns: var(--desk-sidebar) 1fr;
+      grid-template-rows:auto 1fr; column-gap:0;
+      background:var(--panel); border:1px solid var(--hair);
+      border-radius:22px; overflow:hidden;
+      box-shadow:0 24px 80px -32px rgba(0,0,0,.55), 0 2px 0 rgba(255,255,255,.02) inset;
+    }
+    .app[data-chrome="bare"]{ max-width:760px; margin:0 auto; }
+
+    /* Topbar spans the content column only, sits at the top of the canvas */
+    .topbar{ grid-column:2; grid-row:1; border-top-right-radius:22px; }
+    .topbar .brand{ font-size:16.5px; }
+
+    /* The bottom nav is repurposed into a left sidebar */
+    .bottom-nav{
+      position:static; transform:none; width:auto; max-width:none;
+      grid-column:1; grid-row:1 / span 2;
+      flex-direction:column; justify-content:flex-start; gap:4px;
+      border-top:none; border-right:1px solid var(--hair);
+      padding:18px 12px; background:transparent; backdrop-filter:none; -webkit-backdrop-filter:none;
+    }
+    /* Brand lockup at the top of the sidebar (drawn with ::before) */
+    .bottom-nav::before{
+      content:"Solar Optimiser"; display:block;
+      font-family:var(--display); font-weight:800; font-size:14.5px; letter-spacing:-.02em;
+      color:var(--ink); padding:2px 10px 12px; margin-bottom:4px;
+      border-bottom:1px solid var(--hair);
+    }
+    .bottom-nav-item{
+      flex:none; flex-direction:row; justify-content:flex-start; gap:11px;
+      padding:8.5px 10px; border-radius:10px; width:100%;
+      transition:background .15s,color .15s;
+    }
+    .bottom-nav-item:hover{ background:var(--accent-soft); color:var(--ink); }
+    .bottom-nav-item.active{ background:var(--accent-soft); }
+    .bottom-nav-item .nav-ico{ width:26px; height:26px; border-radius:8px; }
+    .bottom-nav-item.active .nav-ico{ background:transparent; }
+    .bottom-nav-item .nav-label{ font-size:13.5px; font-weight:650; }
+
+    /* Content scrolls inside the canvas, with comfortable padding */
+    .screen{
+      grid-column:2; grid-row:2; padding:26px 34px 40px;
+      max-width:none; overflow-y:auto;
+    }
+
+    /* Let key screens use a roomy two-column grid where it helps.
+       Cards/sections opt in by sitting inside .desk-grid wrappers the
+       renderers already produce; default single-column still works. */
+    .screen .desk-2col{ display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+    .screen .desk-3col{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; align-items:start; }
+
+    /* Wider modals become centred dialogs rather than bottom sheets */
+    .modal-overlay{ align-items:center; }
+    .modal{ border-radius:18px; border:1px solid var(--accent); max-width:520px; margin:0 auto;
+            animation:fadeUp .25s ease; }
+
+    /* The welcome screen centres nicely on a wide canvas */
+    .welcome-content{ max-width:560px; }
+  }
+  /* Ultra-wide: stop growing, keep it readable */
+  @media (min-width: 1280px){
+    .screen .desk-wide{ max-width:980px; }
+  }
+
+  /* ======================================================
      ONBOARDING — fullscreen, no chrome, single focus
      ====================================================== */
   .ob-page{position:fixed;inset:0;background:radial-gradient(circle at 30% 0%,var(--bg-elev) 0%,var(--bg) 60%);z-index:200;overflow-y:auto;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);animation:fadeUp .3s ease}
@@ -6847,6 +6927,66 @@ function doGeneratePdf(email){
       y += 26;
     };
 
+    // ── line / area chart (for cumulative cash-flow curves) ──────────
+    // pts: array of {x, y} in DATA space. Draws axes, a zero line if the
+    // range crosses zero, the curve, and a shaded area to the zero baseline.
+    const lineChart = (pts, opts) => {
+      opts = opts || {};
+      const cx = M, cw = CW, ch = N(opts.h, 46);
+      const top = y, bot = y + ch;
+      if (!pts || pts.length < 2){ y += ch + 6; return; }
+      const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+      const xMin = Math.min.apply(null, xs), xMax = Math.max.apply(null, xs);
+      let yMin = Math.min.apply(null, ys), yMax = Math.max.apply(null, ys);
+      if (yMin === yMax){ yMax = yMin + 1; }
+      // pad the y-range a touch
+      const pad = (yMax - yMin) * 0.08; yMin -= pad; yMax += pad;
+      const sx = v => cx + ((v - xMin) / (xMax - xMin || 1)) * cw;
+      const sy = v => bot - ((v - yMin) / (yMax - yMin || 1)) * ch;
+      // plot background
+      f(opts.bg || [244,250,246]); R(cx, top, cw, ch);
+      d(210,225,218); lw(0.2); R(cx, top, cw, ch, 'S');
+      // zero baseline (break-even line) if range crosses zero
+      const col = opts.col || G;
+      if (yMin < 0 && yMax > 0){
+        const zy = sy(0);
+        d(170,185,178); lw(0.3);
+        _safe('zeroLine', () => doc.line(N(cx), N(zy), N(cx+cw), N(zy)));
+        fs(5.5); fw('normal'); tc(DIM);
+        T('break-even', cx+1.5, zy-1.2);
+      }
+      // shaded area to baseline, drawn as thin vertical strips (robust on iOS)
+      const baseVal = (yMin < 0 && yMax > 0) ? 0 : yMin;
+      const baseY = sy(baseVal);
+      const strips = 60;
+      for (let s = 0; s < strips; s++){
+        const t0 = s / strips, t1 = (s + 1) / strips;
+        const xv = xMin + (xMax - xMin) * ((t0 + t1) / 2);
+        // interpolate y at xv along the polyline
+        let yv = ys[0];
+        for (let k = 0; k < pts.length - 1; k++){
+          if (xv >= pts[k].x && xv <= pts[k+1].x){
+            const f2 = (xv - pts[k].x) / ((pts[k+1].x - pts[k].x) || 1);
+            yv = pts[k].y + f2 * (pts[k+1].y - pts[k].y);
+            break;
+          }
+        }
+        const stripX = cx + cw * t0, stripW = cw / strips + 0.3;
+        const yy = sy(yv);
+        const above = yv >= baseVal;
+        f(above ? (opts.areaPos || [210,240,222]) : (opts.areaNeg || [248,224,222]));
+        const hgt = Math.abs(baseY - yy);
+        R(stripX, Math.min(baseY, yy), stripW, Math.max(0.3, hgt));
+      }
+      // the curve itself (segment lines)
+      d(col.mid || col.dark); lw(0.7); doc.setLineCap('round'); doc.setLineJoin('round');
+      for (let k = 0; k < pts.length - 1; k++){
+        _safe('curveSeg', () => doc.line(N(sx(pts[k].x)), N(sy(pts[k].y)), N(sx(pts[k+1].x)), N(sy(pts[k+1].y))));
+      }
+      doc.setLineCap('butt'); doc.setLineJoin('miter');
+      y = bot + 4;
+    };
+
     // ══════════════════════════════════════════════════════
     // BUILD DATA
     // ══════════════════════════════════════════════════════
@@ -6976,6 +7116,59 @@ function doGeneratePdf(email){
       fs(8.5); fw('bold'); tc(G.dark); T(val, rx2, y+12);
     });
     y += 18;
+
+    // ══════════════════════════════════════════════════════
+    // WHY THIS PLAN WINS — savings decomposition (Level 1 trust)
+    // ══════════════════════════════════════════════════════
+    try {
+      needPage(72);   // keep header + all levers + net line together
+      secHead('WHY THIS PLAN WINS', G);
+
+      // Decompose current vs recommended into the three levers.
+      const recE = N(best.energy_cost), recS = N(best.standing), recX = N(best.export_revenue);
+      const baseE = N(sumF(baseSim.cost)), baseS = N(baselinePlan.standing), baseX = N(baseSim.revenue ? sumF(baseSim.revenue) : 0);
+      const dEnergy  = baseE - recE;      // + = recommended is cheaper on units
+      const dStand   = baseS - recS;      // + = cheaper standing charge
+      const dExport  = recX - baseX;      // + = more export income on recommended
+
+      fs(7.5); fw('normal'); tc(SOFT);
+      const _whyIntro = splitText('Your \u20AC'+Math.round(saving).toLocaleString()+'/yr saving comes from these levers, comparing '+best.plan.plan+' against your current '+baselinePlan.plan+':', CW);
+      T(_whyIntro, M, y);
+      y += _whyIntro.length * 4.0 + 4;
+
+      const levers = [
+        ['Unit rate (energy used)', dEnergy, 'Cost of the electricity you import, at each plan\'s day/night/peak rates on your actual usage pattern.'],
+        ['Standing charge', dStand, 'The fixed daily fee, billed regardless of usage.'],
+      ];
+      if (state.has_solar || Math.abs(dExport) > 1){
+        levers.push(['Export income (CEG)', dExport, 'What you earn selling surplus solar back to the grid.']);
+      }
+
+      levers.forEach(([label, delta, note]) => {
+        needPage(14);
+        const pos = delta >= 0;
+        const col = pos ? G : RE;
+        // label + signed amount
+        fs(8.2); fw('bold'); tc(INK); T(label, M, y);
+        fs(9); fw('bold'); tc(col.dark);
+        T((pos?'+€':'-€')+Math.abs(Math.round(delta)).toLocaleString()+'/yr', M+CW, y, {align:'right'});
+        y += 4.6;
+        // proportional bar (relative to the largest absolute lever)
+        const maxAbs = Math.max.apply(null, levers.map(l => Math.abs(l[1]))) || 1;
+        hbar(M, y, CW, Math.abs(delta)/maxAbs, col.mid, [228,235,230]);
+        y += 6;
+        fs(6.5); fw('normal'); tc(DIM);
+        T(splitText(note, CW), M, y);
+        y += splitText(note, CW).length * 3.2 + 3;
+      });
+
+      // net line
+      divLine();
+      fs(8.5); fw('bold'); tc(INK); T('Net annual saving by switching', M, y);
+      fs(11); fw('bold'); tc(G.dark);
+      T('€'+Math.round(saving).toLocaleString()+'/yr', M+CW, y, {align:'right'});
+      y += 9;
+    } catch(e){ dlog('PDF','whyWins',e&&e.message); }
 
     // ══════════════════════════════════════════════════════
     // PLANS RANKED
@@ -7117,6 +7310,40 @@ function doGeneratePdf(email){
       });
       y += 22;
 
+      // ── 20-year cumulative cash-flow curve (Level 2 chart) ──────────
+      // Starts at -netCost (the day you pay for the system), then each year
+      // adds the discounted solar saving (with panel degradation, and a
+      // battery replacement at year 12 if applicable). Where it crosses zero
+      // is your payback point.
+      try {
+        needPage(64);
+        secHead('20-YEAR CUMULATIVE CASH FLOW', G);
+        fs(7); fw('normal'); tc(SOFT);
+        T(splitText('Cumulative position over 20 years. Below the line = still paying back; above = net ahead. The curve crosses break-even at about year '+(payback2<50?Math.ceil(payback2):'—')+'.', CW), M, y);
+        y += splitText('x',CW).length*3.2 + 6;
+
+        const r = 0.03, deg = (state.panel_degradation==null?0.005:state.panel_degradation);
+        const pts = [{ x:0, y:-netCost }];
+        let cum = -netCost;
+        for (let yr = 1; yr <= 20; yr++){
+          const yearBenefit = solSave * Math.pow(1 - deg, yr - 1);
+          cum += yearBenefit / Math.pow(1 + r, yr);
+          if (state.battery_kwh > 0 && yr === 12) cum -= 400 * state.battery_kwh / Math.pow(1 + r, 12);
+          pts.push({ x: yr, y: cum });
+        }
+        lineChart(pts, { h:46, col:G });
+
+        // x-axis year labels (0,5,10,15,20) + endpoint values
+        fs(5.8); fw('normal'); tc(DIM);
+        [0,5,10,15,20].forEach(yr => {
+          const px = M + (yr/20)*CW;
+          T('Y'+yr, px, y+3.5, {align: yr===0?'left':yr===20?'right':'center'});
+        });
+        fs(6.5); fw('bold'); tc(npv20>0?G.dark:RE.dark);
+        T('Year 20: '+(npv20>=0?'+€':'-€')+Math.round(Math.abs(npv20)).toLocaleString(), M+CW, y+3.5, {align:'right'});
+        y += 9;
+      } catch(e){ dlog('PDF','cashflow',e&&e.message); }
+
       // financial detail rows
       [
         ['Gross installation cost',  '€'+Math.round(state.install_cost||0).toLocaleString(), null],
@@ -7181,6 +7408,38 @@ function doGeneratePdf(email){
       y += 10 + bl.length*4.2;
     });
     y += 5;
+
+    // ── methodology & assumptions (Level 1 trust) ──────
+    needPage(46);
+    secHead('METHODOLOGY & ASSUMPTIONS', BL);
+    try {
+      const vdates = (TARIFFS||[]).map(t => t.verified_date).filter(Boolean).sort();
+      const vlatest = vdates.length ? vdates[vdates.length-1] : null;
+      const fmtV = vlatest ? new Date(vlatest).toLocaleDateString('en-IE',{day:'numeric',month:'short',year:'numeric'}) : 'bundled with this release';
+      const region = IRISH_REGIONS[state.region] || {};
+      const assume = [
+        ['Tariff rates verified', fmtV + '  ·  ' + (TARIFFS||[]).filter(t=>!t.discontinued).length + ' active plans compared'],
+        ['Usage basis', state._csv_imported ? 'Your real ESB smart-meter data (HDF)' : (state.usage_input_mode==='kwh' ? 'Your stated annual kWh, shaped by heating profile' : 'Estimated from your bill, calibrated to your current plan')],
+        ['Simulation', '8,760 hourly steps per plan across a full year'],
+        ['Region sunshine', (region.name||state.region||'East') + '  ·  ' + (region.ghi_multiplier!=null ? (region.ghi_multiplier>=1?'+':'') + Math.round((region.ghi_multiplier-1)*100) + '% vs national average' : 'national average')],
+      ];
+      if (state.has_solar){
+        assume.push(['Solar finance', '20-yr horizon · 3% discount rate · 0.5%/yr panel degradation' + (state.battery_kwh>0 ? ' · battery replacement modelled at year 12' : '')]);
+        assume.push(['SEAI grant', 'Auto-calculated to current scheme cap unless you set it manually']);
+      }
+      if (state.baseline_discount_pct > 0){
+        assume.push(['Your plan discount', state.baseline_discount_pct + '% off unit rates applied to your current plan only']);
+      }
+      assume.forEach(([l,v]) => {
+        needPage(10);
+        fs(7); fw('bold'); tc(INK); T(l, M, y);
+        fs(7); fw('normal'); tc(SOFT);
+        const vl = splitText(v, CW);
+        T(vl, M, y+4);
+        y += 5 + vl.length*3.4 + 1.5;
+      });
+      y += 2;
+    } catch(e){ dlog('PDF','methodology',e&&e.message); }
 
     // ── disclaimer ─────────────────────────────────────
     needPage(20);
@@ -8519,7 +8778,8 @@ function renderCompare(){
         <div style="margin-bottom:8px">${ic('layers',28)}</div>
         <div style="font-size:13px;color:var(--ink-soft);line-height:1.6">No saved scenarios yet.<br>Save your current setup above to get started.</div>
       </div>
-    </div>`;
+    </div>
+    ${bottomNav()}`;
   }
 
   // ── Scenario list (each row: load / compare-toggle / delete) ───────
@@ -8553,7 +8813,8 @@ function renderCompare(){
     ${sel.length >= 2 ? renderCompareTable(sel) : `<div class="card" style="padding:14px 16px;background:var(--blue-soft);border-color:var(--blue);margin-bottom:14px"><div style="font-size:12px;color:var(--ink);line-height:1.55">${ic('info',14,'vertical-align:-2px')} Tick <b>2 or more</b> scenarios below to see them side by side.</div></div>`}
     <div class="section-title" style="margin-top:6px">Saved scenarios · ${scenarios.length}/12</div>
     ${list}
-  </div>`;
+  </div>
+  ${bottomNav()}`;
 }
 
 // Side-by-side comparison table across all meaningful metrics.
@@ -9203,6 +9464,7 @@ function renderApp(){
   }
   // Onboarding flow — also re-enterable after completion (guided re-setup from Home)
   if (state.current_screen === 'onboarding'){
+    root.setAttribute('data-chrome','bare');
     root.innerHTML = renderOnboarding();
     bindOnboarding();
     return;
@@ -9210,6 +9472,7 @@ function renderApp(){
   // First-ever load — go to the landing page
   if (!state.onboarding_complete){
     state.current_screen = 'welcome';
+    root.setAttribute('data-chrome','bare');
     root.innerHTML = renderWelcome();
     return;
   }
@@ -9233,6 +9496,7 @@ function renderApp(){
     case 'csv-import':   html = renderCsvImport(); break;
     default:             html = renderResult();
   }
+  root.setAttribute('data-chrome','app');
   root.innerHTML = html;
   if (state.current_screen === 'auditor')    bindAuditor();
   if (state.current_screen === 'refine')     bindRefine();
