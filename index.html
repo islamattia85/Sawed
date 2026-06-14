@@ -8302,7 +8302,15 @@ function refineChanged(){
   if (azBEl) state.azimuth_B = azimuthFromSector(azBEl.value);
   numIf('rf-pw', 'panel_w');
   numIf('rf-inv', 'inverter_kw');
+  const _battWas = state.battery_kwh || 0;
   numIf('rf-batt', 'battery_kwh');
+  // Battery added from zero: a prior no-battery state forces self-consume, which
+  // would otherwise leave a freshly-added battery stuck on self-consume. Default
+  // a newly-added battery to arbitrage (the better choice for most owners).
+  if (_battWas === 0 && (state.battery_kwh || 0) > 0){
+    state.strategy_mode = 'arbitrage';
+    state.charge_from_grid = true;
+  }
   // Auto-set has_solar based on whether they have any panels
   state.has_solar = (state.count_A + state.count_B) > 0;
   numIf('rf-cost', 'install_cost');
