@@ -855,6 +855,26 @@
   .fp-foot{font-family:var(--mono);font-size:10px;color:var(--ink-dim);text-align:center;margin-top:12px;letter-spacing:.05em}
   .fp-customise{text-align:center;margin-top:16px;color:var(--ink-soft);font-size:12.5px;text-decoration:underline;cursor:pointer}
 
+  /* ======================================================
+     Accessibility: honour the OS "reduce motion" setting.
+     Users with vestibular sensitivity (or who just prefer calm UIs)
+     get near-instant transitions instead of animations.
+     ====================================================== */
+  /* Keyboard focus ring for custom (non-native) controls */
+  [role="button"]:focus-visible, .bottom-nav-item:focus-visible,
+  .ob-plan-option:focus-visible, [tabindex]:focus-visible{
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -1113,7 +1133,8 @@ const DEFAULT_STATE = {
   switch_history: [],           // [{date, planId, planName, savings}] — retention ledger
   solar_is_estimate: false,     // true when system spec came from our defaults, not the user
   switched_to: null,            // id of plan the user marked as "switched to"
-  switched_date: null           // ISO date when they switched
+  switched_date: null,          // ISO date when they switched
+  schema_version: 2             // bump + add a migrateState case when a field's MEANING changes
 };
 
 let state;
@@ -1121,10 +1142,36 @@ try {
   const raw = localStorage.getItem("solarAppState_v2");
   state = raw ? JSON.parse(raw) : structuredClone(DEFAULT_STATE);
   state = deepMerge(structuredClone(DEFAULT_STATE), state);
+  // First visit only: honour the device's OS dark/light preference as the
+  // starting theme. Once the user picks a theme themselves it's saved and wins.
+  if (!raw){
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches){
+        state.theme = 'dark';
+      }
+    } catch(e){}
+  }
   // Migration: users who declared an owned EV before ev_in_bill existed — their
   // entered bill includes the car's charging, so carve it out of the base load
   if (state.ev_active && raw && JSON.parse(raw).ev_in_bill === undefined) state.ev_in_bill = true;
+  // Versioned migrations — deepMerge already backfills NEW fields with defaults,
+  // so this is only for cases where an EXISTING field's meaning/shape changes.
+  if (raw) migrateState(JSON.parse(raw));
 } catch(e){ state = structuredClone(DEFAULT_STATE); }
+
+// Transform an older saved state to the current schema. Each case handles one
+// version step; they run in order so a very old state migrates fully. Keep each
+// step small and reversible-in-spirit. Bump DEFAULT_STATE.schema_version when
+// you add a case here.
+function migrateState(saved){
+  try {
+    let v = (saved && typeof saved.schema_version === 'number') ? saved.schema_version : 1;
+    // v1 → v2: schema_version field introduced; nothing structural changed, so
+    // just stamp the current version. (Future steps go here as: if (v < 3) {...} )
+    if (v < 2){ v = 2; }
+    state.schema_version = Math.max(v, DEFAULT_STATE.schema_version);
+  } catch(e){ /* leave state as merged defaults */ }
+}
 
 function deepMerge(target, source){
   if (typeof source !== "object" || source === null) return source;
@@ -3661,6 +3708,7 @@ function renderOnboarding(){
           return `<span class="${n < _ob.step ? 'done' : n === _ob.step ? 'current' : ''}"></span>`;
         }).join('')}
       </div>
+      <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink-dim);letter-spacing:.04em;margin:-22px 0 22px;text-align:center">${ic('info',10)} Takes about 2 minutes · you can change anything later</div>
       <div class="ob-content">${renderObStep(_ob.step)}</div>
       <div class="ob-nav">
         ${_ob.step > 1 ? `<button class="ob-back-btn" onclick="obBack()">← Back</button>` : ''}
@@ -4245,6 +4293,17 @@ function checkTariffStaleness(){
   return days > 45 ? { days, date: mostRecent } : null;
 }
 
+// Most-recent tariff verified date, formatted for display (always shown, to
+// make data freshness visible and build trust — separate from the >45-day
+// staleness warning).
+function latestVerifiedLabel(){
+  try {
+    const dates = (TARIFFS||[]).map(t => t.verified_date).filter(Boolean).sort();
+    if (!dates.length) return '';
+    return fmtVerifiedDate(dates[dates.length - 1]);
+  } catch(e){ return ''; }
+}
+
 function fmtVerifiedDate(isoDate){
   if (!isoDate) return '';
   const d = new Date(isoDate);
@@ -4724,6 +4783,11 @@ function renderResult(){
         </div>`;
       })()}
       <div class="qr-sub">Based on ${Math.round(Object.values(state.bills).reduce((a,b)=>a+b,0)).toLocaleString()} kWh/yr usage · ${state.heating_type} heating · ${setupLabel}</div>
+      ${!state._csv_imported ? `<div style="margin-top:7px;font-family:var(--mono);font-size:10px;color:var(--ink-dim);line-height:1.6;display:flex;align-items:center;gap:5px;justify-content:center;flex-wrap:wrap">
+        <span>${ic('info',11)} Estimated from your bill.</span>
+        <a href="#" onclick="event.preventDefault(); setScreen('csv-import')" style="color:var(--accent);text-decoration:underline">Import smart-meter data</a>
+        <span>for precise results.</span>
+      </div>` : `<div style="margin-top:7px;font-family:var(--mono);font-size:10px;color:var(--accent);line-height:1.6;display:flex;align-items:center;gap:5px;justify-content:center">${ic('checkC',11)} Based on your real smart-meter data</div>`}
       ${configChips()}
     </div>
 
@@ -4743,9 +4807,11 @@ function renderResult(){
           <div class="plan-label">→ Switch to</div>
           <div class="plan-value">${best.plan.supplier} — ${best.plan.plan}</div>
         </div>
-        <div class="plan-amount">${fmtCurrency(best.net)}/yr</div>
+        <div class="plan-amount">${best.net <= 0 ? 'Net earner' : fmtCurrency(best.net)+'/yr'}</div>
       </div>
-      ${state.has_solar && best.net < 400 && best.export_revenue > 50 ? `
+      ${best.net <= 0 ? `
+      <div style="font-family:var(--mono);font-size:10px;color:var(--accent);margin-top:4px;letter-spacing:.03em">${ic('checkC',11)} Your system more than covers your usage — you'd earn about ${fmtCurrency(Math.round(Math.abs(best.net)))}/yr net from export income</div>`
+      : state.has_solar && best.net < 400 && best.export_revenue > 50 ? `
       <div style="font-family:var(--mono);font-size:10px;color:var(--ink-dim);margin-top:4px;letter-spacing:.03em">Net of ${fmtCurrency(Math.round(best.export_revenue))}/yr export income — your panels offset most of this bill</div>` : ''}
     </div>
 
@@ -5765,6 +5831,7 @@ function renderPlans(){
     <div class="plans-context">
       <div><span class="plans-context-label">Ranking for</span><b>${annualKwh.toLocaleString()} kWh/yr</b> · <b>${state.heating_type}</b> heating · ${ic('pin',11)} <b>${region.name}</b></div>
       <div style="margin-top:3px"><span class="plans-context-label">System</span>${state.has_solar ? `<b>${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ' + ' + state.battery_kwh + ' kWh battery' : ''}</b>` : '<b>no solar</b>'} · ${state.ev_active ? `<b style="color:var(--amber)">EV ${(state.ev_km_per_year || 0).toLocaleString()} km/yr</b>` : 'no EV'}</div>
+      ${latestVerifiedLabel() ? `<div class="plan-verified" style="margin-top:6px">Rates verified ${latestVerifiedLabel()} · ${TARIFFS.filter(t=>!t.discontinued).length} active plans</div>` : ''}
     </div>
 
     <div class="plans-filters">
@@ -7193,7 +7260,7 @@ function doGeneratePdf(email){
     fs(6.5); fw('bold'); tc(SOFT);
     T('RANK  PLAN', M+3, y+4.8);
     T('ANNUAL COST', M+CW-3, y+4.8, {align:'right'});
-    T('SAVING vs MOST EXPENSIVE', M+CW-57, y+4.8);
+    T('SAVING vs MOST EXPENSIVE', M+CW-70, y+4.8);
     y += 7.5;
 
     ranked.forEach((r,i) => {
@@ -7207,13 +7274,15 @@ function doGeneratePdf(email){
       if (isBest) icoCheck(M+4, y+1.6, 2.4, G.mid);
       T((i+1)+'.  '+r.t.supplier+' — '+r.t.plan, M+(isBest?8.5:4), y+5);
 
-      fs(8); fw('bold'); tc(isBest?G.dark:[80,90,85]);
-      T('€'+Math.round(r.net).toLocaleString(), M+CW-4, y+5, {align:'right'});
+      // saving bar — drawn FIRST so the cost text always sits on top, and the
+      // bar is narrowed + shifted left so it never underlaps the cost figure.
+      const barW = 40, barX = M+CW-30-barW, saving2 = maxNet-r.net, frac = saving2/netRange;
+      f(215,228,222); R(barX,y+1.8,barW,3.5);
+      f(isBest?G.mid:BL.dark); R(barX,y+1.8,Math.max(0.5,barW*frac),3.5);
 
-      // saving bar
-      const barX = M+CW-57, saving2 = maxNet-r.net, frac = saving2/netRange;
-      f(215,228,222); R(barX,y+1.8,48,3.5);
-      f(isBest?G.mid:BL.dark); R(barX,y+1.8,Math.max(0.5,48*frac),3.5);
+      // cost (drawn last, on top, with clear gap from the bar)
+      fs(8); fw('bold'); tc(isBest?G.dark:[80,90,85]);
+      T('\u20AC'+Math.round(r.net).toLocaleString(), M+CW-4, y+5, {align:'right'});
       y += 7.5;
     });
     y += 4;
@@ -7954,14 +8023,14 @@ function renderRefine(){
     `)}
 
     ${section('solar', ic('sun',17), 'Solar system', solarSummary, state.considering_solar ? `
-      ${refineRow('Front roof — panels', 'Number of panels on your main roof', refineNum('rf-cA', state.count_A, 0, 40, 1, ''))}
+      ${refineRow('Front roof — panels', state.count_A > 30 ? "\u26A0 That is a large array for one roof — double-check the count" : 'Number of panels on your main roof', refineNum('rf-cA', state.count_A, 0, 40, 1, ''))}
       ${refineRow('Front roof — orientation', sectorFromAzimuth(state.azimuth_A) + ' (' + state.azimuth_A + '°)', refineSel('rf-azA', sectorFromAzimuth(state.azimuth_A), [['S','South'],['SE','Southeast'],['SW','Southwest'],['E','East'],['W','West'],['NE','Northeast'],['NW','Northwest'],['N','North']]))}
       ${refineRow('Front roof — tilt', '', refineNum('rf-tiltA', state.tilt_A, 0, 90, 1, '°'))}
-      ${refineRow('Back roof — panels', '0 if single roof', refineNum('rf-cB', state.count_B, 0, 40, 1, ''))}
+      ${refineRow('Back roof — panels', state.count_B > 30 ? "\u26A0 Unusually large for a second roof — sure?" : '0 if single roof', refineNum('rf-cB', state.count_B, 0, 40, 1, ''))}
       ${state.count_B > 0 ? refineRow('Back roof — orientation', sectorFromAzimuth(state.azimuth_B) + ' (' + state.azimuth_B + '°)', refineSel('rf-azB', sectorFromAzimuth(state.azimuth_B), [['S','South'],['SE','Southeast'],['SW','Southwest'],['E','East'],['W','West'],['NE','Northeast'],['NW','Northwest'],['N','North']])) + refineRow('Back roof — tilt', '', refineNum('rf-tiltB', state.tilt_B, 0, 90, 1, '°')) : ''}
       ${refineRow('Panel wattage (W)', 'Check your installer spec sheet — modern N-type: 420–480W, older panels: 250–350W.', refineNum('rf-pw', state.panel_w, 200, 700, 5, 'W'))}
       ${refineRow('Inverter size (kW)', 'Max AC output. Typical Irish home: 4.6–6kW. Should roughly match your total array kWp.', refineNum('rf-inv', state.inverter_kw, 1, 20, 0.5, 'kW'))}
-      ${refineRow('Battery storage (kWh)', 'Enter 0 if no battery. A 9 kWh battery covers a typical family evening.', refineNum('rf-batt', state.battery_kwh, 0, 50, 0.5, 'kWh'))}
+      ${refineRow('Battery storage (kWh)', state.battery_kwh > 30 ? "\u26A0 That is a very large home battery — double-check the size" : 'Enter 0 if no battery. A 9 kWh battery covers a typical family evening.', refineNum('rf-batt', state.battery_kwh, 0, 50, 0.5, 'kWh'))}
       ${refineRow('Install cost (gross)', '', refineNum('rf-cost', state.install_cost, 0, 50000, 100, '€'))}
       ${refineRow('SEAI grant', state.grant_is_manual ? 'Your value — auto-calc paused until you edit it again' : 'Auto-calculated from your system — sticks once you edit it', refineNum('rf-grant', state.grant_seai, 0, 5000, 100, '€'))}
     ` : `
@@ -8397,6 +8466,37 @@ function applyTheme(){
   if (!meta){ meta = document.createElement('meta'); meta.name = 'theme-color'; document.head.appendChild(meta); }
   meta.content = pal.bg;
 }
+// Accessibility layer — runs after every render. Makes every non-native
+// clickable element (mostly <div onclick>) keyboard- and screen-reader-
+// operable without hand-editing ~180 call sites: adds role, tabindex, and
+// Enter/Space activation, and a label derived from its text. Idempotent.
+function enhanceA11y(){
+  try {
+    const root = document.getElementById('app-root');
+    if (!root) return;
+    const nodes = root.querySelectorAll('[onclick]');
+    nodes.forEach(el => {
+      const tag = el.tagName;
+      // Native controls are already accessible — skip.
+      if (tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      if (el.getAttribute('data-a11y') === '1') return;   // already done this render cycle
+      el.setAttribute('data-a11y', '1');
+      if (!el.hasAttribute('role')) el.setAttribute('role', 'button');
+      if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+      if (!el.hasAttribute('aria-label')){
+        const label = (el.getAttribute('aria-label') || el.textContent || '').trim().replace(/\s+/g,' ').slice(0, 80);
+        if (label) el.setAttribute('aria-label', label);
+      }
+      el.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar'){
+          e.preventDefault();
+          el.click();
+        }
+      });
+    });
+  } catch(e){}
+}
+
 function setTheme(t){
   state.theme = t === 'dark' ? 'dark' : 'light';
   applyTheme();
@@ -9472,6 +9572,7 @@ function renderApp(){
     root.setAttribute('data-chrome','bare');
     root.innerHTML = renderOnboarding();
     bindOnboarding();
+    enhanceA11y();
     return;
   }
   // First-ever load — go to the landing page
@@ -9479,6 +9580,7 @@ function renderApp(){
     state.current_screen = 'welcome';
     root.setAttribute('data-chrome','bare');
     root.innerHTML = renderWelcome();
+    enhanceA11y();
     return;
   }
   // Post-onboarding screens
@@ -9506,6 +9608,7 @@ function renderApp(){
   if (state.current_screen === 'auditor')    bindAuditor();
   if (state.current_screen === 'refine')     bindRefine();
   if (state.current_screen === 'csv-import') bindCsvImport();
+  enhanceA11y();
 }
 
 /* ============================================================
