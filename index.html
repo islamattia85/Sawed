@@ -2838,9 +2838,19 @@ function applyOptimisation(id){
   if (!o) return;
   const opt = ((CACHE._opt && CACHE._opt.suggest) || []).find(x => x.id === id);
   Object.assign(state, o.overrides);
-  invalidate();
+  invalidate();   // may sanitise the change back (e.g. arbitrage needs a battery)
   saveState();
-  showToast(`Applied — worth about ${opt ? fmtCurrency(opt.delta) : ''}/yr on your setup`, { type:'accent', icon:ic('checkC',16), title:o.title });
+  // Verify the override actually held — invalidate() reverts impossible combos
+  // (arbitrage with no battery, etc). Only claim success if it truly applied,
+  // so we never show "Applied" while the engine silently reverted it.
+  const held = Object.keys(o.overrides).every(k => state[k] === o.overrides[k]);
+  if (held){
+    showToast(`Applied — worth about ${opt ? fmtCurrency(opt.delta) : ''}/yr on your setup`, { type:'accent', icon:ic('checkC',16), title:o.title });
+  } else if (id === 'arbitrage' && (state.battery_kwh || 0) === 0){
+    showToast('Battery arbitrage needs a home battery — add one in Settings first.', { type:'amber', icon:ic('warn',16), title:'No battery to charge' });
+  } else {
+    showToast('That setting doesn\'t apply to your current setup.', { type:'amber', icon:ic('warn',16) });
+  }
   renderApp();
 }
 
