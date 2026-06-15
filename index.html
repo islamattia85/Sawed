@@ -10697,7 +10697,7 @@ window.showToast = showToast;
   try {
     if ("serviceWorker" in navigator) {
       var SW_SRC = [
-        "const CACHE = 'solar-optimiser-v1';",
+        "const CACHE = 'solar-optimiser-v3';",
         "const APP_URL = self.registration.scope;",
         "self.addEventListener('install', function(e){ self.skipWaiting(); });",
         "self.addEventListener('activate', function(e){",
@@ -10726,7 +10726,7 @@ window.showToast = showToast;
         "  if (isDoc) {",
         "    e.respondWith((async function(){",
         "      try {",
-        "        const res = await fetch(req);",
+        "        const res = await fetch(req, { cache: 'reload' });",
         "        const cache = await caches.open(CACHE);",
         "        cache.put(req, res.clone());",
         "        return res;",
@@ -10743,7 +10743,28 @@ window.showToast = showToast;
       var swBlob = new Blob([SW_SRC], { type: "text/javascript" });
       var swUrl = URL.createObjectURL(swBlob);
       window.addEventListener("load", function(){
-        navigator.serviceWorker.register(swUrl).catch(function(){ /* offline support optional */ });
+        navigator.serviceWorker.register(swUrl, { updateViaCache: "none" }).then(function(reg){
+          // Force an update check every launch so the installed PWA never lingers
+          // on a stale build. When a new worker activates, reload once to swap in
+          // the fresh code (guarded so it only reloads a single time).
+          try { reg.update(); } catch (e) {}
+          reg.addEventListener("updatefound", function(){
+            var nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener("statechange", function(){
+              if (nw.state === "activated" && navigator.serviceWorker.controller && !window.__sw_reloaded){
+                window.__sw_reloaded = true;
+                location.reload();
+              }
+            });
+          });
+        }).catch(function(){ /* offline support optional */ });
+        // Belt-and-braces: if the controller changes (new SW took over), reload once.
+        var refreshing = false;
+        navigator.serviceWorker.addEventListener("controllerchange", function(){
+          if (refreshing) return; refreshing = true;
+          if (!window.__sw_reloaded){ window.__sw_reloaded = true; location.reload(); }
+        });
       });
     }
   } catch (e) { /* service worker optional — app still works online */ }
