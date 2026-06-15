@@ -4848,47 +4848,6 @@ function renderResult(){
       <div class="secondary-card-arrow">›</div>
     </div>
 
-    <div class="secondary-card" onclick="setScreen('how-to-switch')">
-      <div class="secondary-card-icon">${ic('swap',19)}</div>
-      <div class="secondary-card-body">
-        <div class="secondary-card-title">How switching works</div>
-        <div class="secondary-card-sub">10–15 working days · you never lose power</div>
-      </div>
-      <div class="secondary-card-arrow">›</div>
-    </div>
-
-    ${annualSavings > 25 ? `
-    <div class="secondary-card" onclick="shareSavingsCard()">
-      <div class="secondary-card-icon">${ic('spark',19)}</div>
-      <div class="secondary-card-body">
-        <div class="secondary-card-title">Challenge a friend</div>
-        <div class="secondary-card-sub">Share your €${Math.round(annualSavings).toLocaleString()}/yr savings card — no personal details included</div>
-      </div>
-      <div class="secondary-card-arrow">›</div>
-    </div>` : ''}
-
-    <div class="section-title">Check my solar quote</div>
-
-    <div class="secondary-card blue" onclick="setScreen('auditor')">
-      <div class="secondary-card-icon">${ic('clip',19)}</div>
-      <div class="secondary-card-body">
-        <div class="secondary-card-title">Audit an installer's quote</div>
-        <div class="secondary-card-sub">Paste a quote → get an objective verdict against 2026 Irish prices</div>
-      </div>
-      <div class="secondary-card-arrow">›</div>
-    </div>
-
-    <div class="secondary-card" onclick="setScreen('quotes')">
-      <div class="secondary-card-icon">${ic('scales',19)}</div>
-      <div class="secondary-card-body">
-        <div class="secondary-card-title">Compare installer quotes</div>
-        <div class="secondary-card-sub">Side-by-side against our independent model</div>
-      </div>
-      <div class="secondary-card-arrow">›</div>
-    </div>
-
-    <div class="section-title">Optimise my home</div>
-
     ${state.has_solar ? `
       <div class="secondary-card amber" onclick="setScreen('solar')">
         <div class="secondary-card-icon">${ic('sun',19)}</div>
@@ -4909,14 +4868,17 @@ function renderResult(){
       </div>
     `}
 
-    <div class="secondary-card blue" onclick="setScreen('analytics')">
-      <div class="secondary-card-icon">${ic('flask',19)}</div>
+    ${annualSavings > 25 ? `
+    <div class="secondary-card" onclick="shareSavingsCard()">
+      <div class="secondary-card-icon">${ic('spark',19)}</div>
       <div class="secondary-card-body">
-        <div class="secondary-card-title">Advanced analytics <span style="font-family:var(--mono);font-size:8.5px;font-weight:700;letter-spacing:.08em;color:var(--blue);border:1px solid var(--blue);border-radius:999px;padding:2px 7px;vertical-align:2px;margin-left:4px;white-space:nowrap;display:inline-block">PRO · FREE IN BETA</span></div>
-        <div class="secondary-card-sub">Hourly simulation, tariff bands, battery flows — for energy nerds</div>
+        <div class="secondary-card-title">Challenge a friend</div>
+        <div class="secondary-card-sub">Share your €${Math.round(annualSavings).toLocaleString()}/yr savings card — no personal details included</div>
       </div>
       <div class="secondary-card-arrow">›</div>
-    </div>
+    </div>` : ''}
+
+    <div class="section-title">This result</div>
 
     <div class="secondary-card" onclick="openPdfReportModal()">
       <div class="secondary-card-icon">${ic('doc',19)}</div>
@@ -4944,17 +4906,6 @@ function renderResult(){
       </div>
       <div class="secondary-card-arrow">›</div>
     </div>
-
-    ${state._csv_imported ? '' : `
-    <div class="secondary-card" onclick="setScreen('csv-import')">
-      <div class="secondary-card-icon">${ic('chart',19)}</div>
-      <div class="secondary-card-body">
-        <div class="secondary-card-title">Import smart meter data</div>
-        <div class="secondary-card-sub">Use real 30-min ESB interval data instead of estimates</div>
-      </div>
-      <div class="secondary-card-arrow">›</div>
-    </div>
-    `}
 
     <p class="disclaimer">
       <b>How we estimate.</b> We ${state._csv_imported ? 'used your imported smart meter CSV data' : `back-calculated your kWh from your €${state.bimonthly_bill_eur} bimonthly bill and applied a ${state.heating_type} load shape`}. Edit anything in <a onclick="setScreen('refine')" style="cursor:pointer;padding:12px 6px;margin:-12px -6px;display:inline-block">Settings</a> for more accuracy. <a onclick="setScreen('methodology')" style="cursor:pointer;padding:12px 6px;margin:-12px -6px;display:inline-block">About our methodology →</a>
@@ -9005,14 +8956,8 @@ function renderMore(){
   const groups = [
     ['Your data', [
       [ic('csv',19),'Import smart-meter data','ESB Networks CSV — the most accurate result','csv-import'],
-      [ic('tune',19),'Settings','Home, solar system, EV, tariff & data','refine'],
-    ]],
-    ['Solar tools', [
-      [ic('scales',19),'Compare installer quotes','Check quotes against our independent model','quotes'],
-      [ic('clip',19),'Audit a quote','Benchmark price vs 2026 Irish market','auditor'],
     ]],
     ['Understand the numbers', [
-      [ic('chart',19),'Analytics','Day inspector, monthly flows, tariff bands','analytics'],
       [ic('flask',19),'Methodology','Data sources & how the engine works','methodology'],
     ]],
     ['Trust & help', [
