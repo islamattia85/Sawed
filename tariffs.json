@@ -1,11 +1,36 @@
 [
   {
+    "id": "__meta__",
+    "last_scraped": "2026-07-23",
+    "scraper_version": "1.0",
+    "cru_warnings": [
+      "Possible new supplier detected on CRU page: 'Learn More Compare Energy'",
+      "Possible new supplier detected on CRU page: 'Learn More Energy'",
+      "Possible new supplier detected on CRU page: 'Learn More Fixed Energy'"
+    ]
+  },
+  {
     "id": "EI-DYN",
     "supplier": "Electric Ireland",
     "plan": "Dynamic Price Plan",
     "type": "dynamic",
-    "rates": { "day": 0.1981, "night": 0.0852, "peak": 0.2255, "ev": 0.0852 },
-    "windows": { "peak": [17, 19], "night": [23, 8], "ev": null },
+    "rates": {
+      "day": 0.1981,
+      "night": 0.0852,
+      "peak": 0.2255,
+      "ev": 0.0852
+    },
+    "windows": {
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
     "standing": 328.58,
     "exit": 50,
     "length": 12,
@@ -19,8 +44,15 @@
     "supplier": "Bord Gáis",
     "plan": "Smart Dynamic",
     "type": "dynamic",
-    "rates": { "day": 0.1673, "night": 0.1673, "peak": 0.1673, "ev": 0.1673 },
-    "windows": { "ev": null },
+    "rates": {
+      "day": 0.1673,
+      "night": 0.1673,
+      "peak": 0.1673,
+      "ev": 0.1673
+    },
+    "windows": {
+      "ev": null
+    },
     "standing": 331.96,
     "exit": 50,
     "length": 12,
@@ -34,8 +66,23 @@
     "supplier": "Energia",
     "plan": "Dynamic Rates",
     "type": "dynamic",
-    "rates": { "day": 0.2197, "night": 0.1251, "peak": 0.2292, "ev": 0.1251 },
-    "windows": { "peak": [17, 19], "night": [23, 8], "ev": null },
+    "rates": {
+      "day": 0.2197,
+      "night": 0.1251,
+      "peak": 0.2292,
+      "ev": 0.1251
+    },
+    "windows": {
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
     "standing": 299.75,
     "exit": 50,
     "length": 12,
@@ -49,8 +96,15 @@
     "supplier": "Electric Ireland",
     "plan": "Home Dual+ 24hr",
     "type": "flat",
-    "rates": { "day": 0.3114, "night": 0.3114, "peak": 0.3114, "ev": 0.3114 },
-    "windows": { "ev": null },
+    "rates": {
+      "day": 0.3114,
+      "night": 0.3114,
+      "peak": 0.3114,
+      "ev": 0.3114
+    },
+    "windows": {
+      "ev": null
+    },
     "standing": 328.58,
     "exit": 50,
     "length": 12,
@@ -64,8 +118,15 @@
     "supplier": "Energia",
     "plan": "Standard 24hr",
     "type": "flat",
-    "rates": { "day": 0.2986, "night": 0.2986, "peak": 0.2986, "ev": 0.2986 },
-    "windows": { "ev": null },
+    "rates": {
+      "day": 0.2986,
+      "night": 0.2986,
+      "peak": 0.2986,
+      "ev": 0.2986
+    },
+    "windows": {
+      "ev": null
+    },
     "standing": 265.01,
     "exit": 50,
     "length": 12,
@@ -79,8 +140,15 @@
     "supplier": "Bord Gáis",
     "plan": "Smart All Day",
     "type": "flat",
-    "rates": { "day": 0.3078, "night": 0.3078, "peak": 0.3078, "ev": 0.3078 },
-    "windows": { "ev": null },
+    "rates": {
+      "day": 0.3078,
+      "night": 0.3078,
+      "peak": 0.3078,
+      "ev": 0.3078
+    },
+    "windows": {
+      "ev": null
+    },
     "standing": 244.76,
     "exit": 50,
     "length": 12,
@@ -94,8 +162,15 @@
     "supplier": "SSE Airtricity",
     "plan": "1 Year Fixed 24hr Smart",
     "type": "flat",
-    "rates": { "day": 0.3152, "night": 0.3152, "peak": 0.3152, "ev": 0.3152 },
-    "windows": { "ev": null },
+    "rates": {
+      "day": 0.3152,
+      "night": 0.3152,
+      "peak": 0.3152,
+      "ev": 0.3152
+    },
+    "windows": {
+      "ev": null
+    },
     "standing": 240.97,
     "exit": 50,
     "length": 12,
@@ -109,8 +184,15 @@
     "supplier": "Yuno Energy",
     "plan": "Standard Smart Plan",
     "type": "flat",
-    "rates": { "day": 0.2524, "night": 0.2524, "peak": 0.2524, "ev": 0.2524 },
-    "windows": { "ev": null },
+    "rates": {
+      "day": 0.2524,
+      "night": 0.2524,
+      "peak": 0.2524,
+      "ev": 0.2524
+    },
+    "windows": {
+      "ev": null
+    },
     "standing": 219.22,
     "exit": 50,
     "length": 12,
@@ -124,9 +206,16 @@
     "supplier": "Flogas",
     "plan": "Smart 24hr",
     "type": "flat",
-    "rates": { "day": 0.3024, "night": 0.3024, "peak": 0.3024, "ev": 0.3024 },
-    "windows": { "ev": null },
-    "standing": 234.50,
+    "rates": {
+      "day": 0.3024,
+      "night": 0.3024,
+      "peak": 0.3024,
+      "ev": 0.3024
+    },
+    "windows": {
+      "ev": null
+    },
+    "standing": 234.5,
     "exit": 50,
     "length": 12,
     "green": false,
@@ -139,13 +228,28 @@
     "supplier": "Pinergy",
     "plan": "Lifestyle Standard Smart Tariff",
     "type": "tou",
-    "rates": { "day": 0.4177, "night": 0.3177, "peak": 0.4472, "ev": 0.3177 },
-    "windows": { "peak": [17, 19], "night": [23, 8], "ev": null },
+    "rates": {
+      "day": 0.4177,
+      "night": 0.3177,
+      "peak": 0.4472,
+      "ev": 0.3177
+    },
+    "windows": {
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
     "standing": 283.47,
     "exit": 50,
     "length": 12,
     "green": true,
-    "export_rate": 0.250,
+    "export_rate": 0.25,
     "verified_date": "2026-06-02",
     "notes": "3-band ToU (verified pinergy.ie 22 May 2026). Day 8-23h, Night 23-8h, Peak 17-19h. Best export rate (25c)."
   },
@@ -154,13 +258,26 @@
     "supplier": "Pinergy",
     "plan": "Lifestyle Working from Home Time",
     "type": "tou",
-    "rates": { "day": 0.2924, "night": 0.4177, "peak": 0.4177, "ev": 0.4177 },
-    "windows": { "peak": null, "night": null, "ev": null, "wfh": [9, 17] },
+    "rates": {
+      "day": 0.2924,
+      "night": 0.4177,
+      "peak": 0.4177,
+      "ev": 0.4177
+    },
+    "windows": {
+      "peak": null,
+      "night": null,
+      "ev": null,
+      "wfh": [
+        9,
+        17
+      ]
+    },
     "standing": 283.47,
     "exit": 50,
     "length": 12,
     "green": true,
-    "export_rate": 0.250,
+    "export_rate": 0.25,
     "verified_date": "2026-06-02",
     "notes": "29.24c Mon-Fri 9-5, 41.77c otherwise. Best for daytime-occupied homes."
   },
@@ -169,13 +286,25 @@
     "supplier": "Pinergy",
     "plan": "Lifestyle Family Time",
     "type": "tou",
-    "rates": { "day": 0.4177, "night": 0.2506, "peak": 0.4177, "ev": 0.4177 },
-    "windows": { "peak": null, "night": [19, 24], "ev": null },
+    "rates": {
+      "day": 0.4177,
+      "night": 0.2506,
+      "peak": 0.4177,
+      "ev": 0.4177
+    },
+    "windows": {
+      "peak": null,
+      "night": [
+        19,
+        24
+      ],
+      "ev": null
+    },
     "standing": 283.47,
     "exit": 50,
     "length": 12,
     "green": true,
-    "export_rate": 0.250,
+    "export_rate": 0.25,
     "verified_date": "2026-06-02",
     "notes": "25.06c every day 7pm-midnight, 41.77c otherwise."
   },
@@ -184,8 +313,23 @@
     "supplier": "Electric Ireland",
     "plan": "Home Dual+ SST",
     "type": "tou",
-    "rates": { "day": 0.3388, "night": 0.1780, "peak": 0.3614, "ev": 0.1780 },
-    "windows": { "peak": [17, 19], "night": [23, 8], "ev": null },
+    "rates": {
+      "day": 0.3388,
+      "night": 0.178,
+      "peak": 0.3614,
+      "ev": 0.178
+    },
+    "windows": {
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
     "standing": 328.58,
     "exit": 50,
     "length": 12,
@@ -199,8 +343,23 @@
     "supplier": "Energia",
     "plan": "Smart Data",
     "type": "tou",
-    "rates": { "day": 0.3075, "night": 0.1691, "peak": 0.3454, "ev": 0.1691 },
-    "windows": { "peak": [17, 19], "night": [23, 8], "ev": null },
+    "rates": {
+      "day": 0.3075,
+      "night": 0.1691,
+      "peak": 0.3454,
+      "ev": 0.1691
+    },
+    "windows": {
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
     "standing": 265.01,
     "exit": 50,
     "length": 12,
@@ -214,14 +373,29 @@
     "supplier": "Bord Gáis",
     "plan": "Smart Standard Electricity",
     "type": "tou",
-    "rates": { "day": 0.3289, "night": 0.2428, "peak": 0.4004, "ev": 0.2428 },
-    "windows": { "peak": [17, 19], "night": [23, 8], "ev": null },
+    "rates": {
+      "day": 0.3523,
+      "night": 0.2428,
+      "peak": 0.4004,
+      "ev": 0.2428
+    },
+    "windows": {
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
     "standing": 244.76,
     "exit": 50,
     "length": 12,
     "green": true,
     "export_rate": 0.185,
-    "verified_date": "2026-06-02",
+    "verified_date": "2026-07-23",
     "notes": "VERIFIED bordgaisenergy.ie/home/ev-plan-comparison. 26% new-customer discount. Standing €244.76. CEG 18.5c."
   },
   {
@@ -229,8 +403,23 @@
     "supplier": "SSE Airtricity",
     "plan": "1 Year Fixed Smart Day/Night/Peak",
     "type": "tou",
-    "rates": { "day": 0.3320, "night": 0.2096, "peak": 0.4010, "ev": 0.2096 },
-    "windows": { "peak": [17, 19], "night": [23, 8], "ev": null },
+    "rates": {
+      "day": 0.332,
+      "night": 0.2096,
+      "peak": 0.401,
+      "ev": 0.2096
+    },
+    "windows": {
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
     "standing": 302.48,
     "exit": 50,
     "length": 12,
@@ -244,8 +433,23 @@
     "supplier": "Yuno Energy",
     "plan": "Smart Day/Night/Peak",
     "type": "tou",
-    "rates": { "day": 0.2998, "night": 0.1645, "peak": 0.3499, "ev": 0.1645 },
-    "windows": { "peak": [17, 19], "night": [23, 8], "ev": null },
+    "rates": {
+      "day": 0.2998,
+      "night": 0.1645,
+      "peak": 0.3499,
+      "ev": 0.1645
+    },
+    "windows": {
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
     "standing": 219.22,
     "exit": 50,
     "length": 12,
@@ -259,9 +463,24 @@
     "supplier": "Flogas",
     "plan": "Smart Day/Night/Peak",
     "type": "tou",
-    "rates": { "day": 0.3145, "night": 0.1844, "peak": 0.3699, "ev": 0.1844 },
-    "windows": { "peak": [17, 19], "night": [23, 8], "ev": null },
-    "standing": 234.50,
+    "rates": {
+      "day": 0.3145,
+      "night": 0.1844,
+      "peak": 0.3699,
+      "ev": 0.1844
+    },
+    "windows": {
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
+    "standing": 234.5,
     "exit": 50,
     "length": 12,
     "green": false,
@@ -274,13 +493,25 @@
     "supplier": "Pinergy",
     "plan": "Lifestyle EV Night Time",
     "type": "ev",
-    "rates": { "day": 0.4177, "night": 0.4177, "peak": 0.4177, "ev": 0.0599 },
-    "windows": { "ev": [2, 5], "peak": null, "night": null },
+    "rates": {
+      "day": 0.4177,
+      "night": 0.4177,
+      "peak": 0.4177,
+      "ev": 0.0599
+    },
+    "windows": {
+      "ev": [
+        2,
+        5
+      ],
+      "peak": null,
+      "night": null
+    },
     "standing": 283.47,
     "exit": 50,
     "length": 12,
     "green": true,
-    "export_rate": 0.250,
+    "export_rate": 0.25,
     "discontinued": true,
     "discontinued_date": "2026-05-21",
     "verified_date": "2026-06-02",
@@ -291,8 +522,23 @@
     "supplier": "Electric Ireland",
     "plan": "Home Dual+ Night Boost",
     "type": "ev",
-    "rates": { "day": 0.3325, "night": 0.1640, "peak": 0.3325, "ev": 0.0962 },
-    "windows": { "ev": [2, 4], "night": [23, 8], "peak": null },
+    "rates": {
+      "day": 0.3325,
+      "night": 0.164,
+      "peak": 0.3325,
+      "ev": 0.0962
+    },
+    "windows": {
+      "ev": [
+        2,
+        4
+      ],
+      "night": [
+        23,
+        8
+      ],
+      "peak": null
+    },
     "standing": 328.58,
     "exit": 50,
     "length": 12,
@@ -306,8 +552,20 @@
     "supplier": "Energia",
     "plan": "EV Smart Drive",
     "type": "ev",
-    "rates": { "day": 0.4016, "night": 0.4016, "peak": 0.4016, "ev": 0.0942 },
-    "windows": { "ev": [2, 6], "peak": null, "night": null },
+    "rates": {
+      "day": 0.4016,
+      "night": 0.4016,
+      "peak": 0.4016,
+      "ev": 0.0942
+    },
+    "windows": {
+      "ev": [
+        2,
+        6
+      ],
+      "peak": null,
+      "night": null
+    },
     "standing": 265.01,
     "exit": 50,
     "length": 12,
@@ -321,8 +579,26 @@
     "supplier": "Energia",
     "plan": "EV Smart Drive Plus",
     "type": "ev",
-    "rates": { "day": 0.3893, "night": 0.2399, "peak": 0.5108, "ev": 0.1103 },
-    "windows": { "ev": [2, 6], "peak": [17, 19], "night": [23, 8] },
+    "rates": {
+      "day": 0.3893,
+      "night": 0.2399,
+      "peak": 0.5108,
+      "ev": 0.1103
+    },
+    "windows": {
+      "ev": [
+        2,
+        6
+      ],
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ]
+    },
     "standing": 265.01,
     "exit": 50,
     "length": 12,
@@ -336,8 +612,26 @@
     "supplier": "Bord Gáis",
     "plan": "EV Smart Electricity",
     "type": "ev",
-    "rates": { "day": 0.3523, "night": 0.2657, "peak": 0.4914, "ev": 0.0898 },
-    "windows": { "ev": [2, 5], "peak": [17, 19], "night": [23, 8] },
+    "rates": {
+      "day": 0.3523,
+      "night": 0.2657,
+      "peak": 0.4914,
+      "ev": 0.0898
+    },
+    "windows": {
+      "ev": [
+        2,
+        5
+      ],
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ]
+    },
     "standing": 364.89,
     "exit": 50,
     "length": 12,
@@ -351,8 +645,20 @@
     "supplier": "SSE Airtricity",
     "plan": "Smart EV Max",
     "type": "ev",
-    "rates": { "day": 0.3376, "night": 0.3376, "peak": 0.3376, "ev": 0.1213 },
-    "windows": { "ev": [23, 5], "peak": null, "night": null },
+    "rates": {
+      "day": 0.3376,
+      "night": 0.3376,
+      "peak": 0.3376,
+      "ev": 0.1213
+    },
+    "windows": {
+      "ev": [
+        23,
+        5
+      ],
+      "peak": null,
+      "night": null
+    },
     "standing": 357.23,
     "exit": 50,
     "length": 12,
@@ -366,8 +672,26 @@
     "supplier": "Yuno Energy",
     "plan": "EV Variable Discount",
     "type": "ev",
-    "rates": { "day": 0.3245, "night": 0.2099, "peak": 0.3845, "ev": 0.1079 },
-    "windows": { "ev": [2, 6], "peak": [17, 19], "night": [23, 8] },
+    "rates": {
+      "day": 0.3245,
+      "night": 0.2099,
+      "peak": 0.3845,
+      "ev": 0.1079
+    },
+    "windows": {
+      "ev": [
+        2,
+        6
+      ],
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ]
+    },
     "standing": 219.22,
     "exit": 50,
     "length": 12,
@@ -381,8 +705,20 @@
     "supplier": "Electric Ireland",
     "plan": "Nightsaver (legacy D/N)",
     "type": "dn",
-    "rates": { "day": 0.3645, "night": 0.1659, "peak": 0.3645, "ev": 0.1659 },
-    "windows": { "peak": null, "night": [23, 8], "ev": null },
+    "rates": {
+      "day": 0.3645,
+      "night": 0.1659,
+      "peak": 0.3645,
+      "ev": 0.1659
+    },
+    "windows": {
+      "peak": null,
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
     "standing": 298.46,
     "exit": 50,
     "length": 12,
