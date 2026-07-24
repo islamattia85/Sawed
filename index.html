@@ -514,6 +514,40 @@
   .welcome-actions{display:flex;flex-direction:column;gap:10px;padding-bottom:20px}
   .welcome-trust{font-family:var(--mono);font-size:10px;color:var(--ink-dim);letter-spacing:.06em;text-align:center;margin-top:10px;line-height:1.6}
 
+  /* ── Intro onboarding flow ── */
+  .intro-screen{position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;z-index:200;overflow:hidden}
+  .intro-progress-bar{height:3px;background:rgba(255,255,255,.12);margin:0 20px;border-radius:2px;flex-shrink:0}
+  .intro-progress-fill{height:100%;border-radius:2px;background:var(--accent);transition:width .35s cubic-bezier(.4,0,.2,1)}
+  .intro-back{position:absolute;top:env(safe-area-inset-top,16px);left:16px;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10}
+  .intro-hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 28px 0;text-align:center;min-height:0}
+  .intro-hero-blob{width:180px;height:180px;border-radius:60% 40% 55% 45% / 50% 55% 45% 50%;display:flex;align-items:center;justify-content:center;margin:0 auto 32px;position:relative}
+  .intro-hero-blob svg{width:80px;height:80px;opacity:.95}
+  .intro-title{font-size:30px;font-weight:800;color:#fff;letter-spacing:-.03em;line-height:1.1;margin-bottom:14px;max-width:320px}
+  .intro-sub{font-size:15px;color:rgba(255,255,255,.55);line-height:1.55;max-width:300px}
+  .intro-mood-list{display:flex;flex-direction:column;gap:10px;width:100%;max-width:400px;margin:20px auto 0;text-align:left}
+  .intro-mood-card{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:16px;border:1.5px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);cursor:pointer;transition:border-color .2s,background .2s;font-size:16px;color:#fff;font-family:var(--display);font-weight:500}
+  .intro-mood-card:hover,.intro-mood-card.sel{border-color:var(--accent);background:rgba(0,230,118,.06)}
+  .intro-mood-card .mood-radio{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,.2);margin-left:auto;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:border-color .2s}
+  .intro-mood-card.sel .mood-radio{border-color:var(--accent);background:var(--accent)}
+  .intro-mood-card.sel .mood-radio::after{content:'';width:8px;height:8px;border-radius:50%;background:#000}
+  .intro-feat-list{display:flex;flex-direction:column;gap:24px;width:100%;max-width:380px;margin:8px auto 0;text-align:left}
+  .intro-feat{display:flex;align-items:flex-start;gap:16px}
+  .intro-feat-icon{width:54px;height:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .intro-feat-title{font-size:15px;font-weight:700;color:#fff;margin-bottom:4px}
+  .intro-feat-body{font-size:13px;color:rgba(255,255,255,.5);line-height:1.5}
+  .intro-step-counter{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.3);letter-spacing:.08em;margin-bottom:10px}
+  .intro-footer{padding:20px 24px max(env(safe-area-inset-bottom),24px);flex-shrink:0}
+  .intro-cta{width:100%;padding:18px;border-radius:16px;border:none;background:var(--accent);color:#000;font-family:var(--display);font-size:16px;font-weight:700;cursor:pointer;transition:opacity .15s;letter-spacing:-.01em}
+  .intro-cta:hover{opacity:.88}
+  .intro-cta:disabled{opacity:.4;cursor:default}
+  .intro-ghost{width:100%;padding:14px;border:none;background:transparent;color:rgba(255,255,255,.45);font-family:var(--display);font-size:14px;font-weight:600;cursor:pointer;margin-top:4px}
+  .intro-ghost:hover{color:rgba(255,255,255,.7)}
+  .intro-oauth-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:12px;padding:16px;border-radius:16px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;font-family:var(--display);font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px;transition:border-color .2s,background .2s}
+  .intro-oauth-btn:hover{border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.08)}
+  .intro-or{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.2);font-size:11px;font-family:var(--mono);margin:4px 0 10px}
+  .intro-or::before,.intro-or::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.1)}
+  .intro-email-btn{width:100%;padding:16px;border-radius:16px;border:none;background:#1a2e22;color:var(--accent);font-family:var(--display);font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s}
+
   /* ── Auth panel on welcome screen ── */
   .auth-panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;margin-top:12px}
   .auth-panel-title{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:14px;text-align:center}
@@ -3572,10 +3606,12 @@ Object.assign(state, {
 if (state.onboarding_complete && state.current_screen === 'onboarding'){
   state.current_screen = 'result';
 }
-// First-ever load (no prior state) — start on welcome
+// First-ever load (no prior state) — start on intro
 if (!state.onboarding_complete && (state.current_screen === 'onboarding' || !state.current_screen)){
-  state.current_screen = 'welcome';
+  state.current_screen = state.seen_intro ? 'welcome' : 'intro';
 }
+// Returning user who finished onboarding — never show intro again
+if (state.onboarding_complete) state.seen_intro = true;
 
 // Helper — get affiliate URL for a tariff, fallback to a placeholder
 function getAffiliateUrl(planId){
@@ -3884,6 +3920,162 @@ const OB_TOTAL_STEPS = 6;
 /* ============================================================
    WELCOME SCREEN — in-app landing, first thing users see
    ============================================================ */
+// ============================================================
+// INTRO FLOW — shown once to new users (app-store style onboarding)
+// ============================================================
+let _introStep = 1;  // 1=splash  2=mood  3=features  4=sign-in
+let _introMood = ''; // selected mood card
+
+function introNext(){
+  if (_introStep === 2 && !_introMood) return; // must pick mood
+  _introStep = Math.min(_introStep + 1, 4);
+  renderApp();
+}
+function introBack(){
+  if (_introStep <= 1){ return; }
+  _introStep--;
+  renderApp();
+}
+function introPickMood(m){
+  _introMood = m;
+  // Auto-advance after a brief moment so the selection is visible
+  setTimeout(() => { _introStep = 3; renderApp(); }, 320);
+}
+function introFinish(){
+  state.seen_intro = true;
+  state.current_screen = 'welcome';
+  saveState();
+  renderApp();
+}
+function introSignInEmail(){
+  state.seen_intro = true;
+  state.current_screen = 'welcome';
+  window._authEmailOpen = true;
+  _authEmailView = 'login';
+  saveState();
+  renderApp();
+}
+
+function renderIntro(){
+  const s = _introStep;
+  const pct = [0, 25, 58, 85, 100][s] || 0;
+  const showBack = s >= 2;
+  const showProgress = s >= 2;
+
+  const progressBar = showProgress ? `
+    <div style="padding:${showBack?'54px':'20px'} 20px 0;flex-shrink:0">
+      <div class="intro-progress-bar"><div class="intro-progress-fill" style="width:${pct}%"></div></div>
+    </div>` : '';
+
+  const backBtn = showBack ? `
+    <button class="intro-back" onclick="introBack()" aria-label="Back">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.6 5.6 8.2 12l6.4 6.4"/></svg>
+    </button>` : '';
+
+  let heroHTML = '';
+  let footerHTML = '';
+
+  if (s === 1){
+    // ── Splash ──
+    heroHTML = `
+      <div class="intro-hero" style="padding-top:env(safe-area-inset-top,30px)">
+        <div class="intro-hero-blob" style="background:radial-gradient(135deg,#0d2a1a 0%,#061510 100%);box-shadow:0 0 80px -20px rgba(0,230,118,.35)">
+          <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="40" cy="40" r="14" stroke="#00e676" stroke-width="2.5"/>
+            <path d="M40 10v8M40 62v8M70 40h-8M18 40h-8M61.2 18.8l-5.7 5.7M24.5 55.5l-5.7 5.7M61.2 61.2l-5.7-5.7M24.5 24.5l-5.7-5.7" stroke="#00e676" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M40 20 28 48h8L32 60 44 32h-8z" fill="#00e676"/>
+          </svg>
+        </div>
+        <div class="intro-title">Your personal<br>energy advisor.</div>
+        <div class="intro-sub">Find your cheapest Irish electricity plan — with or without solar. In 30 seconds.</div>
+      </div>`;
+    footerHTML = `
+      <div class="intro-footer">
+        <button class="intro-cta" onclick="introNext()">Get started</button>
+        <button class="intro-ghost" onclick="_authModalOpen=false;${sbInitialized() && _sbUser ? "introFinish()" : "introSignInEmail()"}">Have an account? <strong>Sign in</strong></button>
+      </div>`;
+
+  } else if (s === 2){
+    // ── Mood question ──
+    const moods = [
+      {emoji:'😩', label:'Stressed — my bills are too high'},
+      {emoji:'🤔', label:'Unsure — I don\'t know what I\'m paying'},
+      {emoji:'😐', label:'Okay — but I want to do better'},
+      {emoji:'💪', label:'Optimising — I\'m all over it'},
+    ];
+    heroHTML = `
+      <div class="intro-hero" style="justify-content:flex-start;padding-top:24px">
+        <div class="intro-title" style="font-size:26px;text-align:left;margin-bottom:6px">How do you feel<br>about your energy bills?</div>
+        <div class="intro-mood-list">
+          ${moods.map(m => `
+            <div class="intro-mood-card ${_introMood===m.label?'sel':''}" onclick="introPickMood('${m.label.replace(/'/g,"\\'")}')">
+              <span style="font-size:22px">${m.emoji}</span>
+              <span>${m.label}</span>
+              <div class="mood-radio"></div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    footerHTML = `
+      <div class="intro-footer">
+        <button class="intro-cta" onclick="introNext()" ${_introMood?'':'disabled'}>Continue</button>
+      </div>`;
+
+  } else if (s === 3){
+    // ── Features ──
+    const feats = [
+      { bg:'#0d2a1a', icon: `<svg viewBox="0 0 48 48" fill="none" stroke="#00e676" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M8 36V20"/><path d="M18 36V10"/><path d="M28 36V26"/><path d="M38 36V16"/></svg>`, title:'Find your cheapest tariff', body:'All Irish residential plans modelled against your actual usage — not averages.' },
+      { bg:'#1a1a0d', icon: `<svg viewBox="0 0 48 48" fill="none" stroke="#ffe066" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="24" r="7"/><path d="M24 6v4M24 38v4M42 24h-4M10 24H6M36.6 11.4l-2.8 2.8M14.2 33.8l-2.8 2.8M36.6 36.6l-2.8-2.8M14.2 14.2l-2.8-2.8"/></svg>`, title:'Real solar payback', body:'Your roof, your tariff, your numbers — not generic marketing estimates.' },
+      { bg:'#0d1a2a', icon: `<svg viewBox="0 0 48 48" fill="none" stroke="#8ab4f8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="14" width="32" height="22" rx="4"/><path d="M16 36v4M32 36v4M12 40h24"/><path d="M16 26l5 5 11-12"/></svg>`, title:'Audit any installer quote', body:'Independent benchmark against 2026 Irish market prices — spot overpriced quotes instantly.' },
+    ];
+    heroHTML = `
+      <div class="intro-hero" style="justify-content:flex-start;padding-top:8px">
+        <div class="intro-step-counter">Features</div>
+        <div class="intro-title" style="font-size:26px;text-align:left;margin-bottom:20px">All you need to<br>cut your energy bills</div>
+        <div class="intro-feat-list">
+          ${feats.map(f=>`
+            <div class="intro-feat">
+              <div class="intro-feat-icon" style="background:${f.bg}">${f.icon}</div>
+              <div>
+                <div class="intro-feat-title">${f.title}</div>
+                <div class="intro-feat-body">${f.body}</div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    footerHTML = `
+      <div class="intro-footer">
+        <button class="intro-cta" onclick="introNext()">Next</button>
+      </div>`;
+
+  } else {
+    // ── Sign in / continue as guest ──
+    heroHTML = `
+      <div class="intro-hero">
+        <div class="intro-hero-blob" style="background:radial-gradient(135deg,#0d1f2a 0%,#06111a 100%);box-shadow:0 0 80px -20px rgba(138,180,248,.3)">
+          <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="22" width="40" height="30" rx="4" stroke="#8ab4f8" stroke-width="2.2"/>
+            <rect x="32" y="30" width="30" height="22" rx="4" stroke="#8ab4f8" stroke-width="2.2"/>
+            <path d="M50 52v4M28 52v4M18 56h46" stroke="#8ab4f8" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="intro-title">Access your results<br>on any device</div>
+        <div class="intro-sub">Sign in to save your analysis and settings — pick up where you left off on any device.</div>
+      </div>`;
+    footerHTML = `
+      <div class="intro-footer">
+        <button class="intro-oauth-btn" onclick="doGoogleSignIn()">
+          ${GOOGLE_SVG} Continue with Google
+        </button>
+        <div class="intro-or">or</div>
+        <button class="intro-email-btn" onclick="introSignInEmail()">Continue with Email</button>
+        <div id="auth-msg" class="auth-msg" style="margin-top:8px"></div>
+        <button class="intro-ghost" style="margin-top:12px" onclick="introFinish()">Continue as guest</button>
+      </div>`;
+  }
+
+  return `<div class="intro-screen">${backBtn}${progressBar}${heroHTML}${footerHTML}</div>`;
+}
+
 function renderWelcome(){
   return `<div class="welcome-page">
     <div class="welcome-content">
@@ -3921,8 +4113,7 @@ function renderWelcome(){
         <button class="ob-skip-btn" onclick="navigateAuditor()">Just want to audit an installer quote? →</button>
       </div>
       ${state.onboarding_complete ? `<button class="ob-skip-btn" style="margin-top:10px" onclick="setScreen('result')">← Back to my results</button>` : ''}
-      ${renderAuthSection()}
-      <div class="welcome-trust" style="margin-top:12px">Free · Independent · Your data stays on this device</div>
+      <div class="welcome-trust">Free · Independent · Your data stays on this device</div>
     </div>
   </div>`;
 }
@@ -9994,6 +10185,12 @@ function renderApp(){
     if (window.__lastScreen !== k){ runCountUps(root); window.__lastScreen = k; }
     return;
   }
+  // Intro onboarding — first-time users only
+  if (state.current_screen === 'intro'){
+    root.setAttribute('data-chrome','bare');
+    root.innerHTML = renderIntro();
+    return;
+  }
   // Landing page — first thing new users see; also reachable via the logo
   if (state.current_screen === 'welcome'){
     root.innerHTML = renderWelcome();
@@ -10012,11 +10209,11 @@ function renderApp(){
     enhanceA11y();
     return;
   }
-  // First-ever load — go to the landing page
+  // First-ever load — go to the intro or welcome
   if (!state.onboarding_complete){
-    state.current_screen = 'welcome';
+    state.current_screen = state.seen_intro ? 'welcome' : 'intro';
     root.setAttribute('data-chrome','bare');
-    root.innerHTML = renderWelcome();
+    root.innerHTML = state.seen_intro ? renderWelcome() : renderIntro();
     enhanceA11y();
     return;
   }
