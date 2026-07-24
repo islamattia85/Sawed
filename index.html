@@ -241,8 +241,8 @@
   .ob-tile-sub{font-size:10px;color:var(--ink-soft);font-family:var(--mono);margin-top:3px;letter-spacing:.02em}
   .ob-tile.active .ob-tile-label{color:var(--accent)}
   .ob-nav{position:sticky;bottom:0;padding:14px 0 16px;background:linear-gradient(180deg,transparent 0%,var(--glass-top) 30%,var(--bg) 100%);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;gap:10px;margin-top:24px}
-  .ob-back-btn{background:transparent;border:1px solid var(--line);color:var(--ink-soft);padding:14px 22px;border-radius:12px;font-weight:600;cursor:pointer;flex:0 0 auto}
-  .ob-back-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .ob-back-btn{background:transparent;border:1.5px solid var(--line);color:var(--ink-soft);padding:14px 22px;border-radius:12px;font-weight:600;cursor:pointer;flex:0 0 auto;transition:border-color .15s,color .15s,background .15s}
+  .ob-back-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-faint)}
 
   /* Bill preview pulse */
   .ob-bill-preview{margin-top:16px;padding:14px;background:var(--accent-soft);border:1px solid rgba(0,230,118,.3);border-radius:10px;font-size:13px;color:var(--ink);line-height:1.5}
@@ -415,8 +415,10 @@
   .loader .loader-text{font-family:var(--mono);font-size:11px;color:var(--ink-soft);letter-spacing:.14em;text-transform:uppercase;font-weight:600}
 
   /* Buttons */
-  .btn-secondary{display:inline-block;padding:12px 18px;background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:border-color .15s,color .15s}
-  .btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+  .btn-secondary{display:inline-block;padding:12px 18px;background:transparent;color:var(--ink);border:1.5px solid var(--line);border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:border-color .15s,color .15s,background .15s}
+  .btn-secondary:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-faint)}
+  .btn-ghost{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:10px 16px;background:transparent;color:var(--ink-dim);border:none;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:.02em;transition:color .15s,background .15s}
+  .btn-ghost:hover{color:var(--ink);background:rgba(255,255,255,.06)}
 
   /* Toggle switch */
   .toggle{display:inline-flex;align-items:center;gap:10px;cursor:pointer}
@@ -631,8 +633,8 @@
   .month-labels{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;font-family:var(--mono);font-size:9px;color:var(--ink-dim);text-align:center;letter-spacing:.04em}
 
   /* Skip indicator for onboarding */
-  .ob-skip-btn{background:transparent;color:var(--ink-soft);border:1px dashed var(--line);padding:14px 18px;border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;width:100%;margin-bottom:12px;transition:border-color .15s,color .15s}
-  .ob-skip-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .ob-skip-btn{background:rgba(255,255,255,.03);color:var(--ink-soft);border:1.5px solid var(--line);padding:14px 18px;border-radius:12px;font-size:13px;cursor:pointer;font-family:inherit;width:100%;margin-bottom:12px;transition:border-color .15s,color .15s,background .15s}
+  .ob-skip-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-faint)}
   .ob-skip-btn em{font-style:normal;color:var(--accent);font-weight:600}
 
   /* Inline mini-section in onboarding */
@@ -8868,10 +8870,21 @@ function renderRefine(){
       ${refineRow('Back roof — panels', state.count_B > 30 ? "\u26A0 Unusually large for a second roof — sure?" : '0 if single roof', refineNum('rf-cB', state.count_B, 0, 40, 1, ''))}
       ${state.count_B > 0 ? refineRow('Back roof — orientation', sectorFromAzimuth(state.azimuth_B) + ' (' + state.azimuth_B + '°)', refineSel('rf-azB', sectorFromAzimuth(state.azimuth_B), [['S','South'],['SE','Southeast'],['SW','Southwest'],['E','East'],['W','West'],['NE','Northeast'],['NW','Northwest'],['N','North']])) + refineRow('Back roof — tilt', '', refineNum('rf-tiltB', state.tilt_B, 0, 90, 1, '°')) : ''}
       ${refineRow('Panel wattage (W)', 'Check your installer spec sheet — modern N-type: 420–480W, older panels: 250–350W.', refineNum('rf-pw', state.panel_w, 200, 700, 5, 'W'))}
-      ${refineRow('Inverter size (kW)', 'Max AC output. Typical Irish home: 4.6–6kW. Should roughly match your total array kWp.', refineNum('rf-inv', state.inverter_kw, 1, 20, 0.5, 'kW'))}
       ${refineRow('Battery storage (kWh)', state.battery_kwh > 30 ? "\u26A0 That is a very large home battery — double-check the size" : 'Enter 0 if no battery. A 9 kWh battery covers a typical family evening.', refineNum('rf-batt', state.battery_kwh, 0, 50, 0.5, 'kWh'))}
       ${refineRow('Install cost (gross)', '', refineNum('rf-cost', state.install_cost, 0, 50000, 100, '€'))}
       ${refineRow('SEAI grant', state.grant_is_manual ? 'Your value — auto-calc paused until you edit it again' : 'Auto-calculated from your system — sticks once you edit it', refineNum('rf-grant', state.grant_seai, 0, 5000, 100, '€'))}
+      <div style="margin-top:14px;border-top:1px solid var(--line-soft);padding-top:12px">
+        <button onclick="state._expert_open=!state._expert_open;renderApp();" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;font-size:11px;font-weight:700;font-family:var(--mono);border:1px solid var(--line);background:$\{state._expert_open ? 'var(--well)' : 'transparent'};color:var(--ink-soft);cursor:pointer;letter-spacing:.04em">
+          $\{ic('tune',12)} Expert mode $\{state._expert_open ? '▲' : '▼'}
+        </button>
+        $\{state._expert_open ? \`
+        <div style="margin-top:10px;padding:12px 14px;background:var(--well);border:1px solid var(--line);border-radius:12px">
+          <div style="font-family:var(--mono);font-size:9px;color:var(--ink-dim);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:10px">Advanced simulation parameters</div>
+          $\{refineRow('Inverter size (kW)', 'Max AC output. Typical Irish home: 4.6–6 kW. Should roughly match your total array kWp.', refineNum('rf-inv', state.inverter_kw, 1, 20, 0.5, 'kW'))}
+          $\{refineRow('Battery depth of discharge (%)', 'Most lithium batteries: 90–100%. Lowering this reduces usable capacity but extends battery life.', refineNum('rf-dod', Math.round((state.battery_dod || 0.9) * 100), 50, 100, 5, '%'))}
+          $\{refineRow('Panel degradation (%/yr)', 'Industry typical: 0.4%/yr. Premium N-type panels: 0.3%/yr. Older poly: 0.6%/yr.', refineNum('rf-deg', Math.round((state.panel_degradation || 0.004) * 1000) / 10, 0.1, 1.5, 0.1, '%/yr'))}
+        </div>\` : ''}
+      </div>
     ` : `
       <div onclick="exploreSolar()" style="padding:12px;background:var(--amber-soft);border:1px solid var(--amber);border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:12px">
         <div>${ic('sun',22)}</div>
@@ -9086,7 +9099,7 @@ function rfBatteryControl(){
 }
 
 function bindRefine(){
-  const ids = ['rf-heat','rf-bill','rf-kwh','rf-disc','rf-base','rf-cA','rf-azA','rf-tiltA','rf-cB','rf-azB','rf-tiltB','rf-pw','rf-inv','rf-batt','rf-cost','rf-grant','rf-evkm','rf-eveff','rf-evchg'];
+  const ids = ['rf-heat','rf-bill','rf-kwh','rf-disc','rf-base','rf-cA','rf-azA','rf-tiltA','rf-cB','rf-azB','rf-tiltB','rf-pw','rf-inv','rf-batt','rf-cost','rf-grant','rf-evkm','rf-eveff','rf-evchg','rf-dod','rf-deg'];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('change', refineChanged);
@@ -9131,6 +9144,8 @@ function refineChanged(){
   if (azBEl) state.azimuth_B = azimuthFromSector(azBEl.value);
   numIf('rf-pw', 'panel_w');
   numIf('rf-inv', 'inverter_kw');
+  const dodEl = get('rf-dod'); if (dodEl && !isNaN(+dodEl.value)) state.battery_dod = +dodEl.value / 100;
+  const degEl = get('rf-deg'); if (degEl && !isNaN(+degEl.value)) state.panel_degradation = +degEl.value / 100;
   const _battWas = state.battery_kwh || 0;
   numIf('rf-batt', 'battery_kwh');
   // Battery added from zero: a prior no-battery state forces self-consume, which
