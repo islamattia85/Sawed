@@ -1061,8 +1061,8 @@ async function sbInit(){
     _sb.auth.onAuthStateChange(async (event, session) => {
       _sbUser = session ? session.user : null;
       if (_sbUser) {
+        window._authEmailOpen = false;
         await sbLoadProfile();
-        // On fresh login, sync saved app state to profile if no server profile yet
         if (!_sbProfile) await sbSaveProfile();
       } else {
         _sbProfile = null;
@@ -1142,60 +1142,69 @@ const GOOGLE_SVG = `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http:
   <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58Z" fill="#EA4335"/>
 </svg>`;
 
-/* Auth section rendered inside the welcome page (unauthenticated state) */
+/* Auth section rendered inside the welcome page */
 function renderAuthSection(){
   if (!sbInitialized()) return '';
+
+  // Signed-in state
   if (_sbUser) {
     const name = (_sbProfile && _sbProfile.display_name) || _sbUser.email || 'there';
     const initials = name.slice(0,1).toUpperCase();
     return `
-    <div class="auth-panel" style="margin-top:20px">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-        <div class="profile-nav-avatar" style="width:38px;height:38px;font-size:16px;flex-shrink:0">${initials}</div>
-        <div>
-          <div style="font-size:13.5px;font-weight:700;color:var(--ink)">Signed in as ${name}</div>
-          <div style="font-size:11.5px;color:var(--ink-soft)">${_sbUser.email}</div>
+    <div class="auth-panel" style="margin-top:24px;border-color:var(--accent)">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:40px;height:40px;border-radius:50%;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;flex-shrink:0">${initials}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
+          <div style="font-size:11px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_sbUser.email}</div>
         </div>
+        <button onclick="doSignOut()" style="flex-shrink:0;padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:transparent;font-family:var(--display);font-size:12px;font-weight:600;color:var(--ink-soft);cursor:pointer">Sign out</button>
       </div>
-      <div style="display:flex;gap:8px">
-        <button class="auth-submit-btn" style="flex:1;background:var(--panel);color:var(--ink);border:1.5px solid var(--line)" onclick="doSyncState()">Sync settings</button>
-        <button class="auth-submit-btn" style="flex:1;background:transparent;color:#ff7070;border:1.5px solid #ff444440" onclick="doSignOut()">Sign out</button>
-      </div>
+      <div id="auth-msg" class="auth-msg"></div>
     </div>`;
   }
+
+  // Signed-out state — email form view
   const v = _authEmailView;
+  const emailForm = v === 'forgot' ? `
+    <div class="auth-input-row" style="margin-top:10px">
+      <input class="auth-input-sm" id="auth-email" type="email" placeholder="your@email.com" autocomplete="email">
+    </div>
+    <div id="auth-msg" class="auth-msg"></div>
+    <button class="auth-submit-btn" onclick="doForgotPassword()">Send reset link</button>
+    <div class="auth-toggle" style="margin-top:8px"><a onclick="_authEmailView='login';renderApp()">← Back to sign in</a></div>
+  ` : v === 'signup' ? `
+    <div class="auth-input-row" style="margin-top:10px">
+      <input class="auth-input-sm" id="auth-name" type="text" placeholder="Your name (optional)" autocomplete="name">
+      <input class="auth-input-sm" id="auth-email" type="email" placeholder="your@email.com" autocomplete="email">
+      <input class="auth-input-sm" id="auth-password" type="password" placeholder="Password (8+ characters)" autocomplete="new-password">
+    </div>
+    <div id="auth-msg" class="auth-msg"></div>
+    <button class="auth-submit-btn" id="auth-submit-btn" onclick="doSignUp()">Create free account</button>
+    <div class="auth-toggle" style="margin-top:8px">Already have an account? <a onclick="_authEmailView='login';renderApp()">Sign in</a></div>
+  ` : `
+    <div class="auth-input-row" style="margin-top:10px">
+      <input class="auth-input-sm" id="auth-email" type="email" placeholder="your@email.com" autocomplete="email">
+      <input class="auth-input-sm" id="auth-password" type="password" placeholder="Password" autocomplete="current-password">
+    </div>
+    <div class="auth-forgot" onclick="_authEmailView='forgot';renderApp()">Forgot password?</div>
+    <div id="auth-msg" class="auth-msg"></div>
+    <button class="auth-submit-btn" id="auth-submit-btn" onclick="doSignIn()">Sign in</button>
+    <div class="auth-toggle" style="margin-top:8px">New here? <a onclick="_authEmailView='signup';renderApp()">Create free account</a></div>
+  `;
+
+  // Show email form only when toggled open
+  const emailOpen = window._authEmailOpen || false;
+
   return `
-  <div class="auth-panel" style="margin-top:20px">
-    <div class="auth-panel-title">Save settings & access anywhere</div>
+  <div class="auth-panel" style="margin-top:24px">
+    <div style="font-size:11px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);text-align:center;margin-bottom:12px;font-weight:600">Save your results across devices</div>
     <button class="auth-google-btn" onclick="doGoogleSignIn()">
       ${GOOGLE_SVG} Continue with Google
     </button>
-    <div class="auth-divider">or</div>
-    ${v === 'forgot' ? `
-      <div class="auth-input-row">
-        <input class="auth-input-sm" id="auth-email" type="email" placeholder="your@email.com" autocomplete="email">
-      </div>
-      <div id="auth-msg" class="auth-msg"></div>
-      <button class="auth-submit-btn" onclick="doForgotPassword()">Send reset link</button>
-      <div class="auth-toggle"><a onclick="_authEmailView='login';renderApp()">← Back to sign in</a></div>
-    ` : v === 'signup' ? `
-      <div class="auth-input-row">
-        <input class="auth-input-sm" id="auth-name" type="text" placeholder="Your name (optional)" autocomplete="name">
-        <input class="auth-input-sm" id="auth-email" type="email" placeholder="your@email.com" autocomplete="email">
-        <input class="auth-input-sm" id="auth-password" type="password" placeholder="Password (8+ chars)" autocomplete="new-password">
-      </div>
-      <div id="auth-msg" class="auth-msg"></div>
-      <button class="auth-submit-btn" id="auth-submit-btn" onclick="doSignUp()">Create free account</button>
-      <div class="auth-toggle">Already have an account? <a onclick="_authEmailView='login';renderApp()">Sign in</a></div>
-    ` : `
-      <div class="auth-input-row">
-        <input class="auth-input-sm" id="auth-email" type="email" placeholder="your@email.com" autocomplete="email">
-        <input class="auth-input-sm" id="auth-password" type="password" placeholder="Password" autocomplete="current-password">
-      </div>
-      <div class="auth-forgot" onclick="_authEmailView='forgot';renderApp()">Forgot password?</div>
-      <div id="auth-msg" class="auth-msg"></div>
-      <button class="auth-submit-btn" id="auth-submit-btn" onclick="doSignIn()">Sign in</button>
-      <div class="auth-toggle">New here? <a onclick="_authEmailView='signup';renderApp()">Create free account</a></div>
+    <div class="auth-divider" style="margin:10px 0">or email</div>
+    ${emailOpen ? emailForm : `
+      <button onclick="window._authEmailOpen=true;renderApp()" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--line);background:transparent;font-family:var(--display);font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer">Continue with email</button>
     `}
   </div>`;
 }
@@ -1245,11 +1254,23 @@ function renderProfileNavBtn(){
 // ---- Auth actions (called from onclick) ----
 
 async function doGoogleSignIn(){
-  if (!_sb) return;
-  await _sb.auth.signInWithOAuth({
+  const btn = document.querySelector('.auth-google-btn');
+  const origHTML = btn ? btn.innerHTML : '';
+  if (btn){ btn.disabled = true; btn.innerHTML = '<span style="opacity:.6">Connecting…</span>'; }
+  if (!_sb) await sbInit();
+  if (!_sb){
+    showAuthMsg('Could not connect to auth service. Try again in a moment.', 'err');
+    if (btn){ btn.disabled = false; btn.innerHTML = origHTML; }
+    return;
+  }
+  const { error } = await _sb.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: window.location.href }
+    options: { redirectTo: window.location.origin + window.location.pathname }
   });
+  if (error){
+    showAuthMsg(error.message, 'err');
+    if (btn){ btn.disabled = false; btn.innerHTML = origHTML; }
+  }
 }
 
 async function doSignIn(){
