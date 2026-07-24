@@ -5349,25 +5349,7 @@ function renderGoalDesigner(){
           ? `The fastest-payback design (${other.panels} panels${other.batt ? ' + ' + other.batt + ' kWh' : ''}) breaks even in <b>${other.payback} yr</b> but earns <b>€${(win.npv - other.npv).toLocaleString()} less</b> over 20 years.`
           : `The value-maximising design (${other.panels} panels${other.batt ? ' + ' + other.batt + ' kWh' : ''}) takes <b>${other.payback} yr</b> to break even but earns <b>€${(other.npv - win.npv).toLocaleString()} more</b> over 20 years.`}
       </div>` : `<div style="margin-top:8px;padding:10px 13px;background:var(--well);border-radius:10px;font-size:11px;color:var(--ink-soft)">Both goals point to the same design for your home — an easy decision.</div>`}
-      <div style="margin-top:10px">
-        <div style="font-family:var(--mono);font-size:9px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">All ${sweep.designs.length} designs tested · ranked for this goal</div>
-        <div style="display:flex;align-items:center;gap:8px;padding:0 11px 5px;font-family:var(--mono);font-size:8px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.06em">
-          <div style="width:14px"></div>
-          <div style="flex:1">System</div>
-          <div style="width:46px;text-align:right">Payback</div>
-          <div style="width:56px;text-align:right">Est. net</div>
-          <div style="width:62px;text-align:right">20-yr profit</div>
-        </div>
-        ${ranked.slice(0, 4).map((d, i) => `
-          <div onclick="setSolarView('${goal}', ${i})" style="display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:9px;cursor:pointer;margin-bottom:5px;border:1px solid ${i===selIdx ? 'var(--accent)' : 'var(--line-soft)'};background:${i===selIdx ? 'var(--accent-faint)' : 'transparent'}">
-            <div style="font-family:var(--mono);font-size:10px;color:var(--ink-dim);width:14px">${i===selIdx ? '●' : i+1}</div>
-            <div style="flex:1;font-size:11.5px;color:var(--ink);font-weight:${i===selIdx?'700':'500'}">${d.panels}p${d.batt ? '+' + d.batt + 'kWh' : ''}</div>
-            <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);width:46px;text-align:right">${d.payback} yr</div>
-            <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);width:56px;text-align:right">~€${d.net.toLocaleString()}</div>
-            <div style="font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--accent);width:62px;text-align:right">€${d.npv.toLocaleString()}</div>
-          </div>`).join('')}
-        <div style="font-family:var(--mono);font-size:9px;color:var(--ink-dim);margin-top:6px;line-height:1.6;letter-spacing:.02em">~ All system prices are our estimates from a 2026 install benchmark + auto SEAI grant — not quotes · benefit is electricity-only on your usage${state.azimuth_A && state.azimuth_A !== 180 ? ' · your Roof A orientation' : ' · south-facing roof assumed'} · 20-yr value discounted at 3%</div>
-      </div>`;
+      <div style="margin-top:8px;font-family:var(--mono);font-size:9px;color:var(--ink-dim);line-height:1.6;letter-spacing:.02em">~ Prices are 2026 install estimates + auto SEAI grant — not quotes · benefit is electricity-only · 20-yr value discounted at 3%</div>`;
   }
 
   const isEstD = !!state.solar_is_estimate;
@@ -7092,115 +7074,84 @@ function renderDayInspector(){
   const CH = H - PAD_T - PAD_B;
   const barW = CW / 24;
 
-  // Max for y-scale (use max of cons or gen+ch whichever bigger)
-  let maxVal = 0.01;
-  for (let h = 0; h < 24; h++){
-    const stack = gen[h] + ch[h] + imp[h];
-    if (stack > maxVal) maxVal = stack;
-    if (cons[h] > maxVal) maxVal = cons[h];
-  }
-  maxVal = Math.ceil(maxVal * 4) / 4; // round up to nearest 0.25
+  const hasBattery = state.battery_kwh > 0;
 
-  const yScale = v => CH - (v / maxVal) * CH;
+  // Net grid flow: positive = importing, negative = exporting
+  const netGrid = imp.map((v, h) => v - exp[h]);
+
+  // Y scale: show both positive (solar, demand) and negative (export) values
+  let maxPos = 0.5, maxNeg = 0.1;
+  for (let h = 0; h < 24; h++){
+    if (gen[h] > maxPos) maxPos = gen[h];
+    if (cons[h] > maxPos) maxPos = cons[h];
+    if (hasBattery && dis[h] > maxPos) maxPos = dis[h];
+    if (netGrid[h] > maxPos) maxPos = netGrid[h];
+    if (netGrid[h] < -maxNeg) maxNeg = -netGrid[h];
+  }
+  maxPos = Math.ceil(maxPos * 4) / 4;
+  maxNeg = Math.ceil(maxNeg * 4) / 4;
+  const totalRange = maxPos + maxNeg;
+
+  // zero line position within chart area
+  const zeroY = PAD_T + (maxPos / totalRange) * CH;
+  const yScale = v => zeroY - (v / totalRange) * CH;
   const xPos = h => PAD_L + h * barW;
   const xMid = h => PAD_L + (h + 0.5) * barW;
 
-  // Build stacked area points for: direct solar (yellow), battery discharge (green), grid import (red)
-  // Each stacked on top of previous
-  const ptsDirect = [], ptsBatDis = [], ptsImp = [];
-  const ptsBottom = [];
+  // Solar filled area (yellow, above zero only)
+  const solarAreaPts = (() => {
+    const top = gen.map((v, h) => `${xMid(h).toFixed(1)},${yScale(v).toFixed(1)}`).join(' ');
+    const bot = gen.map((_, h) => `${xMid(h).toFixed(1)},${zeroY.toFixed(1)}`).reverse().join(' ');
+    return top + ' ' + bot;
+  })();
 
-  // Polygon helpers: generate points top-then-reverse-bottom for filled polygon
-  function polyPoints(topArr, botArr){
-    const fwd = topArr.map((y, h) => `${xMid(h).toFixed(1)},${(PAD_T + y).toFixed(1)}`).join(' ');
-    const bwd = botArr.slice().reverse().map((y, rh) => {
-      const h = 23 - rh;
-      return `${xMid(h).toFixed(1)},${(PAD_T + y).toFixed(1)}`;
-    }).join(' ');
-    return fwd + ' ' + bwd;
-  }
+  // Demand line (blue, solid)
+  const demandPath = cons.map((v, h) => `${h === 0 ? 'M' : 'L'}${xMid(h).toFixed(1)},${yScale(v).toFixed(1)}`).join(' ');
 
-  const baseLine = Array(24).fill(CH);
-  const directTop = [], batDisTop = [], impTop = [];
-  const directBot = Array(24).fill(CH);
-  const batDisBot = [], impBot = [];
+  // Grid net: import fill (red above zero), export fill (green below zero)
+  const gridImpPts = (() => {
+    const top = netGrid.map((v, h) => `${xMid(h).toFixed(1)},${yScale(Math.max(0, v)).toFixed(1)}`).join(' ');
+    const bot = netGrid.map((_, h) => `${xMid(h).toFixed(1)},${zeroY.toFixed(1)}`).reverse().join(' ');
+    return top + ' ' + bot;
+  })();
+  const gridExpPts = (() => {
+    const top = netGrid.map((v, h) => `${xMid(h).toFixed(1)},${yScale(Math.min(0, v)).toFixed(1)}`).join(' ');
+    const bot = netGrid.map((_, h) => `${xMid(h).toFixed(1)},${zeroY.toFixed(1)}`).reverse().join(' ');
+    return top + ' ' + bot;
+  })();
 
-  for (let h = 0; h < 24; h++){
-    // Solar direct = gen[h] (portion consumed directly or exported – visual = gen)
-    const dTop = yScale(gen[h]);
-    directTop.push(dTop);
+  // Battery discharge line (green dashed)
+  const batPath = hasBattery ? dis.map((v, h) => `${h === 0 ? 'M' : 'L'}${xMid(h).toFixed(1)},${yScale(v).toFixed(1)}`).join(' ') : '';
+  // Battery charge (below zero, cyan)
+  const batChgPath = hasBattery ? ch.map((v, h) => `${h === 0 ? 'M' : 'L'}${xMid(h).toFixed(1)},${yScale(-v).toFixed(1)}`).join(' ') : '';
 
-    // Battery discharge stacked on top of direct solar
-    const bdBot = dTop;
-    batDisBot.push(bdBot);
-    const bdTop = yScale(gen[h] + dis[h]);
-    batDisTop.push(bdTop);
-
-    // Grid import stacked on top
-    const iBot = bdTop;
-    impBot.push(iBot);
-    const iTop = yScale(gen[h] + dis[h] + imp[h]);
-    impTop.push(iTop);
-  }
-
-  const polySolar = polyPoints(directTop, directBot);
-  const polyBatDis = polyPoints(batDisTop, batDisBot);
-  const polyImp = polyPoints(impTop, impBot);
-
-  // Demand line (cons)
-  const demandPath = cons.map((v, h) => `${h === 0 ? 'M' : 'L'}${xMid(h).toFixed(1)},${(PAD_T + yScale(v)).toFixed(1)}`).join(' ');
-
-  // Y-axis labels (0, max/2, max)
-  const yLabels = [
-    { v: 0,        y: PAD_T + CH },
-    { v: maxVal/2, y: PAD_T + CH/2 },
-    { v: maxVal,   y: PAD_T },
-  ];
-
-  // X-axis hour labels (every 4h)
-  const xLabels = [0, 4, 8, 12, 16, 20, 23].map(h => ({
-    h, x: xMid(h), label: h === 23 ? '23' : h + 'h'
-  }));
-
-  // Shading regions
-  // Peak: 17-19 (red), Arbitrage: 02-05 (purple)
-  const peakX1 = xPos(17), peakX2 = xPos(19);
-  const arbX1 = xPos(2), arbX2 = xPos(5);
-
-  // SOC line (secondary axis, scaled 0-100%)
-  const socMax = 100;
-  const socPath = soc.map((v, h) => {
-    const sy = PAD_T + CH - (v / socMax) * CH;
+  // SOC secondary axis line
+  const socPath = hasBattery ? soc.map((v, h) => {
+    const sy = PAD_T + CH - (v / 100) * CH;
     return `${h === 0 ? 'M' : 'L'}${xMid(h).toFixed(1)},${sy.toFixed(1)}`;
-  }).join(' ');
-  const hasBattery = state.battery_kwh > 0;
+  }).join(' ') : '';
 
-  // Battery charge bars (shown below baseline as downward bars if space permits)
-  const chargeBarsSvg = hasBattery ? ch.map((v, h) => {
-    if (v < 0.005) return '';
-    const bh = Math.min((v / maxVal) * CH, CH * 0.3);
-    return `<rect x="${(xPos(h)+1).toFixed(1)}" y="${(PAD_T + CH).toFixed(1)}" width="${(barW-2).toFixed(1)}" height="${bh.toFixed(1)}" fill="rgba(0,200,120,.25)" rx="1"/>`;
-  }).join('') : '';
+  // Y axis labels
+  const yLabelVals = [];
+  for (let v = 0; v <= maxPos; v += maxPos / 2) yLabelVals.push(v);
+  if (maxNeg > 0.05) yLabelVals.push(-maxNeg);
+  const yLabels = yLabelVals.map(v => ({ v, y: yScale(v) }));
+
+  // X-axis hour labels
+  const xLabels = [0, 4, 8, 12, 16, 20, 23].map(h => ({ x: xMid(h), label: h + 'h' }));
 
   // Legend items
-  const legend = [
-    { color: 'rgba(250,200,0,.85)', label: 'Solar' },
-    hasBattery && { color: 'rgba(0,220,130,.7)', label: 'Battery discharge' },
-    { color: 'rgba(240,80,60,.6)', label: 'Grid import' },
-    { color: '#4ea8f0', label: 'Demand', dash: true },
-    hasBattery && { color: 'rgba(0,200,120,.4)', label: 'Charging', dash: true },
-  ].filter(Boolean);
-
   const totalH = H + 8;
   const label = season === 'summer' ? 'Summer · Jun 21' : 'Winter · Jan 19';
 
-  // HTML legend strip (more readable than SVG text)
-  const htmlLegend = legend.map(l => {
-    const swatch = l.dash
-      ? `<span style="display:inline-block;width:16px;height:2px;background:${l.color};vertical-align:middle;margin-right:4px;border-top:2px dashed ${l.color};height:0"></span>`
-      : `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${l.color};vertical-align:middle;margin-right:4px;flex-shrink:0"></span>`;
-    return `<span style="display:inline-flex;align-items:center;font-size:10px;color:var(--ink-soft);font-family:var(--mono)">${swatch}${l.label}</span>`;
-  }).join('');
+  // Compute stats
+  const totalExport = exp.reduce((a,b)=>a+b,0);
+  const totalImport = imp.reduce((a,b)=>a+b,0);
+  const selfUse = gen.reduce((a,b)=>a+b,0) - totalExport;
+
+  // Peak/arbitrage region x positions
+  const peakX1 = xPos(17), peakX2 = xPos(19);
+  const arbX1 = xPos(2), arbX2 = xPos(5);
 
   return `
   <div class="section-title" style="margin-top:20px">Day inspector</div>
@@ -7217,48 +7168,61 @@ function renderDayInspector(){
     <svg viewBox="0 0 ${W} ${totalH}" width="100%" style="overflow:visible;display:block">
 
       <!-- Background shading regions -->
-      <rect x="${arbX1.toFixed(1)}" y="${PAD_T}" width="${(arbX2-arbX1).toFixed(1)}" height="${CH}" fill="rgba(140,80,220,.12)" rx="0"/>
-      <rect x="${peakX1.toFixed(1)}" y="${PAD_T}" width="${(peakX2-peakX1).toFixed(1)}" height="${CH}" fill="rgba(240,80,60,.1)" rx="0"/>
+      <rect x="${arbX1.toFixed(1)}" y="${PAD_T}" width="${(arbX2-arbX1).toFixed(1)}" height="${CH}" fill="rgba(140,80,220,.08)" rx="0"/>
+      <rect x="${peakX1.toFixed(1)}" y="${PAD_T}" width="${(peakX2-peakX1).toFixed(1)}" height="${CH}" fill="rgba(240,80,60,.07)" rx="0"/>
 
-      <!-- Grid lines -->
+      <!-- Grid lines at y-axis label positions -->
       ${yLabels.map(l => `<line x1="${PAD_L}" y1="${l.y.toFixed(1)}" x2="${W - PAD_R}" y2="${l.y.toFixed(1)}" stroke="rgba(255,255,255,.07)" stroke-width="1"/>`).join('')}
 
-      <!-- Stacked fills -->
-      <polygon points="${polyImp}" fill="rgba(240,80,60,.45)"/>
-      <polygon points="${polyBatDis}" fill="rgba(0,220,130,.6)"/>
-      <polygon points="${polySolar}" fill="rgba(250,200,0,.75)"/>
+      <!-- Zero line (bold) -->
+      <line x1="${PAD_L}" y1="${zeroY.toFixed(1)}" x2="${W - PAD_R}" y2="${zeroY.toFixed(1)}" stroke="rgba(255,255,255,.18)" stroke-width="1"/>
 
-      <!-- Battery charge bars below baseline -->
-      ${chargeBarsSvg}
+      <!-- Solar filled area (yellow, above zero) -->
+      <polygon points="${solarAreaPts}" fill="rgba(250,200,0,.25)"/>
+      <path d="${gen.map((v,h) => `${h===0?'M':'L'}${xMid(h).toFixed(1)},${yScale(v).toFixed(1)}`).join(' ')}" fill="none" stroke="#f5c800" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
 
-      <!-- Demand line -->
-      <path d="${demandPath}" fill="none" stroke="#4ea8f0" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+      <!-- Grid export fill (green below zero) -->
+      <polygon points="${gridExpPts}" fill="rgba(0,200,100,.2)"/>
 
-      <!-- SOC line (if battery) -->
-      ${hasBattery ? `<path d="${socPath}" fill="none" stroke="rgba(0,220,130,.4)" stroke-width="1.2" stroke-dasharray="3,2" stroke-linejoin="round"/>` : ''}
+      <!-- Grid import fill (red above zero — only visible during import hours) -->
+      <polygon points="${gridImpPts}" fill="rgba(240,80,60,.2)"/>
 
-      <!-- Region labels -->
-      <text x="${((arbX1+arbX2)/2).toFixed(1)}" y="${(PAD_T + 10).toFixed(1)}" text-anchor="middle" fill="rgba(160,100,255,.7)" font-size="7.5" font-family="monospace">02–05h</text>
-      <text x="${((peakX1+peakX2)/2).toFixed(1)}" y="${(PAD_T + 10).toFixed(1)}" text-anchor="middle" fill="rgba(240,100,60,.8)" font-size="7.5" font-family="monospace">peak</text>
+      <!-- Battery discharge line (green) -->
+      ${hasBattery ? `<path d="${batPath}" fill="none" stroke="rgba(0,220,130,.8)" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
+
+      <!-- Battery charge (below zero, cyan dashed) -->
+      ${hasBattery ? `<path d="${batChgPath}" fill="none" stroke="rgba(0,180,220,.6)" stroke-width="1.2" stroke-dasharray="3,2" stroke-linejoin="round"/>` : ''}
+
+      <!-- Demand line (blue, most prominent) -->
+      <path d="${demandPath}" fill="none" stroke="#4ea8f0" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
 
       <!-- Y axis labels -->
-      ${yLabels.map(l => `<text x="${(PAD_L - 3).toFixed(1)}" y="${(l.y + 3).toFixed(1)}" text-anchor="end" fill="rgba(255,255,255,.3)" font-size="7.5" font-family="monospace">${l.v.toFixed(1)}</text>`).join('')}
+      ${yLabels.map(l => `<text x="${(PAD_L - 3).toFixed(1)}" y="${(l.y + 3).toFixed(1)}" text-anchor="end" fill="rgba(255,255,255,.3)" font-size="7.5" font-family="monospace">${l.v >= 0 ? l.v.toFixed(1) : l.v.toFixed(1)}</text>`).join('')}
 
       <!-- X axis labels -->
       ${xLabels.map(l => `<text x="${l.x.toFixed(1)}" y="${(PAD_T + CH + 11).toFixed(1)}" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="7.5" font-family="monospace">${l.label}</text>`).join('')}
 
+      <!-- Region labels -->
+      <text x="${((arbX1+arbX2)/2).toFixed(1)}" y="${(PAD_T + 9).toFixed(1)}" text-anchor="middle" fill="rgba(160,100,255,.6)" font-size="7" font-family="monospace">02–05h</text>
+      <text x="${((peakX1+peakX2)/2).toFixed(1)}" y="${(PAD_T + 9).toFixed(1)}" text-anchor="middle" fill="rgba(240,100,60,.7)" font-size="7" font-family="monospace">peak</text>
+
     </svg>
-    <!-- HTML legend strip -->
-    <div style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px;padding:8px 4px 2px;border-top:1px solid var(--line-soft)">
-      ${htmlLegend}
+
+    <!-- Legend strip -->
+    <div style="display:flex;flex-wrap:wrap;gap:7px 14px;margin-top:8px;padding:8px 2px 2px;border-top:1px solid var(--line-soft)">
+      <span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:#f5c800;border-radius:2px;flex-shrink:0"></span>Solar</span>
+      <span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:#4ea8f0;border-radius:2px;flex-shrink:0"></span>Load</span>
+      <span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:rgba(240,80,60,.7);border-radius:2px;flex-shrink:0"></span>Grid import</span>
+      <span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:rgba(0,200,100,.7);border-radius:2px;flex-shrink:0"></span>Export</span>
+      ${hasBattery ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:rgba(0,220,130,.8);border-radius:2px;flex-shrink:0"></span>Battery</span>` : ''}
     </div>
 
     <!-- Quick stats row -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px">
       ${[
-        { label: 'Solar peak', val: Math.max(...gen).toFixed(2) + ' kW', color: '#f5c800' },
-        { label: 'Demand peak', val: Math.max(...cons).toFixed(2) + ' kW', color: '#4ea8f0' },
-        { label: 'Grid imports', val: imp.reduce((a,b)=>a+b,0).toFixed(2) + ' kWh', color: 'rgba(240,80,60,.8)' },
+        { label: 'Solar', val: gen.reduce((a,b)=>a+b,0).toFixed(1) + ' kWh', color: '#f5c800' },
+        { label: 'Self-used', val: selfUse.toFixed(1) + ' kWh', color: 'var(--accent)' },
+        { label: 'Exported', val: totalExport.toFixed(1) + ' kWh', color: 'rgba(0,200,100,.9)' },
       ].map(st => `
         <div style="background:var(--well);border-radius:8px;padding:7px 8px;text-align:center">
           <div style="font-family:var(--mono);font-size:8.5px;color:var(--ink-dim);margin-bottom:2px">${st.label}</div>
