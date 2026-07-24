@@ -4475,39 +4475,65 @@ function setObBaseline(planId){
 function obStep5CurrentPlan(){
   const plans = activeTariffsSorted();
   const typeLabel = { flat: '24h Flat', tou: 'Day/Night', ev: 'EV', dynamic: 'Dynamic', dn: 'Day/Night' };
+  // Supplier-first: pick supplier, then see just their plans
+  const suppliers = [...new Set(plans.map(p => p.supplier))].sort();
+  const selSup = _ob._ob5_supplier || null;
+  const filteredPlans = selSup ? plans.filter(p => p.supplier === selSup) : [];
+
+  const supplierGrid = suppliers.map(sup => {
+    const active = selSup === sup;
+    const count = plans.filter(p => p.supplier === sup).length;
+    return `<button onclick="_ob._ob5_supplier='${sup}';renderApp();" style="flex:1;min-width:calc(50% - 4px);padding:10px 8px;border-radius:10px;font-size:12px;font-weight:700;font-family:var(--display);border:1.5px solid ${active ? 'var(--accent)' : 'var(--line)'};background:${active ? 'var(--accent-soft)' : 'var(--well)'};color:${active ? 'var(--accent)' : 'var(--ink)'};cursor:pointer;text-align:center">
+      <div>${sup}</div>
+      <div style="font-size:9px;font-weight:400;color:${active ? 'var(--accent)' : 'var(--ink-dim)'};margin-top:2px;font-family:var(--mono)">${count} plan${count !== 1 ? 's' : ''}</div>
+    </button>`;
+  }).join('');
+
+  const planList = selSup ? filteredPlans.map(p => `
+    <div class="ob-plan-option ${_ob.baseline === p.id && _ob.baseline_known ? 'active' : ''}" onclick="setObBaseline('${p.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="flex:1">
+          <div class="ob-plan-option-name">${p.plan}</div>
+          <div class="ob-plan-option-rate">${fmtCent(p.rates.day)}/kWh · Standing ${fmtCurrency(p.standing)}/yr</div>
+        </div>
+        <span class="ob-plan-type-pill ${p.type}">${typeLabel[p.type] || p.type}</span>
+      </div>
+    </div>
+  `).join('') : '';
+
   return `
     <div class="ob-step-num">Step 5 of 7 · Current Plan</div>
     <h1 class="ob-title">What plan are you <em>on now</em>?</h1>
-    <p class="ob-sub">This makes your savings estimate accurate — we compare your best match against your <em>actual</em> current cost. You can always change it later.</p>
 
-    <div class="ob-plan-picker">
-      <div class="ob-plan-notsure ${!_ob.baseline_known ? 'active' : ''}" onclick="setObBaseline(null)">
-        <span>Not sure — I'll set it later</span>
-        <span style="font-family:var(--mono);font-size:10px;letter-spacing:.04em">${!_ob.baseline_known ? '✓ Selected' : 'Tap to select'}</span>
-      </div>
-      ${plans.map(p => `
-        <div class="ob-plan-option ${_ob.baseline === p.id && _ob.baseline_known ? 'active' : ''}" onclick="setObBaseline('${p.id}')">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-            <div>
-              <div class="ob-plan-option-supplier">${p.supplier}</div>
-              <div class="ob-plan-option-name">${p.plan}</div>
-            </div>
-            <span class="ob-plan-type-pill ${p.type}">${typeLabel[p.type] || p.type}</span>
-          </div>
-          <div class="ob-plan-option-rate">${fmtCent(p.rates.day)}/kWh day · Standing ${fmtCurrency(p.standing)}/yr</div>
-        </div>
-      `).join('')}
+    <div class="ob-plan-notsure ${!_ob.baseline_known ? 'active' : ''}" onclick="setObBaseline(null)" style="margin-bottom:10px">
+      <span>Not sure — I'll set it later</span>
+      <span style="font-family:var(--mono);font-size:10px;letter-spacing:.04em">${!_ob.baseline_known ? '✓' : '›'}</span>
     </div>
+
+    <div style="font-size:11px;font-weight:700;color:var(--ink-soft);font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">1. Pick your supplier</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+      ${supplierGrid}
+    </div>
+
+    ${selSup ? `
+    <div style="font-size:11px;font-weight:700;color:var(--ink-soft);font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">2. Pick your plan</div>
+    <div class="ob-plan-picker" style="max-height:240px">
+      ${planList}
+    </div>` : `
+    <div style="padding:14px;border:1px dashed var(--line);border-radius:10px;text-align:center;color:var(--ink-dim);font-size:12px">
+      Select a supplier above to see their plans
+    </div>`}
+
     ${_ob.baseline_known ? `
     <div style="margin-top:12px;padding:12px 14px;background:var(--accent-faint);border:1px solid var(--line);border-radius:12px">
       <div style="font-size:12.5px;font-weight:700;color:var(--ink)">Any discount on this plan?</div>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:2px;line-height:1.5">Sign-up discounts and older legacy rates change what you really pay. Pick the % off unit rates — it's on your bill or sign-up email.</div>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:2px;line-height:1.5">Sign-up or loyalty discounts change what you really pay. Pick the % off unit rates — it's on your bill.</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px">
         ${[0,5,10,15,20,25,30,40].map(p => `
           <div onclick="_ob.baseline_discount=${p};renderApp();" style="padding:7px 12px;border-radius:999px;font-size:11.5px;font-weight:700;font-family:var(--mono);cursor:pointer;border:1.5px solid ${(+_ob.baseline_discount||0)===p ? 'var(--accent)' : 'var(--line)'};background:${(+_ob.baseline_discount||0)===p ? 'var(--accent-soft)' : 'var(--panel)'};color:${(+_ob.baseline_discount||0)===p ? 'var(--accent)' : 'var(--ink-soft)'}">${p === 0 ? 'None' : p + '%'}</div>`).join('')}
       </div>
     </div>` : ''}
-    <p class="ob-help" style="margin-top:10px">Can't find your exact plan? Pick the closest match by supplier and type, or choose "Not sure" — the savings estimate will still be directionally accurate.</p>`;
+    <p class="ob-help" style="margin-top:10px">Can't find your exact plan? Choose the closest match by type, or tap "Not sure" — the estimate will still be directionally accurate.</p>`;
 }
 
 function obStep2CsvImport(){
@@ -7165,29 +7191,26 @@ function renderDayInspector(){
     hasBattery && { color: 'rgba(0,200,120,.4)', label: 'Charging', dash: true },
   ].filter(Boolean);
 
-  const legendSvg = legend.map((l, i) => {
-    const lx = 4 + i * 72;
-    if (l.dash){
-      return `<line x1="${lx}" y1="6" x2="${lx+12}" y2="6" stroke="${l.color}" stroke-width="2" stroke-dasharray="3,2"/>
-              <text x="${lx+15}" y="9" fill="rgba(255,255,255,.5)" font-size="7.5">${l.label}</text>`;
-    }
-    return `<rect x="${lx}" y="1" width="12" height="10" fill="${l.color}" rx="2"/>
-            <text x="${lx+15}" y="9" fill="rgba(255,255,255,.5)" font-size="7.5">${l.label}</text>`;
-  }).join('');
-
-  const legendH = 18;
-  const totalH = H + legendH + 8;
+  const totalH = H + 8;
   const label = season === 'summer' ? 'Summer · Jun 21' : 'Winter · Jan 19';
+
+  // HTML legend strip (more readable than SVG text)
+  const htmlLegend = legend.map(l => {
+    const swatch = l.dash
+      ? `<span style="display:inline-block;width:16px;height:2px;background:${l.color};vertical-align:middle;margin-right:4px;border-top:2px dashed ${l.color};height:0"></span>`
+      : `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${l.color};vertical-align:middle;margin-right:4px;flex-shrink:0"></span>`;
+    return `<span style="display:inline-flex;align-items:center;font-size:10px;color:var(--ink-soft);font-family:var(--mono)">${swatch}${l.label}</span>`;
+  }).join('');
 
   return `
   <div class="section-title" style="margin-top:20px">Day inspector</div>
   <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 12px 10px;margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <div style="font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--ink)">${label}</div>
-      <div style="display:inline-flex;gap:0;border:1px solid rgba(255,255,255,.15);border-radius:999px;overflow:hidden">
+      <div style="display:inline-flex;gap:4px;padding:3px;background:var(--well);border:1px solid var(--line);border-radius:999px">
         ${['summer','winter'].map(s2 => {
           const active = season === s2;
-          return `<button onclick="state._di_season='${s2}';renderApp();" style="padding:5px 12px;font-size:10px;font-weight:700;font-family:var(--mono);border:none;cursor:pointer;border-radius:999px;background:${active ? 'rgba(255,255,255,.2)' : 'transparent'};color:${active ? '#fff' : 'rgba(255,255,255,.4)'};">${s2 === 'summer' ? '☀ Summer' : '❄ Winter'}</button>`;
+          return `<button onclick="state._di_season='${s2}';renderApp();" style="padding:4px 11px;font-size:10px;font-weight:700;font-family:var(--mono);border:none;cursor:pointer;border-radius:999px;background:${active ? 'var(--accent)' : 'transparent'};color:${active ? '#fff' : 'var(--ink-soft)'};">${s2 === 'summer' ? '☀ Summer' : '❄ Winter'}</button>`;
         }).join('')}
       </div>
     </div>
@@ -7224,11 +7247,11 @@ function renderDayInspector(){
       <!-- X axis labels -->
       ${xLabels.map(l => `<text x="${l.x.toFixed(1)}" y="${(PAD_T + CH + 11).toFixed(1)}" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="7.5" font-family="monospace">${l.label}</text>`).join('')}
 
-      <!-- Legend -->
-      <svg x="0" y="${H + 2}" width="${W}" height="${legendH}">
-        ${legendSvg}
-      </svg>
     </svg>
+    <!-- HTML legend strip -->
+    <div style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px;padding:8px 4px 2px;border-top:1px solid var(--line-soft)">
+      ${htmlLegend}
+    </div>
 
     <!-- Quick stats row -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px">
@@ -8974,16 +8997,16 @@ function renderRefine(){
       ${refineRow('Install cost (gross)', '', refineNum('rf-cost', state.install_cost, 0, 50000, 100, '€'))}
       ${refineRow('SEAI grant', state.grant_is_manual ? "You've set this manually — clear the field to return to auto" : 'Auto-calculated from your system size — editing locks it to your value', refineNum('rf-grant', state.grant_seai, 0, 5000, 100, '€'))}
       <div style="margin-top:14px;border-top:1px solid var(--line-soft);padding-top:12px">
-        <button onclick="state._expert_open=!state._expert_open;renderApp();" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;font-size:11px;font-weight:700;font-family:var(--mono);border:1px solid var(--line);background:$\{state._expert_open ? 'var(--well)' : 'transparent'};color:var(--ink-soft);cursor:pointer;letter-spacing:.04em">
-          $\{ic('tune',12)} Expert mode $\{state._expert_open ? '▲' : '▼'}
+        <button onclick="state._expert_open=!state._expert_open;renderApp();" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;font-size:11px;font-weight:700;font-family:var(--mono);border:1px solid var(--line);background:${state._expert_open ? 'var(--well)' : 'transparent'};color:var(--ink-soft);cursor:pointer;letter-spacing:.04em">
+          ${ic('tune',12)} Expert mode ${state._expert_open ? '▲' : '▼'}
         </button>
-        $\{state._expert_open ? \`
+        ${state._expert_open ? `
         <div style="margin-top:10px;padding:12px 14px;background:var(--well);border:1px solid var(--line);border-radius:12px">
           <div style="font-family:var(--mono);font-size:9px;color:var(--ink-dim);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:10px">Advanced simulation parameters</div>
-          $\{refineRow('Inverter size (kW)', 'Max AC output. Typical Irish home: 4.6–6 kW. Should roughly match your total array kWp.', refineNum('rf-inv', state.inverter_kw, 1, 20, 0.5, 'kW'))}
-          $\{refineRow('Battery depth of discharge (%)', 'Most lithium batteries: 90–100%. Lowering this reduces usable capacity but extends battery life.', refineNum('rf-dod', Math.round((state.battery_dod || 0.9) * 100), 50, 100, 5, '%'))}
-          $\{refineRow('Panel degradation (%/yr)', 'Industry typical: 0.4%/yr. Premium N-type panels: 0.3%/yr. Older poly: 0.6%/yr.', refineNum('rf-deg', Math.round((state.panel_degradation || 0.004) * 1000) / 10, 0.1, 1.5, 0.1, '%/yr'))}
-        </div>\` : ''}
+          ${refineRow('Inverter size (kW)', 'Max AC output. Typical Irish home: 4.6–6 kW. Should roughly match your total array kWp.', refineNum('rf-inv', state.inverter_kw, 1, 20, 0.5, 'kW'))}
+          ${refineRow('Battery depth of discharge (%)', 'Most lithium batteries: 90–100%. Lowering this reduces usable capacity but extends battery life.', refineNum('rf-dod', Math.round((state.battery_dod || 0.9) * 100), 50, 100, 5, '%'))}
+          ${refineRow('Panel degradation (%/yr)', 'Industry typical: 0.4%/yr. Premium N-type panels: 0.3%/yr. Older poly: 0.6%/yr.', refineNum('rf-deg', Math.round((state.panel_degradation || 0.004) * 1000) / 10, 0.1, 1.5, 0.1, '%/yr'))}
+        </div>` : ''}
       </div>
     ` : `
       <div onclick="exploreSolar()" style="padding:12px;background:var(--amber-soft);border:1px solid var(--amber);border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:12px">
