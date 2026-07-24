@@ -520,33 +520,36 @@
   .intro-progress-fill{height:100%;border-radius:2px;background:var(--accent);transition:width .35s cubic-bezier(.4,0,.2,1)}
   .intro-back{position:absolute;top:env(safe-area-inset-top,16px);left:16px;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10}
   .intro-hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 28px 0;text-align:center;min-height:0}
-  .intro-hero-blob{width:180px;height:180px;border-radius:60% 40% 55% 45% / 50% 55% 45% 50%;display:flex;align-items:center;justify-content:center;margin:0 auto 32px;position:relative}
-  .intro-hero-blob svg{width:80px;height:80px;opacity:.95}
-  .intro-title{font-size:30px;font-weight:800;color:#fff;letter-spacing:-.03em;line-height:1.1;margin-bottom:14px;max-width:320px}
-  .intro-sub{font-size:15px;color:rgba(255,255,255,.55);line-height:1.55;max-width:300px}
-  .intro-mood-list{display:flex;flex-direction:column;gap:10px;width:100%;max-width:400px;margin:20px auto 0;text-align:left}
-  .intro-mood-card{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:16px;border:1.5px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);cursor:pointer;transition:border-color .2s,background .2s;font-size:16px;color:#fff;font-family:var(--display);font-weight:500}
-  .intro-mood-card:hover,.intro-mood-card.sel{border-color:var(--accent);background:rgba(0,230,118,.06)}
-  .intro-mood-card .mood-radio{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,.2);margin-left:auto;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:border-color .2s}
+  .intro-hero-blob{width:220px;height:220px;border-radius:44% 56% 62% 38% / 52% 44% 56% 48%;display:flex;align-items:center;justify-content:center;margin:0 auto 36px;position:relative;flex-shrink:0}
+  .intro-hero-blob svg{width:100px;height:100px}
+  .intro-title{font-size:34px;font-weight:800;color:#fff;letter-spacing:-.035em;line-height:1.05;margin-bottom:14px;max-width:340px}
+  .intro-sub{font-size:15px;color:rgba(255,255,255,.5);line-height:1.6;max-width:320px}
+  .intro-mood-list{display:flex;flex-direction:column;gap:10px;width:100%;max-width:420px;margin:16px auto 0;text-align:left}
+  .intro-mood-card{display:flex;align-items:center;gap:14px;padding:17px 18px;border-radius:18px;border:1.5px solid rgba(255,255,255,.09);background:rgba(255,255,255,.04);cursor:pointer;transition:border-color .18s,background .18s;font-size:16px;color:#fff;font-family:var(--display);font-weight:500}
+  .intro-mood-card:active{background:rgba(0,230,118,.06)}
+  .intro-mood-card.sel{border-color:var(--accent);background:rgba(0,230,118,.07)}
+  .intro-mood-card .mood-radio{width:24px;height:24px;border-radius:50%;border:1.5px solid rgba(255,255,255,.18);margin-left:auto;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:border-color .18s,background .18s}
   .intro-mood-card.sel .mood-radio{border-color:var(--accent);background:var(--accent)}
-  .intro-mood-card.sel .mood-radio::after{content:'';width:8px;height:8px;border-radius:50%;background:#000}
-  .intro-feat-list{display:flex;flex-direction:column;gap:24px;width:100%;max-width:380px;margin:8px auto 0;text-align:left}
-  .intro-feat{display:flex;align-items:flex-start;gap:16px}
-  .intro-feat-icon{width:54px;height:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-  .intro-feat-title{font-size:15px;font-weight:700;color:#fff;margin-bottom:4px}
-  .intro-feat-body{font-size:13px;color:rgba(255,255,255,.5);line-height:1.5}
-  .intro-step-counter{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.3);letter-spacing:.08em;margin-bottom:10px}
-  .intro-footer{padding:20px 24px max(env(safe-area-inset-bottom),24px);flex-shrink:0}
-  .intro-cta{width:100%;padding:18px;border-radius:16px;border:none;background:var(--accent);color:#000;font-family:var(--display);font-size:16px;font-weight:700;cursor:pointer;transition:opacity .15s;letter-spacing:-.01em}
+  .intro-mood-card.sel .mood-radio::after{content:'';width:9px;height:9px;border-radius:50%;background:#000}
+  .intro-feat-list{display:flex;flex-direction:column;gap:26px;width:100%;max-width:400px;margin:8px auto 0;text-align:left}
+  .intro-feat{display:flex;align-items:flex-start;gap:18px}
+  .intro-feat-icon{width:58px;height:58px;border-radius:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .intro-feat-title{font-size:15px;font-weight:700;color:#fff;margin-bottom:5px;letter-spacing:-.01em}
+  .intro-feat-body{font-size:13px;color:rgba(255,255,255,.45);line-height:1.55}
+  .intro-step-counter{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.28);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px}
+  .intro-footer{padding:16px 24px max(env(safe-area-inset-bottom),28px);flex-shrink:0}
+  .intro-cta{width:100%;padding:19px;border-radius:18px;border:none;background:var(--accent);color:#000;font-family:var(--display);font-size:16px;font-weight:700;cursor:pointer;transition:opacity .15s;letter-spacing:-.01em}
   .intro-cta:hover{opacity:.88}
-  .intro-cta:disabled{opacity:.4;cursor:default}
-  .intro-ghost{width:100%;padding:14px;border:none;background:transparent;color:rgba(255,255,255,.45);font-family:var(--display);font-size:14px;font-weight:600;cursor:pointer;margin-top:4px}
-  .intro-ghost:hover{color:rgba(255,255,255,.7)}
-  .intro-oauth-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:12px;padding:16px;border-radius:16px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:#fff;font-family:var(--display);font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px;transition:border-color .2s,background .2s}
-  .intro-oauth-btn:hover{border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.08)}
-  .intro-or{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.2);font-size:11px;font-family:var(--mono);margin:4px 0 10px}
-  .intro-or::before,.intro-or::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.1)}
-  .intro-email-btn{width:100%;padding:16px;border-radius:16px;border:none;background:#1a2e22;color:var(--accent);font-family:var(--display);font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s}
+  .intro-cta:disabled{opacity:.35;cursor:default}
+  .intro-ghost{width:100%;padding:15px;border:none;background:transparent;color:rgba(255,255,255,.38);font-family:var(--display);font-size:14px;font-weight:500;cursor:pointer;margin-top:2px;letter-spacing:-.005em}
+  .intro-ghost:hover{color:rgba(255,255,255,.6)}
+  /* Sign-in screen buttons */
+  .intro-oauth-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:12px;padding:18px;border-radius:18px;border:1.5px solid rgba(255,255,255,.13);background:rgba(255,255,255,.06);color:#fff;font-family:var(--display);font-size:15px;font-weight:600;cursor:pointer;transition:border-color .18s,background .18s;box-sizing:border-box}
+  .intro-oauth-btn:hover{border-color:rgba(255,255,255,.28);background:rgba(255,255,255,.1)}
+  .intro-or{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.18);font-size:11px;font-family:var(--mono);margin:12px 0}
+  .intro-or::before,.intro-or::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.08)}
+  .intro-email-btn{width:100%;padding:18px;border-radius:18px;border:none;background:rgba(0,230,118,.12);color:var(--accent);font-family:var(--display);font-size:15px;font-weight:700;cursor:pointer;transition:background .18s;box-sizing:border-box;border:1.5px solid rgba(0,230,118,.2)}
+  .intro-email-btn:hover{background:rgba(0,230,118,.18)}
 
   /* ── Auth panel on welcome screen ── */
   .auth-panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;margin-top:12px}
@@ -3981,12 +3984,15 @@ function renderIntro(){
     // ── Splash ──
     heroHTML = `
       <div class="intro-hero" style="padding-top:env(safe-area-inset-top,30px)">
-        <div class="intro-hero-blob" style="background:radial-gradient(135deg,#0d2a1a 0%,#061510 100%);box-shadow:0 0 80px -20px rgba(0,230,118,.35)">
-          <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="40" cy="40" r="14" stroke="#00e676" stroke-width="2.5"/>
-            <path d="M40 10v8M40 62v8M70 40h-8M18 40h-8M61.2 18.8l-5.7 5.7M24.5 55.5l-5.7 5.7M61.2 61.2l-5.7-5.7M24.5 24.5l-5.7-5.7" stroke="#00e676" stroke-width="2.2" stroke-linecap="round"/>
-            <path d="M40 20 28 48h8L32 60 44 32h-8z" fill="#00e676"/>
-          </svg>
+        <div style="position:relative;width:230px;height:230px;flex-shrink:0;margin:0 auto 36px">
+          <div style="position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgba(0,230,118,.2) 0%,transparent 68%)"></div>
+          <div class="intro-hero-blob" style="width:100%;height:100%;background:linear-gradient(145deg,#0d2a1a 0%,#061510 100%);border:1px solid rgba(0,230,118,.18);box-shadow:0 0 0 1px rgba(0,230,118,.06),0 20px 60px -10px rgba(0,230,118,.25);margin:0">
+            <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" width="110" height="110">
+              <circle cx="50" cy="50" r="16" stroke="#00e676" stroke-width="2.2"/>
+              <path d="M50 14v9M50 77v9M86 50h-9M23 50h-9M75.5 24.5l-6.4 6.4M30.9 69.1l-6.4 6.4M75.5 75.5l-6.4-6.4M30.9 30.9l-6.4-6.4" stroke="#00e676" stroke-width="2" stroke-linecap="round"/>
+              <path d="M50 26 36 60h10L42 74 56 40H46z" fill="#00e676"/>
+            </svg>
+          </div>
         </div>
         <div class="intro-title">Your personal<br>energy advisor.</div>
         <div class="intro-sub">Find your cheapest Irish electricity plan — with or without solar. In 30 seconds.</div>
@@ -4052,15 +4058,21 @@ function renderIntro(){
   } else {
     // ── Sign in / continue as guest ──
     heroHTML = `
-      <div class="intro-hero">
-        <div class="intro-hero-blob" style="background:radial-gradient(135deg,#0d1f2a 0%,#06111a 100%);box-shadow:0 0 80px -20px rgba(138,180,248,.3)">
-          <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="10" y="22" width="40" height="30" rx="4" stroke="#8ab4f8" stroke-width="2.2"/>
-            <rect x="32" y="30" width="30" height="22" rx="4" stroke="#8ab4f8" stroke-width="2.2"/>
-            <path d="M50 52v4M28 52v4M18 56h46" stroke="#8ab4f8" stroke-width="2.2" stroke-linecap="round"/>
-          </svg>
+      <div class="intro-hero" style="justify-content:center">
+        <div style="position:relative;margin:0 auto 36px;width:230px;height:230px;flex-shrink:0">
+          <div style="position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgba(138,180,248,.18) 0%,transparent 70%)"></div>
+          <div class="intro-hero-blob" style="width:100%;height:100%;background:linear-gradient(145deg,#101c2e 0%,#090f1a 100%);border:1px solid rgba(138,180,248,.15);box-shadow:0 0 0 1px rgba(138,180,248,.06),0 20px 60px -10px rgba(138,180,248,.2);margin:0">
+            <svg width="110" height="110" viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="12" y="28" width="60" height="42" rx="5" stroke="#8ab4f8" stroke-width="2"/>
+              <path d="M42 70v8M28 78h28" stroke="#8ab4f8" stroke-width="2" stroke-linecap="round"/>
+              <rect x="52" y="38" width="46" height="34" rx="5" fill="#090f1a" stroke="#8ab4f8" stroke-width="2"/>
+              <rect x="57" y="43" width="36" height="22" rx="2" fill="rgba(138,180,248,.08)"/>
+              <path d="M57 68h36" stroke="#8ab4f8" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="75" cy="75" r="3" fill="#8ab4f8" opacity=".5"/>
+            </svg>
+          </div>
         </div>
-        <div class="intro-title">Access your results<br>on any device</div>
+        <div class="intro-title" style="margin-bottom:12px">Access your results<br>on any device</div>
         <div class="intro-sub">Sign in to save your analysis and settings — pick up where you left off on any device.</div>
       </div>`;
     footerHTML = `
