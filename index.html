@@ -3920,7 +3920,7 @@ function makeOb(){
   };
 }
 let _ob = makeOb();
-const OB_TOTAL_STEPS = 6;
+const OB_TOTAL_STEPS = 7;
 
 /* ============================================================
    WELCOME SCREEN — in-app landing, first thing users see
@@ -4393,11 +4393,12 @@ function renderOnboarding(){
 
 function renderObStep(n){
   if (n === 1) return obStep1Location();
-  if (n === 2) return obStep2CurrentPlan();
+  if (n === 2) return obStep2CsvImport();
   if (n === 3) return obStep3Heating();
   if (n === 4) return obStep4Bill();
-  if (n === 5) return obStep5Solar();
-  if (n === 6) return obStep6EV();
+  if (n === 5) return obStep5CurrentPlan();
+  if (n === 6) return obStep6Solar();
+  if (n === 7) return obStep7EV();
   return '';
 }
 
@@ -4413,11 +4414,11 @@ function setObBaseline(planId){
   renderApp();
 }
 
-function obStep2CurrentPlan(){
+function obStep5CurrentPlan(){
   const plans = activeTariffsSorted();
   const typeLabel = { flat: '24h Flat', tou: 'Day/Night', ev: 'EV', dynamic: 'Dynamic', dn: 'Day/Night' };
   return `
-    <div class="ob-step-num">Step 2 of 6 · Current Plan</div>
+    <div class="ob-step-num">Step 5 of 7 · Current Plan</div>
     <h1 class="ob-title">What plan are you <em>on now</em>?</h1>
     <p class="ob-sub">This makes your savings estimate accurate — we compare your best match against your <em>actual</em> current cost. You can always change it later.</p>
 
@@ -4451,9 +4452,34 @@ function obStep2CurrentPlan(){
     <p class="ob-help" style="margin-top:10px">Can't find your exact plan? Pick the closest match by supplier and type, or choose "Not sure" — the savings estimate will still be directionally accurate.</p>`;
 }
 
+function obStep2CsvImport(){
+  if (state._csv_imported){
+    return `
+    <div class="ob-step-num">Step 2 of 7 · Smart meter data</div>
+    <h1 class="ob-title">Smart meter data <em>imported</em> ✓</h1>
+    <p class="ob-sub">Your real 30-minute readings are active — this is the most accurate source we have. You can continue straight to the next step.</p>
+    ${csvLockCard()}
+    <p class="ob-help" style="margin-top:12px">Want to remove the CSV and enter a bill estimate instead? Use More → Import smart-meter data at any time.</p>`;
+  }
+  const m = _ob.usage_mode === 'csv' ? 'csv' : 'csv'; // always show CSV UI on this step
+  return `
+    <div class="ob-step-num">Step 2 of 7 · Smart meter data</div>
+    <h1 class="ob-title">Got your <em>smart meter</em> CSV?</h1>
+    <p class="ob-sub">The most accurate option — real 30-minute readings beat any estimate. You can skip this and enter a bill figure on the next step instead.</p>
+    <div class="card" style="margin-top:4px;margin-bottom:12px">
+      <div style="font-size:12px;color:var(--ink-soft);line-height:1.7">Log in at <b>myaccount.esbnetworks.ie</b> → My Meter → <b>Download HDF Data</b> (select 12 months if available). The file looks like <span style="font-family:var(--mono);font-size:10px;background:var(--well);padding:2px 6px;border-radius:4px">HDF_XXXXXXXX_YYYY-MM-DD.csv</span>.</div>
+      <label class="btn-secondary" style="display:block;text-align:center;cursor:pointer;margin-top:10px;padding:12px 16px;border:1px dashed var(--blue);color:var(--blue)">
+        Choose CSV file
+        <input id="csv-file-input" type="file" accept=".csv,.CSV" style="display:none" onchange="handleCsvFile(event)">
+      </label>
+    </div>
+    <div id="csv-parse-result" style="margin-top:4px;margin-bottom:8px"></div>
+    <p class="ob-help">No file handy? Tap <b>Continue →</b> to skip — you'll enter your bill on the next step. You can always import the CSV later from More → Import smart-meter data.</p>`;
+}
+
 function obStep1Location(){
   return `
-    <div class="ob-step-num">Step 1 of 6 · Location</div>
+    <div class="ob-step-num">Step 1 of 7 · Location</div>
     <h1 class="ob-title">Which part of <em>Ireland</em>?</h1>
     <p class="ob-sub">Solar yield varies ~12% across Ireland. The south coast gets meaningfully more sun than Donegal — we use PVGIS-calibrated data per zone.</p>
     ${renderRegionPicker(_ob.region)}
@@ -4461,9 +4487,14 @@ function obStep1Location(){
 }
 
 function obStep3Heating(){
+  const csvBanner = state._csv_imported ? `
+    <div style="background:var(--accent-faint);border:1px solid var(--accent);border-radius:10px;padding:10px 13px;margin-bottom:14px;font-size:12px;color:var(--ink);line-height:1.5">
+      ${ic('bolt',13,'vertical-align:-2px;color:var(--accent)')} <b>CSV detected!</b> Heating load is already captured in your smart meter data. Select your heating type only to model future upgrades or compare scenarios.
+    </div>` : '';
   return `
-    <div class="ob-step-num">Step 3 of 6 · Heating</div>
+    <div class="ob-step-num">Step 3 of 7 · Heating</div>
     <h1 class="ob-title">How do you <em>heat</em> your home?</h1>
+    ${csvBanner}
     <p class="ob-sub">This shapes your electricity use across the day. Gas peaks evenings, heat pumps run overnight.</p>
     <div class="ob-tiles">
       ${[
@@ -4490,33 +4521,18 @@ function pickObHeating(heating){
 function obStep4Bill(){
   if (state._csv_imported){
     return `
-    <div class="ob-step-num">Step 4 of 6 · Usage</div>
+    <div class="ob-step-num">Step 4 of 7 · Usage</div>
     <h1 class="ob-title">Usage comes from your <em>smart meter</em></h1>
     <p class="ob-sub">A CSV import is active — it's the most accurate source we have, so manual entry is locked while it's in use.</p>
     ${csvLockCard()}
     <p class="ob-help" style="margin-top:12px">Happy with the imported data? Just continue — everything else in this setup still applies on top of it.</p>`;
   }
-  const m = _ob.usage_mode;
+  // If the mode is still 'csv' (set before reorder), fall back to bill mode on this step
+  const m = (_ob.usage_mode === 'csv') ? 'bill' : _ob.usage_mode;
   const pill = (mode, label) => `<button onclick="setObUsageMode('${mode}')" style="padding:8px 14px;font-size:11.5px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${m === mode ? 'var(--accent)' : 'transparent'};color:${m === mode ? '#fff' : 'var(--ink-soft)'}">${label}</button>`;
-  const pills = `<div style="display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--well);margin-bottom:12px">${pill('bill','€ Bill')}${pill('kwh','kWh / year')}${pill('csv','Smart CSV')}</div>`;
-  if (m === 'csv'){
-    return `
-    <div class="ob-step-num">Step 4 of 6 · Smart meter</div>
-    <h1 class="ob-title">Import your <em>smart meter</em> data</h1>
-    <p class="ob-sub">The most accurate option — real 30-minute readings beat any estimate. Less than a full year still works: we scale it to an anticipated yearly profile.</p>
-    ${pills}
-    <div class="card" style="margin-top:2px">
-      <div style="font-size:12px;color:var(--ink-soft);line-height:1.7">Log in at <b>myaccount.esbnetworks.ie</b> → My Meter → <b>Download HDF Data</b> (select 12 months if you can). The file looks like <span style="font-family:var(--mono);font-size:10px;background:var(--well);padding:2px 6px;border-radius:4px">HDF_XXXXXXXX_YYYY-MM-DD.csv</span>.</div>
-      <label class="btn-secondary" style="display:block;text-align:center;cursor:pointer;margin-top:10px;padding:12px 16px;border:1px dashed var(--blue);color:var(--blue)">
-        Choose CSV file
-        <input id="csv-file-input" type="file" accept=".csv,.CSV" style="display:none" onchange="handleCsvFile(event)">
-      </label>
-    </div>
-    <div id="csv-parse-result" style="margin-top:10px"></div>
-    <p class="ob-help" style="margin-top:10px">No file handy? Switch back to <b>€ Bill</b> or <b>kWh / year</b> above — you can import the CSV any time later from More → Import smart-meter data.</p>`;
-  }
+  const pills = `<div style="display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--well);margin-bottom:12px">${pill('bill','€ Bill')}${pill('kwh','kWh / year')}</div>`;
   return `
-    <div class="ob-step-num">Step 4 of 6 · ${m === 'kwh' ? 'Consumption' : 'Bill'}</div>
+    <div class="ob-step-num">Step 4 of 7 · ${m === 'kwh' ? 'Consumption' : 'Bill'}</div>
     <h1 class="ob-title">${m === 'kwh' ? `Your yearly electricity <em>consumption</em>?` : `Your <em>electricity</em> bill?`}</h1>
     <p class="ob-sub">${m === 'kwh' ? `In <b>kWh per year</b> — from your annual statement, smart meter app, or by adding up your bills.` : `<b>Electricity bill only</b> — for a 2-month period. Not gas, not oil.`}</p>
     ${pills}
@@ -4576,9 +4592,9 @@ function obPills(key, val, options){
     <div onclick="obSetVal('${key}',${v})" style="padding:9px 14px;border-radius:999px;font-size:12.5px;font-weight:700;font-family:var(--mono);cursor:pointer;border:1.5px solid ${Math.abs(v - val) < 0.001 ? 'var(--accent)' : 'var(--line)'};background:${Math.abs(v - val) < 0.001 ? 'var(--accent-soft)' : 'var(--panel)'};color:${Math.abs(v - val) < 0.001 ? 'var(--accent)' : 'var(--ink-soft)'}">${l}</div>`).join('')}</div>`;
 }
 
-function obStep5Solar(){
+function obStep6Solar(){
   return `
-    <div class="ob-step-num">Step 5 of 6 · Solar (optional)</div>
+    <div class="ob-step-num">Step 6 of 7 · Solar (optional)</div>
     <h1 class="ob-title">Do you have or plan to add <em>solar</em>?</h1>
     <p class="ob-sub">Skip this if no solar. Otherwise, more detail = more accurate payback.</p>
 
@@ -4672,9 +4688,9 @@ function obStep5Solar(){
     ` : ''}`;
 }
 
-function obStep6EV(){
+function obStep7EV(){
   return `
-    <div class="ob-step-num">Step 6 of 6 · Electric vehicle (optional)</div>
+    <div class="ob-step-num">Step 7 of 7 · Electric vehicle (optional)</div>
     <h1 class="ob-title">Do you have or plan to add an <em>EV</em>?</h1>
     <p class="ob-sub">EV ownership transforms your tariff choice — night-boost plans become very attractive.</p>
 
@@ -4822,11 +4838,8 @@ function obNext(){
     return;  // shouldn't happen — region tile defaults to 'east'
   }
   if (_ob.step === 4 && !state._csv_imported){
-    if (_ob.usage_mode === 'csv'){
-      showToast('Upload your HDF CSV first — or switch to € Bill / kWh above', { type:'amber', icon:ic('csv',16), title:'No file imported yet' });
-      return;
-    }
-    const bad = _ob.usage_mode === 'kwh' ? (!_ob.annual_kwh || _ob.annual_kwh < 500) : (!_ob.bill || _ob.bill < 30);
+    const effMode = (_ob.usage_mode === 'csv') ? 'bill' : _ob.usage_mode;
+    const bad = effMode === 'kwh' ? (!_ob.annual_kwh || _ob.annual_kwh < 500) : (!_ob.bill || _ob.bill < 30);
     if (bad){ const el = document.getElementById('ob-bill'); if (el) el.focus(); return; }
   }
   if (_ob.step < OB_TOTAL_STEPS){ _ob.step++; renderApp(); return; }
