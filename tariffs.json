@@ -1,7 +1,7 @@
 [
   {
     "id": "__meta__",
-    "last_scraped": "2026-07-23",
+    "last_scraped": "2026-07-24",
     "scraper_version": "1.0",
     "cru_warnings": [
       "Possible new supplier detected on CRU page: 'Learn More Compare Energy'",
@@ -395,7 +395,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.185,
-    "verified_date": "2026-07-23",
+    "verified_date": "2026-07-24",
     "notes": "VERIFIED bordgaisenergy.ie/home/ev-plan-comparison. 26% new-customer discount. Standing €244.76. CEG 18.5c."
   },
   {
