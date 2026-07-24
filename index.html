@@ -3970,7 +3970,7 @@ function renderExpress(){
       <div class="screen" style="padding:28px 20px">
         <div style="background:var(--panel);border:1.5px solid var(--accent);border-radius:18px;padding:24px 20px;margin-bottom:18px;text-align:center">
           <div style="font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:10px">● You could save</div>
-          <div style="font-family:var(--display);font-size:58px;font-weight:800;color:var(--accent);line-height:1">€${saving.toLocaleString()}</div>
+          <div style="font-family:var(--display);font-size:58px;font-weight:800;color:var(--accent);line-height:1" data-countup="${saving}" data-prefix="€">€${saving.toLocaleString()}</div>
           <div style="font-family:var(--display);font-size:16px;color:var(--ink);font-weight:600;margin-top:4px">every year on electricity</div>
           <div style="font-size:13px;color:var(--ink-soft);margin-top:10px;line-height:1.6">
             Right now you pay about <b style="color:var(--ink)">€${bimonthly} every 2 months</b>.<br>
@@ -5147,7 +5147,7 @@ function renderResult(){
         <div style="font-family:var(--mono);font-size:14px;color:var(--ink-dim)">✕</div>
       </div>` : ''}
       <div class="qr-eyebrow">You could save</div>
-      <div class="qr-value">${fmtCurrency(annualSavings)}<span class="qr-value-unit">/yr</span></div>
+      <div class="qr-value" data-countup="${Math.round(annualSavings)}" data-prefix="€"><span data-countup-num>${fmtCurrency(annualSavings)}</span><span class="qr-value-unit">/yr</span></div>
       <div class="qr-headline">by switching to a better electricity plan</div>
       ${(() => {
         const split = plannedSolarSplit();
@@ -5971,17 +5971,8 @@ function renderSolarDashboard(){
     <div class="secondary-card amber" onclick="setScreen('quotes')">
       <div class="secondary-card-icon">${ic('scales',19)}</div>
       <div class="secondary-card-body">
-        <div class="secondary-card-title">Already have quotes? Compare them</div>
-        <div class="secondary-card-sub">We check each one against our independent model${(state.solar_quotes||[]).length ? ' · ' + state.solar_quotes.length + ' added' : ''}</div>
-      </div>
-      <div class="secondary-card-arrow">›</div>
-    </div>
-
-    <div class="secondary-card blue" onclick="setScreen('auditor')">
-      <div class="secondary-card-icon">${ic('clip',19)}</div>
-      <div class="secondary-card-body">
-        <div class="secondary-card-title">Already have a quote? Audit it</div>
-        <div class="secondary-card-sub">We benchmark against 2026 Irish market prices</div>
+        <div class="secondary-card-title">Already have quotes? Check them</div>
+        <div class="secondary-card-sub">Audit against 2026 benchmarks or compare side-by-side${(state.solar_quotes||[]).length ? ' · ' + state.solar_quotes.length + ' added' : ''}</div>
       </div>
       <div class="secondary-card-arrow">›</div>
     </div>
@@ -9204,7 +9195,7 @@ function renderCompare(){
       <div style="font-size:11px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px">Snapshots your current setup — ${liveSummary.hasSolar ? liveSummary.panels + ' panels' : 'no solar'}${liveSummary.battery > 0 ? ' · ' + liveSummary.battery + ' kWh' : ''}${liveSummary.ev ? ' · EV' : ''}, best plan ${liveSummary.bestPlanName}. Load or compare it later.</div>
       <div style="display:flex;gap:8px">
         <input id="scenario-name-input" class="modal-input" style="flex:1;margin:0" type="text" placeholder="Name it (optional)" maxlength="40">
-        <button class="switch-cta" style="margin:0;white-space:nowrap;padding:12px 18px" onclick="saveCurrentScenario()">${ic('plus',15)} Save</button>
+        <button class="switch-cta" style="margin:0;white-space:nowrap;padding:12px 18px;width:auto;flex:0 0 auto" onclick="saveCurrentScenario()">${ic('plus',15)} Save</button>
       </div>
     </div>`;
 
@@ -9879,6 +9870,28 @@ function renderAppDebounced(){
   _renderDebounceTimer = setTimeout(() => { _renderDebounceTimer = null; renderApp(); }, 110);
 }
 
+function runCountUps(root){
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  root.querySelectorAll('[data-countup]').forEach(el => {
+    const target = parseFloat(el.getAttribute('data-countup'));
+    if (!isFinite(target) || target <= 0) return;
+    const prefix = el.getAttribute('data-prefix') || '';
+    const suffix = el.getAttribute('data-suffix') || '';
+    const span = el.querySelector('[data-countup-num]') || el;
+    const keepKids = span !== el ? null : Array.from(el.childNodes).filter(n => n.nodeType === 1);
+    const t0 = performance.now(), dur = 750;
+    function frame(t){
+      const p = Math.min(1, (t - t0) / dur);
+      const e = 1 - Math.pow(1 - p, 3);
+      const txt = prefix + Math.round(target * e).toLocaleString() + suffix;
+      if (keepKids){ el.textContent = txt; keepKids.forEach(k => el.appendChild(k)); }
+      else span.textContent = txt;
+      if (p < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  });
+}
+
 function renderApp(){
   // A pending debounced paint is now redundant — this synchronous one supersedes it.
   if (_renderDebounceTimer){ clearTimeout(_renderDebounceTimer); _renderDebounceTimer = null; }
@@ -9887,6 +9900,8 @@ function renderApp(){
   // Express mode — no-jargon 2-step flow for Persona 6
   if (state.current_screen === 'express'){
     root.innerHTML = renderExpress();
+    const k = 'express-' + (state.express_step || 1);
+    if (window.__lastScreen !== k){ runCountUps(root); window.__lastScreen = k; }
     return;
   }
   // Landing page — first thing new users see; also reachable via the logo
@@ -9941,6 +9956,7 @@ function renderApp(){
   if (state.current_screen === 'refine')     bindRefine();
   if (state.current_screen === 'csv-import') bindCsvImport();
   enhanceA11y();
+  if (window.__lastScreen !== state.current_screen){ runCountUps(root); window.__lastScreen = state.current_screen; }
   // Inject auth modal overlay (if open) — outside the screen so it overlays all screens
   const existingModal = document.getElementById('auth-modal-root');
   if (existingModal) existingModal.remove();
