@@ -514,6 +514,41 @@
   .welcome-actions{display:flex;flex-direction:column;gap:10px;padding-bottom:20px}
   .welcome-trust{font-family:var(--mono);font-size:10px;color:var(--ink-dim);letter-spacing:.06em;text-align:center;margin-top:10px;line-height:1.6}
 
+  /* ── Auth panel on welcome screen ── */
+  .auth-panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;margin-top:12px}
+  .auth-panel-title{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:14px;text-align:center}
+  .auth-google-btn{
+    width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+    padding:12px 16px;border-radius:10px;border:1.5px solid var(--line);
+    background:var(--bg);color:var(--ink);font-family:var(--display);
+    font-size:14px;font-weight:600;cursor:pointer;transition:border-color .15s,background .15s;
+  }
+  .auth-google-btn:hover{border-color:var(--track);background:var(--panel)}
+  .auth-divider{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--ink-dim);font-size:11px;font-family:var(--mono)}
+  .auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--line)}
+  .auth-input-row{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+  .auth-input-sm{
+    background:var(--bg);border:1.5px solid var(--line);border-radius:10px;
+    padding:10px 13px;font-family:var(--display);font-size:13.5px;color:var(--ink);
+    outline:none;transition:border-color .15s;width:100%;box-sizing:border-box;
+  }
+  .auth-input-sm:focus{border-color:var(--accent)}
+  .auth-input-sm::placeholder{color:var(--ink-dim)}
+  .auth-submit-btn{
+    width:100%;padding:11px;border-radius:10px;border:none;
+    background:var(--accent);color:#000;font-family:var(--display);
+    font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s;margin-top:4px;
+  }
+  .auth-submit-btn:hover{opacity:.88}
+  .auth-submit-btn:disabled{opacity:.45;cursor:default}
+  .auth-msg{font-size:12px;padding:8px 10px;border-radius:8px;margin-top:8px;display:none;line-height:1.4}
+  .auth-msg.err{background:#ff444418;border:1px solid #ff444430;color:#ff7070}
+  .auth-msg.ok{background:var(--accent-soft);border:1px solid var(--accent);color:var(--accent)}
+  .auth-toggle{font-size:12px;color:var(--ink-soft);text-align:center;margin-top:10px}
+  .auth-toggle a{color:var(--accent);cursor:pointer;text-decoration:none;font-weight:600}
+  .auth-forgot{font-size:11.5px;color:var(--ink-dim);text-align:right;cursor:pointer;margin-top:-4px;margin-bottom:6px}
+  .auth-forgot:hover{color:var(--ink-soft)}
+
   /* Plans list — ranked tariffs */
   .plan-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:10px;cursor:pointer;transition:transform .15s,border-color .15s}
   .plan-card:hover{transform:translateY(-1px);border-color:var(--track)}
@@ -1095,65 +1130,80 @@ async function sbResetPassword(email){
 
 function sbInitialized(){ return !!(SUPABASE_URL && SUPABASE_ANON_KEY); }
 
-// ---- Auth modal rendering ----
+// ---- Auth rendering ----
 
-function renderAuthModal(){
-  if (!_authModalOpen) return '';
-  const view = _authView;
-  if (view === 'profile' && _sbUser) return renderProfileModal();
-  return `
-  <div class="auth-modal-backdrop" onclick="if(event.target===this){_authModalOpen=false;renderApp()}">
-    <div class="auth-modal" role="dialog" aria-modal="true" aria-label="${view==='login'?'Sign in':'Create account'}">
-      <button class="auth-modal-close" onclick="_authModalOpen=false;renderApp()" aria-label="Close">${ic('x',18)}</button>
-      <div style="margin-bottom:18px">
-        <div style="font-size:20px;font-weight:800;color:var(--ink);margin-bottom:4px">
-          ${view==='login' ? 'Welcome back' : 'Create account'}
+let _authEmailView = 'login'; // 'login' | 'signup' | 'forgot' — controls inline email form on welcome page
+
+/* Google SVG logo (inline, no external resource) */
+const GOOGLE_SVG = `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z" fill="#4285F4"/>
+  <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z" fill="#34A853"/>
+  <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332Z" fill="#FBBC05"/>
+  <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58Z" fill="#EA4335"/>
+</svg>`;
+
+/* Auth section rendered inside the welcome page (unauthenticated state) */
+function renderAuthSection(){
+  if (!sbInitialized()) return '';
+  if (_sbUser) {
+    const name = (_sbProfile && _sbProfile.display_name) || _sbUser.email || 'there';
+    const initials = name.slice(0,1).toUpperCase();
+    return `
+    <div class="auth-panel" style="margin-top:20px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div class="profile-nav-avatar" style="width:38px;height:38px;font-size:16px;flex-shrink:0">${initials}</div>
+        <div>
+          <div style="font-size:13.5px;font-weight:700;color:var(--ink)">Signed in as ${name}</div>
+          <div style="font-size:11.5px;color:var(--ink-soft)">${_sbUser.email}</div>
         </div>
-        <div style="font-size:13px;color:var(--ink-soft)">Save your settings and access them anywhere.</div>
       </div>
-      <div class="auth-tab-bar">
-        <button class="auth-tab ${view==='login'?'active':''}" onclick="_authView='login';renderApp()">Sign in</button>
-        <button class="auth-tab ${view==='signup'?'active':''}" onclick="_authView='signup';renderApp()">Create account</button>
+      <div style="display:flex;gap:8px">
+        <button class="auth-submit-btn" style="flex:1;background:var(--panel);color:var(--ink);border:1.5px solid var(--line)" onclick="doSyncState()">Sync settings</button>
+        <button class="auth-submit-btn" style="flex:1;background:transparent;color:#ff7070;border:1.5px solid #ff444440" onclick="doSignOut()">Sign out</button>
       </div>
-      <div id="auth-error" class="auth-error"></div>
-      <div id="auth-success" class="auth-success"></div>
-      ${view === 'login' ? renderLoginForm() : renderSignupForm()}
-    </div>
+    </div>`;
+  }
+  const v = _authEmailView;
+  return `
+  <div class="auth-panel" style="margin-top:20px">
+    <div class="auth-panel-title">Save settings & access anywhere</div>
+    <button class="auth-google-btn" onclick="doGoogleSignIn()">
+      ${GOOGLE_SVG} Continue with Google
+    </button>
+    <div class="auth-divider">or</div>
+    ${v === 'forgot' ? `
+      <div class="auth-input-row">
+        <input class="auth-input-sm" id="auth-email" type="email" placeholder="your@email.com" autocomplete="email">
+      </div>
+      <div id="auth-msg" class="auth-msg"></div>
+      <button class="auth-submit-btn" onclick="doForgotPassword()">Send reset link</button>
+      <div class="auth-toggle"><a onclick="_authEmailView='login';renderApp()">← Back to sign in</a></div>
+    ` : v === 'signup' ? `
+      <div class="auth-input-row">
+        <input class="auth-input-sm" id="auth-name" type="text" placeholder="Your name (optional)" autocomplete="name">
+        <input class="auth-input-sm" id="auth-email" type="email" placeholder="your@email.com" autocomplete="email">
+        <input class="auth-input-sm" id="auth-password" type="password" placeholder="Password (8+ chars)" autocomplete="new-password">
+      </div>
+      <div id="auth-msg" class="auth-msg"></div>
+      <button class="auth-submit-btn" id="auth-submit-btn" onclick="doSignUp()">Create free account</button>
+      <div class="auth-toggle">Already have an account? <a onclick="_authEmailView='login';renderApp()">Sign in</a></div>
+    ` : `
+      <div class="auth-input-row">
+        <input class="auth-input-sm" id="auth-email" type="email" placeholder="your@email.com" autocomplete="email">
+        <input class="auth-input-sm" id="auth-password" type="password" placeholder="Password" autocomplete="current-password">
+      </div>
+      <div class="auth-forgot" onclick="_authEmailView='forgot';renderApp()">Forgot password?</div>
+      <div id="auth-msg" class="auth-msg"></div>
+      <button class="auth-submit-btn" id="auth-submit-btn" onclick="doSignIn()">Sign in</button>
+      <div class="auth-toggle">New here? <a onclick="_authEmailView='signup';renderApp()">Create free account</a></div>
+    `}
   </div>`;
 }
 
-function renderLoginForm(){
-  return `
-    <div class="auth-field">
-      <label>Email</label>
-      <input class="auth-input" id="auth-email" type="email" placeholder="you@example.com" autocomplete="email">
-    </div>
-    <div class="auth-field">
-      <label>Password</label>
-      <input class="auth-input" id="auth-password" type="password" placeholder="••••••••" autocomplete="current-password">
-    </div>
-    <button class="auth-btn" id="auth-submit-btn" onclick="doSignIn()">Sign in</button>
-    <button class="auth-secondary-btn" onclick="doForgotPassword()" style="margin-top:12px">Forgot password?</button>`;
-}
-
-function renderSignupForm(){
-  return `
-    <div class="auth-field">
-      <label>Name (optional)</label>
-      <input class="auth-input" id="auth-name" type="text" placeholder="Your name" autocomplete="name">
-    </div>
-    <div class="auth-field">
-      <label>Email</label>
-      <input class="auth-input" id="auth-email" type="email" placeholder="you@example.com" autocomplete="email">
-    </div>
-    <div class="auth-field">
-      <label>Password (min 8 characters)</label>
-      <input class="auth-input" id="auth-password" type="password" placeholder="••••••••" autocomplete="new-password">
-    </div>
-    <button class="auth-btn" id="auth-submit-btn" onclick="doSignUp()">Create account</button>`;
-}
-
-function renderProfileModal(){
+/* Profile modal — opened from topbar avatar */
+function renderAuthModal(){
+  if (!_authModalOpen) return '';
+  if (!_sbUser) return '';
   const initials = (_sbProfile && _sbProfile.display_name
     ? _sbProfile.display_name : (_sbUser.email || '?')).slice(0, 1).toUpperCase();
   const displayName = (_sbProfile && _sbProfile.display_name) || '';
@@ -1164,7 +1214,7 @@ function renderProfileModal(){
       <div class="profile-section">
         <div class="profile-avatar">${initials}</div>
         <div class="profile-email">${_sbUser.email}</div>
-        <div class="profile-name">${displayName || 'No name set'}</div>
+        <div class="profile-name">${displayName || ''}</div>
       </div>
       <div id="auth-error" class="auth-error"></div>
       <div id="auth-success" class="auth-success"></div>
@@ -1185,26 +1235,31 @@ function renderProfileNavBtn(){
   if (_sbUser){
     const initials = (_sbProfile && _sbProfile.display_name
       ? _sbProfile.display_name : (_sbUser.email || '?')).slice(0,1).toUpperCase();
-    return `<button class="profile-nav-btn" onclick="_authModalOpen=true;_authView='profile';renderApp()" aria-label="Your profile">
+    return `<button class="profile-nav-btn" onclick="_authModalOpen=true;renderApp()" aria-label="Your profile">
       <div class="profile-nav-avatar">${initials}</div>
     </button>`;
   }
-  return `<button class="profile-nav-btn" onclick="_authModalOpen=true;_authView='login';renderApp()" aria-label="Sign in">
-    ${ic('shield',18)} <span>Sign in</span>
-  </button>`;
+  return '';
 }
 
 // ---- Auth actions (called from onclick) ----
+
+async function doGoogleSignIn(){
+  if (!_sb) return;
+  await _sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href }
+  });
+}
 
 async function doSignIn(){
   const email = (document.getElementById('auth-email') || {}).value || '';
   const pw    = (document.getElementById('auth-password') || {}).value || '';
   const btn   = document.getElementById('auth-submit-btn');
-  const errEl = document.getElementById('auth-error');
-  if (!email || !pw){ showAuthError('Please enter your email and password.'); return; }
+  if (!email || !pw){ showAuthMsg('Please enter your email and password.', 'err'); return; }
   if (btn) btn.disabled = true;
   const err = await sbSignIn(email, pw);
-  if (err){ showAuthError(err.message); if(btn) btn.disabled=false; return; }
+  if (err){ showAuthMsg(err.message, 'err'); if(btn) btn.disabled=false; return; }
   _authModalOpen = false;
   renderApp();
 }
@@ -1214,12 +1269,12 @@ async function doSignUp(){
   const email = (document.getElementById('auth-email') || {}).value || '';
   const pw    = (document.getElementById('auth-password') || {}).value || '';
   const btn   = document.getElementById('auth-submit-btn');
-  if (!email){ showAuthError('Please enter your email.'); return; }
-  if (!pw || pw.length < 8){ showAuthError('Password must be at least 8 characters.'); return; }
+  if (!email){ showAuthMsg('Please enter your email.', 'err'); return; }
+  if (!pw || pw.length < 8){ showAuthMsg('Password must be at least 8 characters.', 'err'); return; }
   if (btn) btn.disabled = true;
   const err = await sbSignUp(email, pw, name);
-  if (err){ showAuthError(err.message); if(btn) btn.disabled=false; return; }
-  showAuthSuccess('Account created! Check your email to confirm, then sign in.');
+  if (err){ showAuthMsg(err.message, 'err'); if(btn) btn.disabled=false; return; }
+  showAuthMsg('Account created! Check your email to confirm, then sign in.', 'ok');
 }
 
 async function doSignOut(){
@@ -1229,36 +1284,44 @@ async function doSignOut(){
 
 async function doForgotPassword(){
   const email = (document.getElementById('auth-email') || {}).value || '';
-  if (!email){ showAuthError('Enter your email address first.'); return; }
+  if (!email){ showAuthMsg('Enter your email address first.', 'err'); return; }
   const err = await sbResetPassword(email);
-  if (err){ showAuthError(err.message); return; }
-  showAuthSuccess('Password reset email sent — check your inbox.');
+  if (err){ showAuthMsg(err.message, 'err'); return; }
+  showAuthMsg('Reset link sent — check your inbox.', 'ok');
 }
 
 async function doUpdateProfile(){
   const name = (document.getElementById('profile-name-input') || {}).value || '';
   await sbSaveProfile({ display_name: name });
   if (_sbProfile) _sbProfile.display_name = name;
+  showAuthError('');
   showAuthSuccess('Profile saved.');
-  setTimeout(() => renderApp(), 1000);
+  setTimeout(() => renderApp(), 1200);
 }
 
 async function doSyncState(){
   await sbSaveProfile();
+  showAuthMsg('Settings synced to cloud.', 'ok');
   showAuthSuccess('Settings synced to cloud.');
 }
 
+/* Inline auth-msg for welcome page panel */
+function showAuthMsg(msg, type){
+  const el = document.getElementById('auth-msg');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'auth-msg ' + (type || 'err');
+  el.style.display = msg ? 'block' : 'none';
+}
+
+/* Profile modal error/success (legacy modal) */
 function showAuthError(msg){
   const el = document.getElementById('auth-error');
-  if (el){ el.textContent = msg; el.style.display = 'block'; }
-  const ok = document.getElementById('auth-success');
-  if (ok) ok.style.display = 'none';
+  if (el){ el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
 }
 function showAuthSuccess(msg){
   const el = document.getElementById('auth-success');
-  if (el){ el.textContent = msg; el.style.display = 'block'; }
-  const er = document.getElementById('auth-error');
-  if (er) er.style.display = 'none';
+  if (el){ el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
 }
 
 /* ============================================================
@@ -3837,7 +3900,8 @@ function renderWelcome(){
         <button class="ob-skip-btn" onclick="navigateAuditor()">Just want to audit an installer quote? →</button>
       </div>
       ${state.onboarding_complete ? `<button class="ob-skip-btn" style="margin-top:10px" onclick="setScreen('result')">← Back to my results</button>` : ''}
-      <div class="welcome-trust">Free · Independent · Your data stays on this device</div>
+      ${renderAuthSection()}
+      <div class="welcome-trust" style="margin-top:12px">Free · Independent · Your data stays on this device</div>
     </div>
   </div>`;
 }
