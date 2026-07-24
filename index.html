@@ -515,7 +515,7 @@
   .welcome-trust{font-family:var(--mono);font-size:10px;color:var(--ink-dim);letter-spacing:.06em;text-align:center;margin-top:10px;line-height:1.6}
 
   /* ── Intro onboarding flow ── */
-  .intro-screen{position:fixed;inset:0;background:#0e1510;display:flex;flex-direction:column;z-index:200;overflow:hidden}
+  .intro-screen{position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;z-index:200;overflow:hidden}
   .intro-progress-bar{height:3px;background:rgba(255,255,255,.12);margin:0 20px;border-radius:2px;flex-shrink:0}
   .intro-progress-fill{height:100%;border-radius:2px;background:var(--accent);transition:width .35s cubic-bezier(.4,0,.2,1)}
   .intro-back{position:absolute;top:env(safe-area-inset-top,16px);left:16px;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10}
@@ -3932,13 +3932,19 @@ let _introStep = 1;  // 1=splash  2=mood  3=features  4=sign-in
 let _introMood = ''; // selected mood card
 
 function introNext(){
-  _introStep = 4; // splash → sign-in directly
+  if (_introStep === 2 && !_introMood) return; // must pick mood
+  _introStep = Math.min(_introStep + 1, 4);
   renderApp();
 }
 function introBack(){
-  if (_introStep <= 1) return;
-  _introStep = 1;
+  if (_introStep <= 1){ return; }
+  _introStep--;
   renderApp();
+}
+function introPickMood(m){
+  _introMood = m;
+  // Auto-advance after a brief moment so the selection is visible
+  setTimeout(() => { _introStep = 3; renderApp(); }, 320);
 }
 function introFinish(){
   state.seen_intro = true;
@@ -3957,7 +3963,15 @@ function introSignInEmail(){
 
 function renderIntro(){
   const s = _introStep;
-  const showBack = s === 4;
+  const pct = [0, 25, 58, 85, 100][s] || 0;
+  const showBack = s >= 2;
+  const showProgress = s >= 2;
+
+  const progressBar = showProgress ? `
+    <div style="padding:${showBack?'54px':'20px'} 20px 0;flex-shrink:0">
+      <div class="intro-progress-bar"><div class="intro-progress-fill" style="width:${pct}%"></div></div>
+    </div>` : '';
+
   const backBtn = showBack ? `
     <button class="intro-back" onclick="introBack()" aria-label="Back">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.6 5.6 8.2 12l6.4 6.4"/></svg>
@@ -3970,23 +3984,75 @@ function renderIntro(){
     // ── Splash ──
     heroHTML = `
       <div class="intro-hero" style="padding-top:env(safe-area-inset-top,30px)">
-        <div style="position:relative;width:240px;height:240px;flex-shrink:0;margin:0 auto 40px">
-          <div style="position:absolute;inset:-30px;border-radius:50%;background:radial-gradient(circle,rgba(0,230,118,.22) 0%,transparent 65%)"></div>
-          <div class="intro-hero-blob" style="width:100%;height:100%;background:linear-gradient(145deg,#122a1b 0%,#0b1f13 100%);border:1px solid rgba(0,230,118,.22);box-shadow:0 0 0 1px rgba(0,230,118,.07),0 24px 70px -8px rgba(0,230,118,.3);margin:0">
-            <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" width="115" height="115">
-              <circle cx="50" cy="50" r="16" stroke="#00e676" stroke-width="2.4"/>
-              <path d="M50 12v10M50 78v10M88 50h-10M22 50h-10M77 23l-7 7M30 67l-7 7M77 77l-7-7M30 33l-7-7" stroke="#00e676" stroke-width="2.2" stroke-linecap="round"/>
-              <path d="M50 24 35 62h11L42 76 57 38H46z" fill="#00e676"/>
+        <div style="position:relative;width:230px;height:230px;flex-shrink:0;margin:0 auto 36px">
+          <div style="position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgba(0,230,118,.2) 0%,transparent 68%)"></div>
+          <div class="intro-hero-blob" style="width:100%;height:100%;background:linear-gradient(145deg,#0d2a1a 0%,#061510 100%);border:1px solid rgba(0,230,118,.18);box-shadow:0 0 0 1px rgba(0,230,118,.06),0 20px 60px -10px rgba(0,230,118,.25);margin:0">
+            <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" width="110" height="110">
+              <circle cx="50" cy="50" r="16" stroke="#00e676" stroke-width="2.2"/>
+              <path d="M50 14v9M50 77v9M86 50h-9M23 50h-9M75.5 24.5l-6.4 6.4M30.9 69.1l-6.4 6.4M75.5 75.5l-6.4-6.4M30.9 30.9l-6.4-6.4" stroke="#00e676" stroke-width="2" stroke-linecap="round"/>
+              <path d="M50 26 36 60h10L42 74 56 40H46z" fill="#00e676"/>
             </svg>
           </div>
         </div>
-        <div class="intro-title" style="font-size:36px">Your personal<br><em style="color:#00e676;font-style:normal">energy advisor.</em></div>
-        <div class="intro-sub" style="margin-top:16px;font-size:16px;color:rgba(255,255,255,.6)">Find your cheapest Irish electricity plan — with or without solar. Free, in 30 seconds.</div>
+        <div class="intro-title">Your personal<br>energy advisor.</div>
+        <div class="intro-sub">Find your cheapest Irish electricity plan — with or without solar. In 30 seconds.</div>
       </div>`;
     footerHTML = `
       <div class="intro-footer">
         <button class="intro-cta" onclick="introNext()">Get started</button>
-        <button class="intro-ghost" onclick="introSignInEmail()">Have an account? <strong style="color:rgba(255,255,255,.65)">Sign in</strong></button>
+        <button class="intro-ghost" onclick="_authModalOpen=false;${sbInitialized() && _sbUser ? "introFinish()" : "introSignInEmail()"}">Have an account? <strong>Sign in</strong></button>
+      </div>`;
+
+  } else if (s === 2){
+    // ── Mood question ──
+    const moods = [
+      {emoji:'😩', label:'Stressed — my bills are too high'},
+      {emoji:'🤔', label:'Unsure — I don\'t know what I\'m paying'},
+      {emoji:'😐', label:'Okay — but I want to do better'},
+      {emoji:'💪', label:'Optimising — I\'m all over it'},
+    ];
+    heroHTML = `
+      <div class="intro-hero" style="justify-content:flex-start;padding-top:24px">
+        <div class="intro-title" style="font-size:26px;text-align:left;margin-bottom:6px">How do you feel<br>about your energy bills?</div>
+        <div class="intro-mood-list">
+          ${moods.map(m => `
+            <div class="intro-mood-card ${_introMood===m.label?'sel':''}" onclick="introPickMood('${m.label.replace(/'/g,"\\'")}')">
+              <span style="font-size:22px">${m.emoji}</span>
+              <span>${m.label}</span>
+              <div class="mood-radio"></div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    footerHTML = `
+      <div class="intro-footer">
+        <button class="intro-cta" onclick="introNext()" ${_introMood?'':'disabled'}>Continue</button>
+      </div>`;
+
+  } else if (s === 3){
+    // ── Features ──
+    const feats = [
+      { bg:'#0d2a1a', icon: `<svg viewBox="0 0 48 48" fill="none" stroke="#00e676" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M8 36V20"/><path d="M18 36V10"/><path d="M28 36V26"/><path d="M38 36V16"/></svg>`, title:'Find your cheapest tariff', body:'All Irish residential plans modelled against your actual usage — not averages.' },
+      { bg:'#1a1a0d', icon: `<svg viewBox="0 0 48 48" fill="none" stroke="#ffe066" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="24" r="7"/><path d="M24 6v4M24 38v4M42 24h-4M10 24H6M36.6 11.4l-2.8 2.8M14.2 33.8l-2.8 2.8M36.6 36.6l-2.8-2.8M14.2 14.2l-2.8-2.8"/></svg>`, title:'Real solar payback', body:'Your roof, your tariff, your numbers — not generic marketing estimates.' },
+      { bg:'#0d1a2a', icon: `<svg viewBox="0 0 48 48" fill="none" stroke="#8ab4f8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="14" width="32" height="22" rx="4"/><path d="M16 36v4M32 36v4M12 40h24"/><path d="M16 26l5 5 11-12"/></svg>`, title:'Audit any installer quote', body:'Independent benchmark against 2026 Irish market prices — spot overpriced quotes instantly.' },
+    ];
+    heroHTML = `
+      <div class="intro-hero" style="justify-content:flex-start;padding-top:8px">
+        <div class="intro-step-counter">Features</div>
+        <div class="intro-title" style="font-size:26px;text-align:left;margin-bottom:20px">All you need to<br>cut your energy bills</div>
+        <div class="intro-feat-list">
+          ${feats.map(f=>`
+            <div class="intro-feat">
+              <div class="intro-feat-icon" style="background:${f.bg}">${f.icon}</div>
+              <div>
+                <div class="intro-feat-title">${f.title}</div>
+                <div class="intro-feat-body">${f.body}</div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    footerHTML = `
+      <div class="intro-footer">
+        <button class="intro-cta" onclick="introNext()">Next</button>
       </div>`;
 
   } else {
@@ -4021,7 +4087,7 @@ function renderIntro(){
       </div>`;
   }
 
-  return `<div class="intro-screen">${backBtn}${heroHTML}${footerHTML}</div>`;
+  return `<div class="intro-screen">${backBtn}${progressBar}${heroHTML}${footerHTML}</div>`;
 }
 
 function renderWelcome(){
@@ -5145,64 +5211,84 @@ function renderGoalDesigner(){
   const busy = !!state._goal_busy;
   const ck = goalSweepCk();
   const haveResults = CACHE._goalSweep_ck === ck && CACHE._goalSweep;
-  const isEstD = !!state.solar_is_estimate;
-
-  // Compact segmented control
-  const seg = (g, label) => {
+  const goalBtn = (g, icon, title, sub) => {
     const active = view === g;
-    return `<button onclick="${g==='mine' ? "setSolarView('mine')" : "startGoalDesign('"+g+"')"}"
-      style="flex:1;padding:9px 6px;font-size:12.5px;font-weight:700;font-family:var(--display);border:none;cursor:pointer;border-radius:10px;transition:all .15s;background:${active?'var(--accent)':'transparent'};color:${active?'#000':'var(--ink-soft)'}">
-      ${label}
-    </button>`;
+    return `<div onclick="${g === 'mine' ? "setSolarView('mine')" : "startGoalDesign('" + g + "')"}" style="flex:1;padding:12px 10px;border-radius:14px;cursor:pointer;border:1.5px solid ${active ? 'var(--accent)' : 'var(--line)'};background:${active ? 'var(--accent-soft)' : 'var(--well)'}">
+      <div style="margin-bottom:4px">${ic(icon,17)}</div>
+      <div style="font-size:12px;font-weight:700;color:${active ? 'var(--accent)' : 'var(--ink)'};line-height:1.25">${title}</div>
+      <div style="font-size:9.5px;color:var(--ink-soft);margin-top:3px;line-height:1.4">${sub}</div>
+    </div>`;
   };
 
-  // Winner card for goal views — just the top design, no ranked list
-  let winCard = '';
+  const selIdx = (state._goal_sel && state._goal_sel[view]) || 0;
+  let body = '';
   if (busy){
-    winCard = `<div style="margin-top:12px;padding:14px;text-align:center;font-size:12px;color:var(--ink-soft)">
-      Calculating best designs…
-      <div style="height:3px;background:var(--track-soft);border-radius:99px;margin-top:10px;overflow:hidden"><div style="height:100%;width:55%;background:var(--accent);border-radius:99px;animation:pulse 1.1s ease infinite"></div></div>
+    body = `<div style="margin-top:12px;padding:14px;background:var(--well);border-radius:12px;text-align:center">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--ink-soft);letter-spacing:.04em">Simulating ${GOAL_PANELS.length * GOAL_BATTS.length} system designs × ${TARIFFS.filter(t=>!t.discontinued).length} plans on your usage…</div>
+      <div style="height:4px;background:var(--track-soft);border-radius:99px;margin-top:10px;overflow:hidden"><div style="height:100%;width:55%;background:var(--accent);border-radius:99px;animation:pulse 1.1s ease infinite"></div></div>
     </div>`;
   } else if (view !== 'mine' && haveResults){
-    const ranked = view === 'npv' ? CACHE._goalSweep.byNpv : CACHE._goalSweep.byPayback;
-    const win = ranked[0];
-    winCard = `
-      <div style="margin-top:12px;padding:16px;background:var(--accent-faint);border:1.5px solid var(--accent);border-radius:14px">
-        <div style="font-size:17px;font-weight:800;color:var(--ink)">${win.panels} panels${win.batt ? ' + ' + win.batt + ' kWh battery' : ''} <span style="font-size:13px;font-weight:500;color:var(--ink-soft)">(${win.kwp} kWp)</span></div>
-        <div style="display:flex;gap:0;margin-top:12px">
-          <div style="flex:1;border-right:1px solid var(--line)">
-            <div style="font-family:var(--mono);font-size:9px;color:var(--ink-dim);letter-spacing:.06em;text-transform:uppercase">Payback</div>
-            <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--ink);margin-top:3px">${win.payback}<span style="font-size:11px;color:var(--ink-soft)"> yr</span></div>
-          </div>
-          <div style="flex:1;padding-left:14px;border-right:1px solid var(--line)">
-            <div style="font-family:var(--mono);font-size:9px;color:var(--ink-dim);letter-spacing:.06em;text-transform:uppercase">20-yr profit</div>
-            <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--accent);margin-top:3px">€${win.npv.toLocaleString()}</div>
-          </div>
-          <div style="flex:1;padding-left:14px">
-            <div style="font-family:var(--mono);font-size:9px;color:var(--ink-dim);letter-spacing:.06em;text-transform:uppercase">Net cost</div>
-            <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--ink);margin-top:3px">~€${win.net.toLocaleString()}</div>
-          </div>
+    const goal = view;
+    const sweep = CACHE._goalSweep;
+    const ranked = goal === 'npv' ? sweep.byNpv : sweep.byPayback;
+    const win = ranked[Math.min(selIdx, ranked.length - 1)];
+    const other = goal === 'npv' ? sweep.byPayback[0] : sweep.byNpv[0];
+    const same = other.panels === win.panels && other.batt === win.batt;
+    body = `
+      <div style="margin-top:12px;padding:14px 16px;background:var(--accent-faint);border:1.5px solid var(--accent);border-radius:14px">
+        <div style="font-family:var(--mono);font-size:9.5px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:6px">${goal === 'npv' ? 'Most value over 20 years' : 'Fastest payback'} — best design</div>
+        <div style="font-size:17px;font-weight:800;color:var(--ink);font-family:var(--display)">${win.panels} panels (${win.kwp} kWp)${win.batt ? ' · ' + win.batt + ' kWh battery' : ' · no battery'}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px">
+          <div><div style="font-family:var(--mono);font-size:8.5px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em">Payback</div><div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)">${win.payback} yr</div></div>
+          <div><div style="font-family:var(--mono);font-size:8.5px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em">20-yr profit (NPV)</div><div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent)">€${win.npv.toLocaleString()}</div></div>
+          <div><div style="font-family:var(--mono);font-size:8.5px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em">Est. cost after grant</div><div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)">~€${win.net.toLocaleString()}</div></div>
         </div>
-        <div style="font-size:11px;color:var(--ink-dim);margin-top:10px;line-height:1.5">Estimated install ~€${win.cost.toLocaleString()} − €${win.grant.toLocaleString()} SEAI grant. Our modelled price, not a quote.</div>
-        <button onclick="commitGoalDesign()" class="switch-cta" style="margin:12px 0 0;padding:12px;font-size:14px">Use this system →</button>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--ink-soft);margin-top:8px;line-height:1.6">€${win.benefit.toLocaleString()}/yr benefit on ${win.planLabel} · ~€${win.cost.toLocaleString()} <b>estimated</b> install − €${win.grant.toLocaleString()} SEAI grant · our modelled price, not an installer quote</div>
+        <div style="font-family:var(--mono);font-size:9.5px;color:var(--accent);margin-top:9px;letter-spacing:.04em">● LIVE PREVIEW — every card on this screen now shows this design</div>
+        <button onclick="commitGoalDesign()" class="switch-cta" style="margin:10px 0 0;padding:13px;font-size:14px">Make this my system →</button>
+      </div>
+      ${!same ? `<div style="margin-top:8px;padding:10px 13px;background:var(--well);border-radius:10px;font-size:11px;color:var(--ink-soft);line-height:1.6">
+        ${goal === 'npv'
+          ? `The fastest-payback design (${other.panels} panels${other.batt ? ' + ' + other.batt + ' kWh' : ''}) breaks even in <b>${other.payback} yr</b> but earns <b>€${(win.npv - other.npv).toLocaleString()} less</b> over 20 years.`
+          : `The value-maximising design (${other.panels} panels${other.batt ? ' + ' + other.batt + ' kWh' : ''}) takes <b>${other.payback} yr</b> to break even but earns <b>€${(other.npv - win.npv).toLocaleString()} more</b> over 20 years.`}
+      </div>` : `<div style="margin-top:8px;padding:10px 13px;background:var(--well);border-radius:10px;font-size:11px;color:var(--ink-soft)">Both goals point to the same design for your home — an easy decision.</div>`}
+      <div style="margin-top:10px">
+        <div style="font-family:var(--mono);font-size:9px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">All ${sweep.designs.length} designs tested · ranked for this goal</div>
+        <div style="display:flex;align-items:center;gap:8px;padding:0 11px 5px;font-family:var(--mono);font-size:8px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.06em">
+          <div style="width:14px"></div>
+          <div style="flex:1">System</div>
+          <div style="width:46px;text-align:right">Payback</div>
+          <div style="width:56px;text-align:right">Est. net</div>
+          <div style="width:62px;text-align:right">20-yr profit</div>
+        </div>
+        ${ranked.slice(0, 4).map((d, i) => `
+          <div onclick="setSolarView('${goal}', ${i})" style="display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:9px;cursor:pointer;margin-bottom:5px;border:1px solid ${i===selIdx ? 'var(--accent)' : 'var(--line-soft)'};background:${i===selIdx ? 'var(--accent-faint)' : 'transparent'}">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--ink-dim);width:14px">${i===selIdx ? '●' : i+1}</div>
+            <div style="flex:1;font-size:11.5px;color:var(--ink);font-weight:${i===selIdx?'700':'500'}">${d.panels}p${d.batt ? '+' + d.batt + 'kWh' : ''}</div>
+            <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);width:46px;text-align:right">${d.payback} yr</div>
+            <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);width:56px;text-align:right">~€${d.net.toLocaleString()}</div>
+            <div style="font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--accent);width:62px;text-align:right">€${d.npv.toLocaleString()}</div>
+          </div>`).join('')}
+        <div style="font-family:var(--mono);font-size:9px;color:var(--ink-dim);margin-top:6px;line-height:1.6;letter-spacing:.02em">~ All system prices are our estimates from a 2026 install benchmark + auto SEAI grant — not quotes · benefit is electricity-only on your usage${state.azimuth_A && state.azimuth_A !== 180 ? ' · your Roof A orientation' : ' · south-facing roof assumed'} · 20-yr value discounted at 3%</div>
       </div>`;
   }
 
+  const isEstD = !!state.solar_is_estimate;
   return `
-    <div style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px${isEstD?';border-style:dashed;border-color:var(--blue)':''}">
-      <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:4px">System</div>
-      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px">${view !== 'mine' ? 'Previewing an optimised design — tap <b style="color:var(--ink)">My system</b> to go back.' : isEstD ? 'Using an estimated system. Tap a goal to find the best design for your home.' : 'Tap a goal to optimise, or customise your exact panels.'}</div>
-      <div style="display:flex;gap:4px;background:var(--well);border-radius:12px;padding:4px">
-        ${seg('mine','My system')}
-        ${seg('payback','Fastest payback')}
-        ${seg('npv','Most value')}
+    <div class="card" style="margin-bottom:14px${isEstD ? ';border:1.5px dashed var(--blue)' : ''}">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:4px">${ic('target',12,'vertical-align:-2px')} Design my system</div>
+      <div style="font-size:11.5px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px">${view !== 'mine' ? `You're previewing an optimised design — your own setup is safe under <b style="color:var(--ink)">My system</b>.` : isEstD ? `The numbers below use an <b style="color:var(--ink)">estimated system</b> — not a quote, not your installed setup. Pick a goal to preview ${GOAL_PANELS.length * GOAL_BATTS.length} optimised designs, or set your exact panels below.` : `Switch views any time — the whole screen re-simulates instantly. Your own setup always lives under My system.`}</div>
+      <div style="display:flex;gap:7px">
+        ${goalBtn('mine', 'home', 'My system', view === 'mine' ? 'Your configuration — live now' : 'Back to your own setup')}
+        ${goalBtn('payback', 'bolt', 'Fastest payback', 'Smallest spend, soonest break-even')}
+        ${goalBtn('npv', 'chart', 'Most 20-yr value', 'Maximise total 20-yr profit')}
       </div>
-      ${winCard}
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--line-soft)">
-        <div style="font-size:11px;color:var(--ink-dim)">${isEstD?'Estimated install ~'+fmtCurrency(state.install_cost):'Know your exact spec?'}</div>
-        <button onclick="goRefineSolar()" style="padding:7px 13px;border-radius:999px;font-size:11px;font-weight:700;font-family:var(--display);border:1px solid var(--blue);background:transparent;color:var(--blue);cursor:pointer">Edit specs →</button>
+      ${body}
+      <div style="display:flex;gap:8px;margin-top:12px;padding-top:11px;border-top:1px solid var(--line-soft);align-items:center;justify-content:space-between">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--ink-dim)">${isEstD ? 'Install ~' + fmtCurrency(state.install_cost) + ' est. · grant −' + fmtCurrency(state.grant_seai) : 'Know your exact spec?'}</div>
+        <button onclick="goRefineSolar()" style="flex-shrink:0;padding:8px 13px;border-radius:999px;font-size:11.5px;font-weight:700;font-family:var(--display);border:1px solid var(--blue);background:transparent;color:var(--blue);cursor:pointer">Set my exact system →</button>
       </div>
-      ${isEstD ? `<div onclick="markSolarAsMine()" style="margin-top:8px;text-align:center;font-size:11px;color:var(--ink-soft);text-decoration:underline;cursor:pointer">These values match my actual system</div>` : ''}
+      ${isEstD ? `<div onclick="markSolarAsMine()" style="margin-top:8px;text-align:center;font-size:11px;color:var(--ink-soft);text-decoration:underline;cursor:pointer">These values match my system — stop calling it an estimate</div>` : ''}
     </div>`;
 }
 
@@ -6069,53 +6155,41 @@ function renderSolarDashboard(){
       </div>
     ` : ''}
 
-    <!-- Key stats — 2 hero numbers, rest behind toggle -->
-    <div style="display:flex;gap:10px;margin-bottom:14px">
-      <div class="card" style="flex:1;margin-bottom:0">
-        <div class="card-label">${ic('bolt',13)} Solar benefit</div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-label">${ic('bolt',13)} Solar electricity benefit</div>
         <div class="card-value accent">${fmtCurrency(currentScen.solarBenefit)}<span class="unit">/yr</span></div>
-        <div class="card-delta">vs no solar</div>
+        <div class="card-delta">vs no solar, ${state.ev_active ? 'with EV' : 'no EV'}</div>
       </div>
-      <div class="card" style="flex:1;margin-bottom:0">
-        <div class="card-label">${ic('sun',13)} Self-use</div>
+      <div class="card" onclick="toggleNpvBreakdown()" style="cursor:pointer">
+        <div class="card-label">∑ 20-yr NPV (3%) <span style="float:right;color:var(--accent);font-size:11px">tap for math ↓</span></div>
+        <div class="card-value ${npv20 > 0 ? 'accent' : 'red'}">${fmtCurrency(npv20)}</div>
+        <div class="card-delta">After Y12 battery swap</div>
+      </div>
+      <div class="card">
+        <div class="card-label">${ic('sun',13)} Solar produced</div>
+        <div class="card-value">${Math.round(totalGen).toLocaleString()}<span class="unit"> kWh/yr</span></div>
+        <div class="card-delta">${(totalGen/Math.max(kwp,0.01)).toFixed(0)} kWh per kWp</div>
+      </div>
+      <div class="card">
+        <div class="card-label">${ic('rotate',13)} Solar used on-site</div>
         <div class="card-value">${selfConsumPct}<span class="unit">%</span></div>
-        <div class="card-delta">${Math.round(totalGen).toLocaleString()} kWh/yr made</div>
+        <div class="card-delta">${Math.round(selfConsumed).toLocaleString()} of ${Math.round(totalGen).toLocaleString()} kWh</div>
       </div>
-    </div>
-    <!-- Expandable detail stats -->
-    <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:14px;overflow:hidden">
-      <div onclick="state._solar_stats_open=!state._solar_stats_open;renderApp()" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer">
-        <div style="font-size:13px;font-weight:600;color:var(--ink)">Full breakdown</div>
-        <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim)">${state._solar_stats_open?'▴ less':'▾ more'}</div>
-      </div>
-      ${state._solar_stats_open ? `
-      <div style="padding:0 16px 16px;border-top:1px solid var(--line)">
-        <div class="grid-2" style="margin-top:12px;margin-bottom:0">
-          <div class="card" style="margin-bottom:8px">
-            <div class="card-label">∑ 20-yr NPV (3%)</div>
-            <div class="card-value ${npv20>0?'accent':'red'}" onclick="toggleNpvBreakdown()" style="cursor:pointer">${fmtCurrency(npv20)}</div>
-            <div class="card-delta">After Y12 battery swap · tap for maths</div>
-          </div>
-          <div class="card" style="margin-bottom:8px">
-            <div class="card-label">${ic('export',13)} Export income</div>
-            <div class="card-value">${fmtCurrency(totalExport * best.plan.export_rate)}<span class="unit">/yr</span></div>
-            <div class="card-delta">${Math.round(totalExport)} kWh @ ${fmtCent(best.plan.export_rate)}</div>
-          </div>
-          ${state.battery_kwh > 0 ? `
-          <div class="card" style="margin-bottom:0">
-            <div class="card-label">${ic('battery',13)} Battery cycled</div>
-            <div class="card-value amber">${Math.round(sumF(best.sim.battery_charge))}<span class="unit"> kWh/yr</span></div>
-            <div class="card-delta">${state.battery_kwh} kWh cap</div>
-          </div>` : ''}
-          <div class="card" style="margin-bottom:0">
-            <div class="card-label">${ic('sun',13)} Generation</div>
-            <div class="card-value">${Math.round(totalGen).toLocaleString()}<span class="unit"> kWh/yr</span></div>
-            <div class="card-delta">${(totalGen/Math.max(kwp,0.01)).toFixed(0)} kWh per kWp</div>
-          </div>
-        </div>
-        ${state._show_npv_breakdown ? renderNpvBreakdown(currentScen.solarBenefit, sysCost, state.battery_kwh || 0, state.panel_degradation || 0.005) : ''}
+      ${state.battery_kwh > 0 ? `
+      <div class="card">
+        <div class="card-label">${ic('battery',13)} Battery cycled</div>
+        <div class="card-value amber">${Math.round(sumF(best.sim.battery_charge))}<span class="unit"> kWh/yr</span></div>
+        <div class="card-delta">${state.battery_kwh} kWh cap</div>
       </div>` : ''}
+      <div class="card">
+        <div class="card-label">${ic('export',13)} Export income</div>
+        <div class="card-value">${fmtCurrency(totalExport * best.plan.export_rate)}<span class="unit">/yr</span></div>
+        <div class="card-delta">${Math.round(totalExport)} kWh @ ${fmtCent(best.plan.export_rate)}</div>
+      </div>
     </div>
+
+    ${state._show_npv_breakdown ? renderNpvBreakdown(currentScen.solarBenefit, sysCost, state.battery_kwh || 0, state.panel_degradation || 0.005) : ''}
 
     <div class="section-title">Best plan WITH this solar</div>
     <div class="plan-compare">
