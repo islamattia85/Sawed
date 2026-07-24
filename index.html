@@ -1282,7 +1282,9 @@ function renderProfileNavBtn(){
       <div class="profile-nav-avatar">${initials}</div>
     </button>`;
   }
-  return '';
+  return `<button class="profile-nav-btn" onclick="_introStep=4;state.current_screen='intro';renderApp()" aria-label="Sign in" style="font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;gap:5px">
+    ${ic('shield',15)} <span>Sign in</span>
+  </button>`;
 }
 
 // ---- Auth actions (called from onclick) ----
@@ -4069,7 +4071,7 @@ function renderIntro(){
         <div class="intro-or">or</div>
         <button class="intro-email-btn" onclick="introSignInEmail()">Continue with Email</button>
         <div id="auth-msg" class="auth-msg" style="margin-top:8px"></div>
-        <button class="intro-ghost" style="margin-top:12px" onclick="introFinish()">Continue as guest</button>
+        <button class="intro-ghost" style="margin-top:12px" onclick="state.current_screen=state.onboarding_complete?'result':'welcome';renderApp()">Continue as guest</button>
       </div>`;
   }
 
