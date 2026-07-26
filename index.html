@@ -41,6 +41,9 @@
     --line:#1F2922; --line-soft:#161D18;
     --hair:rgba(255,255,255,.055); --hair-strong:rgba(255,255,255,.10);
     --accent:#00E676; --accent-glow:rgba(0,230,118,.40); --accent-soft:rgba(0,230,118,.10);
+    /* Semantic: money the user gains. Separate token from brand --accent so the
+       two roles can be tinted apart; identical by default. */
+    --gain:#00E676; --gain-soft:rgba(0,230,118,.10);
     --amber:#FF9100; --amber-glow:rgba(255,145,0,.40); --amber-soft:rgba(255,145,0,.10);
     --blue:#29B6F6; --blue-glow:rgba(41,182,246,.40); --blue-soft:rgba(41,182,246,.10);
     --red:#FF1744; --red-glow:rgba(255,23,68,.40); --red-soft:rgba(255,23,68,.10);
@@ -65,6 +68,7 @@
     --line:#E2E9E3; --line-soft:#EDF2ED;
     --hair:rgba(12,30,18,.085); --hair-strong:rgba(12,30,18,.16);
     --accent:#00A35A; --accent-glow:rgba(0,170,92,.28); --accent-soft:rgba(0,150,80,.10);
+    --gain:#00A35A; --gain-soft:rgba(0,150,80,.10);
     --amber:#D97706; --amber-glow:rgba(217,119,6,.26); --amber-soft:rgba(217,119,6,.10);
     --blue:#0277BD; --blue-glow:rgba(2,119,189,.24); --blue-soft:rgba(2,119,189,.09);
     --red:#D32F2F; --red-glow:rgba(211,47,47,.25); --red-soft:rgba(211,47,47,.09);
@@ -260,7 +264,7 @@
   .qr-hero::after{content:'';position:absolute;top:-1px;left:-1px;right:-1px;height:1px;background:linear-gradient(90deg,transparent 0%,var(--accent) 50%,transparent 100%);opacity:.6}
   .qr-eyebrow{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.18em;text-transform:uppercase;font-weight:700;margin-bottom:12px;display:inline-flex;align-items:center;gap:8px}
   .qr-eyebrow::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent),0 0 12px var(--accent-glow);animation:pulse 2.2s ease infinite}
-  .qr-value{font-family:var(--mono);font-size:54px;font-weight:600;line-height:1;letter-spacing:-.03em;color:var(--accent);font-variant-numeric:tabular-nums;margin-bottom:6px}
+  .qr-value{font-family:var(--mono);font-size:54px;font-weight:600;line-height:1;letter-spacing:-.03em;color:var(--gain);font-variant-numeric:tabular-nums;margin-bottom:6px}
   .qr-value-unit{font-size:18px;color:var(--ink-soft);font-weight:500;margin-left:6px;font-family:var(--display);letter-spacing:0}
   .qr-headline{font-size:18px;font-weight:600;line-height:1.3;color:var(--ink);margin-top:14px;letter-spacing:-.015em}
   .qr-sub{font-size:13px;color:var(--ink-soft);margin-top:8px;line-height:1.5}
@@ -3441,7 +3445,7 @@ function renderOptimisations(){
         </div>` : ''}
       </div>
     `).join('')}
-    ${opts.suggest.length ? `<div style="font-family:var(--mono);font-size:10px;color:var(--ink-dim);line-height:1.6;margin:4px 2px 0;letter-spacing:.02em">Values are re-simulated on your exact setup — applying one change can unlock others, so check back after applying.</div>` : ''}`;
+    ${opts.suggest.length ? `<div style="font-family:var(--display);font-size:10px;color:var(--ink-dim);line-height:1.6;margin:4px 2px 0;letter-spacing:.02em">Values are re-simulated on your exact setup — applying one change can unlock others, so check back after applying.</div>` : ''}`;
 }
 
 /* ============================================================
@@ -4254,7 +4258,7 @@ function renderOnboarding(){
           return `<span class="${n < _ob.step ? 'done' : n === _ob.step ? 'current' : ''}"></span>`;
         }).join('')}
       </div>
-      <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink-dim);letter-spacing:.04em;margin:-22px 0 22px;text-align:center">${ic('info',10)} Takes about 2 minutes · you can change anything later</div>
+      <div style="font-family:var(--display);font-size:9.5px;color:var(--ink-dim);letter-spacing:.04em;margin:-22px 0 22px;text-align:center">${ic('info',10)} Takes about 2 minutes · you can change anything later</div>
       <div class="ob-content">${renderObStep(_ob.step)}</div>
       <div class="ob-nav">
         ${_ob.step > 1 ? `<button class="ob-back-btn" onclick="obBack()">← Back</button>` : ''}
@@ -4538,13 +4542,13 @@ function obStep6Solar(){
         <div class="ob-mini-title">${ic('battery',14)} Battery</div>
         <div class="ob-mini-label">Capacity in kWh (enter 0 if no battery)</div>
         <input id="ob-batt" class="ob-mini-input" type="number" inputmode="decimal" min="0" max="50" step="0.1" value="${_ob.battery_kwh}">
-        <div style="margin-top:8px;font-size:10.5px;color:var(--ink-dim);font-family:var(--mono);line-height:1.5">Typical Irish installs: 5–13.5 kWh. Common: Powerwall 13.5, GivEnergy 9.5, Sigenergy 8.</div>
+        <div style="margin-top:8px;font-size:10.5px;color:var(--ink-dim);font-family:var(--display);line-height:1.5">Typical Irish installs: 5–13.5 kWh. Common: Powerwall 13.5, GivEnergy 9.5, Sigenergy 8.</div>
       </div>
 
       ${_ob.battery_kwh > 0 ? `
       <div class="ob-mini-section">
         <div class="ob-mini-title">${ic('bolt',14)} Battery strategy</div>
-        <p style="font-size:11px;color:var(--ink-dim);margin:0 0 10px;line-height:1.6;font-family:var(--mono)">How should your battery charge? Arbitrage uses cheap off-peak grid rates to fill the battery and discharge at peak prices — it earns more but needs a night-rate or EV plan.</p>
+        <p style="font-size:11px;color:var(--ink-dim);margin:0 0 10px;line-height:1.6;font-family:var(--display)">How should your battery charge? Arbitrage uses cheap off-peak grid rates to fill the battery and discharge at peak prices — it earns more but needs a night-rate or EV plan.</p>
         <div style="display:flex;gap:8px">
           <div onclick="_ob.strategy='arbitrage';_ob.charge_from_grid=true;renderApp();" style="flex:1;padding:12px 10px;border:1.5px solid ${_ob.strategy === 'arbitrage' ? 'var(--accent)' : 'var(--line)'};border-radius:10px;cursor:pointer;background:${_ob.strategy === 'arbitrage' ? 'var(--accent-soft)' : 'transparent'}">
             <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:${_ob.strategy === 'arbitrage' ? 'var(--accent)' : 'var(--ink-soft)'};letter-spacing:.06em">ARBITRAGE</div>
@@ -4570,7 +4574,7 @@ function obStep6Solar(){
             <input id="ob-grant" class="ob-mini-input" type="number" inputmode="numeric" min="0" max="5000" step="100" value="${_ob.install_grant >= 0 ? _ob.install_grant : calcSeaiGrant((_ob.count_A + _ob.count_B) * 440/1000, _ob.battery_kwh).total}">
           </div>
         </div>
-        <p style="font-size:11px;color:var(--ink-dim);margin-top:6px;line-height:1.5;font-family:var(--mono)">Auto-calculated: €900/kWp for first 2 kWp — maximum grant €1,800 (SEAI 2025 scheme).</p>
+        <p style="font-size:11px;color:var(--ink-dim);margin-top:6px;line-height:1.5;font-family:var(--display)">Auto-calculated: €900/kWp for first 2 kWp — maximum grant €1,800 (SEAI 2025 scheme).</p>
       </div>
     ` : ''}`;
 }
@@ -4612,7 +4616,7 @@ function obStep7EV(){
             <input id="ob-eveff" class="ob-mini-input" type="number" inputmode="decimal" min="5" max="35" step="0.5" value="${_ob.ev_eff}">
           </div>
         </div>
-        <p style="font-size:11px;color:var(--ink-dim);margin-top:6px;line-height:1.5;font-family:var(--mono)">Average Irish driving: 16,500 km/yr. EV efficiency: small EVs 14, mid 16-18, large/SUV 20+.</p>
+        <p style="font-size:11px;color:var(--ink-dim);margin-top:6px;line-height:1.5;font-family:var(--display)">Average Irish driving: 16,500 km/yr. EV efficiency: small EVs 14, mid 16-18, large/SUV 20+.</p>
       </div>
     ` : ''}`;
 }
@@ -4714,7 +4718,7 @@ function updateBillPreview(){
   const bills = inferBillsFromEuro(_ob.bill, _ob.heating);
   const total = Object.values(bills).reduce((a,b)=>a+b,0);
   el.innerHTML = `
-    <div style="font-size:10px;color:var(--accent);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Rough first estimate — refined against your plan at the end</div>
+    <div style="font-size:10px;color:var(--accent);font-family:var(--display);letter-spacing:.02em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Rough first estimate — refined against your plan at the end</div>
     <div style="font-family:var(--mono);font-size:18px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums">${total.toLocaleString()} kWh/yr</div>
     <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;font-family:var(--mono)">~€${(_ob.bill * 6).toLocaleString()} per year</div>`;
 }
@@ -5101,7 +5105,7 @@ function renderEnergyScore(best, baseCost){
           <div style="height:5px;background:var(--track-soft);border-radius:99px;overflow:hidden"><div style="height:100%;width:${p.score}%;background:${p.score >= 80 ? 'var(--accent)' : p.score >= 55 ? 'var(--amber)' : 'var(--loss)'};border-radius:99px"></div></div>
           <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink-dim);margin-top:4px;line-height:1.5">${p.why}</div>
         </div>`).join('') + `
-      <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink-dim);margin-top:12px;letter-spacing:.03em">Improve it: apply the free changes on the Solar tab · switch when the gap is real</div>` : ''}
+      <div style="font-family:var(--display);font-size:9.5px;color:var(--ink-dim);margin-top:12px;letter-spacing:.03em">Improve it: apply the free changes on the Solar tab · switch when the gap is real</div>` : ''}
     </div>`;
 }
 
@@ -5137,31 +5141,31 @@ function renderGoalDesigner(){
     const other = goal === 'npv' ? sweep.byPayback[0] : sweep.byNpv[0];
     const same = other.panels === win.panels && other.batt === win.batt;
     body = `
-      <div style="margin-top:12px;padding:14px 16px;background:var(--accent-faint);border:1.5px solid var(--accent);border-radius:14px">
+      <div style="margin-top:12px;margin-left:-16px;margin-right:-16px;padding:14px 16px;background:var(--accent-faint);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);border-left:3px solid var(--accent)">
         <div style="font-family:var(--mono);font-size:9.5px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:6px">${goal === 'npv' ? 'Most value over 20 years' : 'Fastest payback'} — best design</div>
         <div style="font-size:17px;font-weight:800;color:var(--ink);font-family:var(--display)">${win.panels} panels (${win.kwp} kWp)${win.batt ? ' · ' + win.batt + ' kWh battery' : ' · no battery'}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px">
-          <div><div style="font-family:var(--mono);font-size:8.5px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em">Payback</div><div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)">${win.payback} yr</div></div>
-          <div><div style="font-family:var(--mono);font-size:8.5px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em">20-yr profit (NPV)</div><div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent)">€${win.npv.toLocaleString()}</div></div>
-          <div><div style="font-family:var(--mono);font-size:8.5px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em">Est. cost after grant</div><div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)">~€${win.net.toLocaleString()}</div></div>
+          <div><div style="font-family:var(--mono);font-size:8.5px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em;min-height:2.4em">Payback</div><div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)">${win.payback} yr</div></div>
+          <div><div style="font-family:var(--mono);font-size:8.5px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em;min-height:2.4em">20-yr profit (NPV)</div><div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent)">€${win.npv.toLocaleString()}</div></div>
+          <div><div style="font-family:var(--mono);font-size:8.5px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em;min-height:2.4em">Est. cost after grant</div><div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)">~€${win.net.toLocaleString()}</div></div>
         </div>
-        <div style="font-family:var(--mono);font-size:10px;color:var(--ink-soft);margin-top:8px;line-height:1.6">€${win.benefit.toLocaleString()}/yr benefit on ${win.planLabel} · ~€${win.cost.toLocaleString()} <b>estimated</b> install − €${win.grant.toLocaleString()} SEAI grant · our modelled price, not an installer quote</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--ink-soft);margin-top:8px;line-height:1.6">€${win.benefit.toLocaleString()}/yr benefit on ${win.planLabel} · ~€${win.cost.toLocaleString()} <b>estimated</b> install − €${win.grant.toLocaleString()} SEAI grant · estimated from 2026 Irish market prices, not an installer quote</div>
         <div style="font-family:var(--mono);font-size:9.5px;color:var(--accent);margin-top:9px;letter-spacing:.04em">● LIVE PREVIEW — every card on this screen now shows this design</div>
         <button onclick="commitGoalDesign()" class="switch-cta" style="margin:10px 0 0;padding:13px;font-size:14px">Make this my system →</button>
       </div>
-      ${!same ? `<div style="margin-top:8px;padding:10px 13px;background:var(--well);border-radius:10px;font-size:11px;color:var(--ink-soft);line-height:1.6">
+      ${!same ? `<div style="margin-top:10px;padding:0 2px;font-size:11px;color:var(--ink-soft);line-height:1.6">
         ${goal === 'npv'
           ? `The fastest-payback design (${other.panels} panels${other.batt ? ' + ' + other.batt + ' kWh' : ''}) breaks even in <b>${other.payback} yr</b> but earns <b>€${(win.npv - other.npv).toLocaleString()} less</b> over 20 years.`
           : `The value-maximising design (${other.panels} panels${other.batt ? ' + ' + other.batt + ' kWh' : ''}) takes <b>${other.payback} yr</b> to break even but earns <b>€${(other.npv - win.npv).toLocaleString()} more</b> over 20 years.`}
-      </div>` : `<div style="margin-top:8px;padding:10px 13px;background:var(--well);border-radius:10px;font-size:11px;color:var(--ink-soft)">Both goals point to the same design for your home — an easy decision.</div>`}
-      <div style="margin-top:8px;font-family:var(--mono);font-size:9px;color:var(--ink-dim);line-height:1.6;letter-spacing:.02em">~ Prices are 2026 install estimates + auto SEAI grant — not quotes · benefit is electricity-only · 20-yr value discounted at 3%</div>`;
+      </div>` : `<div style="margin-top:10px;padding:0 2px;font-size:11px;color:var(--ink-soft)">Both goals point to the same design for your home — an easy decision.</div>`}
+      <div style="margin-top:8px;font-family:var(--display);font-size:9px;color:var(--ink-dim);line-height:1.6;letter-spacing:.02em">~ Prices are 2026 install estimates + auto SEAI grant — not quotes · benefit is electricity-only · 20-yr value discounted at 3%</div>`;
   }
 
   const isEstD = !!state.solar_is_estimate;
   return `
     <div class="card" style="margin-bottom:14px${isEstD ? ';border:1.5px dashed var(--blue)' : ''}">
       <div style="font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:4px">${ic('target',12,'vertical-align:-2px')} Design my system</div>
-      <div style="font-size:11.5px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px">${view !== 'mine' ? `You're previewing an optimised design — your own setup is safe under <b style="color:var(--ink)">My system</b>.` : isEstD ? `The numbers below use an <b style="color:var(--ink)">estimated system</b> — not a quote, not your installed setup. Pick a goal to preview ${GOAL_PANELS.length * GOAL_BATTS.length} optimised designs, or set your exact panels below.` : `Switch views any time — the whole screen re-simulates instantly. Your own setup always lives under My system.`}</div>
+      <div style="font-size:11.5px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px">${view !== 'mine' ? `You're previewing an optimised design — your own setup is safe under <b style="color:var(--ink)">My system</b>.` : isEstD ? `The numbers below use an <b style="color:var(--ink)">estimated system</b> — our model, not your confirmed setup. Pick a goal to preview ${GOAL_PANELS.length * GOAL_BATTS.length} optimised designs, or set your exact panels below.` : `Switch views any time — the whole screen re-simulates instantly. Your own setup always lives under My system.`}</div>
       <div style="display:flex;gap:7px">
         ${goalBtn('mine', 'home', 'My system', view === 'mine' ? 'Your configuration — live now' : 'Back to your own setup')}
         ${goalBtn('payback', 'bolt', 'Fastest payback', 'Smallest spend, soonest break-even')}
@@ -5194,7 +5198,7 @@ function renderGoalDesigner(){
         <div style="font-family:var(--mono);font-size:10px;color:var(--ink-dim)">${isEstD ? 'Install ~' + fmtCurrency(state.install_cost) + ' est. · grant −' + fmtCurrency(state.grant_seai) : 'Know your exact spec?'}</div>
         <button onclick="goRefineSolar()" style="flex-shrink:0;padding:8px 13px;border-radius:999px;font-size:11.5px;font-weight:700;font-family:var(--display);border:1px solid var(--blue);background:transparent;color:var(--blue);cursor:pointer">Set my exact system →</button>
       </div>
-      ${isEstD ? `<div onclick="markSolarAsMine()" style="margin-top:8px;text-align:center;font-size:11px;color:var(--ink-soft);text-decoration:underline;cursor:pointer">These values match my system — stop calling it an estimate</div>` : ''}
+      ${isEstD ? `<div onclick="markSolarAsMine()" style="margin-top:8px;text-align:center;font-size:11px;color:var(--ink-soft);text-decoration:underline;cursor:pointer">These match my real system — mark as confirmed</div>` : ''}
     </div>`;
 }
 
@@ -5389,7 +5393,7 @@ function renderResult(){
         }
         const exportRev = Math.round(best.export_revenue || 0);
         if (state.has_solar && exportRev > 50){
-          return `<div style="font-family:var(--mono);font-size:10px;color:var(--ink-dim);margin-top:6px;letter-spacing:.03em;line-height:1.6">
+          return `<div style="font-family:var(--display);font-size:10px;color:var(--ink-dim);margin-top:6px;letter-spacing:.03em;line-height:1.6">
             Both figures: electricity cost + standing − export income. Export credit on this plan: <b style="color:var(--ink)">${fmtCurrency(exportRev)}/yr</b> (${fmtCent(best.plan.export_rate)}/kWh).
           </div>`;
         }
@@ -6055,7 +6059,7 @@ function renderSolarDashboard(){
           <div class="mon-switch ${state.ev_active ? 'on' : 'off'}" onclick="toggleSolarEvModel()" style="cursor:pointer"><div class="mon-knob"></div></div>
         </div>
       </div>` : `
-      <div style="font-family:var(--mono);font-size:10px;color:var(--ink-dim);text-align:center;margin-top:12px;letter-spacing:.03em">Payback uses electricity savings only — solar vs no solar, everything else equal.</div>`}
+      <div style="font-family:var(--display);font-size:10px;color:var(--ink-dim);text-align:center;margin-top:12px;letter-spacing:.03em">Payback uses electricity savings only — solar vs no solar, everything else equal.</div>`}
     </div>
 
     ${state.ev_active && econ ? `
@@ -6369,7 +6373,7 @@ function renderPlans(){
     </div>
 
     ${filtered.length === 0 ? `
-      <div style="padding:30px 20px;text-align:center;color:var(--ink-soft);font-family:var(--mono);font-size:12px;letter-spacing:.02em">
+      <div style="padding:30px 20px;text-align:center;color:var(--ink-soft);font-family:var(--display);font-size:12px;letter-spacing:.02em">
         No plans in this category match. Try a different filter.
       </div>
     ` : filtered.map((r, i) => {
@@ -6399,7 +6403,7 @@ function renderPlans(){
               <div class="plan-supplier">${r.plan.supplier}${r.plan._is_edited ? ' <span style="color:var(--amber);font-size:9px;font-family:var(--mono);letter-spacing:.06em">EDITED</span>' : ''}</div>
               <div class="plan-name">${r.plan.plan}</div>
               <div style="font-family:var(--mono);font-size:10px;color:var(--ink-dim);margin-top:4px;letter-spacing:.02em">${rateSummary}${r.plan.export_rate ? ' · Export ' + fmtCent(r.plan.export_rate) : ''}</div>
-              ${r.onHold ? `<div style="font-family:var(--mono);font-size:9.5px;color:#8AB4F8;margin-top:4px;letter-spacing:.03em">ON HOLD — wholesale-tracking price, too unpredictable to rank · shown for reference only</div>` : ''}
+              ${r.onHold ? `<div style="font-family:var(--display);font-size:9.5px;color:#8AB4F8;margin-top:4px;letter-spacing:.03em">ON HOLD — wholesale-tracking price, too unpredictable to rank · shown for reference only</div>` : ''}
             </div>
           </div>
           <div style="flex-shrink:0;text-align:right">
@@ -7521,7 +7525,7 @@ function openPdfReportModal(){
       <button onclick="doGeneratePdf()" style="width:100%;padding:16px;background:var(--accent);color:var(--bg);font-weight:700;font-size:15px;border:none;border-radius:12px;cursor:pointer;font-family:var(--display);letter-spacing:-.01em">
         Download PDF report →
       </button>
-      <div style="font-family:var(--mono);font-size:10px;color:var(--ink-dim);text-align:center;margin-top:10px;line-height:1.5">
+      <div style="font-family:var(--display);font-size:10px;color:var(--ink-dim);text-align:center;margin-top:10px;line-height:1.5">
         Report is generated entirely in your browser — nothing is uploaded.
       </div>
       <button onclick="document.getElementById('pdf-report-modal').remove()" style="width:100%;padding:12px;background:transparent;border:1px solid var(--line);border-radius:10px;color:var(--ink-soft);font-size:14px;cursor:pointer;margin-top:10px">
@@ -8367,7 +8371,7 @@ function renderStrategyControls(){
         <div class="strat-opt-sub">Battery only fills from solar surplus. Simpler, but gives up arbitrage gain. Good if your plan has no cheap window.</div>
       </div>
     </div>
-    ${!hasBatt ? `<p style="font-size:11px;color:var(--ink-dim);margin:6px 0 0;font-family:var(--mono);letter-spacing:.02em">Add a battery (Battery section above) to enable strategy selection.</p>` : ''}
+    ${!hasBatt ? `<p style="font-size:11px;color:var(--ink-dim);margin:6px 0 0;font-family:var(--display);letter-spacing:.02em">Add a battery (Battery section above) to enable strategy selection.</p>` : ''}
 
     <div style="margin-top:14px">
       <div style="font-size:11px;color:var(--ink-soft);font-family:var(--mono);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">Hot water strategy</div>
@@ -10092,6 +10096,15 @@ function syncScreenHistory(){
 }
 
 window.addEventListener('popstate', function(e){
+  // An open overlay is the top-most thing on screen — Back should close it
+  // rather than navigate the screen behind it. Re-push so the entry we just
+  // consumed is restored and the user stays put.
+  if (_authModalOpen){
+    _authModalOpen = false;
+    try { history.pushState({ screen: state.current_screen, depth: _histDepth() + 1 }, '', '#' + state.current_screen); } catch(err){}
+    renderApp();
+    return;
+  }
   const target = (e.state && e.state.screen) || _hashScreen();
   // Nothing of ours left on the stack — let the browser leave the app.
   if (!target || !state.onboarding_complete) return;
