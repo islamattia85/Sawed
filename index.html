@@ -5538,7 +5538,7 @@ function renderResult(){
     <div class="qr-hero">
       ${state._express_hint ? `
       <div onclick="state._express_hint=false;saveState();renderApp()" style="margin:-6px 0 12px;padding:10px 14px;background:var(--blue-soft);border:1px solid var(--blue);border-radius:12px;display:flex;align-items:center;gap:10px;cursor:pointer">
-        <div style="flex:1;font-size:12px;color:var(--ink);line-height:1.5">You're in the <b>full view</b> now — more detail, same numbers. The quick answer stays one tap away on the logo.</div>
+        <div style="flex:1;font-size:12px;color:var(--ink);line-height:1.5">You're in the <b>full view</b> now — more detail, same numbers. Everything you entered is editable in Settings.</div>
         <div style="font-family:var(--mono);font-size:14px;color:var(--ink-dim)">✕</div>
       </div>` : ''}
       <div class="qr-eyebrow">You could save</div>
@@ -9458,7 +9458,7 @@ function topbar(title, accent, showBack){
     <div class="stripe"></div>
     ${showBack
       ? `<button class="icb" onclick="goBack()" aria-label="Back">${ic('chevL', 19)}</button>`
-      : `<div class="brand" onclick="goLanding()" style="cursor:pointer">${'<span class="brandmark">'}${ic('sun', 15, 'stroke-width:2')}</span>Solar <em>Optimiser</em></div>`}
+      : `<div class="brand" onclick="setScreen('result')" style="cursor:pointer" role="button" aria-label="Home">${'<span class="brandmark">'}${ic('sun', 15, 'stroke-width:2')}</span>Solar <em>Optimiser</em></div>`}
     <div class="topbar-title">${showBack && title ? title : ''}</div>
     <div style="display:flex;align-items:center;gap:2px">
       ${renderProfileNavBtn()}
@@ -9937,9 +9937,17 @@ function renderCompareTable(selIds){
 }
 
 function renderMore(){
+  const nQuotes = (state.solar_quotes || []).length;
   const groups = [
-    ['Your data', [
+    ['Your setup', [
+      [ic('tune',19),'Settings','Usage, heating, solar spec, EV & battery strategy','refine'],
       [ic('csv',19),'Import smart-meter data','ESB Networks CSV — the most accurate result','csv-import'],
+    ]],
+    ['Tools', [
+      [ic('clip',19),'Audit an installer quote','Objective check against 2026 Irish market prices','auditor'],
+      [ic('scales',19),'My saved quotes', nQuotes ? nQuotes + ' quote' + (nQuotes === 1 ? '' : 's') + ' saved — compare side by side' : 'Save installer quotes and compare them side by side','quotes'],
+      [ic('chart',19),'Engine details & hourly flows','Day inspector · monthly bars · annual production/use/export','analytics'],
+      [ic('layers',19),'Compare scenarios','Save configurations and compare them side by side','compare'],
     ]],
     ['Understand the numbers', [
       [ic('flask',19),'Methodology','Data sources & how the engine works','methodology'],
@@ -9965,8 +9973,8 @@ function renderMore(){
     </div>
     ${groups.map(([title, items]) => `
       <div class="section-title" style="margin-top:14px">${title}</div>
-      ${items.map(([ic,t,s,scr]) => `<div class="secondary-card" onclick="setScreen('${scr}')">
-        <div class="secondary-card-icon">${ic}</div>
+      ${items.map(([icon,t,s,scr]) => `<div class="secondary-card" onclick="setScreen('${scr}')">
+        <div class="secondary-card-icon">${icon}</div>
         <div class="secondary-card-body">
           <div class="secondary-card-title">${t}</div>
           <div class="secondary-card-sub">${s}</div>
