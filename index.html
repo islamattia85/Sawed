@@ -5545,7 +5545,7 @@ function renderResult(){
       <div class="qr-value" data-countup="${Math.round(annualSavings)}" data-prefix="€"><span data-countup-num>${fmtCurrency(annualSavings)}</span><span class="qr-value-unit">/yr</span></div>
       <div class="qr-headline">by switching to a better electricity plan</div>
       ${annualSavings > 10 ? `
-      <button onclick="setScreen('switching-guide')" style="display:inline-flex;align-items:center;gap:7px;margin-top:12px;padding:12px 20px;border-radius:999px;font-size:13px;font-weight:700;font-family:var(--display);border:none;background:var(--accent);color:var(--on-accent);cursor:pointer;box-shadow:0 6px 20px -6px var(--accent-glow)">
+      <button onclick="setScreen('how-to-switch')" style="display:inline-flex;align-items:center;gap:7px;margin-top:12px;padding:12px 20px;border-radius:999px;font-size:13px;font-weight:700;font-family:var(--display);border:none;background:var(--accent);color:var(--on-accent);cursor:pointer;box-shadow:0 6px 20px -6px var(--accent-glow)">
         ${ic('bolt',14,'color:var(--on-accent)')} How to switch — takes ~10 minutes
       </button>` : ''}
       ${(() => {
