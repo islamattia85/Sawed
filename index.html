@@ -5417,10 +5417,29 @@ function renderResult(){
     </div>` : ''}
     <div class="switch-cta-sub">Independent · ranked by your cost · we may earn a commission if you switch, which never changes the ranking</div>
 
-    ${renderLogicBreakdown()}
-    ${renderNightRateCard(best, baseCost)}
-    ${renderEvSavingsCard(best)}
     ${renderEnergyScore(best, baseCost)}
+
+    ${(() => {
+      // Everything that answers "how did you work that out?" rather than
+      // "what should I do?" — one tap away instead of in the default scroll.
+      const detail = renderLogicBreakdown() + renderNightRateCard(best, baseCost) + renderEvSavingsCard(best);
+      if (!detail.trim()) return '';
+      const open = !!state._home_detail_open;
+      return `<div style="margin-top:14px">
+        <button onclick="state._home_detail_open=!state._home_detail_open;saveState();renderApp()"
+          style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:14px 16px;border-radius:14px;border:1px solid var(--hair);background:var(--surface);box-shadow:var(--lift);cursor:pointer;font-family:var(--display)">
+          <span style="display:flex;align-items:center;gap:12px">
+            ${ic('flask',19)}
+            <span style="text-align:left">
+              <span style="display:block;font-size:14.5px;font-weight:700;color:var(--ink)">More about your result</span>
+              <span style="display:block;font-size:11.5px;color:var(--ink-soft);margin-top:2px">Our working, night-rate options${state.ev_active ? ', EV vs petrol' : ''}</span>
+            </span>
+          </span>
+          <span style="color:var(--ink-soft);font-size:18px;transform:rotate(${open ? '90' : '0'}deg);transition:transform .2s">›</span>
+        </button>
+        ${open ? `<div style="margin-top:10px">${detail}</div>` : ''}
+      </div>`;
+    })()}
 
     <div class="section-title">Save me money</div>
 
@@ -10028,13 +10047,12 @@ function fastPathGo(){
 function bottomNav(){
   const cur = state.current_screen;
   // map sub-screens to their nav home so the right tab stays lit
-  const moreScreens = ['analytics','quotes','auditor','independence','methodology','how-to-switch','refine','csv-import'];
+  const moreScreens = ['analytics','quotes','auditor','independence','methodology','how-to-switch','refine','csv-import','compare'];
   const navActive = moreScreens.includes(cur) ? 'more' : cur;
   const items = [
     { id:'result',  icon:'home',   label:'Home' },
     { id:'plans',   icon:'plans',  label:'Plans' },
     { id:'solar',   icon:'sun',    label:'Solar' },
-    { id:'compare', icon:'layers', label:'Compare' },
     { id:'monitor', icon:'radar',  label:'Monitor' },
     { id:'more',    icon:'grid',   label:'More' }
   ];
