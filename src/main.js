@@ -1,3 +1,15 @@
+import {
+  HOURS_IN_YEAR, DAYS_IN_MONTH, DEG, LOCATION_BASE, dayOfYear,
+} from './engine/constants';
+import {
+  solarPosition, erbsDiffuse, buildHourlyGhi, buildPoa, buildPvGeneration,
+} from './engine/solar';
+import { npv20 as engineNpv20 } from './engine/npv';
+import {
+  isInWindow, bandAt, rateAt as engineRateAt, isFlatPlan,
+  simulateBaseline as engineSimulateBaseline, annualCost, sumF, WHOLESALE_CAP,
+} from './engine/tariff-rules';
+
 /* Solar Optimiser — application entry.
  * Extracted verbatim from the former single-file index.html.
  * Module split follows in later phases; this step only makes the
@@ -381,17 +393,8 @@ function ic(name, size, style){
 /* ============================================================
    1. CORE CONSTANTS
    ============================================================ */
-const HOURS_IN_YEAR = 8760;
-const DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31];
 
 // Base location: Irish national average (Dublin lat/lon, PVGIS-aligned GHI)
-const LOCATION_BASE = {
-  lat: 53.35,
-  lon: -6.26,
-  ghi_kwh_m2_day: [0.70, 1.25, 2.35, 3.55, 4.45, 4.65, 4.40, 3.75, 2.80, 1.60, 0.80, 0.55],
-  kt: [0.32, 0.36, 0.39, 0.42, 0.44, 0.45, 0.43, 0.42, 0.40, 0.36, 0.32, 0.30],
-  temp_c: [6.0, 6.0, 7.0, 9.0, 11.5, 14.0, 15.5, 15.5, 13.5, 11.0, 8.0, 6.5]
-};
 
 // Irish regions with GHI multipliers calibrated to PVGIS county-level data.
 // Variation across Ireland is real: south coast gets ~10-12% more sun than northwest.
@@ -459,6 +462,47 @@ const LOCATION = {
   temp_c: LOCATION_BASE.temp_c.slice()
 };
 
+/* ---------------------------------------------------------------
+ * Adapters between the app's mutable globals and the pure engine.
+ *
+ * The engine functions take their inputs explicitly. These thin wrappers
+ * supply the values the app happens to keep in `state`, `LOCATION` and
+ * `CACHE`, so call sites are unchanged while the maths itself is testable.
+ * They shrink as later phases introduce a real state boundary.
+ * --------------------------------------------------------------- */
+
+/** LOCATION mutated by applyRegion(), shaped for the engine. */
+function currentLocation(){
+  return { lat: LOCATION.lat, lon: LOCATION.lon,
+           ghi_kwh_m2_day: LOCATION.ghi_kwh_m2_day, kt: LOCATION.kt, temp_c: LOCATION.temp_c };
+}
+
+function buildHourlyGHI(){
+  const loc = currentLocation();
+  // Scenario range (pessimist/optimist) overrides the regional multiplier.
+  const o = state._ghi_override;
+  if (o !== undefined && o !== null){
+    const regionMult = (IRISH_REGIONS[state.region] || IRISH_REGIONS.east).ghi_multiplier || 1;
+    const scale = o / regionMult;
+    return buildHourlyGhi({ ...loc, ghi_kwh_m2_day: loc.ghi_kwh_m2_day.map(v => v * scale) });
+  }
+  return buildHourlyGhi(loc);
+}
+
+const buildPOA = (azimuthDeg, tiltDeg, ghi) => buildPoa(azimuthDeg, tiltDeg, ghi, currentLocation());
+
+const buildPVGeneration = (poa, countPanels, panelW, sysLoss, inverterKw) =>
+  buildPvGeneration(poa, { countPanels, panelW, sysLoss, inverterKw }, currentLocation());
+
+const calcNPV20 = (annualBenefit, sysCostNet, batteryKwh, panelDegradation, discountRate) =>
+  engineNpv20({ annualBenefit, sysCostNet, batteryKwh,
+                panelDegradation: panelDegradation ?? undefined,
+                discountRate: discountRate ?? undefined });
+
+/** Dynamic plans price against the cached wholesale curve. */
+const rateAt = (hour, plan, hourIdx) => engineRateAt(hour, plan, hourIdx, CACHE.wholesale);
+const simulateBaseline = (plan, cons) => engineSimulateBaseline(plan, cons, CACHE.wholesale);
+
 function applyRegion(regionId){
   const region = IRISH_REGIONS[regionId] || IRISH_REGIONS.east;
   LOCATION.name = region.name;
@@ -484,7 +528,6 @@ const WHOLESALE_HOURLY_MULT = [
   0.85, 0.80, 0.80, 0.85, 0.95, 1.35,    // 12-17h
   2.10, 1.95, 1.30, 1.00, 0.80, 0.65     // 18-23h
 ];
-const WHOLESALE_CAP = 0.50;          // CRU cap on customer billing rate
 const WHOLESALE_NEG_FLOOR = -0.10;   // €/kWh — paid to consume during wind surplus
 
 /* ============================================================
@@ -619,121 +662,19 @@ function deepMerge(target, source){
   return out;
 }
 function saveState(){ try { localStorage.setItem("solarAppState_v2", JSON.stringify(state)); } catch(e){} }
-function sumF(arr){ let s=0; for (let i=0;i<arr.length;i++) s += arr[i]; return s; }
 
 /* ============================================================
    3. SOLAR PHYSICS — verbatim from main engine, adapted for
    single-roof simplified state. NOAA solar position + Erbs
    diffuse split + isotropic POA + NOCT temperature derate.
    ============================================================ */
-const DEG = Math.PI / 180;
 
-function dayOfYear(monthIdx, day){
-  let n = 0; for (let i=0; i<monthIdx; i++) n += DAYS_IN_MONTH[i]; return n + day;
-}
 
-function solarPosition(doy, hour, lat, lon){
-  const gamma = 2*Math.PI/365 * (doy - 1 + (hour-12)/24);
-  const decl = 0.006918 - 0.399912*Math.cos(gamma) + 0.070257*Math.sin(gamma)
-             - 0.006758*Math.cos(2*gamma) + 0.000907*Math.sin(2*gamma)
-             - 0.002697*Math.cos(3*gamma) + 0.00148*Math.sin(3*gamma);
-  const eqtime = 229.18 * (0.000075 + 0.001868*Math.cos(gamma) - 0.032077*Math.sin(gamma)
-               - 0.014615*Math.cos(2*gamma) - 0.040849*Math.sin(2*gamma));
-  const time_offset = eqtime + 4*lon;
-  const tst = hour*60 + time_offset;
-  const ha = (tst/4 - 180) * DEG;
-  const latR = lat*DEG;
-  const sinAlt = Math.sin(latR)*Math.sin(decl) + Math.cos(latR)*Math.cos(decl)*Math.cos(ha);
-  const altitude = Math.asin(Math.max(-1,Math.min(1,sinAlt)));
-  const cosAz = (Math.sin(decl) - Math.sin(altitude)*Math.sin(latR)) / (Math.cos(altitude)*Math.cos(latR));
-  let azimuth = Math.acos(Math.max(-1,Math.min(1,cosAz)));
-  if (ha > 0) azimuth = 2*Math.PI - azimuth;
-  return {altitude, azimuth};
-}
 
 // Erbs model — diffuse fraction from monthly clearness index
-function erbsDiffuse(kt){
-  if (kt <= 0.22) return 1 - 0.09*kt;
-  if (kt <= 0.80) return 0.9511 - 0.1604*kt + 4.388*kt*kt - 16.638*Math.pow(kt,3) + 12.336*Math.pow(kt,4);
-  return 0.165;
-}
 
-function buildHourlyGHI(){
-  // Override multiplier for scenario-range simulation (pessimist/optimist)
-  const _ghiMult = state._ghi_override;
-  const ghi = new Float32Array(HOURS_IN_YEAR);
-  let hourIdx = 0;
-  for (let m=0; m<12; m++){
-    const monthlyDailyGHI = LOCATION.ghi_kwh_m2_day[m] * 1000 * ((_ghiMult !== undefined && _ghiMult !== null) ? (_ghiMult / ((IRISH_REGIONS[state.region] || IRISH_REGIONS.east).ghi_multiplier || 1)) : 1);
-    for (let d=0; d<DAYS_IN_MONTH[m]; d++){
-      const doy = dayOfYear(m,d+1);
-      const altitudes = [];
-      for (let h=0; h<24; h++){
-        const pos = solarPosition(doy, h+0.5, LOCATION.lat, LOCATION.lon);
-        altitudes.push(Math.max(0, Math.sin(pos.altitude)));
-      }
-      const sumAlt = altitudes.reduce((a,b)=>a+b, 0);
-      for (let h=0; h<24; h++){
-        const frac = sumAlt > 0 ? altitudes[h]/sumAlt : 0;
-        ghi[hourIdx++] = monthlyDailyGHI * frac;
-      }
-    }
-  }
-  return ghi;
-}
 
-function buildPOA(azimuthDeg, tiltDeg, ghi){
-  const poa = new Float32Array(HOURS_IN_YEAR);
-  const tilt = tiltDeg * DEG;
-  const arrayAz = azimuthDeg * DEG;
-  let hourIdx = 0;
-  for (let m=0; m<12; m++){
-    const kt = LOCATION.kt[m];
-    const dfFrac = erbsDiffuse(kt);
-    for (let d=0; d<DAYS_IN_MONTH[m]; d++){
-      const doy = dayOfYear(m,d+1);
-      for (let h=0; h<24; h++){
-        const ghi_h = ghi[hourIdx];
-        if (ghi_h <= 0){ poa[hourIdx++] = 0; continue; }
-        const pos = solarPosition(doy, h+0.5, LOCATION.lat, LOCATION.lon);
-        const sinAlt = Math.sin(pos.altitude);
-        if (sinAlt <= 0.01){ poa[hourIdx++] = 0; continue; }
-        const cosZenith = sinAlt;
-        const dni = (ghi_h * (1-dfFrac)) / Math.max(cosZenith, 0.05);
-        const dhi = ghi_h * dfFrac;
-        const cosTheta = Math.cos(pos.altitude)*Math.sin(tilt)*Math.cos(pos.azimuth - arrayAz)
-                       + Math.sin(pos.altitude)*Math.cos(tilt);
-        const beamPOA = dni * Math.max(0, cosTheta);
-        const diffPOA = dhi * (1 + Math.cos(tilt))/2;
-        const refPOA = ghi_h * 0.2 * (1 - Math.cos(tilt))/2;
-        poa[hourIdx++] = beamPOA + diffPOA + refPOA;
-      }
-    }
-  }
-  return poa;
-}
 
-function buildPVGeneration(poa, countPanels, panelW, sysLoss, inverterKw){
-  const dcKw = (countPanels * panelW) / 1000;
-  const gen = new Float32Array(HOURS_IN_YEAR);
-  let hourIdx = 0;
-  for (let m=0; m<12; m++){
-    const tAmb = LOCATION.temp_c[m];
-    for (let d=0; d<DAYS_IN_MONTH[m]; d++){
-      for (let h=0; h<24; h++){
-        const irr = poa[hourIdx];
-        if (irr <= 0){ gen[hourIdx++] = 0; continue; }
-        const tCell = tAmb + (irr/800) * 30;
-        const tFactor = 1 + (-0.0036)*(tCell - 25);
-        let kw = dcKw * (irr/1000) * Math.max(0.3, tFactor);
-        if (kw > inverterKw) kw = inverterKw;
-        kw *= sysLoss;
-        gen[hourIdx++] = kw;
-      }
-    }
-  }
-  return gen;
-}
 
 function buildSolar(){
   const ghi = buildHourlyGHI();
@@ -1376,38 +1317,10 @@ function getPlanById(id){
 }
 
 // True if all band rates (day/night/peak/ev) are within 0.001c/kWh of each other
-function isFlatPlan(plan){
-  const r = plan.rates || {};
-  const vals = [r.day, r.night, r.peak, r.ev].filter(v => v != null && v !== undefined);
-  if (vals.length < 2) return true;
-  const max = Math.max(...vals), min = Math.min(...vals);
-  return (max - min) < 0.001;
-}
 
 /* ============================================================
    7. SIMULATION ENGINE — hour-by-hour battery dispatch + costs
    ============================================================ */
-function isInWindow(hour, window){
-  if (!window) return false;
-  const [a,b] = window;
-  if (a < b) return hour >= a && hour < b;
-  return hour >= a || hour < b;
-}
-function bandAt(hour, plan){
-  if (plan.windows.wfh && isInWindow(hour, plan.windows.wfh)) return "wfh";
-  if (plan.windows.ev && isInWindow(hour, plan.windows.ev)) return "ev";
-  if (plan.windows.peak && isInWindow(hour, plan.windows.peak)) return "peak";
-  if (plan.windows.night && isInWindow(hour, plan.windows.night)) return "night";
-  return "day";
-}
-function rateAt(hour, plan, hourIdx){
-  const base = plan.rates[bandAt(hour, plan)];
-  if (plan.type === "dynamic" && hourIdx != null && CACHE.wholesale){
-    const w = CACHE.wholesale[hourIdx];
-    return Math.min(WHOLESALE_CAP + base, base + w);
-  }
-  return base;
-}
 
 function simulate(plan, gen, cons, strategy){
   const cap = state.battery_kwh || 0;          // usable kWh
@@ -1558,31 +1471,7 @@ function simulate(plan, gen, cons, strategy){
   return out;
 }
 
-function simulateBaseline(plan, cons){
-  const out = {
-    grid_import: new Float32Array(HOURS_IN_YEAR),
-    cost: new Float32Array(HOURS_IN_YEAR),
-    band: new Array(HOURS_IN_YEAR)
-  };
-  const isDynamic = plan.type === "dynamic";
-  for (let i=0;i<HOURS_IN_YEAR;i++){
-    const hour = i % 24;
-    out.band[i] = bandAt(hour, plan);
-    out.grid_import[i] = cons[i];
-    const rate = isDynamic ? rateAt(hour, plan, i) : plan.rates[out.band[i]];
-    out.cost[i] = cons[i] * rate;
-  }
-  return out;
-}
 
-function annualCost(sim, plan){
-  return {
-    energy_cost: sumF(sim.cost),
-    standing: plan.standing,
-    export_revenue: sumF(sim.revenue),
-    net: sumF(sim.cost) + plan.standing - sumF(sim.revenue)
-  };
-}
 
 /* ============================================================
    8. ORCHESTRATOR + CACHE
@@ -2067,19 +1956,6 @@ function getRecommendation(){
 /* ============================================================
    11. NPV CALCULATOR (3% discount, panel degradation, Y12 batt swap)
    ============================================================ */
-function calcNPV20(annualBenefit, sysCostNet, batteryKwh, panelDegradation, discount){
-  const r = (discount == null ? 0.03 : discount);
-  const deg = (panelDegradation == null ? 0.005 : panelDegradation);
-  let npv = -sysCostNet;
-  for (let y = 1; y <= 20; y++){
-    const yearBenefit = annualBenefit * Math.pow(1 - deg, y - 1);
-    npv += yearBenefit / Math.pow(1 + r, y);
-  }
-  if (batteryKwh > 0){
-    npv -= 400 * batteryKwh / Math.pow(1 + r, 12);
-  }
-  return npv;
-}
 
 function toggleNpvBreakdown(){
   state._show_npv_breakdown = !state._show_npv_breakdown;
@@ -10461,6 +10337,15 @@ window.toggleTrust = toggleTrust;
 window.toggleSettingsSection = toggleSettingsSection;
 window.setPlansFilter = setPlansFilter;
 window.showToast = showToast;
+/* Engine surface published for the parity e2e suite (and console debugging). */
+window.CACHE = CACHE;
+window.TARIFFS = TARIFFS;
+window.rebuildBase = rebuildBase;
+window.applyRegion = applyRegion;
+window.getRecommendation = getRecommendation;
+window.bandAt = bandAt;
+window.calcNPV20 = calcNPV20;
+
 
 /* ---------------------------------------------------------------
  * Live bridge for module-scoped state touched by inline on* attributes.

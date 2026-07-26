@@ -36,8 +36,12 @@ PW_CHROMIUM_PATH=/path/to/chromium npm run test:e2e
 index.html            thin shell: meta, loader markup, module entry
 src/
   main.js             application entry (being split into modules)
-  engine/             pure calculation code — no DOM, fully testable
+  engine/             pure calculation code — no DOM, no globals, fully testable
     units.ts          branded unit types (kWh vs kW, euro vs cent, …)
+    constants.ts      hours/days, location profiles, Tariff and Band shapes
+    solar.ts          NOAA position, Erbs diffuse split, POA, PV generation
+    npv.ts            20-year discounted cash flow, breakeven
+    tariff-rules.ts   band resolution, dynamic pricing, annual cost
   styles/main.css     stylesheet
 public/
   tariffs.json        runtime tariff data, rewritten daily by the scraper
@@ -53,6 +57,19 @@ tests/
 `window`, and rendering. That is what makes the money maths testable, and the
 money maths is the part that must not silently regress — it decides whether a
 user switches supplier and whether a €12k install pays back.
+
+**Engine functions take their inputs explicitly.** The originals read module
+globals — `LOCATION`, which `applyRegion()` mutated, and `CACHE.wholesale`. That
+made a result silently depend on whichever region was selected last, which is
+both untestable and a real hazard when simulating scenarios side by side. Thin
+adapters in `main.js` supply those values so call sites are unchanged; they
+shrink as later phases introduce a proper state boundary.
+
+**A known modelling limitation is pinned by test, not hidden.** `buildPoa` uses
+an isotropic sky, which under Irish conditions makes roof tilt nearly
+irrelevant — see the characterisation test in `tests/unit/solar.test.ts`. It is
+asserted deliberately so that switching to an anisotropic model fails loudly
+rather than silently moving every payback figure.
 
 **Units are branded types.** `Kwh`, `Kw`, `Eur`, `Cent` and friends erase to
 plain numbers at runtime but stop unit confusion at compile time. Construct
