@@ -305,6 +305,14 @@
 
   /* Card grid */
   .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+  /* Compact 2-up actions — for maintenance/share actions that shouldn't carry
+     the same visual weight as insight cards. */
+  .mini-action-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+  .mini-action{background:var(--panel);border:1px solid var(--hair);border-radius:13px;padding:13px 12px;cursor:pointer;color:var(--ink-soft);transition:border-color .15s,background .15s}
+  .mini-action:active{background:var(--panel-2)}
+  .mini-action:hover{border-color:var(--hair-strong)}
+  .mini-action-t{font-size:12.5px;font-weight:700;color:var(--ink);margin-top:7px;line-height:1.25}
+  .mini-action-s{font-size:10.5px;color:var(--ink-dim);margin-top:2px;line-height:1.35}
   .card{background:var(--surface);border:1px solid var(--hair);border-radius:16px;padding:16px;transition:transform .15s,border-color .15s;box-shadow:var(--lift)}
   .card:hover{transform:translateY(-1px);border-color:var(--track)}
   .card-label{font-size:10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.12em;font-weight:600;margin-bottom:8px;font-family:var(--mono);display:flex;align-items:center;gap:6px;line-height:1.2}
@@ -5548,10 +5556,6 @@ function renderResult(){
       <div class="qr-eyebrow">You could save</div>
       <div class="qr-value" data-countup="${Math.round(annualSavings)}" data-prefix="€"><span data-countup-num>${fmtCurrency(annualSavings)}</span><span class="qr-value-unit">/yr</span></div>
       <div class="qr-headline">by switching to a better electricity plan</div>
-      ${annualSavings > 10 ? `
-      <button onclick="setScreen('how-to-switch')" style="display:inline-flex;align-items:center;gap:7px;margin-top:12px;padding:12px 20px;border-radius:999px;font-size:13px;font-weight:700;font-family:var(--display);border:none;background:var(--accent);color:var(--on-accent);cursor:pointer;box-shadow:0 6px 20px -6px var(--accent-glow)">
-        ${ic('bolt',14,'color:var(--on-accent)')} How to switch — takes ~10 minutes
-      </button>` : ''}
       ${(() => {
         const split = plannedSolarSplit();
         if (!split) return '';
@@ -5610,6 +5614,9 @@ function renderResult(){
     <button class="switch-cta" onclick="handleSwitchClick('${best.plan.id}', '${(best.plan.supplier + ' ' + best.plan.plan).replace(/'/g,"\\'")}', ${annualSavings.toFixed(0)})">
       Switch to ${best.plan.supplier} →
     </button>
+    ${annualSavings > 10 ? `<div style="text-align:center;margin:2px 0 8px">
+      <span onclick="setScreen('how-to-switch')" style="display:inline-block;padding:8px 10px;font-size:12.5px;font-weight:600;color:var(--ink-soft);text-decoration:underline;text-underline-offset:3px;cursor:pointer">How switching works — takes ~10 minutes</span>
+    </div>` : ''}
     <div class="switch-cta-sub">Independent · ranked by your cost · we may earn a commission if you switch, which never changes the ranking</div>
 
     ${renderLogicBreakdown()}
@@ -5648,43 +5655,21 @@ function renderResult(){
       </div>
     `}
 
-    ${annualSavings > 25 ? `
-    <div class="secondary-card" onclick="shareSavingsCard()">
-      <div class="secondary-card-icon">${ic('spark',19)}</div>
-      <div class="secondary-card-body">
-        <div class="secondary-card-title">Challenge a friend</div>
-        <div class="secondary-card-sub">Share your €${Math.round(annualSavings).toLocaleString()}/yr savings card — no personal details included</div>
-      </div>
-      <div class="secondary-card-arrow">›</div>
-    </div>` : ''}
-
     <div class="section-title">This result</div>
-
-    <div class="secondary-card" onclick="openPdfReportModal()">
-      <div class="secondary-card-icon">${ic('doc',19)}</div>
-      <div class="secondary-card-body">
-        <div class="secondary-card-title">Email me the full PDF report</div>
-        <div class="secondary-card-sub">Plan comparison · solar payback · SEAI grant · switching guide</div>
+    <div class="mini-action-grid">
+      <div class="mini-action" onclick="openPdfReportModal()">
+        ${ic('doc',18)}<div class="mini-action-t">PDF report</div><div class="mini-action-s">Emailed to you</div>
       </div>
-      <div class="secondary-card-arrow">›</div>
-    </div>
-
-    <div class="secondary-card" onclick="copyShareUrl()">
-      <div class="secondary-card-icon">${ic('link',19)}</div>
-      <div class="secondary-card-body">
-        <div class="secondary-card-title">Share this analysis</div>
-        <div class="secondary-card-sub">Copy a link with your inputs pre-loaded</div>
+      <div class="mini-action" onclick="copyShareUrl()">
+        ${ic('link',18)}<div class="mini-action-t">Share analysis</div><div class="mini-action-s">Link with your inputs</div>
       </div>
-      <div class="secondary-card-arrow">›</div>
-    </div>
-
-    <div class="secondary-card" onclick="reRunOnboarding()">
-      <div class="secondary-card-icon">${ic('rotate',19)}</div>
-      <div class="secondary-card-body">
-        <div class="secondary-card-title">Re-run guided setup</div>
-        <div class="secondary-card-sub">Walk through every question again — your answers pre-filled</div>
+      ${annualSavings > 25 ? `
+      <div class="mini-action" onclick="shareSavingsCard()">
+        ${ic('spark',18)}<div class="mini-action-t">Challenge a friend</div><div class="mini-action-s">Your €${Math.round(annualSavings).toLocaleString()}/yr card</div>
+      </div>` : ''}
+      <div class="mini-action" onclick="reRunOnboarding()">
+        ${ic('rotate',18)}<div class="mini-action-t">Re-run setup</div><div class="mini-action-s">Answers pre-filled</div>
       </div>
-      <div class="secondary-card-arrow">›</div>
     </div>
 
     <p class="disclaimer">
