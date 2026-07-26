@@ -107,6 +107,7 @@ export function buildReportData(ctx) {
       type: PLAN_TYPE_LABEL[x.plan.type] || x.plan.type || '—',
       dayProfile: x.plan.id === state.baseline ? (ctx.currentDayProfile || undefined) : undefined,
     })),
+    choice: ctx.choice || undefined,
     sensitivity: ctx.sensitivity || undefined,
     supplierUrl: ctx.supplierUrl || undefined,
     tariffCount: tariffCount || 0,
@@ -148,6 +149,8 @@ export function buildReportData(ctx) {
       cumulative: npvSeries || [],
       breakevenYear: breakevenYear ?? null,
       batteryReplacementYear: state.battery_kwh > 0 ? 12 : undefined,
+      panelCount: panels,
+      batteryKwh: state.battery_kwh || 0,
     };
   }
 

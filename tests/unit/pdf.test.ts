@@ -64,6 +64,7 @@ function fixture(over: Partial<ReportData> = {}): ReportData {
       grossCost: 12000, grant: 1800, netCost: 10200,
       year1Saving: 1132, paybackYears: 9, npv20: 4672,
       cumulative, breakevenYear: 12, batteryReplacementYear: 12,
+      panelCount: 12, batteryKwh: 5,
     },
     ev: {
       electricityIncrease: 264, petrolAvoided: 1812, netSaving: 1547,
@@ -280,5 +281,115 @@ describe('document conventions', () => {
     for (let i = 1; i <= f.ranked.length; i += 1) {
       expect(drawn.includes(String(i)), `rank ${i} missing from appendix`).toBe(true);
     }
+  });
+});
+
+describe('the system illustration', () => {
+  /**
+   * The figure is drawn, not laid out by a chart routine, so the failure modes
+   * are geometric: a panel that overhangs the roof it is supposed to sit on, or
+   * a degenerate shape from an array size the author never tried.
+   */
+  const sizes = [0, 1, 4, 12, 40];
+
+  it.each(sizes)('renders a %i-panel array without invalid geometry', (panelCount) => {
+    const { doc, problems } = auditedDoc();
+    const f = fixture();
+    renderReport(doc as never, fixture({ solar: { ...f.solar!, panelCount, batteryKwh: 5 } }));
+    expect(problems).toEqual([]);
+  });
+
+  it('renders with no battery, so the battery box and its label are skipped', () => {
+    const { doc, problems } = auditedDoc();
+    const f = fixture();
+    expect(() => renderReport(doc as never,
+      fixture({ solar: { ...f.solar!, panelCount: 8, batteryKwh: 0 } }))).not.toThrow();
+    expect(problems).toEqual([]);
+  });
+
+  /**
+   * Every panel is a quad drawn as two triangles. The array sits on the left
+   * roof slope, so no vertex may fall outside the triangle formed by the eaves
+   * and the ridge — the first draft put the lowest tiles out in mid-air below
+   * the eave, because near the corner the roof is shallower than a panel.
+   */
+  it('keeps every panel on the roof', () => {
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    const tris: number[][] = [];
+    const origTri = doc.triangle.bind(doc);
+    (doc as unknown as Record<string, unknown>).triangle =
+      (...a: unknown[]) => { tris.push(a.slice(0, 6) as number[]); return (origTri as (...z: unknown[]) => unknown)(...a); };
+
+    const f = fixture();
+    renderReport(doc as never, fixture({ solar: { ...f.solar!, panelCount: 12, batteryKwh: 5 } }));
+
+    // The roof is the widest triangle drawn: identify it by its span.
+    const span = (t: number[]) => Math.max(t[0]!, t[2]!, t[4]!) - Math.min(t[0]!, t[2]!, t[4]!);
+    const roof = tris.reduce((a, b) => (span(b) > span(a) ? b : a));
+    const [rx1, ry1, rx2, ry2, rx3, ry3] = roof as [number, number, number, number, number, number];
+
+    const sign = (px: number, py: number, ax: number, ay: number, bx: number, by: number) =>
+      (px - bx) * (ay - by) - (ax - bx) * (py - by);
+    const inside = (px: number, py: number) => {
+      const d1 = sign(px, py, rx1, ry1, rx2, ry2);
+      const d2 = sign(px, py, rx2, ry2, rx3, ry3);
+      const d3 = sign(px, py, rx3, ry3, rx1, ry1);
+      const neg = d1 < -0.01 || d2 < -0.01 || d3 < -0.01;
+      const pos = d1 > 0.01 || d2 > 0.01 || d3 > 0.01;
+      return !(neg && pos);
+    };
+
+    // Select by draw order rather than by size: the arrow heads are small
+    // triangles too, and a size filter cannot tell them from a panel. The scene
+    // draws the roof, then two triangles per panel, then the flow arrows.
+    const tiles = Math.min(8, 12);
+    const roofAt = tris.indexOf(roof);
+    const panels = tris.slice(roofAt + 1, roofAt + 1 + tiles * 2);
+    expect(panels.length, 'no panel geometry found').toBe(tiles * 2);
+
+    const escaped = panels.filter((t) =>
+      !(inside(t[0]!, t[1]!) && inside(t[2]!, t[3]!) && inside(t[4]!, t[5]!)));
+    expect(escaped.map((t) => t.map((n) => n.toFixed(1)).join(',')),
+      'panel vertices outside the roof').toEqual([]);
+  });
+});
+
+describe('a hand-picked plan', () => {
+  const chosen = () => fixture({
+    choice: { rank: 3, premium: 64, cheapestName: 'Yuno Energy — EV Variable Discount', cheapestCost: 506 },
+  });
+
+  const drawnText = (data: ReportData) => {
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    const out: string[] = [];
+    const orig = doc.text.bind(doc);
+    (doc as unknown as Record<string, unknown>).text = (t: unknown, x: number, y: number, o?: unknown) => {
+      out.push(Array.isArray(t) ? (t as string[]).join(' ') : String(t));
+      return (orig as (...a: unknown[]) => unknown)(t, x, y, o);
+    };
+    renderReport(doc as never, data);
+    return out.join('\n');
+  };
+
+  it('is never presented as our recommendation', () => {
+    const text = drawnText(chosen());
+    expect(text).toContain('YOUR CHOICE');
+    expect(text).not.toContain('RECOMMENDED');
+  });
+
+  it('states the rank and what the choice costs', () => {
+    const text = drawnText(chosen());
+    expect(text).toMatch(/€64/);
+    expect(text).toContain('Yuno Energy — EV Variable Discount');
+  });
+
+  it('still says RECOMMENDED when the reader made no choice', () => {
+    expect(drawnText(fixture())).toContain('RECOMMENDED');
+  });
+
+  it('lays out inside the margins with the extra callout', () => {
+    const { doc, problems } = auditedDoc();
+    expect(() => renderReport(doc as never, chosen())).not.toThrow();
+    expect(problems).toEqual([]);
   });
 });

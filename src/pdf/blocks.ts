@@ -7,7 +7,7 @@ import { Doc } from './doc.js';
 import {
   TYPE, BASELINE, lines, LW, PAGE,
   INK, INK_MID, INK_SOFT, RULE, RULE_SOFT, TINT, PAPER,
-  ACCENT, ACCENT_TINT, DEBIT, SERIES, SERIES_TINT, SERIES_ALT,
+  ACCENT, ACCENT_TINT, DEBIT, SERIES, SERIES_TINT, SERIES_ALT, SERIES_ALT_TINT,
   type Rgb,
 } from './theme.js';
 
@@ -375,6 +375,181 @@ export function splitBar(
   });
   d.y += lines(1.2);
   if (opts.caption) { d.text(opts.caption, d.left, d.y, TYPE.caption!); d.y += lines(1); }
+}
+
+/* ── the system, drawn ───────────────────────────────────────────────────── */
+
+/** A filled quadrilateral, built from the two triangles jsPDF gives us. */
+function quad(d: Doc, p: readonly (readonly [number, number])[], style = 'F') {
+  d.doc.triangle(p[0]![0], p[0]![1], p[1]![0], p[1]![1], p[2]![0], p[2]![1], style);
+  d.doc.triangle(p[0]![0], p[0]![1], p[2]![0], p[2]![1], p[3]![0], p[3]![1], style);
+}
+
+/** A circle, from a rounded rectangle whose corner radius is its half-width. */
+function circle(d: Doc, cx: number, cy: number, r: number, style = 'F') {
+  d.doc.roundedRect(cx - r, cy - r, r * 2, r * 2, r, r, style);
+}
+
+/** A line ending in a solid head, for a flow of energy. */
+function arrow(d: Doc, x1: number, y1: number, x2: number, y2: number, color: Rgb) {
+  const dx = x2 - x1; const dy = y2 - y1;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len; const uy = dy / len;
+  const head = 2.8; const halfW = 1.6;
+  d.stroke(color).weight(LW.chart);
+  d.doc.line(x1, y1, x2 - ux * head, y2 - uy * head);
+  d.fill(color);
+  d.doc.triangle(
+    x2, y2,
+    x2 - ux * head - uy * halfW, y2 - uy * head + ux * halfW,
+    x2 - ux * head + uy * halfW, y2 - uy * head - ux * halfW,
+    'F',
+  );
+}
+
+/**
+ * The system as a picture: sun, roof, panels, battery, grid, and the four
+ * annual flows between them.
+ *
+ * This is the one figure in the report that is not a chart, and it earns its
+ * place by orienting the reader before the numbers start — it shows the shape
+ * of their own installation, with the tile count following the real array and
+ * the battery drawn only when there is one. Every quantity on it is the same
+ * simulated figure quoted elsewhere; nothing here is decorative invention.
+ */
+export function houseScene(
+  d: Doc,
+  s: {
+    generated: number; selfConsumed: number; exported: number; gridImport: number;
+    panelCount: number; batteryKwh: number;
+  },
+  opts: { caption?: string } = {},
+) {
+  const H = 66;
+  d.ensure(H + lines(7));
+  const ox = d.left;
+  const oy = d.y;
+  const x = (v: number) => ox + (v / 166) * d.width;   // scene is authored on a 166mm grid
+  const y = (v: number) => oy + v;
+
+  const hasBattery = s.batteryKwh > 0;
+
+  // ── sun ────────────────────────────────────────────────────────────────
+  const sx = x(16); const sy = y(13); const sr = 5.4;
+  d.fill(SERIES_ALT_TINT).stroke(SERIES_ALT).weight(LW.rule);
+  circle(d, sx, sy, sr, 'FD');
+  d.stroke(SERIES_ALT).weight(LW.hair);
+  for (let i = 0; i < 8; i += 1) {
+    const a = (i / 8) * Math.PI * 2;
+    d.doc.line(sx + Math.cos(a) * (sr + 1.6), sy + Math.sin(a) * (sr + 1.6),
+      sx + Math.cos(a) * (sr + 3.6), sy + Math.sin(a) * (sr + 3.6));
+  }
+
+  // ── house ──────────────────────────────────────────────────────────────
+  const eaveY = y(38); const apexY = y(17); const baseY = y(56);
+  const wallL = x(58); const wallR = x(106); const apexX = x(82);
+  const roofL = x(54); const roofR = x(110);
+
+  d.fill(TINT).stroke(INK_SOFT).weight(LW.rule);
+  d.doc.rect(wallL, eaveY, wallR - wallL, baseY - eaveY, 'FD');
+  d.fill([236, 236, 232]).stroke(INK_SOFT).weight(LW.rule);
+  d.doc.triangle(roofL, eaveY, apexX, apexY, roofR, eaveY, 'FD');
+
+  // Door and window, so it reads as a home rather than a box.
+  d.fill(PAPER).stroke(INK_SOFT).weight(LW.hair);
+  d.doc.rect(x(63), y(45), 7, 11, 'FD');
+  d.doc.rect(x(76), y(44), 8, 7, 'FD');
+  d.stroke(INK_SOFT).weight(LW.hair);
+  d.doc.line(x(80), y(44), x(80), y(51));
+  d.doc.line(x(76), y(47.5), x(84), y(47.5));
+
+  // ── panels on the sunward slope ────────────────────────────────────────
+  // Tiles follow the real array, capped so a large system stays legible; the
+  // caption says which of the two the reader is looking at.
+  const tiles = Math.max(1, Math.min(8, s.panelCount));
+  const ax = roofL; const ay = eaveY;
+  const bx = apexX; const by = apexY;
+  const slopeLen = Math.hypot(bx - ax, by - ay);
+  const ux = (bx - ax) / slopeLen; const uy = (by - ay) / slopeLen;
+  const nx = -uy; const ny = ux;              // into the roof, down-right
+  const inset = 1.3; const depth = 4.0;
+  // Near the eave the roof is too shallow to hold a panel of this depth, so the
+  // array has to start far enough up the slope that no tile crosses the edge.
+  // sin(pitch) converts along-slope distance into available depth.
+  const sinPitch = Math.abs(uy) || 1;
+  const start = (inset + depth) / sinPitch + 1.2;
+  const run = Math.max(6, slopeLen - start - 5.5);   // clear of the ridge too
+  const gap = 0.9;
+  const tileW = (run - gap * (tiles - 1)) / tiles;
+  for (let i = 0; i < tiles; i += 1) {
+    const t0 = start + i * (tileW + gap);
+    const t1 = t0 + tileW;
+    d.fill(SERIES).stroke(PAPER).weight(LW.hair);
+    quad(d, [
+      [ax + ux * t0 + nx * inset, ay + uy * t0 + ny * inset],
+      [ax + ux * t1 + nx * inset, ay + uy * t1 + ny * inset],
+      [ax + ux * t1 + nx * (inset + depth), ay + uy * t1 + ny * (inset + depth)],
+      [ax + ux * t0 + nx * (inset + depth), ay + uy * t0 + ny * (inset + depth)],
+    ], 'FD');
+  }
+
+  // ── battery ────────────────────────────────────────────────────────────
+  if (hasBattery) {
+    const bxL = x(112); const byT = y(41); const bw = 11; const bh = 15;
+    d.fill(PAPER).stroke(INK_SOFT).weight(LW.rule);
+    d.doc.roundedRect(bxL, byT, bw, bh, 1.4, 1.4, 'FD');
+    // Three cells, the lower two filled: a battery at rest, part charged.
+    for (let i = 0; i < 3; i += 1) {
+      d.fill(i === 0 ? [232, 232, 228] : ACCENT);
+      d.doc.rect(bxL + 2, byT + 2.4 + i * 3.8, bw - 4, 2.8, 'F');
+    }
+    d.text(`${s.batteryKwh} kWh`, bxL + bw / 2, byT - 2,
+      { ...TYPE.micro!, color: INK_MID, align: 'center' });
+  }
+
+  // ── grid ───────────────────────────────────────────────────────────────
+  const px = x(150); const pTop = y(22); const pBot = y(56); const pHalf = 5.2;
+  d.stroke(INK_SOFT).weight(LW.rule);
+  d.doc.line(px - pHalf, pBot, px - 1.4, pTop);
+  d.doc.line(px + pHalf, pBot, px + 1.4, pTop);
+  d.doc.line(px - 5.4, pTop + 5, px + 5.4, pTop + 5);
+  d.doc.line(px - 4.0, pTop + 11, px + 4.0, pTop + 11);
+  d.stroke(INK_SOFT).weight(LW.hair);
+  d.doc.line(px - 4.4, pTop + 11, px + 3.2, pTop + 5);
+  d.doc.line(px + 4.4, pTop + 11, px - 3.2, pTop + 5);
+  d.text('GRID', px, pBot + 3.4, { ...TYPE.micro!, color: INK_MID, align: 'center' });
+
+  // ── flows ──────────────────────────────────────────────────────────────
+  // Sunlight onto the array, then the three destinations the energy can reach.
+  arrow(d, sx + 8, sy + 3.5, x(50), y(30), SERIES_ALT);
+  // Generation used inside the house.
+  arrow(d, x(72), y(30), x(72), y(44), ACCENT);
+  // Surplus out to the grid, and what the house still has to buy back.
+  const railR = hasBattery ? x(126) : x(112);
+  arrow(d, railR, y(42), px - 7, y(42), SERIES_ALT);
+  arrow(d, px - 7, y(50), railR, y(50), DEBIT);
+
+  d.y = oy + H;
+
+  // ── key ────────────────────────────────────────────────────────────────
+  const keys: [string, number, Rgb][] = [
+    ['Generated', s.generated, SERIES_ALT],
+    ['Used in the house', s.selfConsumed, ACCENT],
+    ['Exported', s.exported, SERIES_ALT],
+    ['Imported', s.gridImport, DEBIT],
+  ];
+  const kw = d.width / keys.length;
+  keys.forEach(([lbl, val, col], i) => {
+    const kx = d.left + i * kw;
+    d.fill(col);
+    d.doc.rect(kx, d.y - 2, 2.4, 2.4, 'F');
+    d.text(lbl.toUpperCase(), kx + 3.8, d.y, { ...TYPE.micro!, color: INK_MID, maxWidth: kw - 6 });
+    d.text(kwh(val), kx + 3.8, d.y + lines(1.2), { ...TYPE.dataBold!, maxWidth: kw - 6 });
+  });
+  d.y += lines(2.6);
+  // Wrapped, not a single line: this caption is long enough to run past the
+  // measure, and an overset line is silently clipped at the page edge.
+  if (opts.caption) { d.paragraph(opts.caption, TYPE.caption!); d.skip(0.4); }
 }
 
 /**

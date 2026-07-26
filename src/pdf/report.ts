@@ -16,7 +16,7 @@ import {
 import {
   chapter, heading, label, pullFigure, table, cellBar, definitions, callout,
   columnChart, rateProfile, cashFlow, splitBar, eur, kwh, signed, type Column,
-  monthlyEnergyChart, dayChart, dayChartLegend, barBreakdown,
+  monthlyEnergyChart, dayChart, dayChartLegend, barBreakdown, houseScene,
 } from './blocks.js';
 
 export interface RankedPlan {
@@ -48,6 +48,17 @@ export interface ReportData {
     dayProfile?: number[];
   };
   savings: { total: number; unitRate: number; standing: number; exportIncome: number };
+  /**
+   * Present when the reader picked `best` themselves rather than taking the
+   * cheapest. The report then reports their decision and prices it, instead of
+   * passing the choice off as our recommendation.
+   */
+  choice?: {
+    rank: number | null;
+    premium: number;
+    cheapestName: string;
+    cheapestCost: number;
+  };
   ranked: RankedPlan[];
   /** Cost of the recommended and current plan under usage shocks. */
   sensitivity?: { label: string; best: number; current: number }[];
@@ -57,6 +68,9 @@ export interface ReportData {
     grossCost: number; grant: number; netCost: number;
     year1Saving: number; paybackYears: number | null; npv20: number;
     cumulative: number[]; breakevenYear: number | null; batteryReplacementYear?: number;
+    /** Array size, for the illustration. */
+    panelCount?: number;
+    batteryKwh?: number;
   };
   ev?: {
     electricityIncrease: number; petrolAvoided: number; netSaving: number;
@@ -102,6 +116,13 @@ export interface ReportData {
 
 const pctOf = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
 
+/**
+ * How to name the plan every figure is computed on. It is our recommendation
+ * only when the reader did not override it.
+ */
+const planWord = (r: ReportData) => (r.choice ? 'your chosen plan' : 'the recommended plan');
+const planLabel = (r: ReportData) => (r.choice ? 'YOUR CHOICE' : 'RECOMMENDED');
+
 /* ── front matter ────────────────────────────────────────────────────────── */
 
 function cover(d: Doc, r: ReportData) {
@@ -131,7 +152,8 @@ function cover(d: Doc, r: ReportData) {
   d.y += lines(2.6);
   d.text(eur(r.savings.total), M, d.y, { ...TYPE.coverFigure!, color: ACCENT });
   d.y += lines(1.6);
-  d.text(`by moving to ${r.best.name}`, M, d.y, { ...TYPE.body!, color: INK_MID, maxWidth: d.width });
+  d.text(r.choice ? `on your chosen plan, ${r.best.name}` : `by moving to ${r.best.name}`,
+    M, d.y, { ...TYPE.body!, color: INK_MID, maxWidth: d.width });
   d.y += lines(1.8);
   d.stroke(RULE).weight(LW.hair);
   d.doc.line(M, d.y, TEXT_RIGHT, d.y);
@@ -175,6 +197,13 @@ function contents(d: Doc, r: ReportData) {
       ? `You are on ${r.current.name}, costing about ${eur(r.current.annualCost)} a year on your usage. ${r.best.name} would cost ${eur(r.best.annualCost)} — a saving of ${eur(r.savings.total)}.`
       : `You are already on ${r.current.name}, and nothing in the ${r.tariffCount} plans compared beats it on your usage. No action is needed.`,
   );
+  if (r.choice) {
+    pts.push(
+      r.choice.premium > 1
+        ? `${r.best.name} is your own choice, not the cheapest — it ranks ${r.choice.rank} of ${r.tariffCount} and costs ${eur(r.choice.premium)} a year more than ${r.choice.cheapestName}. Every figure in this report is calculated on your choice.`
+        : `${r.best.name} is your own choice rather than the top of the ranking, though it costs effectively the same. Every figure in this report is calculated on it.`,
+    );
+  }
   if (r.solar) {
     pts.push(
       r.solar.paybackYears
@@ -222,9 +251,18 @@ function chUsage(d: Doc, r: ReportData) {
 function chComparison(d: Doc, r: ReportData) {
   const saved = r.savings.total > 1;
   chapter(d, 'Two', 'What you could pay',
-    saved
-      ? `Every one of the ${r.tariffCount} plans available was simulated against your consumption across all 8,760 hours of a year. The cheapest for your usage is ${r.best.name}.`
-      : `Every one of the ${r.tariffCount} plans available was simulated against your consumption. None beats what you are on.`);
+    r.choice
+      ? `Every one of the ${r.tariffCount} plans available was simulated against your consumption across all 8,760 hours of a year. You have chosen to go with ${r.best.name}, and the rest of this report is built on that plan.`
+      : saved
+        ? `Every one of the ${r.tariffCount} plans available was simulated against your consumption across all 8,760 hours of a year. The cheapest for your usage is ${r.best.name}.`
+        : `Every one of the ${r.tariffCount} plans available was simulated against your consumption. None beats what you are on.`);
+
+  if (r.choice) {
+    callout(d, 'What your choice costs',
+      r.choice.premium > 1
+        ? `On price alone the ranking puts ${r.choice.cheapestName} first, at ${eur(r.choice.cheapestCost)} a year. ${r.best.name} ranks ${r.choice.rank} and costs ${eur(r.best.annualCost)} — ${eur(r.choice.premium)} a year more, or about ${eur(r.choice.premium / 12, 2)} a month. That is the price of the choice, and it is a legitimate one to make: contract length, exit fees, service record and green supply are all real considerations this model does not price. Everything that follows uses your plan, not the cheapest one.`
+        : `${r.best.name} is not the top of the ranking, but on your usage it costs effectively the same as ${r.choice.cheapestName}. Everything that follows uses your plan.`);
+  }
 
   // The recommendation, side by side with what it replaces.
   const half = (d.width - 6) / 2;
@@ -237,7 +275,7 @@ function chComparison(d: Doc, r: ReportData) {
 
   const rx = d.left + half + 6;
   d.y = top;
-  d.text('RECOMMENDED', rx, d.y, { ...TYPE.subhead!, color: ACCENT });
+  d.text(planLabel(r), rx, d.y, { ...TYPE.subhead!, color: ACCENT });
   d.y += lines(1.3);
   d.text(r.best.name, rx, d.y, { ...TYPE.data!, maxWidth: half });
   d.y += lines(1.3);
@@ -276,7 +314,7 @@ function chComparison(d: Doc, r: ReportData) {
     ], { caption: 'Unit rate by hour, cents per kWh, excluding the standing charge.' });
   }
 
-  label(d, 'Rates on the recommended plan');
+  label(d, `Rates on ${planWord(r)}`);
   const cw = d.width / Math.max(1, r.best.rates.length);
   r.best.rates.forEach((rt, i) => {
     const x = d.left + i * cw;
@@ -288,12 +326,14 @@ function chComparison(d: Doc, r: ReportData) {
   if (r.sensitivity?.length) {
     heading(d, 'If your usage is not quite what we assumed');
     d.paragraph(
-      'Consumption estimated from a bill carries real uncertainty. The recommendation holds across a wide band either side of the figure used here.',
+      r.choice
+        ? 'Consumption estimated from a bill carries real uncertainty. The comparison below holds across a wide band either side of the figure used here.'
+        : 'Consumption estimated from a bill carries real uncertainty. The recommendation holds across a wide band either side of the figure used here.',
       TYPE.body!);
     d.skip(0.5);
     const cols: Column[] = [
       { head: 'Scenario', width: 0, cell: (row: never) => (row as { label: string }).label },
-      { head: 'Recommended', width: 30, align: 'right', cell: (row: never) => eur((row as { best: number }).best) },
+      { head: r.choice ? 'Your plan' : 'Recommended', width: 30, align: 'right', cell: (row: never) => eur((row as { best: number }).best) },
       { head: 'Current plan', width: 30, align: 'right', cell: (row: never) => eur((row as { current: number }).current) },
       {
         head: 'Saving', width: 28, align: 'right',
@@ -316,6 +356,19 @@ function chSolar(d: Doc, r: ReportData) {
   if (!s) return;
   chapter(d, 'Three', 'Your solar and battery',
     `A ${s.kwp.toFixed(2)} kWp array — ${s.panels}, ${s.orientation} — with ${s.battery}.`);
+
+  houseScene(d, {
+    generated: s.generated,
+    selfConsumed: s.selfConsumed,
+    exported: s.exported,
+    gridImport: s.gridImport,
+    panelCount: s.panelCount ?? 0,
+    batteryKwh: s.batteryKwh ?? 0,
+  }, {
+    caption: `Your system and its four annual flows.${
+      s.panelCount && s.panelCount > 8 ? ` The roof is drawn with eight panels; yours has ${s.panelCount}.` : ''
+    } Every figure is from the same 8,760-hour simulation used throughout this report.`,
+  });
 
   heading(d, 'Where the generation goes');
   splitBar(d, [
@@ -543,7 +596,7 @@ function chDays(d: Doc, r: ReportData) {
 function chWhereMoneyGoes(d: Doc, r: ReportData) {
   if (!r.bands?.length) return;
   chapter(d, 'Analysis', 'Where the money actually goes',
-    'Not every kilowatt-hour costs the same. This is your annual import cost split by the rate band it fell in, on the recommended plan.');
+    `Not every kilowatt-hour costs the same. This is your annual import cost split by the rate band it fell in, on ${planWord(r)}.`);
 
   barBreakdown(d, r.bands.map((b) => ({
     label: b.band === 'day' ? 'Day rate' : b.band === 'night' ? 'Night rate'

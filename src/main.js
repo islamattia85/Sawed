@@ -587,6 +587,10 @@ const DEFAULT_STATE = {
   battery_max: 1.00,               // SoC ceiling fraction (tool uses this; default 100%)
   // Baseline plan (for "savings vs" comparison)
   baseline: "EI-24",
+  // Plan the user has decided to go with, overriding the cheapest-first pick.
+  // null = follow the ranking. Set, it replaces the recommendation everywhere:
+  // result screen, solar economics, monitor, and the PDF report.
+  chosen_plan: null,
   // % off unit rates on the CURRENT plan only — sign-up discount or legacy
   // rates. Standing charge stays full price (matches how Irish discounts work).
   baseline_discount_pct: 0,
@@ -1875,19 +1879,57 @@ function publishableSavings(){
   return Math.max(0, Math.round(baseCost - best.net));
 }
 
+/**
+ * Is `plan` one the ranking can offer? Discontinued plans cannot be switched
+ * to, and dynamic ones are held back unless the user opts in.
+ */
+function isRankablePlan(plan){
+  if (!plan || plan.discontinued) return false;
+  if (plan.type === 'dynamic' && !state.include_dynamic) return false;
+  return true;
+}
+
+/**
+ * Evaluate the hand-picked plan, or null if there isn't a usable one.
+ *
+ * A stored choice can go stale — the plan may be withdrawn by the supplier on
+ * the next tariff refresh, or the user may turn dynamic plans back off. Rather
+ * than fail, fall through to the ranking; the surfaces that matter show the
+ * choice explicitly, so its disappearance is visible.
+ */
+function evaluateChosenPlan(){
+  const id = state.chosen_plan;
+  if (!id) return null;
+  const plan = getPlanById(id);
+  if (!isRankablePlan(plan)) return null;
+  const s = sim(plan.id);
+  const c = annualCost(s, plan);
+  return { plan, sim: s, net: c.net, ...c, isChosen: true };
+}
+
+/**
+ * The plan the rest of the app should reason about.
+ *
+ * Normally that is the cheapest for this household. If the user has picked a
+ * plan by hand — a fixed-term deal they want for its own reasons, a supplier
+ * they will not leave — that choice wins, and every downstream figure (savings,
+ * solar payback, the report) is computed on it instead. `isChosen` lets a
+ * surface say so rather than presenting a manual pick as our recommendation.
+ */
 function getBestPlan(){
   if (CACHE.dirty) rebuildBase();
-  let best = null;
+  let best = evaluateChosenPlan();
   // EXCLUDE discontinued plans (can't be switched to) and — for now — dynamic
   // wholesale-tracking plans: their pricing is too unpredictable to rank
   // honestly until clarity is established. Opt back in via Expert settings.
-  for (const plan of TARIFFS){
-    if (plan.discontinued) continue;
-    if (plan.type === 'dynamic' && !state.include_dynamic) continue;
-    const s = sim(plan.id);
-    const c = annualCost(s, plan);
-    if (!best || c.net < best.net){
-      best = { plan, sim: s, net: c.net, ...c };
+  if (!best){
+    for (const plan of TARIFFS){
+      if (!isRankablePlan(plan)) continue;
+      const s = sim(plan.id);
+      const c = annualCost(s, plan);
+      if (!best || c.net < best.net){
+        best = { plan, sim: s, net: c.net, ...c, isChosen: false };
+      }
     }
   }
   // No rankable plan at all (every tariff discontinued/filtered, or the data
@@ -1925,15 +1967,24 @@ function getRecommendation(){
   // Rank plans — mirrors getBestPlan() filter exactly
   const ranked = [];
   for (const plan of TARIFFS){
-    if (plan.discontinued) continue;
-    if (plan.type === 'dynamic' && !state.include_dynamic) continue;
+    if (!isRankablePlan(plan)) continue;
     const s = sim(plan.id);
     const c = annualCost(s, plan);
     ranked.push({ plan, sim: s, net: c.net, ...c });
   }
   ranked.sort((a, b) => a.net - b.net);
 
-  const best = ranked[0] || null;
+  // `cheapest` is what the ranking says; `best` is what the app acts on. They
+  // differ only when the user has chosen a plan by hand.
+  const cheapest = ranked[0] || null;
+  const chosenIdx = state.chosen_plan
+    ? ranked.findIndex(r => r.plan.id === state.chosen_plan)
+    : -1;
+  const best = chosenIdx >= 0 ? ranked[chosenIdx] : cheapest;
+  const isManualChoice = chosenIdx >= 0;
+  const chosenRank = chosenIdx >= 0 ? chosenIdx + 1 : null;
+  // What sticking with the hand-picked plan costs against the cheapest.
+  const choicePremium = isManualChoice && cheapest ? best.net - cheapest.net : 0;
   const baselinePlan = getPlanById(state.baseline);
   const bs = baselineSim(state.baseline);
   const baseCost = bs ? (sumF(bs.cost) + (baselinePlan ? baselinePlan.standing : 0)) : 0;
@@ -1945,7 +1996,11 @@ function getRecommendation(){
     : '';
 
   return {
-    best,                   // full plan object (same shape as getBestPlan())
+    best,                   // the plan in effect (chosen if set, else cheapest)
+    cheapest,               // always rank 1, regardless of any manual choice
+    isManualChoice,         // true when `best` is the user's pick, not the ranking's
+    chosenRank,             // 1-based rank of that pick, null if none
+    choicePremium,          // €/yr it costs versus the cheapest plan
     ranked,                 // all rankable plans sorted cheapest-first
     baseCost,
     annualSavings,
@@ -4174,6 +4229,7 @@ function renderResult(){
 
     ${renderTrustPanel()}
     ${renderContractAlert()}
+    ${state.chosen_plan ? renderChoiceStrip() : ''}
 
     <div class="plan-compare">
       <div class="plan-row current">
@@ -4185,7 +4241,7 @@ function renderResult(){
       </div>
       <div class="plan-row best">
         <div>
-          <div class="plan-label">→ Switch to</div>
+          <div class="plan-label">${state.chosen_plan === best.plan.id ? '→ Your chosen plan' : '→ Switch to'}</div>
           <div class="plan-value">${best.plan.supplier} — ${best.plan.plan}</div>
         </div>
         <div class="plan-amount">${best.net <= 0 ? 'Net earner' : fmtCurrency(best.net)+'/yr'}</div>
@@ -5170,6 +5226,8 @@ function renderPlans(){
       ${latestVerifiedLabel() ? `<div class="plan-verified" style="margin-top:6px">Rates verified ${latestVerifiedLabel()} · ${TARIFFS.filter(t=>!t.discontinued).length} active plans</div>` : ''}
     </div>
 
+    ${renderChoiceStrip()}
+
     <div class="plans-filters">
       ${['all','flat','tou','ev','dynamic'].map(cat => `
         <div class="plan-filter-pill ${cat === f ? 'active' : ''}" onclick="setPlansFilter('${cat}')">
@@ -5186,8 +5244,9 @@ function renderPlans(){
       const globalRank = ranked.indexOf(r) + 1;
       const isBest = globalRank === 1 && f === 'all';
       const isCurrent = r.plan.id === state.baseline;
-      const cardClass = isBest ? 'best' : isCurrent ? 'current' : '';
-      const rankClass = isBest ? 'best' : isCurrent ? 'current' : '';
+      const isChosen = r.plan.id === state.chosen_plan;
+      const cardClass = isChosen ? 'chosen' : isBest ? 'best' : isCurrent ? 'current' : '';
+      const rankClass = isChosen ? 'chosen' : isBest ? 'best' : isCurrent ? 'current' : '';
       const saving = baseCost - r.cost;
 
       let rateSummary;
@@ -5204,7 +5263,7 @@ function renderPlans(){
       return `<div class="plan-card ${cardClass}" onclick="showPlanDetail('${r.plan.id}')">
         <div class="plan-card-header">
           <div style="display:flex;align-items:flex-start;gap:10px;flex:1;min-width:0">
-            <div class="plan-rank ${rankClass}" ${r.onHold ? 'style="background:rgba(138,180,248,.12);color:#8AB4F8"' : ''}>${r.onHold ? 'HOLD' : isBest ? '★ #1' : isCurrent ? 'Current' : '#' + globalRank}</div>
+            <div class="plan-rank ${rankClass}" ${r.onHold ? 'style="background:rgba(138,180,248,.12);color:#8AB4F8"' : ''}>${r.onHold ? 'HOLD' : isChosen ? '✓ Yours' : isBest ? '★ #1' : isCurrent ? 'Current' : '#' + globalRank}</div>
             <div style="flex:1;min-width:0">
               <div class="plan-supplier">${r.plan.supplier}${r.plan._is_edited ? ' <span style="color:var(--amber);font-size:9px;font-family:var(--mono);letter-spacing:.06em">EDITED</span>' : ''}</div>
               <div class="plan-name">${r.plan.plan}</div>
@@ -5218,7 +5277,7 @@ function renderPlans(){
           </div>
         </div>
         ${r.plan.verified_date ? `<div class="plan-verified">Verified ${fmtVerifiedDate(r.plan.verified_date)}</div>` : ''}
-        ${isBest ? `
+        ${isChosen || (isBest && !state.chosen_plan) ? `
           <button class="switch-cta" style="margin-top:12px;margin-bottom:0;font-size:13px;padding:11px 16px"
                   onclick="event.stopPropagation(); handleSwitchClick('${r.plan.id}', '${(r.plan.supplier + ' ' + r.plan.plan).replace(/'/g,"\\'")}', ${saving.toFixed(0)})">
             Switch to ${r.plan.supplier} →
@@ -5232,6 +5291,34 @@ function renderPlans(){
     </p>
   </div>
   ${bottomNav()}`;
+}
+
+/**
+ * States whether the app is following the ranking or a hand-picked plan.
+ *
+ * Shown wherever the recommendation is acted on, because a figure computed on a
+ * plan the user chose for non-price reasons must never read as our advice.
+ */
+function renderChoiceStrip(){
+  const rec = getRecommendation();
+  if (!rec.best) return '';
+  if (!rec.isManualChoice){
+    return `<div class="choice-strip hint">
+      Ranked on cost. Tap any plan to see the detail — or to go with it instead of the cheapest.
+    </div>`;
+  }
+  const premium = rec.choicePremium;
+  return `<div class="choice-strip">
+    <div>
+      <b>${ic('checkC',13)} Using ${rec.best.plan.supplier} — ${rec.best.plan.plan}</b>
+      <div class="choice-strip-sub">Your pick, ranked #${rec.chosenRank}.${
+        premium > 1
+          ? ` It costs ${fmtCurrency(premium)}/yr more than ${rec.cheapest.plan.supplier}, and every figure in the app and your report uses it.`
+          : ' Every figure in the app and your report uses it.'
+      }</div>
+    </div>
+    <button class="chosen-banner-undo" onclick="clearChosenPlan()">Use cheapest</button>
+  </div>`;
 }
 
 function showPlanDetail(planId){
@@ -5362,6 +5449,7 @@ function renderPlanDetail(){
       ${!plan.discontinued ? `
         <button class="btn-secondary" onclick="openHowToSwitch('${planId}')" style="border-color:var(--blue);color:var(--blue)">${ic('clip',14)} How to switch to ${plan.supplier}</button>
       ` : ''}
+      ${chooseAction(planId, plan, c.net)}
       ${!isCurrent ? `
         <button class="btn-secondary" onclick="setAsBaseline('${planId}')">Use as comparison baseline</button>
       ` : '<div style="font-family:var(--mono);font-size:11px;color:var(--ink-soft);text-align:center;padding:10px;letter-spacing:.04em">✓ This is your current baseline</div>'}
@@ -5372,6 +5460,37 @@ function renderPlanDetail(){
     </p>
   </div>
   ${bottomNav()}`;
+}
+
+/**
+ * "Go with this plan" control for the detail screen.
+ *
+ * States it has to express: this is already what we recommend; this is what you
+ * picked; or you could pick it, and here is what that costs you a year. The
+ * price of the choice is stated up front rather than discovered afterwards.
+ */
+function chooseAction(planId, plan, netCost){
+  if (!isRankablePlan(plan)) return '';
+  const rec = getRecommendation();
+  const isChosen = state.chosen_plan === planId;
+  const isCheapest = !!rec.cheapest && rec.cheapest.plan.id === planId;
+
+  if (isChosen){
+    return `<div class="chosen-banner">
+      <div>${ic('checkC',14)} <b>You're going with this plan</b><div class="chosen-banner-sub">Every figure in the app and your report is calculated on it.</div></div>
+      <button class="chosen-banner-undo" onclick="clearChosenPlan()">Undo</button>
+    </div>`;
+  }
+  if (isCheapest && !rec.isManualChoice){
+    return `<div style="font-family:var(--mono);font-size:11px;color:var(--accent);text-align:center;padding:10px;letter-spacing:.04em">★ Cheapest for your usage — already in use</div>`;
+  }
+  const premium = rec.cheapest ? netCost - rec.cheapest.net : 0;
+  const note = premium > 1
+    ? `${fmtCurrency(premium)}/yr more than ${rec.cheapest.plan.supplier}`
+    : 'Same cost as the cheapest plan';
+  return `<button class="btn-secondary" onclick="choosePlan('${planId}')">
+    Go with this plan<span style="opacity:.7;font-weight:400"> · ${note}</span>
+  </button>`;
 }
 
 function editPlanRate(planId, band, value){
@@ -5405,6 +5524,41 @@ function resetPlanOverride(planId){
     saveState();
     renderApp();
   }
+}
+
+/**
+ * Adopt a plan as the one every figure is computed on.
+ *
+ * Choosing the plan that already tops the ranking is stored as "no choice" —
+ * otherwise the pick would silently freeze as rates move and the app would keep
+ * recommending a plan that is no longer cheapest.
+ */
+function choosePlan(planId){
+  const plan = getPlanById(planId);
+  if (!isRankablePlan(plan)) return;
+  const rec = getRecommendation();
+  if (rec.cheapest && rec.cheapest.plan.id === planId){
+    return clearChosenPlan();
+  }
+  state.chosen_plan = planId;
+  invalidate();
+  saveState();
+  renderApp();
+  const premium = getRecommendation().choicePremium;
+  showToast(
+    premium > 1
+      ? `Using ${plan.supplier} — ${fmtCurrency(premium)}/yr more than the cheapest`
+      : `Using ${plan.supplier} — ${plan.plan}`,
+    { type: 'accent', icon: ic('checkC', 16) });
+}
+
+function clearChosenPlan(){
+  if (!state.chosen_plan) return;
+  state.chosen_plan = null;
+  invalidate();
+  saveState();
+  renderApp();
+  showToast('Back to the cheapest plan for your usage');
 }
 
 function setAsBaseline(planId){
@@ -6427,11 +6581,26 @@ function doGeneratePdf(email){
     const levers = [];
     try {
       const baseNet = best.net;
+      /**
+       * Run one what-if and put everything back.
+       *
+       * The caller's own restore is not enough. Rebuilding runs the state
+       * sanitizer, which owns some fields outright — set battery_kwh to 0 for
+       * the "remove the battery" lever and it forces strategy_mode to
+       * 'self-consume' and clears charge_from_grid. Restoring the battery does
+       * not restore those, so generating a report used to silently change the
+       * user's dispatch strategy and every figure computed afterwards. Snapshot
+       * the sanitizer-owned fields here, where no individual lever can forget.
+       */
+      const GUARDED = ['strategy_mode', 'charge_from_grid', 'hot_water_strategy'];
       const trial = (mutate, restore) => {
+        const guard = {};
+        GUARDED.forEach(k => { guard[k] = state[k]; });
         mutate();
         invalidate(); rebuildBase();
         const v = getBestPlan().net;
         restore();
+        GUARDED.forEach(k => { state[k] = guard[k]; });
         invalidate(); rebuildBase();
         return baseNet - v;   // positive = better off after the change
       };
@@ -6494,6 +6663,14 @@ function doGeneratePdf(email){
                     .map(l => ({ ...l, value: Math.round(l.value) })),
       state, best, baselinePlan, baseCost, saving, annualKwh, econ,
       ranked: rec.ranked,
+      // A plan the reader picked themselves must be reported as their decision,
+      // not as our recommendation.
+      choice: rec.isManualChoice ? {
+        rank: rec.chosenRank,
+        premium: rec.choicePremium,
+        cheapestName: rec.cheapest ? `${rec.cheapest.plan.supplier} — ${rec.cheapest.plan.plan}` : '',
+        cheapestCost: rec.cheapest ? rec.cheapest.net : 0,
+      } : null,
       bestDayProfile: profileFor(best.plan),
       currentDayProfile: profileFor(baselinePlan),
       sensitivity,
@@ -9721,6 +9898,8 @@ window.editPlanRate = editPlanRate;
 window.editPlanField = editPlanField;
 window.resetPlanOverride = resetPlanOverride;
 window.setAsBaseline = setAsBaseline;
+window.choosePlan = choosePlan;
+window.clearChosenPlan = clearChosenPlan;
 window.openPlanDetail = openPlanDetail;
 window.toggleNpvBreakdown = toggleNpvBreakdown;
 window.setRegion = setRegion;
