@@ -120,3 +120,49 @@ test('generating a report leaves the user’s settings exactly as they were', as
   expect(await snapshot()).toEqual(before);
   expect(errors).toEqual([]);
 });
+
+/**
+ * The choice has to be reachable from where the plan is quoted. It first
+ * shipped only on the plan-detail screen — three taps deep — so from the result
+ * and solar screens, which are where people actually read the number, there was
+ * no way to change it.
+ */
+test('the plan can be chosen from the solar screen, near the top', async ({ page }) => {
+  const errors = await boot(page, { current_screen: 'solar' });
+
+  // The plan block must sit within reach of the payback headline, not below
+  // the day inspector two screens down.
+  const top = await page.evaluate(() => {
+    const sec = [...document.querySelectorAll('.section-title')].find((e) => /Best plan/i.test(e.textContent));
+    return sec ? sec.getBoundingClientRect().top + window.scrollY : null;
+  });
+  expect(top, 'the plan block is missing from the solar screen').not.toBeNull();
+  expect(top).toBeLessThan(900);
+
+  await page.getByRole('button', { name: /different plan|Change plan/i }).first().click();
+  await expect(page.locator('#plan-picker')).toBeVisible();
+
+  const third = await page.evaluate(() => window.getRecommendation().ranked[2].plan.id);
+  await page.locator('.pp-row').nth(2).click();
+
+  await expect(page.locator('#plan-picker')).toHaveCount(0);
+  const after = await page.evaluate(() => ({
+    best: window.getBestPlan().plan.id,
+    rank: window.getRecommendation().chosenRank,
+  }));
+  expect(after.best).toBe(third);
+  expect(after.rank).toBe(3);
+  await expect(page.locator('.choice-strip')).toBeVisible();
+
+  expect(errors).toEqual([]);
+});
+
+test('the picker is reachable from the result screen too', async ({ page }) => {
+  const errors = await boot(page);
+  await page.getByRole('button', { name: /different plan|Change plan/i }).first().click();
+  await expect(page.locator('#plan-picker')).toBeVisible();
+  const rows = await page.locator('.pp-row').count();
+  const ranked = await page.evaluate(() => window.getRecommendation().ranked.length);
+  expect(rows).toBe(ranked);
+  expect(errors).toEqual([]);
+});

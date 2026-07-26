@@ -4265,6 +4265,9 @@ function renderResult(){
 
     ${renderSavingsBreakdown(best, baseCost)}
 
+    <button class="btn-secondary" style="margin-bottom:8px" onclick="openPlanPicker()">
+      ${ic('tune',14)} ${state.chosen_plan ? 'Change plan' : 'Use a different plan'}
+    </button>
     <button class="switch-cta" onclick="handleSwitchClick('${best.plan.id}', '${(best.plan.supplier + ' ' + best.plan.plan).replace(/'/g,"\\'")}', ${annualSavings.toFixed(0)})">
       Switch to ${best.plan.supplier} →
     </button>
@@ -4924,6 +4927,12 @@ function renderSolarDashboard(){
       <div style="font-family:var(--display);font-size:10px;color:var(--ink-dim);text-align:center;margin-top:12px;letter-spacing:.03em">Payback uses electricity savings only — solar vs no solar, everything else equal.</div>`}
     </div>
 
+    <!-- Directly under the payback headline, because every figure above and
+         below it is priced on this plan. It used to sit below the day
+         inspector, two screens down, where nobody found it. -->
+    ${renderPlanChoiceBlock(best, annualSavings, { title: 'Best plan WITH this solar' })}
+    <div class="switch-cta-sub">Same plan whether or not you install solar</div>
+
     ${state.ev_active && econ ? `
       <div class="card" style="margin-bottom:14px;border-color:var(--amber);background:linear-gradient(140deg,var(--amber-faint),var(--panel))">
         <div class="card-label" style="color:var(--amber)">${ic('car',13)} EV petrol displacement (separate from solar)</div>
@@ -4970,20 +4979,6 @@ function renderSolarDashboard(){
 
     ${renderDayInspector()}
 
-    <div class="section-title">Best plan WITH this solar</div>
-    <div class="plan-compare">
-      <div class="plan-row best" onclick="openTariffPopup('${best.plan.id}')" style="cursor:pointer">
-        <div>
-          <div class="plan-label">→ Recommended · <span style="text-decoration:underline">tap for tariff</span></div>
-          <div class="plan-value">${best.plan.supplier} — ${best.plan.plan}</div>
-        </div>
-        <div class="plan-amount">${fmtCurrency(best.net)}/yr</div>
-      </div>
-    </div>
-    <button class="switch-cta" onclick="handleSwitchClick('${best.plan.id}', '${(best.plan.supplier + ' ' + best.plan.plan).replace(/'/g,"\\'")}', ${annualSavings.toFixed(0)})">
-      Switch to ${best.plan.supplier} →
-    </button>
-    <div class="switch-cta-sub">Same plan whether or not you install solar</div>
 
     ${state.ev_active && econ ? `
       <div class="ev-banner">
@@ -5121,6 +5116,89 @@ function openTariffPopup(planId){
     </div>`;
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+/**
+ * Pick the plan the whole app runs on.
+ *
+ * The choice existed on the plan-detail screen, which is three taps deep — so
+ * from the two places the plan is actually shown (the result screen and the
+ * solar payback screen) there was no way to change it. This is that control:
+ * every rankable plan, its cost, and what choosing it costs against the
+ * cheapest, selectable in one tap from wherever the plan is quoted.
+ */
+function openPlanPicker(){
+  const rec = getRecommendation();
+  if (!rec.cheapest) return;
+  const old = document.getElementById('plan-picker');
+  if (old) old.remove();
+
+  const rows = rec.ranked.map((r, i) => {
+    const id = r.plan.id;
+    const chosen = state.chosen_plan ? id === state.chosen_plan : i === 0;
+    const delta = r.net - rec.cheapest.net;
+    return `<div class="pp-row ${chosen ? 'on' : ''}" onclick="pickPlan('${id}')">
+      <div class="pp-tick">${chosen ? ic('checkC',15) : `<span class="pp-rank">${i + 1}</span>`}</div>
+      <div class="pp-main">
+        <div class="pp-name">${r.plan.supplier}</div>
+        <div class="pp-sub">${r.plan.plan}</div>
+      </div>
+      <div class="pp-cost">
+        <div class="pp-amount">${fmtCurrency(r.net)}<span>/yr</span></div>
+        <div class="pp-delta" style="color:${delta > 0.5 ? 'var(--amber)' : 'var(--accent)'}">${
+          delta > 0.5 ? '+' + fmtCurrency(delta) : i === 0 ? 'cheapest' : 'same cost'
+        }</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const modal = document.createElement('div');
+  modal.id = 'plan-picker';
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal" style="max-height:86vh;display:flex;flex-direction:column">
+      <div class="modal-handle"></div>
+      <h3 style="margin-bottom:2px">Which plan should we use?</h3>
+      <p style="margin-bottom:10px">Everything in the app and your PDF report is calculated on the plan you pick here. The ranking is by cost on your usage — but contract length, exit fees and service are yours to weigh.</p>
+      <div style="overflow-y:auto;margin:0 -4px;padding:0 4px;flex:1">${rows}</div>
+      ${state.chosen_plan ? `<button class="modal-btn" style="margin-top:12px" onclick="document.getElementById('plan-picker').remove(); clearChosenPlan()">Use the cheapest instead</button>` : ''}
+      <button class="modal-skip" onclick="document.getElementById('plan-picker').remove()">Close</button>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+/** Select from the picker, then close it — choosePlan() re-renders behind. */
+function pickPlan(planId){
+  const modal = document.getElementById('plan-picker');
+  if (modal) modal.remove();
+  choosePlan(planId);
+}
+
+/**
+ * The plan every figure on this screen assumes, and the control to change it.
+ * Shared by the result and solar screens so the two can never disagree.
+ */
+function renderPlanChoiceBlock(best, annualSavings, opts = {}){
+  const isChosen = !!state.chosen_plan && state.chosen_plan === best.plan.id;
+  return `
+    <div class="section-title">${opts.title || 'Best plan'}</div>
+    ${state.chosen_plan ? renderChoiceStrip() : ''}
+    <div class="plan-compare">
+      <div class="plan-row best" onclick="openTariffPopup('${best.plan.id}')" style="cursor:pointer">
+        <div>
+          <div class="plan-label">${isChosen ? '→ Your chosen plan' : '→ Recommended'} · <span style="text-decoration:underline">tap for tariff</span></div>
+          <div class="plan-value">${best.plan.supplier} — ${best.plan.plan}</div>
+        </div>
+        <div class="plan-amount">${fmtCurrency(best.net)}/yr</div>
+      </div>
+    </div>
+    <button class="btn-secondary" style="margin-top:10px" onclick="openPlanPicker()">
+      ${ic('tune',14)} ${state.chosen_plan ? 'Change plan' : 'Use a different plan'}
+    </button>
+    <button class="switch-cta" style="margin-top:8px" onclick="handleSwitchClick('${best.plan.id}', '${(best.plan.supplier + ' ' + best.plan.plan).replace(/'/g,"\\'")}', ${annualSavings.toFixed(0)})">
+      Switch to ${best.plan.supplier} →
+    </button>`;
 }
 
 function toggleSolarEvModel(){
@@ -9899,6 +9977,8 @@ window.editPlanField = editPlanField;
 window.resetPlanOverride = resetPlanOverride;
 window.setAsBaseline = setAsBaseline;
 window.choosePlan = choosePlan;
+window.openPlanPicker = openPlanPicker;
+window.pickPlan = pickPlan;
 window.clearChosenPlan = clearChosenPlan;
 window.openPlanDetail = openPlanDetail;
 window.toggleNpvBreakdown = toggleNpvBreakdown;
