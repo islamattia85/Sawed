@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { boot, bootFresh, collectErrors, isolate } from './support.js';
 
 /**
  * These tests exist because of a specific hazard introduced by the move to ES
@@ -11,35 +12,6 @@ import { test, expect } from '@playwright/test';
  * shows when a real click evaluates the attribute. So every assertion here
  * drives the UI by clicking.
  */
-
-const SETUP = {
-  onboarding_complete: true,
-  seen_intro: true,
-  current_screen: 'result',
-  bimonthly_bill_eur: 250,
-  heating_type: 'gas',
-  region: 'east',
-  baseline: 'EI-24',
-  baseline_known: true,
-  has_solar: true,
-  considering_solar: true,
-  count_A: 12,
-  battery_kwh: 5,
-  install_cost: 12000,
-  grant_seai: 1800,
-};
-
-async function boot(page, overrides = {}) {
-  const errors = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/');
-  await page.evaluate((s) => {
-    localStorage.setItem('solarAppState_v2', JSON.stringify(s));
-  }, { ...SETUP, ...overrides });
-  await page.reload();
-  await page.waitForFunction(() => !document.getElementById('loader'));
-  return errors;
-}
 
 test('window bridge exposes live module state, not a stale copy', async ({ page }) => {
   await boot(page);
@@ -78,12 +50,7 @@ test('inline handler toggling a boolean state field works (Home disclosure)', as
 test('inline handler assigning a module-scoped PRIMITIVE works (intro step)', async ({ page }) => {
   // _introStep is a bare `let` number. Without an accessor bridge, an inline
   // `_introStep=3` writes a dead global and the intro never advances.
-  const errors = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.waitForFunction(() => !document.getElementById('loader'));
+  const errors = await bootFresh(page);
 
   await expect.poll(() => page.evaluate(() => window._introStep)).toBe(1);
   await page.locator('.intro-cta').first().click();
@@ -94,12 +61,7 @@ test('inline handler assigning a module-scoped PRIMITIVE works (intro step)', as
 });
 
 test('onboarding drives _ob through clicks and commits', async ({ page }) => {
-  const errors = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.waitForFunction(() => !document.getElementById('loader'));
+  const errors = await bootFresh(page);
 
   await page.evaluate(() => { window.state.seen_intro = true; window.setScreen('welcome'); });
   await page.getByRole('button', { name: /Full setup/ }).click();

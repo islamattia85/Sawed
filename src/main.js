@@ -6390,9 +6390,43 @@ function doGeneratePdf(email){
       { title:'Wait for the changeover', body:'Completion takes 10\u201315 working days. Your supply is never interrupted and no one visits the property.' },
     ]).map(s => ({ title: s.title, body: s.body }));
 
+    // Hour-of-day unit rates, so the report can show WHY one plan wins
+    // rather than only asserting that it does.
+    const profileFor = (plan) => {
+      try { return Array.from({ length: 24 }, (_, h) => engineRateAt(h, plan, null, null)); }
+      catch(e){ return null; }
+    };
+
+    // Consumption from a bill carries real uncertainty; show whether the
+    // recommendation survives being wrong about it.
+    let sensitivity = null;
+    try {
+      const scale = (f) => {
+        const saved = state.bills;
+        state.bills = Object.fromEntries(Object.entries(saved).map(([k,v]) => [k, v*f]));
+        invalidate(); rebuildBase();
+        const b = getBestPlan();
+        const bs = baselineSim(state.baseline);
+        const cur = sumF(bs.cost) + baselinePlan.standing;
+        state.bills = saved;
+        return { best: b.net, current: cur };
+      };
+      const lo = scale(0.8), hi = scale(1.2);
+      invalidate(); rebuildBase();
+      sensitivity = [
+        { label: 'If your usage is 20% lower', best: lo.best, current: lo.current },
+        { label: 'As modelled in this report', best: best.net, current: baseCost },
+        { label: 'If your usage is 20% higher', best: hi.best, current: hi.current },
+      ];
+    } catch(e){ sensitivity = null; }
+
     const data = buildReportData({
       state, best, baselinePlan, baseCost, saving, annualKwh, econ,
       ranked: rec.ranked,
+      bestDayProfile: profileFor(best.plan),
+      currentDayProfile: profileFor(baselinePlan),
+      sensitivity,
+      supplierUrl: (typeof getAffiliateUrl === 'function' ? getAffiliateUrl(best.plan.id) : null) || null,
       baseEnergy: sumF(baseSim.cost),
       bestEnergy: best.energy_cost,
       bestExport: best.export_revenue,

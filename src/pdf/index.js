@@ -9,6 +9,10 @@
 import { renderReport } from './report';
 import { reportOrigin } from './theme';
 
+const PLAN_TYPE_LABEL = {
+  flat: '24h flat', tou: 'Day/Night', dn: 'Day/Night', ev: 'EV', dynamic: 'Dynamic',
+};
+
 const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : '');
 const cents = (v) => (v == null ? '' : `${(v * 100).toFixed(2)}c`);
 
@@ -68,10 +72,14 @@ export function buildReportData(ctx) {
     current: {
       name: `${baselinePlan.supplier} — ${baselinePlan.plan}`,
       annualCost: baseCost,
+      standing: baselinePlan.standing || 0,
     },
     best: {
       name: `${best.plan.supplier} — ${best.plan.plan}`,
+      supplier: best.plan.supplier,
       annualCost: best.net,
+      standing: best.plan.standing || 0,
+      dayProfile: ctx.bestDayProfile || undefined,
       rates: [
         { label: 'Day', value: cents(r.day) },
         { label: 'Night', value: cents(r.night) },
@@ -89,18 +97,29 @@ export function buildReportData(ctx) {
     },
     ranked: (ranked || []).map((x) => ({
       name: `${x.plan.supplier} — ${x.plan.plan}`,
+      supplier: x.plan.supplier,
       cost: x.net,
+      standing: x.plan.standing || 0,
+      type: PLAN_TYPE_LABEL[x.plan.type] || x.plan.type || '—',
+      dayProfile: x.plan.id === state.baseline ? (ctx.currentDayProfile || undefined) : undefined,
     })),
+    sensitivity: ctx.sensitivity || undefined,
+    supplierUrl: ctx.supplierUrl || undefined,
+    tariffCount: tariffCount || 0,
+    verifiedDate: verifiedDate || null,
     usageByPeriod,
     usageBasis: usageBasis || 'Estimated from your bill',
     switchSteps: (switchSteps || []).map((x) => ({ title: stripHtml(x.title), body: stripHtml(x.body) })),
     methodology: [
-      { label: 'Tariff rates verified', value: `${verifiedDate || '—'}  ·  ${tariffCount || 0} plans compared` },
-      { label: 'Usage basis', value: usageBasis || 'Estimated from your bill' },
-      { label: 'Simulation', value: '8,760 hourly steps per plan across a full year' },
-      { label: 'Region', value: regionName || cap(state.region || 'east') },
-      { label: 'Solar finance', value: '20-year horizon · 3% discount · 0.5%/yr degradation · battery replaced at year 12' },
-      { label: 'SEAI grant', value: 'Auto-calculated to the current scheme cap unless set manually' },
+      { term: 'Tariff rates', value: `Verified ${verifiedDate || 'recently'} · ${tariffCount || 0} plans compared` },
+      { term: 'Consumption', value: usageBasis || 'Estimated from your bill' },
+      { term: 'Simulation', value: '8,760 hourly steps per plan, per year' },
+      { term: 'Battery dispatch', value: state.battery_kwh > 0 ? `${state.battery_kwh} kWh, ${state.strategy_mode === 'arbitrage' ? 'grid-charging arbitrage' : 'self-consumption first'}` : 'No battery modelled' },
+      { term: 'Location', value: `${regionName || cap(state.region || 'east')} · PVGIS-calibrated irradiance` },
+      { term: 'Solar finance', value: '20-year horizon, 3% real discount rate, 0.5%/yr panel degradation' },
+      { term: 'Battery replacement', value: 'Modelled at year 12, €400 per kWh' },
+      { term: 'SEAI grant', value: 'Auto-calculated to the current scheme cap unless set manually' },
+      { term: 'Netting convention', value: 'Every cost is import + standing charge - export income' },
     ],
   };
 

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { boot, bootFresh, collectErrors, isolate } from './support.js';
 
 /**
  * Phase 2 moved the solar physics, NPV and tariff-band maths out of main.js
@@ -10,37 +11,6 @@ import { test, expect } from '@playwright/test';
  * The values below were captured from the build immediately before the
  * extraction. A change here means the refactor altered user-visible money.
  */
-
-const SETUP = {
-  onboarding_complete: true,
-  seen_intro: true,
-  current_screen: 'result',
-  bimonthly_bill_eur: 250,
-  heating_type: 'gas',
-  region: 'east',
-  baseline: 'EI-24',
-  baseline_known: true,
-  has_solar: true,
-  considering_solar: true,
-  count_A: 12,
-  azimuth_A: 180,
-  tilt_A: 35,
-  panel_w: 440,
-  battery_kwh: 5,
-  install_cost: 12000,
-  grant_seai: 1800,
-};
-
-async function boot(page, overrides = {}) {
-  const errors = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/');
-  await page.evaluate((s) => localStorage.setItem('solarAppState_v2', JSON.stringify(s)),
-    { ...SETUP, ...overrides });
-  await page.reload();
-  await page.waitForFunction(() => !document.getElementById('loader'));
-  return errors;
-}
 
 test('solar generation is unchanged by the extraction', async ({ page }) => {
   const errors = await boot(page);

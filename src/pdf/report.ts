@@ -1,17 +1,32 @@
 /**
- * Report composition.
+ * The document.
  *
- * Structure and data are separated: `ReportData` is a plain object the caller
- * assembles from app state, and nothing in here reads a global. That makes the
- * whole document renderable in a test with fixed inputs.
+ * Structured as a report a person reads: a cover, contents, then chapters that
+ * argue a case in prose supported by tables, closing with an appendix of the
+ * full working. `ReportData` is plain data — nothing here reads a global, so
+ * the whole document renders in a test.
  */
 
-import { Canvas, type PdfDoc } from './layout.js';
-import { C, T, S, LW, PAGE, reportOrigin } from './theme.js';
+import { Doc, type PdfDoc } from './doc.js';
 import {
-  sectionHeader, figureRow, tileRow, rankTable, barChart, cashFlowChart,
-  legend, step, money, type RankRow,
-} from './components.js';
+  PAGE, TYPE, lines, LW, TEXT_LEFT, TEXT_RIGHT,
+  INK, INK_MID, INK_SOFT, RULE, RULE_SOFT, TINT, PAPER,
+  ACCENT, ACCENT_TINT, DEBIT, SERIES, SERIES_ALT, reportOrigin,
+} from './theme.js';
+import {
+  chapter, heading, label, pullFigure, table, cellBar, definitions, callout,
+  columnChart, rateProfile, cashFlow, splitBar, eur, kwh, signed, type Column,
+} from './blocks.js';
+
+export interface RankedPlan {
+  name: string;
+  supplier: string;
+  cost: number;
+  standing: number;
+  type: string;
+  /** Hourly unit rate across a day, euro/kWh. */
+  dayProfile?: number[];
+}
 
 export interface ReportData {
   generatedAt: Date;
@@ -21,332 +36,399 @@ export interface ReportData {
     heating: string;
     region: string;
     systemLabel: string;
+    occupancyNote?: string;
   };
-  current: { name: string; annualCost: number };
-  best: {
-    name: string;
-    annualCost: number;
-    rates: { label: string; value: string }[];
-    exportRate?: string;
-  };
-  savings: {
-    total: number;
-    unitRate: number;
-    standing: number;
-    exportIncome: number;
-  };
-  ranked: { name: string; cost: number }[];
   usageByPeriod: { label: string; value: number }[];
   usageBasis: string;
+  current: { name: string; annualCost: number; standing: number };
+  best: {
+    name: string; supplier: string; annualCost: number; standing: number;
+    rates: { label: string; value: string }[];
+    dayProfile?: number[];
+  };
+  savings: { total: number; unitRate: number; standing: number; exportIncome: number };
+  ranked: RankedPlan[];
+  /** Cost of the recommended and current plan under usage shocks. */
+  sensitivity?: { label: string; best: number; current: number }[];
   solar?: {
-    kwp: number;
-    panels: string;
-    battery: string;
-    orientation: string;
-    generated: number;
-    selfConsumed: number;
-    exported: number;
-    gridImport: number;
-    grossCost: number;
-    grant: number;
-    netCost: number;
-    year1Saving: number;
-    paybackYears: number | null;
-    npv20: number;
-    cumulative: number[];
-    breakevenYear: number | null;
-    batteryReplacementYear?: number;
+    kwp: number; panels: string; battery: string; orientation: string;
+    generated: number; selfConsumed: number; exported: number; gridImport: number;
+    grossCost: number; grant: number; netCost: number;
+    year1Saving: number; paybackYears: number | null; npv20: number;
+    cumulative: number[]; breakevenYear: number | null; batteryReplacementYear?: number;
   };
   ev?: {
-    electricityIncrease: number;
-    petrolAvoided: number;
-    netSaving: number;
-    km: number;
-    fuelPrice: number;
-    efficiency: number;
+    electricityIncrease: number; petrolAvoided: number; netSaving: number;
+    km: number; fuelPrice: number; efficiency: number;
   };
   switchSteps: { title: string; body: string }[];
-  methodology: { label: string; value: string }[];
+  supplierUrl?: string;
+  methodology: { term: string; value: string }[];
+  tariffCount: number;
+  verifiedDate: string | null;
 }
 
-const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+const pctOf = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
 
-/** Full-bleed cover band with the headline figure. */
-function cover(c: Canvas, d: ReportData) {
-  const bandH = 62;
-  c.fill(C.band);
-  c.doc.rect(0, 0, PAGE.width, bandH, 'F');
-  c.fill(C.gain);
-  c.doc.rect(0, bandH - 2, PAGE.width, 2, 'F');
+/* ── front matter ────────────────────────────────────────────────────────── */
 
-  c.text('Solar Optimiser', c.left, 22, { size: 22, bold: true, color: C.paper });
-  c.text('Personalised Irish electricity & solar report', c.left, 30,
-    { size: T.body, color: [176, 190, 180] });
+function cover(d: Doc, r: ReportData) {
+  d.bareePages.add(1);
+  const M = PAGE.marginInner;
 
-  const dateStr = d.generatedAt.toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
-  const stamp = [`Generated ${dateStr}`, d.origin].filter(Boolean).join('  ·  ');
-  c.text(stamp, c.left, 40, { size: T.micro, color: [128, 146, 134] });
-  c.text(
-    `${d.home.annualKwh.toLocaleString('en-IE')} kWh/yr  ·  ${d.home.heating} heating  ·  ${d.home.region}  ·  ${d.home.systemLabel}`,
-    c.left, 47, { size: T.micro, color: [128, 146, 134], maxWidth: c.width },
+  d.fill(INK);
+  d.doc.rect(0, 0, PAGE.width, 4, 'F');
+
+  d.text('SOLAR OPTIMISER', M, 30, { ...TYPE.subhead!, color: INK_MID, tracking: 1.4 });
+
+  d.y = 58;
+  d.text('Your electricity', M, d.y, TYPE.coverTitle!);
+  d.y += lines(2.6);
+  d.text('and solar report', M, d.y, TYPE.coverTitle!);
+  d.y += lines(2.2);
+  d.text('An independent assessment of what you pay now,', M, d.y, TYPE.coverSub!);
+  d.y += lines(1.4);
+  d.text('what you could pay, and what it would take to change.', M, d.y, TYPE.coverSub!);
+
+  // Headline figure, given the whole width of the page to itself.
+  d.y = 128;
+  d.stroke(RULE).weight(LW.hair);
+  d.doc.line(M, d.y, TEXT_RIGHT, d.y);
+  d.y += lines(2.4);
+  d.text('ANNUAL SAVING AVAILABLE', M, d.y, { ...TYPE.subhead!, color: ACCENT });
+  d.y += lines(2.6);
+  d.text(eur(r.savings.total), M, d.y, { ...TYPE.coverFigure!, color: ACCENT });
+  d.y += lines(1.6);
+  d.text(`by moving to ${r.best.name}`, M, d.y, { ...TYPE.body!, color: INK_MID, maxWidth: d.width });
+  d.y += lines(1.8);
+  d.stroke(RULE).weight(LW.hair);
+  d.doc.line(M, d.y, TEXT_RIGHT, d.y);
+
+  // Prepared-for block, foot of page.
+  const rows: [string, string][] = [
+    ['Prepared', r.generatedAt.toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })],
+    ['Consumption', `${r.home.annualKwh.toLocaleString('en-IE')} kWh per year · ${r.usageBasis}`],
+    ['Home', `${r.home.heating} heating · ${r.home.region}`],
+    ['System', r.home.systemLabel],
+    ['Plans compared', `${r.tariffCount}${r.verifiedDate ? ` · rates verified ${r.verifiedDate}` : ''}`],
+  ];
+  d.y = 226;
+  rows.forEach(([k, v]) => {
+    d.text(k.toUpperCase(), M, d.y, { ...TYPE.micro!, color: INK_SOFT, tracking: 0.5 });
+    d.text(v, M + 34, d.y, { ...TYPE.data!, maxWidth: d.width - 34 });
+    d.y += lines(1.4);
+  });
+
+  d.newPage();
+}
+
+function contents(d: Doc, r: ReportData) {
+  d.bareePages.add(d.page);
+  d.y = PAGE.marginTop + lines(2);
+  d.text('Contents', d.left, d.y, TYPE.chapter!);
+  d.y += lines(1);
+  d.rule(INK, LW.heavy, d.left, d.left + 22);
+  d.y += lines(2.4);
+  // Filled in by finish(); a placeholder position is recorded here.
+  d.contentsAnchor = { page: d.page, y: d.y };
+
+  // The short version, so page two already answers the question.
+  d.y = 150;
+  d.text('The short version', d.left, d.y, TYPE.heading!);
+  d.y += lines(1.6);
+
+  const pts: string[] = [];
+  pts.push(
+    r.savings.total > 1
+      ? `You are on ${r.current.name}, costing about ${eur(r.current.annualCost)} a year on your usage. ${r.best.name} would cost ${eur(r.best.annualCost)} — a saving of ${eur(r.savings.total)}.`
+      : `You are already on ${r.current.name}, and nothing in the ${r.tariffCount} plans compared beats it on your usage. No action is needed.`,
   );
-
-  c.y = bandH + 10;
-
-  // Headline: the single number the whole report exists to justify.
-  const heroH = 34;
-  const hero = c.panel({ h: heroH, bg: C.gainSoft, border: C.gain, accent: C.gain, inset: 6 });
-  const inner = hero.inner;
-  c.text('ANNUAL SAVING BY SWITCHING PLAN', inner.x, inner.y + 4,
-    { size: T.label, bold: true, color: C.gain });
-  c.text(money(d.savings.total), inner.x, inner.y + 17,
-    { size: T.display, bold: true, color: C.gain });
-
-  // Right-hand EV figure is laid out from measured widths, never against the
-  // panel border — this is where the old report clipped its own text.
-  if (d.ev && d.ev.netSaving > 0) {
-    const label = '+ EV TRANSPORT SAVING';
-    const value = `${money(d.ev.netSaving)}/yr`;
-    const wNeeded = Math.max(
-      c.measure(label, { size: T.label, bold: true }),
-      c.measure(value, { size: 15, bold: true }),
-    ) + 2;
-    const bx = inner.right - wNeeded;
-    c.text(label, inner.right, inner.y + 4,
-      { size: T.label, bold: true, color: C.gain, align: 'right' });
-    c.text(value, inner.right, inner.y + 13,
-      { size: 15, bold: true, color: C.gain, align: 'right' });
-    c.text('vs running a petrol car', inner.right, inner.y + 17.5,
-      { size: T.micro, color: C.inkSoft, align: 'right' });
-    void bx;
+  if (r.solar) {
+    pts.push(
+      r.solar.paybackYears
+        ? `Your ${r.solar.kwp.toFixed(1)} kWp system generates about ${kwh(r.solar.generated)} a year, of which ${pctOf(r.solar.selfConsumed, r.solar.generated)}% is used in the house. It pays back in ${r.solar.paybackYears.toFixed(1)} years and is worth ${eur(r.solar.npv20)} over twenty.`
+        : `Your ${r.solar.kwp.toFixed(1)} kWp system generates about ${kwh(r.solar.generated)} a year. On current rates it does not pay back inside twenty years.`,
+    );
   }
-  c.y += heroH + 3;
-  c.text(`Switch to ${d.best.name}`, c.left, c.y + 3,
-    { size: T.body, bold: true, color: C.ink, maxWidth: c.width });
-  c.y += 8;
+  if (r.ev) {
+    pts.push(`Running the car on electricity rather than petrol saves about ${eur(r.ev.netSaving)} a year — separate from, and larger than, the tariff saving.`);
+  }
+  pts.push('Switching takes about ten minutes and completes in 10–15 working days. Your supply is not interrupted.');
+
+  pts.forEach((p, i) => {
+    d.ensure(lines(3));
+    d.text(String(i + 1), d.left, d.y, { ...TYPE.microBold!, color: ACCENT });
+    d.paragraph(p, TYPE.body!, { x: d.left + 6, width: d.width - 6 });
+    d.skip(0.5);
+  });
+
+  d.newPage();
 }
 
-function planComparison(c: Canvas, d: ReportData) {
-  sectionHeader(c, 'Your plan vs the best match', 'Recommendation');
+/* ── chapters ────────────────────────────────────────────────────────────── */
 
-  const rowH = 15;
-  const half = (c.width - 4) / 2;
-  const cur = c.panel({ x: c.left, w: half, h: rowH, bg: C.costSoft, border: C.cost, inset: 4 });
-  c.text('CURRENT PLAN', cur.inner.x, cur.inner.y + 3, { size: T.label, bold: true, color: C.cost });
-  c.text(d.current.name, cur.inner.x, cur.inner.y + 8,
-    { size: T.dense, color: C.ink, maxWidth: cur.inner.w - 22 });
-  c.text(`${money(d.current.annualCost)}/yr`, cur.inner.right, cur.inner.y + 8,
-    { size: T.dense, bold: true, color: C.cost, align: 'right' });
+function chUsage(d: Doc, r: ReportData) {
+  chapter(d, 'One', 'What you use',
+    `Everything in this report rests on how much electricity you use and when. ${r.usageBasis}.`);
 
-  const bx = c.left + half + 4;
-  const rec = c.panel({ x: bx, w: half, h: rowH, bg: C.gainSoft, border: C.gain, inset: 4 });
-  c.text('RECOMMENDED', rec.inner.x, rec.inner.y + 3, { size: T.label, bold: true, color: C.gain });
-  c.text(d.best.name, rec.inner.x, rec.inner.y + 8,
-    { size: T.dense, color: C.ink, maxWidth: rec.inner.w - 22 });
-  c.text(`${money(d.best.annualCost)}/yr`, rec.inner.right, rec.inner.y + 8,
-    { size: T.dense, bold: true, color: C.gain, align: 'right' });
-  c.y += rowH + 6;
+  columnChart(d, r.usageByPeriod, {
+    color: SERIES,
+    caption: 'Consumption by billing period, kWh. Irish bills run in six two-month periods.',
+  });
 
-  // rate card
-  const rates = d.best.rates.filter((r) => r.value);
-  if (rates.length) {
-    c.text('RATES ON THE RECOMMENDED PLAN', c.left, c.y, { size: T.label, bold: true, color: C.inkSoft });
-    c.y += 4;
-    const cw = c.width / rates.length;
-    rates.forEach((r, i) => {
-      const x = c.left + i * cw;
-      c.text(r.label.toUpperCase(), x, c.y, { size: T.micro, color: C.inkDim, maxWidth: cw - 3 });
-      c.text(r.value, x, c.y + 4.6, { size: T.dense, bold: true, color: C.ink, maxWidth: cw - 3 });
+  definitions(d, [
+    { term: 'Total annual consumption', value: kwh(r.home.annualKwh) },
+    { term: 'Average per billing period', value: kwh(r.home.annualKwh / 6) },
+    { term: 'Heating', value: r.home.heating, note: 'Heating type sets how much load falls in the evening and overnight.' },
+    { term: 'Region', value: r.home.region },
+  ]);
+
+  callout(d, 'Why this matters',
+    'Two homes using the same annual total can pay very different amounts, because tariffs price each hour differently. A plan with a cheap night rate only helps if you actually use electricity at night. Every figure in this report is produced by pricing your usage hour by hour rather than multiplying an average.');
+}
+
+function chComparison(d: Doc, r: ReportData) {
+  const saved = r.savings.total > 1;
+  chapter(d, 'Two', 'What you could pay',
+    saved
+      ? `Every one of the ${r.tariffCount} plans available was simulated against your consumption across all 8,760 hours of a year. The cheapest for your usage is ${r.best.name}.`
+      : `Every one of the ${r.tariffCount} plans available was simulated against your consumption. None beats what you are on.`);
+
+  // The recommendation, side by side with what it replaces.
+  const half = (d.width - 6) / 2;
+  const top = d.y;
+  d.text('YOU ARE ON', d.left, d.y, { ...TYPE.subhead!, color: DEBIT });
+  d.y += lines(1.3);
+  d.text(r.current.name, d.left, d.y, { ...TYPE.data!, maxWidth: half });
+  d.y += lines(1.3);
+  d.text(`${eur(r.current.annualCost)}/yr`, d.left, d.y, { ...TYPE.figureSmall!, color: DEBIT });
+
+  const rx = d.left + half + 6;
+  d.y = top;
+  d.text('RECOMMENDED', rx, d.y, { ...TYPE.subhead!, color: ACCENT });
+  d.y += lines(1.3);
+  d.text(r.best.name, rx, d.y, { ...TYPE.data!, maxWidth: half });
+  d.y += lines(1.3);
+  d.text(`${eur(r.best.annualCost)}/yr`, rx, d.y, { ...TYPE.figureSmall!, color: ACCENT });
+  d.y += lines(2);
+  d.rule(RULE_SOFT, LW.hair);
+  d.y += lines(1.4);
+
+  if (saved) {
+    heading(d, 'Where the difference comes from');
+    d.paragraph(
+      'Both figures are on the same basis — electricity used, plus the standing charge, minus any export income. The three lines below account for the whole difference between the two plans.',
+      TYPE.body!);
+    d.skip(0.6);
+
+    const levers = [
+      { term: 'Unit rates on the electricity you use', v: r.savings.unitRate },
+      { term: 'Standing charge', v: r.savings.standing },
+      { term: 'Export income', v: r.savings.exportIncome },
+    ].filter((l) => Math.abs(l.v) > 0.5);
+    definitions(d, levers.map((l) => ({ term: l.term, value: `${signed(l.v)}/yr` })));
+    d.rule(INK, LW.rule);
+    d.y += lines(1.3);
+    d.text('Net annual saving', d.left, d.y, { ...TYPE.body!, style: 'bold' });
+    d.text(`${eur(r.savings.total)}/yr`, d.right, d.y, { ...TYPE.dataBold!, color: ACCENT, align: 'right' });
+    d.y += lines(1.6);
+  }
+
+  // Hour-of-day rate profile — the mechanism, not just the outcome.
+  const cur = r.ranked.find((p) => p.dayProfile && p.name === r.current.name);
+  if (r.best.dayProfile) {
+    heading(d, 'How the two plans price a day');
+    rateProfile(d, [
+      { name: r.best.supplier, color: ACCENT, rates: r.best.dayProfile },
+      ...(cur?.dayProfile ? [{ name: 'Your current plan', color: DEBIT, rates: cur.dayProfile }] : []),
+    ], { caption: 'Unit rate by hour, cents per kWh, excluding the standing charge.' });
+  }
+
+  label(d, 'Rates on the recommended plan');
+  const cw = d.width / Math.max(1, r.best.rates.length);
+  r.best.rates.forEach((rt, i) => {
+    const x = d.left + i * cw;
+    d.text(rt.label.toUpperCase(), x, d.y, { ...TYPE.micro!, maxWidth: cw - 3 });
+    d.text(rt.value, x, d.y + lines(1.2), { ...TYPE.dataBold!, maxWidth: cw - 3 });
+  });
+  d.y += lines(2.6);
+
+  if (r.sensitivity?.length) {
+    heading(d, 'If your usage is not quite what we assumed');
+    d.paragraph(
+      'Consumption estimated from a bill carries real uncertainty. The recommendation holds across a wide band either side of the figure used here.',
+      TYPE.body!);
+    d.skip(0.5);
+    const cols: Column[] = [
+      { head: 'Scenario', width: 0, cell: (row: never) => (row as { label: string }).label },
+      { head: 'Recommended', width: 30, align: 'right', cell: (row: never) => eur((row as { best: number }).best) },
+      { head: 'Current plan', width: 30, align: 'right', cell: (row: never) => eur((row as { current: number }).current) },
+      {
+        head: 'Saving', width: 28, align: 'right',
+        cell: (row: never) => {
+          const x = row as { best: number; current: number };
+          return eur(Math.max(0, x.current - x.best));
+        },
+        color: () => ACCENT,
+        bold: () => true,
+      },
+    ];
+    table(d, r.sensitivity, cols, {
+      note: 'Annual cost under each scenario, all other assumptions unchanged.',
     });
-    c.y += 11;
   }
-
-  sectionHeader(c, 'Where the saving comes from', 'Breakdown');
-  c.paragraph(
-    `Both figures below are on the same basis: electricity used, plus the standing charge, minus export income. Comparing ${d.best.name} against ${d.current.name} on your actual usage pattern.`,
-    { size: T.dense, color: C.inkSoft, leading: 3.8 },
-  );
-  c.y += 3;
-
-  const levers = [
-    { label: 'Unit rate — electricity you use', v: d.savings.unitRate },
-    { label: 'Standing charge', v: d.savings.standing },
-    { label: 'Export income', v: d.savings.exportIncome },
-  ].filter((l) => Math.abs(l.v) > 0.5);
-
-  const maxLever = Math.max(1, ...levers.map((l) => Math.abs(l.v)));
-  levers.forEach((l) => {
-    const positive = l.v >= 0;
-    c.text(l.label, c.left, c.y, { size: T.dense, color: C.ink, maxWidth: c.width - 30 });
-    c.text(`${positive ? '+' : '−'}${money(Math.abs(l.v))}/yr`, c.right, c.y,
-      { size: T.dense, bold: true, color: positive ? C.gain : C.cost, align: 'right' });
-    c.y += 2.6;
-    c.fill(C.rule);
-    c.doc.roundedRect(c.left, c.y, c.width, 1.8, 0.5, 0.5, 'F');
-    c.fill(positive ? C.gain : C.cost);
-    c.doc.roundedRect(c.left, c.y, (Math.abs(l.v) / maxLever) * c.width, 1.8, 0.5, 0.5, 'F');
-    c.y += 6.4;
-  });
-
-  c.rule();
-  c.y += 4.6;
-  c.text('Net annual saving', c.left, c.y, { size: T.body, bold: true, color: C.ink });
-  c.text(`${money(d.savings.total)}/yr`, c.right, c.y,
-    { size: T.body, bold: true, color: C.gain, align: 'right' });
-  c.y += S.block;
 }
 
-function ranking(c: Canvas, d: ReportData) {
-  sectionHeader(c, 'Every plan, ranked on your usage', 'Full comparison', C.gain, 60);
-  c.paragraph(
-    `All ${d.ranked.length} plans simulated hour by hour against your consumption. The bar shows how much each plan saves against the most expensive option.`,
-    { size: T.dense, color: C.inkSoft, leading: 3.8 },
-  );
-  c.y += 4;
-
-  const worst = Math.max(...d.ranked.map((r) => r.cost));
-  const bestCost = Math.min(...d.ranked.map((r) => r.cost));
-  const spread = Math.max(1, worst - bestCost);
-  const rows: RankRow[] = d.ranked.map((r, i) => ({
-    rank: i + 1,
-    name: r.name,
-    cost: r.cost,
-    share: (worst - r.cost) / spread,
-    highlight: i === 0,
-  }));
-  rankTable(c, rows, 'saving vs dearest');
-  c.y += 4;
-}
-
-function usage(c: Canvas, d: ReportData) {
-  sectionHeader(c, 'Your electricity use through the year', 'Consumption', C.use, 52);
-  barChart(c, d.usageByPeriod.map((p) => ({ ...p, color: C.use })), {
-    height: 34, unit: 'kWh per billing period', color: C.use,
-  });
-  figureRow(c, 'Total annual consumption',
-    `${d.home.annualKwh.toLocaleString('en-IE')} kWh`, { valueColor: C.use });
-  figureRow(c, 'Basis', d.usageBasis, { bold: false });
-}
-
-function solarSection(c: Canvas, d: ReportData) {
-  const s = d.solar;
+function chSolar(d: Doc, r: ReportData) {
+  const s = r.solar;
   if (!s) return;
-  sectionHeader(c, 'Solar & battery performance', 'Your system', C.gain, 46);
-  c.text(
-    `${s.kwp.toFixed(2)} kWp  ·  ${s.panels}  ·  ${s.battery}  ·  ${s.orientation}`,
-    c.left, c.y, { size: T.dense, color: C.inkSoft, maxWidth: c.width },
-  );
-  c.y += 7;
+  chapter(d, 'Three', 'Your solar and battery',
+    `A ${s.kwp.toFixed(2)} kWp array — ${s.panels}, ${s.orientation} — with ${s.battery}.`);
 
-  tileRow(c, [
-    { label: 'Generated', value: `${Math.round(s.generated).toLocaleString('en-IE')} kWh`, note: 'per year', color: C.gain, bg: C.gainSoft },
-    { label: 'Used at home', value: `${Math.round(s.selfConsumed).toLocaleString('en-IE')} kWh`, note: `${pct(s.selfConsumed, s.generated)}% of generation`, color: C.use, bg: C.useSoft },
-    { label: 'Exported', value: `${Math.round(s.exported).toLocaleString('en-IE')} kWh`, note: `${pct(s.exported, s.generated)}% of generation`, color: C.sell, bg: C.sellSoft },
-  ]);
-  legend(c, [
-    { color: C.gain, label: 'generated by your panels' },
-    { color: C.use, label: 'consumed in the home' },
-    { color: C.sell, label: 'sold back to the grid' },
-  ]);
+  heading(d, 'Where the generation goes');
+  splitBar(d, [
+    { label: 'Used in the house', value: s.selfConsumed, color: ACCENT },
+    { label: 'Exported to the grid', value: s.exported, color: SERIES_ALT },
+  ], { caption: `Of ${kwh(s.generated)} generated a year. You still import ${kwh(s.gridImport)} from the grid.` });
 
-  figureRow(c, 'Still imported from the grid',
-    `${Math.round(s.gridImport).toLocaleString('en-IE')} kWh`, { valueColor: C.cost });
-  c.y += 2;
+  d.paragraph(
+    `Electricity you use yourself is worth the full unit rate you would otherwise have paid. Electricity you export earns only the export rate, which is lower. That is why self-consumption — currently ${pctOf(s.selfConsumed, s.generated)}% of what you generate — matters more to the return than the size of the array.`,
+    TYPE.body!);
+  d.skip(0.8);
 
-  sectionHeader(c, 'What the system costs and returns', 'Payback', C.gain, 52);
-  tileRow(c, [
-    { label: 'Payback', value: s.paybackYears ? `${s.paybackYears.toFixed(1)} yr` : '—', note: 'simple, at year-1 saving', color: C.ink, bg: C.wash },
-    { label: 'Year-1 saving', value: `${money(s.year1Saving)}`, note: 'electricity only', color: C.gain, bg: C.gainSoft },
-    { label: '20-year NPV', value: money(s.npv20), note: 'discounted at 3%', color: s.npv20 >= 0 ? C.gain : C.cost, bg: s.npv20 >= 0 ? C.gainSoft : C.costSoft },
+  heading(d, 'What it cost and what it returns');
+  definitions(d, [
+    { term: 'Gross installation cost', value: eur(s.grossCost) },
+    { term: 'SEAI grant', value: `- ${eur(s.grant)}` },
+    { term: 'Net cost after grant', value: eur(s.netCost) },
+    { term: 'Electricity saved, first year', value: `${eur(s.year1Saving)}/yr` },
+    { term: 'Simple payback', value: s.paybackYears ? `${s.paybackYears.toFixed(1)} years` : 'beyond 20 years' },
+    { term: 'Net present value over 20 years', value: eur(s.npv20), note: 'Future savings discounted at 3% a year, panel output falling 0.5% a year.' },
   ]);
 
-  figureRow(c, 'Gross installation cost', money(s.grossCost), { valueColor: C.cost });
-  figureRow(c, 'SEAI grant', `− ${money(s.grant)}`, { valueColor: C.gain });
-  c.rule();
-  c.y += 4.4;
-  figureRow(c, 'Net cost after grant', money(s.netCost));
+  heading(d, 'The twenty-year position', lines(14));
+  cashFlow(d, s.cumulative, {
+    breakeven: s.breakevenYear,
+    dip: s.batteryReplacementYear,
+    caption: `Cumulative position after the up-front cost. Below the line the system is still paying itself back; above it, you are ahead.${s.breakevenYear ? ` It crosses in year ${s.breakevenYear}.` : ''}`,
+  });
 
-  sectionHeader(c, '20-year cumulative position', 'Cash flow', C.gain, 70);
-  c.paragraph(
-    'Below the line you are still paying the system back; above it you are ahead. The curve already accounts for panel output declining each year.',
-    { size: T.dense, color: C.inkSoft, leading: 3.8 },
-  );
-  c.y += 3;
-  cashFlowChart(c, s.cumulative, {
-    breakevenYear: s.breakevenYear,
-    dipYear: s.batteryReplacementYear,
-    height: 46,
+  callout(d, 'What would change this',
+    'The return is driven by the unit rate you avoid paying. If electricity gets dearer, solar pays back faster; if it gets cheaper, slower. Shifting flexible loads — immersion, dishwasher, car charging — into daylight hours raises self-consumption and is the single cheapest way to improve the figure above.');
+}
+
+function chTransport(d: Doc, r: ReportData) {
+  const e = r.ev;
+  if (!e) return;
+  chapter(d, r.solar ? 'Four' : 'Three', 'Running the car',
+    `Charging at home instead of buying petrol, over ${e.km.toLocaleString('en-IE')} km a year.`);
+
+  definitions(d, [
+    { term: 'Extra electricity to charge the car', value: `${signed(-e.electricityIncrease)}/yr` },
+    { term: 'Petrol no longer bought', value: `${signed(e.petrolAvoided)}/yr`, note: `At €${e.fuelPrice.toFixed(2)} per litre.` },
+    { term: 'Net saving on transport', value: `${eur(e.netSaving)}/yr` },
+    { term: 'Assumed efficiency', value: `${e.efficiency} kWh per 100 km` },
+  ]);
+
+  d.paragraph(
+    'This is a transport saving, not an electricity saving — it appears nowhere in the tariff comparison, which comes earlier in this report. The two add together.',
+    TYPE.caption!);
+  d.skip(0.8);
+}
+
+function chAct(d: Doc, r: ReportData) {
+  const n = r.solar && r.ev ? 'Five' : r.solar || r.ev ? 'Four' : 'Three';
+  chapter(d, n, 'Acting on this',
+    'Switching supplier in Ireland is a short online process. Your supply is never interrupted and nobody visits the property.');
+
+  r.switchSteps.forEach((s, i) => {
+    d.ensure(lines(4));
+    d.text(String(i + 1).padStart(2, '0'), d.left, d.y, { ...TYPE.microBold!, color: ACCENT });
+    d.text(s.title, d.left + 8, d.y, { ...TYPE.body!, style: 'bold', maxWidth: d.width - 8 });
+    d.y += lines(1.15);
+    d.paragraph(s.body, TYPE.caption!, { x: d.left + 8, width: d.width - 8 });
+    d.skip(0.5);
+  });
+
+  if (r.supplierUrl) {
+    d.skip(0.5);
+    const t = `Go to ${r.best.supplier}`;
+    const w = d.text(t, d.left, d.y, { ...TYPE.body!, style: 'bold', color: ACCENT });
+    d.link(d.left, d.y, w, 4, r.supplierUrl);
+    d.y += lines(1.4);
+  }
+
+  callout(d, 'Before you sign',
+    'Confirm the unit rates and standing charge on the supplier’s own site. Rates change, and this report is a snapshot. Check any exit fee on your current contract, and if you have solar, ask to be registered for the Clean Export Guarantee at the same time — it is not always automatic.',
+    DEBIT);
+}
+
+function chMethod(d: Doc, r: ReportData) {
+  const n = r.solar && r.ev ? 'Six' : r.solar || r.ev ? 'Five' : 'Four';
+  chapter(d, n, 'Method and assumptions',
+    'Every figure in this report can be traced to an input. Those inputs are listed here so you can judge how much weight to put on the result.');
+
+  definitions(d, r.methodology.map((m) => ({ term: m.term, value: m.value })));
+
+  d.skip(0.6);
+  callout(d, 'Important',
+    'This is an independent estimate for general information, not financial advice. It uses modelled consumption and published tariff rates at the time of generation; your actual bills will differ. Verify rates with the supplier before switching. SEAI grant eligibility is subject to SEAI’s own terms and conditions.');
+}
+
+function appendix(d: Doc, r: ReportData) {
+  d.newPage();
+  chapter(d, 'Appendix', 'Every plan, ranked',
+    `All ${r.ranked.length} plans priced against your consumption. Cost is what you would pay in a year, including the standing charge and net of any export income.`);
+
+  const worst = Math.max(...r.ranked.map((p) => p.cost));
+  const best = Math.min(...r.ranked.map((p) => p.cost));
+  const spread = Math.max(1, worst - best);
+
+  const cols: Column[] = [
+    { head: '#', width: 8, cell: (_row: never, _d, _x, _w) => '' },
+    { head: 'Supplier and plan', width: 0, cell: (row: never) => (row as RankedPlan).name },
+    { head: 'Type', width: 20, cell: (row: never) => (row as RankedPlan).type },
+    {
+      head: 'vs dearest', width: 26,
+      cell: (row: never, dd, x, w) => {
+        cellBar(dd, x, w, (worst - (row as RankedPlan).cost) / spread, ACCENT);
+        return '';
+      },
+    },
+    { head: 'Standing', width: 22, align: 'right', cell: (row: never) => eur((row as RankedPlan).standing) },
+    { head: 'Annual cost', width: 26, align: 'right', cell: (row: never) => eur((row as RankedPlan).cost), bold: () => true },
+  ];
+
+  // Rank numbers are drawn by index, which the column API does not see.
+  let i = 0;
+  const numbered = r.ranked.map((p) => ({ ...p, _n: (i += 1) }));
+  cols[0]!.cell = (row: never) => String((row as { _n: number })._n);
+
+  table(d, numbered, cols, {
+    emphasise: (row) => (row as { _n: number })._n === 1,
+    note: 'Dynamic wholesale-tracking plans are excluded from the ranking unless enabled in the app, because their real cost depends on market movements that cannot be forecast.',
   });
 }
 
-function evSection(c: Canvas, d: ReportData) {
-  const e = d.ev;
-  if (!e) return;
-  sectionHeader(c, 'Electric vehicle running costs', 'Transport', C.use, 46);
-  tileRow(c, [
-    { label: 'Extra electricity', value: `+${money(e.electricityIncrease)}`, note: 'to charge the car', color: C.cost, bg: C.costSoft },
-    { label: 'Petrol avoided', value: `− ${money(e.petrolAvoided)}`, note: 'fuel you no longer buy', color: C.gain, bg: C.gainSoft },
-    { label: 'Net saving', value: money(e.netSaving), note: 'per year vs petrol', color: C.gain, bg: C.gainSoft },
-  ]);
-  figureRow(c, 'Annual distance', `${e.km.toLocaleString('en-IE')} km`);
-  figureRow(c, 'Fuel price assumed', `€${e.fuelPrice.toFixed(2)}/L`);
-  figureRow(c, 'Assumed efficiency', `${e.efficiency} kWh / 100 km`);
-}
+/* ── entry ───────────────────────────────────────────────────────────────── */
 
-function switching(c: Canvas, d: ReportData) {
-  sectionHeader(c, 'How to switch', 'Next steps', C.gain, 40);
-  c.paragraph(
-    'Switching takes about ten minutes and 10–15 working days to complete. Your supply is never interrupted and the new supplier handles the changeover.',
-    { size: T.dense, color: C.inkSoft, leading: 3.8 },
-  );
-  c.y += 4;
-  d.switchSteps.forEach((s, i) => step(c, i + 1, s.title, s.body));
-}
+export function renderReport(pdf: PdfDoc, data: ReportData): void {
+  const d = new Doc(pdf);
+  const r: ReportData = { ...data, origin: data.origin || reportOrigin() };
 
-function methodology(c: Canvas, d: ReportData) {
-  sectionHeader(c, 'How these numbers were produced', 'Methodology');
-  d.methodology.forEach((m) => figureRow(c, m.label, m.value, { bold: false }));
+  cover(d, r);
+  contents(d, r);
+  chUsage(d, r);
+  chComparison(d, r);
+  chSolar(d, r);
+  chTransport(d, r);
+  chAct(d, r);
+  chMethod(d, r);
+  appendix(d, r);
 
-  c.y += 2;
-  const discH = 22;
-  c.reserve(discH + 4);
-  const box = c.panel({ h: discH, bg: C.wash, border: C.rule, inset: 4.5 });
-  c.text('IMPORTANT', box.inner.x, box.inner.y + 3, { size: T.label, bold: true, color: C.inkSoft });
-  c.y = box.inner.y + 7;
-  c.paragraph(
-    'This report is an independent estimate for general information, not financial advice. Figures use modelled consumption and published tariff rates at the time of generation; your actual bills will differ. Confirm rates with the supplier before switching. SEAI grant eligibility is subject to SEAI terms — see seai.ie.',
-    { x: box.inner.x, width: box.inner.w, size: T.micro, color: C.inkSoft, leading: 3 },
-  );
-  c.y = box.y + discH + 4;
-}
-
-/** Page furniture, applied to every page once the document is complete. */
-function footers(c: Canvas, d: ReportData) {
-  const total = c.doc.getNumberOfPages();
-  for (let p = 1; p <= total; p += 1) {
-    c.doc.setPage(p);
-    c.stroke(C.rule).lineWidth(LW.hairline);
-    c.doc.line(PAGE.margin, PAGE.height - 13, PAGE.width - PAGE.margin, PAGE.height - 13);
-    const foot = ['Solar Optimiser', d.origin, 'Independent, not financial advice']
-      .filter(Boolean).join('  ·  ');
-    c.text(foot, PAGE.margin, PAGE.height - 9, { size: T.micro, color: C.inkDim });
-    c.text(`${p} / ${total}`, PAGE.width - PAGE.margin, PAGE.height - 9,
-      { size: T.micro, color: C.inkDim, align: 'right' });
-  }
-}
-
-/** Render the whole report into an existing jsPDF document. */
-export function renderReport(doc: PdfDoc, data: ReportData): void {
-  const c = new Canvas(doc);
-  const d: ReportData = { ...data, origin: data.origin || reportOrigin() };
-
-  cover(c, d);
-  planComparison(c, d);
-  ranking(c, d);
-  usage(c, d);
-  solarSection(c, d);
-  evSection(c, d);
-  switching(c, d);
-  methodology(c, d);
-  footers(c, d);
+  d.finish({
+    title: `Electricity and solar report — ${r.generatedAt.toLocaleDateString('en-IE')}`,
+    subject: `Tariff comparison across ${r.tariffCount} Irish plans, with solar and battery analysis`,
+    origin: r.origin,
+  });
 }

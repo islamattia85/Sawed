@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { jsPDF } from 'jspdf';
 import { renderReport, type ReportData } from '../../src/pdf/report.js';
-import { PAGE } from '../../src/pdf/theme.js';
+import { PAGE, TEXT_LEFT, TEXT_RIGHT } from '../../src/pdf/theme.js';
+import { eur } from '../../src/pdf/blocks.js';
 
 /**
  * The report renderer takes plain data and no globals, so the whole document
@@ -20,10 +21,13 @@ function fixture(over: Partial<ReportData> = {}): ReportData {
     generatedAt: new Date('2026-07-26T12:00:00Z'),
     origin: 'example.ie',
     home: { annualKwh: 5000, heating: 'Gas', region: 'East / Dublin', systemLabel: '5.3 kWp + 5 kWh battery' },
-    current: { name: 'Electric Ireland — Home Dual+ 24hr', annualCost: 1886 },
+    current: { name: 'Electric Ireland — Home Dual+ 24hr', annualCost: 1886, standing: 329 },
     best: {
       name: 'Energia — EV Smart Drive',
+      supplier: 'Energia',
       annualCost: 74,
+      standing: 265,
+      dayProfile: Array.from({ length: 24 }, (_, h) => (h >= 2 && h < 5 ? 0.094 : 0.40)),
       rates: [
         { label: 'Day', value: '40.16c' },
         { label: 'Night', value: '18.30c' },
@@ -35,8 +39,20 @@ function fixture(over: Partial<ReportData> = {}): ReportData {
     savings: { total: 1812, unitRate: 1148, standing: 64, exportIncome: 601 },
     ranked: Array.from({ length: 24 }, (_, i) => ({
       name: `Supplier ${i + 1} — A Reasonably Long Plan Name Here`,
+      supplier: `Supplier ${i + 1}`,
       cost: 74 + i * 37,
+      standing: 250 + i,
+      type: i % 3 === 0 ? 'EV' : i % 3 === 1 ? 'Day/Night' : '24h flat',
+      dayProfile: Array.from({ length: 24 }, () => 0.35),
     })),
+    sensitivity: [
+      { label: 'Usage 20% lower', best: 60, current: 1520 },
+      { label: 'As modelled', best: 74, current: 1886 },
+      { label: 'Usage 20% higher', best: 92, current: 2250 },
+    ],
+    tariffCount: 24,
+    verifiedDate: '24 Jul 2026',
+    supplierUrl: 'https://example.ie',
     usageByPeriod: [
       { label: 'P1', value: 1167 }, { label: 'P2', value: 1000 }, { label: 'P3', value: 583 },
       { label: 'P4', value: 500 }, { label: 'P5', value: 750 }, { label: 'P6', value: 1000 },
@@ -58,8 +74,8 @@ function fixture(over: Partial<ReportData> = {}): ReportData {
       { title: 'Sign up online', body: 'Takes about ten minutes; the new supplier handles the changeover.' },
     ],
     methodology: [
-      { label: 'Tariff rates verified', value: '24 Jul 2026 · 25 plans compared' },
-      { label: 'Simulation', value: '8,760 hourly steps per plan' },
+      { term: 'Tariff rates verified', value: '24 Jul 2026 · 25 plans compared' },
+      { term: 'Simulation', value: '8,760 hourly steps per plan' },
     ],
     ...over,
   };
@@ -122,7 +138,7 @@ describe('PDF report', () => {
 
   it('handles a single ranked plan and an empty usage series', () => {
     const { doc, problems } = auditedDoc();
-    const d = fixture({ ranked: [{ name: 'Only Plan', cost: 500 }], usageByPeriod: [] });
+    const d = fixture({ ranked: [{ name: 'Only Plan', supplier: 'Only', cost: 500, standing: 200, type: 'flat' }], usageByPeriod: [] });
     expect(() => renderReport(doc as never, d)).not.toThrow();
     expect(problems).toEqual([]);
   });
@@ -133,13 +149,14 @@ describe('PDF report', () => {
     const origText = doc.text.bind(doc);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (doc as any).text = (txt: any, x: number, y: number, opts?: any) => {
+      const pageNo = doc.getNumberOfPages();
       const s = Array.isArray(txt) ? txt.join(' ') : String(txt);
       const w = doc.getTextWidth(s);
       const align = opts?.align ?? 'left';
       const startX = align === 'right' ? x - w : align === 'center' ? x - w / 2 : x;
       // The dark cover band is full-bleed by design; everything else is inset.
-      const onCover = y < 55;
-      if (!onCover && (startX < PAGE.margin - 3 || startX + w > PAGE.width - PAGE.margin + 3)) {
+      const onCover = pageNo === 1;
+      if (!onCover && (startX < TEXT_LEFT - 3 || startX + w > TEXT_RIGHT + 3)) {
         overflows.push(`"${s.slice(0, 40)}" spans ${startX.toFixed(1)}..${(startX + w).toFixed(1)}mm`);
       }
       return origText(txt, x, y, opts);
@@ -151,7 +168,7 @@ describe('PDF report', () => {
   it('long plan names are ellipsised rather than allowed to run over', () => {
     const { doc, problems } = auditedDoc();
     const d = fixture({
-      ranked: [{ name: 'X'.repeat(200), cost: 100 }],
+      ranked: [{ name: 'X'.repeat(200), supplier: 'X', cost: 100, standing: 200, type: 'flat' }],
       best: { ...fixture().best, name: 'Y'.repeat(160) },
     });
     expect(() => renderReport(doc as never, d)).not.toThrow();
@@ -171,10 +188,11 @@ describe('text encoding and content safety', () => {
     };
     renderReport(doc as never, fixture());
     const joined = drawn.join('\n');
-    for (const ch of ['\u2212', '\u00a0', '\u2013']) {
+    // Genuinely outside CP1252 — these corrupt the run they appear in.
+    for (const ch of ['\u2212', '\u2010', '\u2044', '\u2265']) {
       expect(joined.includes(ch), `U+${ch.codePointAt(0)!.toString(16)} reached the page`).toBe(false);
     }
-    // The em dash IS in WinAnsi and must survive, since plan names use it.
+    // The en and em dashes ARE in CP1252 and must survive — plan names use them.
     expect(joined).toContain('\u2014');
   });
 
@@ -201,5 +219,66 @@ describe('text encoding and content safety', () => {
     };
     renderReport(doc as never, fixture());
     expect(new Set(ticks).size).toBe(ticks.length);
+  });
+});
+
+describe('document conventions', () => {
+  it('formats negative money with the sign outside the symbol', () => {
+    expect(eur(-87)).toBe('-€87');
+    expect(eur(0)).toBe('€0');
+    expect(eur(1812)).toBe('€1,812');
+  });
+
+  it('produces a navigable document: outline, metadata and folios', () => {
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    const outlined: string[] = [];
+    const props: Record<string, string>[] = [];
+    (doc as unknown as { outline: { add: unknown } }).outline = {
+      add: (_p: unknown, title: string) => { outlined.push(title); return {}; },
+    };
+    const origProps = doc.setProperties.bind(doc);
+    (doc as unknown as Record<string, unknown>).setProperties = (p: Record<string, string>) => {
+      props.push(p); return origProps(p);
+    };
+    renderReport(doc as never, fixture());
+    expect(outlined.length).toBeGreaterThanOrEqual(5);
+    expect(outlined).toContain('What you use');
+    expect(props[0]?.title).toBeTruthy();
+    expect(props[0]?.author).toBe('Solar Optimiser');
+  });
+
+  it('gives every chapter a distinct running head', () => {
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    const outlined: { title: string; page: number }[] = [];
+    (doc as unknown as { outline: { add: unknown } }).outline = {
+      add: (_p: unknown, title: string, o: { pageNumber: number }) => {
+        outlined.push({ title, page: o.pageNumber }); return {};
+      },
+    };
+    renderReport(doc as never, fixture());
+    // Chapters must appear in ascending page order and never before page 3,
+    // since pages 1-2 are the cover and contents.
+    let prev = 0;
+    for (const ch of outlined) {
+      expect(ch.page).toBeGreaterThanOrEqual(3);
+      expect(ch.page).toBeGreaterThanOrEqual(prev);
+      prev = ch.page;
+    }
+  });
+
+  it('the appendix lists every ranked plan', () => {
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    const drawn: string[] = [];
+    const orig = doc.text.bind(doc);
+    (doc as unknown as Record<string, unknown>).text = (t: unknown, x: number, y: number, o?: unknown) => {
+      drawn.push(Array.isArray(t) ? (t as string[]).join(' ') : String(t));
+      return (orig as (...a: unknown[]) => unknown)(t, x, y, o);
+    };
+    const f = fixture();
+    renderReport(doc as never, f);
+    // Rank numbers 1..N must all be present in the appendix column.
+    for (let i = 1; i <= f.ranked.length; i += 1) {
+      expect(drawn.includes(String(i)), `rank ${i} missing from appendix`).toBe(true);
+    }
   });
 });
