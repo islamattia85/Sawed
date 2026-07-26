@@ -1657,8 +1657,22 @@ function runScenario(hasSolar, hasEv){
   // Recompute
   invalidate();
   rebuildBase();
-  // Find best plan for THIS scenario (not global best — best for this exact config)
-  const best = getBestPlan();
+  /**
+   * Best plan for THIS scenario, not the global best.
+   *
+   * The no-solar branch must re-optimise even when the user has hand-picked a
+   * plan, because it is the counterfactual: "what would I pay if I did not
+   * install this?" — and someone who did not install solar would shop for the
+   * plan that suits a home without it. Inheriting the choice there prices the
+   * counterfactual on a tariff picked for its export rate, inflating the
+   * apparent benefit of the panels. It made a 10-year payback read as 6.0 for
+   * no reason other than the plan the user had selected.
+   *
+   * The with-solar branch does honour the choice: that is the plan they will
+   * actually be on. Choosing a dearer plan therefore lengthens payback, which
+   * is the only direction that can be true.
+   */
+  const best = getBestPlan(hasSolar ? undefined : { ignoreChoice: true });
   const totalGen = sumF(CACHE.solar.total);
   const totalImport = sumF(best.sim.grid_import);
   const totalExport = sumF(best.sim.grid_export);
@@ -1687,7 +1701,8 @@ function runScenario(hasSolar, hasEv){
 function computeScenarioRange(){
   const ck = JSON.stringify(['range', state.region, state.count_A, state.count_B,
     state.battery_kwh, state.install_cost, state.grant_seai, state.heating_type,
-    state.bimonthly_bill_eur, state.ev_active, state.ev_in_bill, state.ev_km_per_year]);
+    state.bimonthly_bill_eur, state.ev_active, state.ev_in_bill, state.ev_km_per_year,
+    state.chosen_plan]);
   if (CACHE._range_ck === ck && CACHE._range) return CACHE._range;
 
   const origMult = state._ghi_override;
@@ -1721,7 +1736,9 @@ function computeSolarPaybackScenarios(){
   const ck = JSON.stringify([state.region, state.count_A, state.count_B, state.azimuth_A, state.azimuth_B,
     state.tilt_A, state.tilt_B, state.battery_kwh, state.panel_w, state.install_cost, state.grant_seai,
     state.heating_type, state.bimonthly_bill_eur, state.ev_km_per_year, state.ev_kwh_per_100km,
-    state.fuel_price, state.ice_l_per_100km, state.hot_water_strategy, state.region, state.ev_in_bill]);
+    state.fuel_price, state.ice_l_per_100km, state.hot_water_strategy, state.region, state.ev_in_bill,
+    // The hand-picked plan changes the with-solar side of every scenario.
+    state.chosen_plan]);
   if (CACHE._scenario_ck === ck && CACHE._scenarios) return CACHE._scenarios;
 
   // Scenario A: no solar + with EV
@@ -1915,10 +1932,13 @@ function evaluateChosenPlan(){
  * they will not leave — that choice wins, and every downstream figure (savings,
  * solar payback, the report) is computed on it instead. `isChosen` lets a
  * surface say so rather than presenting a manual pick as our recommendation.
+ *
+ * `opts.ignoreChoice` re-optimises regardless, for counterfactuals that must
+ * not inherit the choice — see runScenario().
  */
-function getBestPlan(){
+function getBestPlan(opts){
   if (CACHE.dirty) rebuildBase();
-  let best = evaluateChosenPlan();
+  let best = opts && opts.ignoreChoice ? null : evaluateChosenPlan();
   // EXCLUDE discontinued plans (can't be switched to) and — for now — dynamic
   // wholesale-tracking plans: their pricing is too unpredictable to rank
   // honestly until clarity is established. Opt back in via Expert settings.

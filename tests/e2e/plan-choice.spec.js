@@ -166,3 +166,42 @@ test('the picker is reachable from the result screen too', async ({ page }) => {
   expect(rows).toBe(ranked);
   expect(errors).toEqual([]);
 });
+
+/**
+ * Choosing a dearer plan must never shorten solar payback.
+ *
+ * runScenario() prices two worlds — with the panels and without — and takes the
+ * difference. When the hand-picked plan leaked into the no-solar branch as well,
+ * the counterfactual was priced on a tariff chosen for its export rate, which a
+ * household without panels would never be on. That inflated the gap: on a
+ * 10-panel, 9 kWh system, picking the second-ranked plan turned a 10.0-year
+ * payback into 6.0 — an apparent 40% improvement bought by spending more.
+ */
+test('picking a costlier plan lengthens payback, never shortens it', async ({ page }) => {
+  const errors = await boot(page, { current_screen: 'solar', count_A: 10, battery_kwh: 9 });
+
+  const payback = () => page.evaluate(() => {
+    const el = document.querySelector('.qr-value');
+    const m = el && el.textContent.match(/([\d.]+)\s*yr/);
+    return m ? parseFloat(m[1]) : null;
+  });
+
+  const base = await payback();
+  expect(base, 'no payback figure on the solar screen').not.toBeNull();
+
+  const ranked = await page.evaluate(() => window.getRecommendation().ranked.slice(0, 4)
+    .map((r) => ({ id: r.plan.id, net: r.net })));
+
+  let previous = base;
+  for (const plan of ranked.slice(1)) {
+    await page.evaluate((id) => window.choosePlan(id), plan.id);
+    const now = await payback();
+    expect(now, `payback vanished after choosing ${plan.id}`).not.toBeNull();
+    // Dearer plan, longer payback — allow a hair of float noise, nothing more.
+    expect(now, `${plan.id} (€${Math.round(plan.net)}/yr) shortened payback from ${base} to ${now}`)
+      .toBeGreaterThanOrEqual(base - 0.05);
+    previous = now;
+  }
+  expect(previous).toBeGreaterThanOrEqual(base - 0.05);
+  expect(errors).toEqual([]);
+});
