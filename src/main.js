@@ -5,6 +5,7 @@ import {
   solarPosition, erbsDiffuse, buildHourlyGhi, buildPoa, buildPvGeneration,
 } from './engine/solar';
 import { npv20 as engineNpv20 } from './engine/npv';
+import { buildReportData, renderReport } from './pdf/index.js';
 import {
   isInWindow, bandAt, rateAt as engineRateAt, isFlatPlan,
   simulateBaseline as engineSimulateBaseline, annualCost, sumF, WHOLESALE_CAP,
@@ -1094,7 +1095,10 @@ const EMBEDDED_TARIFFS = [
     supplier:"Pinergy",
     plan:"Lifestyle Working from Home Time",
     type:"tou",
-    rates:{day:0.2924, night:0.4177, peak:0.4177, ev:0.4177},
+    // 29.24c inside the 9-17 WFH window, 41.77c the rest of the time. The
+    // rate keys must mirror the window keys: a window with no matching rate
+    // resolves to undefined and poisons the whole plan's cost with NaN.
+    rates:{day:0.4177, wfh:0.2924, night:0.4177, peak:0.4177, ev:0.4177},
     windows:{ peak:null, night:null, ev:null, wfh:[9,17] },
     standing:283.47, exit:50, length:12, green:true, export_rate:0.250,
     verified_date:"2026-06-02",
@@ -1375,7 +1379,7 @@ function simulate(plan, gen, cons, strategy){
     const c = cons[i];
     const band = bandAt(hour, plan);
     out.band[i] = band;
-    const rate = isDynamic ? effRates[i] : plan.rates[band];
+    const rate = isDynamic ? effRates[i] : (plan.rates[band] ?? plan.rates.day ?? 0);
 
     // For dynamic, determine if THIS hour is cheap vs the surrounding 24h
     let isCheapDynamic = false, isExpensiveDynamic = false, dailyAvg = 0;
@@ -6285,20 +6289,21 @@ function setAnalyticsDay(idx){
   renderApp();
 }
 
-// Lazy jsPDF loader — fetched only when the user actually asks for a PDF,
-// with a visible failure path instead of a silently dead button. (AUD-05)
+/**
+ * jsPDF is a real dependency, code-split into its own chunk by the dynamic
+ * import below. It used to be fetched from cdnjs at click time, which meant
+ * the feature depended on a third-party host being reachable and on a CSP that
+ * permits it — and failed on restricted networks. Now it ships with the app,
+ * is version-pinned, works offline, and still costs nothing until a user
+ * actually asks for a report.
+ */
 let _jspdfPromise = null;
 function ensureJsPdf(){
   if (window.jspdf || window.jsPDF) return Promise.resolve(true);
   if (_jspdfPromise) return _jspdfPromise;
-  _jspdfPromise = new Promise((resolve) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-    s.crossOrigin = 'anonymous';
-    s.onload = () => resolve(true);
-    s.onerror = () => { _jspdfPromise = null; resolve(false); };
-    document.head.appendChild(s);
-  });
+  _jspdfPromise = import('jspdf')
+    .then((mod) => { window.jspdf = { jsPDF: mod.jsPDF }; return true; })
+    .catch(() => { _jspdfPromise = null; return false; });
   return _jspdfPromise;
 }
 
@@ -6318,775 +6323,208 @@ function doGeneratePdf(email){
     const emailEl = document.getElementById('pdf-email-input');
     email = emailEl ? emailEl.value.trim() : '';
   }
-  const modal = document.getElementById('pdf-report-modal');
+  const modal = document.getElementById('pdf-modal');
   if (modal) modal.remove();
 
   if (typeof window.jspdf === 'undefined' && typeof window.jsPDF === 'undefined'){
-    showToast('Preparing PDF engine…', { type:'accent', icon:ic('doc',16) });
+    showToast('Preparing your report\u2026', { type:'accent', icon:ic('doc',16) });
     ensureJsPdf().then(ok => {
       if (ok) doGeneratePdf(email);
-      else showToast('PDF engine couldn\u2019t load on this network — try again on another connection', { type:'amber', icon:ic('warn',16) });
+      else showToast('Couldn\u2019t start the PDF engine \u2014 please reload and try again', { type:'amber', icon:ic('warn',16) });
     });
     return;
   }
 
   try {
-    const { jsPDF } = window.jspdf || window;
-    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-    const W = 210, H = 297, M = 14, CW = W - M * 2;
-    let y = 0;
-
-    // ── colour helpers ─────────────────────────────────────
-    const G = { // green accent
-      dark:   [0, 140, 60],
-      mid:    [0, 185, 80],
-      light:  [220, 250, 232],
-      border: [0, 160, 70],
-    };
-    const BL = { dark:[20,130,195], mid:[30,155,220],  light:[222,242,252], border:[30,155,220] };
-    const AM = { dark:[185,105,0],  mid:[210,130,0],   light:[252,242,218], border:[210,130,0] };
-    const RE = { dark:[185,55,50],  mid:[200,70,60],   light:[252,230,228], border:[200,70,60] };
-    const INK = [22, 35, 28];
-    const SOFT = [90, 110, 100];
-    const DIM  = [150,165,158];
-
-    // ── safe call wrapper ──────────────────────────────────
-    // Any single jsPDF call that throws (NaN coord, null spread, etc.) is logged
-    // and skipped — the rest of the report still renders.
-    const _safe = (label, fn) => {
-      try { return fn(); }
-      catch(e){ dlog('PDF', 'skip:'+label, e && e.message); return null; }
-    };
-
-    // Array-safe color setters — no spread needed, eliminates null-spread on iOS Safari
-    const _rgb = (setter, c, g, b) => {
-      if (Array.isArray(c)) {
-        if (c.length >= 3) setter(N(c[0]), N(c[1]), N(c[2]));
-        else setter(0, 0, 0);
-      }
-      else if (c != null && Number.isFinite(c)) setter(c, Number.isFinite(g) ? g : 0, Number.isFinite(b) ? b : 0);
-      // else: silently drop — better than crashing on undefined color
-    };
-    const f  = (c,g,b) => _safe('setFillColor', () => _rgb((r,gr,bl) => doc.setFillColor(r,gr,bl),  c, g, b));
-    const d  = (c,g,b) => _safe('setDrawColor', () => _rgb((r,gr,bl) => doc.setDrawColor(r,gr,bl),  c, g, b));
-    const tc = (c,g,b) => _safe('setTextColor', () => _rgb((r,gr,bl) => doc.setTextColor(r,gr,bl), c, g, b));
-    const fs = (n) => _safe('setFontSize', () => doc.setFontSize(Number.isFinite(n) ? n : 9));
-    const fw = (s) => _safe('setFont', () => doc.setFont('helvetica', s || 'normal'));
-    const lw = (n) => _safe('setLineWidth', () => doc.setLineWidth(Number.isFinite(n) ? Math.max(0.01, n) : 0.2));
-
-    // Coerce any non-finite coordinate/size to a safe number.
-    function N(v, dflt){
-      if (dflt === undefined) dflt = 0;
-      return Number.isFinite(v) ? v : dflt;
-    }
-    // rect: jsPDF 2.5.x throws if w or h is 0 OR if any arg is NaN. Force w,h ≥ 0.01
-    // so we never get a "zero rectangle" rejection, and never NaN.
-    const R = (x,yr,w,h,m) => _safe('rect', () => {
-      const sw = Math.max(0.01, N(w));
-      const sh = Math.max(0.01, N(h));
-      doc.rect(N(x), N(yr), sw, sh, m || 'F');
-    });
-    const RR = (x,yr,w,h,r2,m) => _safe('roundedRect', () => {
-      const sw = Math.max(0.01, N(w));
-      const sh = Math.max(0.01, N(h));
-      const sr = N(r2, 2);
-      doc.roundedRect(N(x), N(yr), sw, sh, sr, sr, m || 'F');
-    });
-
-    // text: doc.text rejects arrays containing null/undefined (spread error inside
-    // jsPDF on iOS Safari). Sanitize every element to a string.
-    const T = (t, x, yr, o) => _safe('text', () => {
-      let s;
-      if (Array.isArray(t)){
-        s = t.map(item => item == null ? '' : String(item)).filter(item => item !== '');
-        if (!s.length) return;
-      } else if (t == null) {
-        return;
-      } else {
-        s = String(t);
-      }
-      doc.text(s, N(x), N(yr), o || {});
-    });
-    const nl = (n) => { y += Number.isFinite(n) ? n : 4; };
-    const tw = (t) => _safe('getTextWidth', () => doc.getTextWidth(t == null ? '' : String(t))) || 0;
-
-    // ── vector glyphs ──────────────────────────────────────
-    // jsPDF's built-in Helvetica (WinAnsi) cannot render ★ ▼ → etc. — they come
-    // out as garbage. Draw them as crisp vectors instead so the report stays clean.
-    const icoCheck = (x, yr, s, col) => _safe('icoCheck', () => {
-      const ss = N(s, 2);
-      d(col); lw(Math.max(0.5, ss*0.28)); doc.setLineCap('round'); doc.setLineJoin('round');
-      // doc.lines: feed pre-sanitized array of [number, number] pairs, never null
-      const linePairs = [[ss*0.32, ss*0.40],[ss*0.66, -ss*0.82]];
-      doc.lines(linePairs, N(x), N(yr+ss*0.55), [1,1], 'S');
-      doc.setLineCap('butt'); doc.setLineJoin('miter');
-    });
-    const icoTriDown = (cx, yr, w, col) => _safe('icoTri', () => {
-      const ww = N(w, 2);
-      f(col); doc.triangle(N(cx-ww/2), N(yr), N(cx+ww/2), N(yr), N(cx), N(yr+ww*0.82), 'F');
-    });
-    const icoArrowR = (x, yr, w, col) => _safe('icoArrow', () => {
-      const ww = N(w, 2);
-      d(col); lw(0.5); doc.setLineCap('round');
-      doc.line(N(x), N(yr), N(x+ww), N(yr));
-      doc.line(N(x+ww-1.4), N(yr-1.2), N(x+ww), N(yr));
-      doc.line(N(x+ww-1.4), N(yr+1.2), N(x+ww), N(yr));
-      doc.setLineCap('butt');
-    });
-
-    const hbar = (x,yr,totalW,frac,col,bg) => {
-      if (!Array.isArray(bg)) bg = [228,235,230];
-      const safeFrac = Number.isFinite(frac) ? Math.max(0, Math.min(1, frac)) : 0;
-      const safeW = N(totalW);
-      f(bg); R(x,yr,safeW,3.5);
-      f(col); R(x,yr,Math.max(0.5, safeW*safeFrac),3.5);
-    };
-
-    // safe split: if input is null/undefined or empty, return empty array
-    const splitText = (text, width) => {
-      if (text == null) return [];
-      try { return doc.splitTextToSize(String(text), Math.max(10, N(width, 100))) || []; }
-      catch(e){ dlog('PDF', 'splitText', e.message); return [String(text)]; }
-    };
-
-    const needPage = (needed) => {
-      const nn = Number.isFinite(needed) ? needed : 30;
-      // If y itself has gone NaN, reset to top of page so we don't propagate the rot
-      if (!Number.isFinite(y)) y = M;
-      if (y + nn > H - 12) { footerOn(doc.getNumberOfPages()); doc.addPage(); y = M; }
-    };
-
-    const footerOn = (p) => {
-      doc.setPage(p);
-      f(12,18,14); R(0,H-10,W,10);
-      f(G.mid); R(0,H-10,3,10);
-      fs(6.5); fw('normal'); tc(DIM);
-      T('Solar Optimiser  ·  solarjune.replit.app  ·  Independent — not financial advice  ·  Page '+p, W/2, H-3.8, {align:'center'});
-    };
-
-    // ── section header ─────────────────────────────────────
-    const secHead = (title, col=G) => {
-      needPage(18);
-      f(14,22,17); R(M,y,CW,9);
-      f(col.mid||col.dark); R(M,y,3.5,9);
-      fs(8.5); fw('bold'); tc(col.dark);
-      T(title, M+7, y+6.2);
-      y += 13;
-    };
-
-    // ── data row ──────────────────────────────────────────
-    const dRow = (label,val,valCol,labelCol) => {
-      fs(7.8); fw('normal'); tc(labelCol||SOFT);
-      T(label, M, y);
-      fs(8); fw('bold'); tc(valCol||INK);
-      T(String(val), M+CW, y, {align:'right'});
-      y += 5.2;
-    };
-
-    // ── divider ───────────────────────────────────────────
-    const divLine = (col) => { d(col || DIM); lw(0.2); _safe('line', () => doc.line(N(M),N(y),N(M+CW),N(y))); nl(3); };
-
-    // ── 3-tile row helper ─────────────────────────────────
-    const tile3 = (tiles) => {
-      const tw = (CW - 4) / 3;
-      tiles.forEach((tile,i) => {
-        const tx = M + i*(tw+2), ty = y;
-        f(tile.bg); R(tx,ty,tw,22);
-        f(tile.col); R(tx,ty,tw,4); // top band
-        d(tile.col); lw(0.4); R(tx,ty,tw,22,'S');
-        fs(5.8); fw('bold'); tc(255,255,255);
-        T(tile.label, tx+tw/2, ty+3, {align:'center'});
-        fs(13); fw('bold'); tc(tile.col);
-        T(tile.main, tx+tw/2, ty+14, {align:'center'});
-        fs(6.5); fw('normal'); tc(SOFT);
-        T(tile.sub||'', tx+tw/2, ty+20, {align:'center'});
-      });
-      y += 26;
-    };
-
-    // ── line / area chart (for cumulative cash-flow curves) ──────────
-    // pts: array of {x, y} in DATA space. Draws axes, a zero line if the
-    // range crosses zero, the curve, and a shaded area to the zero baseline.
-    const lineChart = (pts, opts) => {
-      opts = opts || {};
-      const cx = M, cw = CW, ch = N(opts.h, 46);
-      const top = y, bot = y + ch;
-      if (!pts || pts.length < 2){ y += ch + 6; return; }
-      const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
-      const xMin = Math.min.apply(null, xs), xMax = Math.max.apply(null, xs);
-      let yMin = Math.min.apply(null, ys), yMax = Math.max.apply(null, ys);
-      if (yMin === yMax){ yMax = yMin + 1; }
-      // pad the y-range a touch
-      const pad = (yMax - yMin) * 0.08; yMin -= pad; yMax += pad;
-      const sx = v => cx + ((v - xMin) / (xMax - xMin || 1)) * cw;
-      const sy = v => bot - ((v - yMin) / (yMax - yMin || 1)) * ch;
-      // plot background
-      f(opts.bg || [244,250,246]); R(cx, top, cw, ch);
-      d(210,225,218); lw(0.2); R(cx, top, cw, ch, 'S');
-      // zero baseline (break-even line) if range crosses zero
-      const col = opts.col || G;
-      if (yMin < 0 && yMax > 0){
-        const zy = sy(0);
-        d(170,185,178); lw(0.3);
-        _safe('zeroLine', () => doc.line(N(cx), N(zy), N(cx+cw), N(zy)));
-        fs(5.5); fw('normal'); tc(DIM);
-        T('break-even', cx+1.5, zy-1.2);
-      }
-      // shaded area to baseline, drawn as thin vertical strips (robust on iOS)
-      const baseVal = (yMin < 0 && yMax > 0) ? 0 : yMin;
-      const baseY = sy(baseVal);
-      const strips = 60;
-      for (let s = 0; s < strips; s++){
-        const t0 = s / strips, t1 = (s + 1) / strips;
-        const xv = xMin + (xMax - xMin) * ((t0 + t1) / 2);
-        // interpolate y at xv along the polyline
-        let yv = ys[0];
-        for (let k = 0; k < pts.length - 1; k++){
-          if (xv >= pts[k].x && xv <= pts[k+1].x){
-            const f2 = (xv - pts[k].x) / ((pts[k+1].x - pts[k].x) || 1);
-            yv = pts[k].y + f2 * (pts[k+1].y - pts[k].y);
-            break;
-          }
-        }
-        const stripX = cx + cw * t0, stripW = cw / strips + 0.3;
-        const yy = sy(yv);
-        const above = yv >= baseVal;
-        f(above ? (opts.areaPos || [210,240,222]) : (opts.areaNeg || [248,224,222]));
-        const hgt = Math.abs(baseY - yy);
-        R(stripX, Math.min(baseY, yy), stripW, Math.max(0.3, hgt));
-      }
-      // the curve itself (segment lines)
-      d(col.mid || col.dark); lw(0.7); doc.setLineCap('round'); doc.setLineJoin('round');
-      for (let k = 0; k < pts.length - 1; k++){
-        _safe('curveSeg', () => doc.line(N(sx(pts[k].x)), N(sy(pts[k].y)), N(sx(pts[k+1].x)), N(sy(pts[k+1].y))));
-      }
-      doc.setLineCap('butt'); doc.setLineJoin('miter');
-      y = bot + 4;
-    };
-
-    // ══════════════════════════════════════════════════════
-    // BUILD DATA
-    // ══════════════════════════════════════════════════════
     if (CACHE.dirty) rebuildBase();
     const best         = getBestPlan();
     const baselinePlan = getPlanById(state.baseline);
     const baseSim      = baselineSim(state.baseline);
     const baseCost     = sumF(baseSim.cost) + baselinePlan.standing;
     const saving       = Math.max(0, baseCost - best.net);
-    const annualKwh    = Math.round(Object.values(state.bills).reduce((a,b)=>a+b,0));
+    const annualKwh    = Object.values(state.bills).reduce((a,b)=>a+b,0);
     const econ         = state.ev_active ? evEconomics(best.plan.id) : null;
-    const kwp          = (state.count_A + state.count_B) * (state.panel_w || 440) / 1000;
-    const rates        = best.plan.rates || {};
 
-    // ══════════════════════════════════════════════════════
-    // PAGE 1 — COVER + EXECUTIVE SUMMARY
-    // ══════════════════════════════════════════════════════
+    // Full ranking, same filter the app's recommendation uses.
+    const rec = getRecommendation();
 
-    // ── full-width header band ─────────────────────────
-    f(9,13,10); R(0,0,W,48);
-    f(G.mid); R(0,0,4,48);
-    // decorative dots
-    [[W-26,9,G.mid],[W-19,9,BL.border],[W-12,9,AM.border]].forEach(([x,yr,col])=>{
-      f(col); RR(x,yr,5,5,1.5);
-    });
-    fs(26); fw('bold'); tc(0,210,95);
-    T('Solar Optimiser', M, 20);
-    fs(9.5); fw('normal'); tc(140,165,155);
-    T('Personalised Irish Electricity & Solar Report', M, 29);
-    fs(7.5); fw('normal'); tc(80,100,90);
-    T('Generated '+new Date().toLocaleDateString('en-IE',{day:'numeric',month:'long',year:'numeric'})+'  ·  solarjune.replit.app', M, 37);
-    fs(7); fw('normal'); tc(60,80,70);
-    T(annualKwh.toLocaleString()+' kWh/yr  ·  '+(state.heating_type||'electric')+' heating  ·  '+
-      (state.region||'East').charAt(0).toUpperCase()+(state.region||'east').slice(1)+' Ireland'+
-      (state._csv_imported ? '  ·  Real ESB HDF data' : ''), M, 43);
-    y = 54;
-
-    // ── hero saving box ────────────────────────────────
-    f(G.light); R(M,y,CW,30);
-    d(G.border); lw(0.6); R(M,y,CW,30,'S');
-    f(G.mid); R(M,y,CW,4);           // top accent stripe
-    f(G.mid); R(M,y,4,30);           // left accent stripe
-
-    fs(7.5); fw('bold'); tc(G.dark);
-    T('ANNUAL SAVING — SWITCH ELECTRICITY PLAN', M+8, y+10);
-    fs(28); fw('bold'); tc(G.dark);
-    T('€'+Math.round(saving).toLocaleString(), M+8, y+24);
-    fs(9); fw('normal'); tc(30,80,55);
-    T('Switch to: '+best.plan.supplier+' — '+best.plan.plan, M+8, y+29.5);
-
-    if (econ && econ.evVsPetrolNet > 0) {
-      f(G.light); R(M+CW-54,y+6,50,22);
-      d(G.border); lw(0.3); R(M+CW-54,y+6,50,22,'S');
-      fs(6); fw('bold'); tc(G.dark);
-      T('+ EV TRANSPORT SAVING', M+CW-4, y+13, {align:'right'});
-      fs(14); fw('bold'); tc(G.dark);
-      T('€'+Math.round(econ.evVsPetrolNet).toLocaleString()+'/yr', M+CW-4, y+21, {align:'right'});
-      fs(6.5); fw('normal'); tc(SOFT);
-      T('vs petrol car', M+CW-4, y+27, {align:'right'});
-    }
-    y += 34;
-
-    // ── home profile strip ─────────────────────────────
-    f(244,250,246); R(M,y,CW,16);
-    d(190,210,200); lw(0.2); R(M,y,CW,16,'S');
-    const prof = [
-      ['Annual Usage', annualKwh.toLocaleString()+' kWh'],
-      ['Heating', (state.heating_type||'electric').charAt(0).toUpperCase()+(state.heating_type||'electric').slice(1)],
-      ['Region', (state.region||'East').charAt(0).toUpperCase()+(state.region||'east').slice(1)],
-      state.has_solar
-        ? ['Solar System', kwp.toFixed(1)+' kWp'+(state.battery_kwh>0?' + '+state.battery_kwh+' kWh':'')]
-        : ['Setup', 'No solar yet'],
-    ];
-    prof.forEach(([label,val],i) => {
-      const px2 = M + i*(CW/4) + 4;
-      fs(6); fw('normal'); tc(DIM); T(label.toUpperCase(), px2, y+6);
-      fs(8.5); fw('bold'); tc(INK); T(val, px2, y+13);
-    });
-    y += 20;
-
-    // ── plan comparison ───────────────────────────────
-    secHead('RECOMMENDED PLAN — BEST MATCH FOR YOUR HOME', G);
-
-    f(252,244,244); R(M,y,CW,14);
-    fs(6.5); fw('bold'); tc(RE.dark);
-    T('CURRENT PLAN', M+4, y+6); fs(9); fw('normal'); tc(60,45,45);
-    T(baselinePlan.supplier+' — '+baselinePlan.plan, M+4, y+12);
-    fs(11); fw('bold'); tc(RE.dark);
-    T('€'+Math.round(baseCost).toLocaleString()+'/yr', M+CW-4, y+12, {align:'right'});
-    y += 15;
-
-    f(234,248,238); R(M,y,CW,7);
-    fs(7.5); fw('bold'); tc(G.dark);
-    const saveMsg = 'You save \u20AC'+Math.round(saving).toLocaleString()+'/yr by switching';
-    icoTriDown(M+CW/2 - tw(saveMsg)/2 - 3.4, y+2, 3, G.mid);
-    T(saveMsg, M+CW/2, y+5, {align:'center'});
-    y += 8;
-
-    f(G.light); R(M,y,CW,15);
-    f(G.mid); R(M,y,CW,3.5);
-    d(G.border); lw(0.5); R(M,y,CW,15,'S');
-    fs(6.5); fw('bold'); tc(255,255,255);
-    icoCheck(M+4, y+0.4, 2.5, [255,255,255]);
-    T('RECOMMENDED', M+8.5, y+3);
-    fs(9.5); fw('bold'); tc(G.dark);
-    T(best.plan.supplier+' — '+best.plan.plan, M+4, y+12);
-    fs(12); fw('bold'); tc(G.dark);
-    T('€'+Math.round(best.net).toLocaleString()+'/yr', M+CW-4, y+12, {align:'right'});
-    y += 19;
-
-    // plan rates strip
-    const rateEntries = [
-      rates.day   && ['Day',    (rates.day*100).toFixed(2)+'c'],
-      rates.night && ['Night',  (rates.night*100).toFixed(2)+'c'],
-      rates.peak  && ['Peak',   (rates.peak*100).toFixed(2)+'c'],
-      rates.ev    && ['EV rate',(rates.ev*100).toFixed(2)+'c'],
-      best.plan.export_rate && ['Export CEG',(best.plan.export_rate*100).toFixed(2)+'c'],
-      ['Standing', '€'+best.plan.standing.toFixed(0)+'/yr'],
-    ].filter(Boolean).slice(0,6);
-
-    f(240,248,244); R(M,y,CW,14);
-    d(190,215,202); lw(0.2); R(M,y,CW,14,'S');
-    const rcw = CW / rateEntries.length;
-    rateEntries.forEach(([label,val],i) => {
-      const rx2 = M + i*rcw + 3;
-      fs(5.8); fw('normal'); tc(DIM); T(label.toUpperCase(), rx2, y+5.5);
-      fs(8.5); fw('bold'); tc(G.dark); T(val, rx2, y+12);
-    });
-    y += 18;
-
-    // ══════════════════════════════════════════════════════
-    // WHY THIS PLAN WINS — savings decomposition (Level 1 trust)
-    // ══════════════════════════════════════════════════════
-    try {
-      needPage(72);   // keep header + all levers + net line together
-      secHead('WHY THIS PLAN WINS', G);
-
-      // Decompose current vs recommended into the three levers.
-      const recE = N(best.energy_cost), recS = N(best.standing), recX = N(best.export_revenue);
-      const baseE = N(sumF(baseSim.cost)), baseS = N(baselinePlan.standing), baseX = N(baseSim.revenue ? sumF(baseSim.revenue) : 0);
-      const dEnergy  = baseE - recE;      // + = recommended is cheaper on units
-      const dStand   = baseS - recS;      // + = cheaper standing charge
-      const dExport  = recX - baseX;      // + = more export income on recommended
-
-      fs(7.5); fw('normal'); tc(SOFT);
-      const _whyIntro = splitText('Your \u20AC'+Math.round(saving).toLocaleString()+'/yr saving comes from these levers, comparing '+best.plan.plan+' against your current '+baselinePlan.plan+':', CW);
-      T(_whyIntro, M, y);
-      y += _whyIntro.length * 4.0 + 4;
-
-      const levers = [
-        ['Unit rate (energy used)', dEnergy, 'Cost of the electricity you import, at each plan\'s day/night/peak rates on your actual usage pattern.'],
-        ['Standing charge', dStand, 'The fixed daily fee, billed regardless of usage.'],
-      ];
-      if (state.has_solar || Math.abs(dExport) > 1){
-        levers.push(['Export income (CEG)', dExport, 'What you earn selling surplus solar back to the grid.']);
-      }
-
-      levers.forEach(([label, delta, note]) => {
-        needPage(14);
-        const pos = delta >= 0;
-        const col = pos ? G : RE;
-        // label + signed amount
-        fs(8.2); fw('bold'); tc(INK); T(label, M, y);
-        fs(9); fw('bold'); tc(col.dark);
-        T((pos?'+€':'-€')+Math.abs(Math.round(delta)).toLocaleString()+'/yr', M+CW, y, {align:'right'});
-        y += 4.6;
-        // proportional bar (relative to the largest absolute lever)
-        const maxAbs = Math.max.apply(null, levers.map(l => Math.abs(l[1]))) || 1;
-        hbar(M, y, CW, Math.abs(delta)/maxAbs, col.mid, [228,235,230]);
-        y += 6;
-        fs(6.5); fw('normal'); tc(DIM);
-        T(splitText(note, CW), M, y);
-        y += splitText(note, CW).length * 3.2 + 3;
-      });
-
-      // net line
-      divLine();
-      fs(8.5); fw('bold'); tc(INK); T('Net annual saving by switching', M, y);
-      fs(11); fw('bold'); tc(G.dark);
-      T('€'+Math.round(saving).toLocaleString()+'/yr', M+CW, y, {align:'right'});
-      y += 9;
-    } catch(e){ dlog('PDF','whyWins',e&&e.message); }
-
-    // ══════════════════════════════════════════════════════
-    // PLANS RANKED
-    // ══════════════════════════════════════════════════════
-    needPage(60);
-    secHead('ALL PLANS RANKED — YOUR ACTUAL USAGE', BL);
-
-    const ranked = TARIFFS.filter(t => !t.discontinued)
-      .map(t => { try { const ss = sim(t.id); const c = annualCost(ss,t); return {t,net:c.net}; } catch(e){ return null; } })
-      .filter(r => r && Number.isFinite(r.net)).sort((a,b) => a.net - b.net);
-    const maxNet = ranked.length ? Math.max(...ranked.map(r=>r.net)) : 1;
-    const minNet = ranked.length ? ranked[0].net : 0;
-    const netRange = maxNet - minNet || 1;
-
-    // table header
-    f(228,238,233); R(M,y,CW,6.5);
-    fs(6.5); fw('bold'); tc(SOFT);
-    T('RANK  PLAN', M+3, y+4.8);
-    T('ANNUAL COST', M+CW-3, y+4.8, {align:'right'});
-    T('SAVING vs MOST EXPENSIVE', M+CW-70, y+4.8);
-    y += 7.5;
-
-    ranked.forEach((r,i) => {
-      needPage(8);
-      const isBest = i===0;
-      f(isBest ? G.light : i%2===0 ? [250,253,251] : [244,249,246]);
-      R(M,y,CW,7);
-      if (isBest){ f(G.mid); R(M,y,3,7); }
-
-      fs(7.5); fw(isBest?'bold':'normal'); tc(isBest?G.dark:INK);
-      if (isBest) icoCheck(M+4, y+1.6, 2.4, G.mid);
-      T((i+1)+'.  '+r.t.supplier+' — '+r.t.plan, M+(isBest?8.5:4), y+5);
-
-      // saving bar — drawn FIRST so the cost text always sits on top, and the
-      // bar is narrowed + shifted left so it never underlaps the cost figure.
-      const barW = 40, barX = M+CW-30-barW, saving2 = maxNet-r.net, frac = saving2/netRange;
-      f(215,228,222); R(barX,y+1.8,barW,3.5);
-      f(isBest?G.mid:BL.dark); R(barX,y+1.8,Math.max(0.5,barW*frac),3.5);
-
-      // cost (drawn last, on top, with clear gap from the bar)
-      fs(8); fw('bold'); tc(isBest?G.dark:[80,90,85]);
-      T('\u20AC'+Math.round(r.net).toLocaleString(), M+CW-4, y+5, {align:'right'});
-      y += 7.5;
-    });
-    y += 4;
-
-    // ══════════════════════════════════════════════════════
-    // BIMONTHLY USAGE CHART
-    // ══════════════════════════════════════════════════════
-    needPage(55);
-    secHead('YOUR USAGE BY PERIOD', BL);
-
-    const BKEYS = ['Jan-Feb','Mar-Apr','May-Jun','Jul-Aug','Sep-Oct','Nov-Dec'];
-    const bVals = BKEYS.map(k => state.bills[k]||0);
-    const maxB = Math.max(...bVals)||1;
-    const chartH = 32, barW2 = CW/6 - 2, base = y + chartH;
-
-    bVals.forEach((v,i) => {
-      const bx = M + i*(CW/6) + 1.5;
-      const bh = Math.max(1, (v/maxB)*chartH);
-      const col2 = v===maxB ? AM.dark : v<maxB*0.45 ? BL.dark : G.mid;
-      f(224,234,228); R(bx, y, barW2, chartH);       // bg track
-      f(col2); R(bx, y+chartH-bh, barW2, bh);        // value bar
-      fs(6.5); fw('bold'); tc(col2);
-      T(Math.round(v).toLocaleString(), bx+barW2/2, y+chartH-bh-2, {align:'center'});
-      fs(6); fw('normal'); tc(SOFT);
-      T(BKEYS[i].split('-')[0], bx+barW2/2, base+5, {align:'center'});
-    });
-    y = base + 10;
-
-    // totals strip
-    f(240,248,244); R(M,y,CW,9);
-    fs(7.5); fw('bold'); tc(G.dark);
-    T('Total: '+annualKwh.toLocaleString()+' kWh/yr', M+4, y+6);
-    fs(7); fw('normal'); tc(SOFT);
-    T((state._csv_imported?'Real ESB HDF data':'Manual bill estimate')+'  ·  Avg '+
-      Math.round(annualKwh/12).toLocaleString()+' kWh/month', M+CW-4, y+6, {align:'right'});
-    y += 14;
-
-    // ══════════════════════════════════════════════════════
-    // SOLAR ANALYSIS
-    // ══════════════════════════════════════════════════════
-    if (state.has_solar) {
-      needPage(90);
-      secHead('SOLAR + BATTERY ANALYSIS', G);
-
-      const annualGen = Math.round(sumF(CACHE.solar.total));
-      const annualImp = Math.round(sumF(best.sim.grid_import));
-      const annualExp = Math.round(sumF(best.sim.grid_export));
-      const annualSelf = Math.max(0, annualGen - annualExp);
-      const grantAmt = (state.grant_seai !== undefined && state.grant_seai >= 0) ? state.grant_seai : calcSeaiGrant(kwp, state.battery_kwh||0).total;
-      const netCost   = (state.install_cost||0) - grantAmt;
-      const noSolar   = runScenario(false, state.ev_active);
-      const solSave   = noSolar.annualCost - best.net;
-      const payback2  = solSave > 0 ? netCost/solSave : 999;
-      const npv20     = calcNPV20(solSave, netCost, state.battery_kwh, state.panel_degradation);
-
-      // spec strip
-      f(236,250,242); R(M,y,CW,16);
-      d(G.border); lw(0.3); R(M,y,CW,16,'S');
-      const specs = [
-        ['System size', kwp.toFixed(2)+' kWp'],
-        ['Panels', (state.count_A+state.count_B)+' × '+(state.panel_w||440)+'W'],
-        ['Battery', state.battery_kwh>0 ? state.battery_kwh+' kWh' : 'None'],
-        ['Orientation', state.azimuth_A+'° · '+state.tilt_A+'° tilt'],
-      ];
-      specs.forEach(([l,v],i) => {
-        const sx = M+i*(CW/4)+4;
-        fs(5.8); fw('normal'); tc(G.dark); T(l.toUpperCase(), sx, y+6);
-        fs(8.5); fw('bold'); tc(INK); T(v, sx, y+13);
-      });
-      y += 20;
-
-      // energy flow tiles
-      tile3([
-        { label:'SOLAR GENERATED', main:annualGen.toLocaleString()+' kWh', sub:'annual', col:G.mid, bg:G.light },
-        { label:'SELF-CONSUMED',   main:annualSelf.toLocaleString()+' kWh', sub:annualGen>0?Math.round(annualSelf/annualGen*100)+'% of generation':'—', col:BL.dark, bg:BL.light },
-        { label:'EXPORTED TO GRID',main:annualExp.toLocaleString()+' kWh', sub:annualGen>0?Math.round(annualExp/annualGen*100)+'% of generation':'—', col:AM.dark, bg:AM.light },
-      ]);
-
-      // grid import + battery
-      dRow('Annual grid import', annualImp.toLocaleString()+' kWh', RE.dark);
-      if (state.battery_kwh > 0) {
-        const bCh  = Math.round(sumF(best.sim.battery_charge));
-        const bDis = Math.round(sumF(best.sim.battery_discharge));
-        dRow('Battery charged / discharged', bCh.toLocaleString()+' / '+bDis.toLocaleString()+' kWh', BL.dark);
-      }
-      divLine();
-
-      // big KPI strip: payback / saving / NPV
-      const kpiBg = payback2<8 ? G.light : payback2<12 ? AM.light : RE.light;
-      const kpiCol = payback2<8 ? G.dark  : payback2<12 ? AM.dark  : RE.dark;
-      f(kpiBg); R(M,y,CW,18);
-      d(kpiCol); lw(0.4); R(M,y,CW,18,'S');
-      [[M+4,    'PAYBACK',   payback2<50?payback2.toFixed(1)+' yr':'N/A',  kpiCol],
-       [M+CW/3, 'SOLAR SAVING (Y1)', '€'+Math.round(solSave).toLocaleString()+'/yr', G.dark],
-       [M+2*CW/3,'20-YEAR NPV','€'+Math.round(npv20).toLocaleString(), npv20>0?G.dark:RE.dark],
-      ].forEach(([x,label,val,col]) => {
-        fs(6); fw('bold'); tc(SOFT); T(label, x, y+6);
-        fs(13); fw('bold'); tc(col); T(val, x, y+15);
-      });
-      y += 22;
-
-      // ── 20-year cumulative cash-flow curve (Level 2 chart) ──────────
-      // Starts at -netCost (the day you pay for the system), then each year
-      // adds the discounted solar saving (with panel degradation, and a
-      // battery replacement at year 12 if applicable). Where it crosses zero
-      // is your payback point.
+    // Solar scenario + 20-year cumulative curve for the cash-flow chart.
+    let scenario = null, npvSeries = [], breakevenYear = null;
+    if (state.has_solar && totalPanels() > 0){
       try {
-        needPage(64);
-        secHead('20-YEAR CUMULATIVE CASH FLOW', G);
-        fs(7); fw('normal'); tc(SOFT);
-        T(splitText('Cumulative position over 20 years. Below the line = still paying back; above = net ahead. The curve crosses break-even at about year '+(payback2<50?Math.ceil(payback2):'—')+'.', CW), M, y);
-        y += splitText('x',CW).length*3.2 + 6;
-
-        const r = 0.03, deg = (state.panel_degradation==null?0.005:state.panel_degradation);
-        const pts = [{ x:0, y:-netCost }];
+        const range = computeScenarioRange();
+        const sc = range[state._scenario_view || 'realistic'] || range.realistic;
+        const bp = best.sim || sim(best.plan.id);
+        const gen = sumF(CACHE.solar && CACHE.solar.total);
+        const exported = sumF(bp && bp.grid_export);
+        scenario = {
+          generated: gen,
+          exported,
+          selfConsumed: Math.max(0, gen - exported),
+          gridImport: sumF(bp && bp.grid_import),
+          solarBenefit: sc ? Math.round(sc.solarBenefit || 0) : 0,
+          payback: sc && sc.payback != null && sc.payback < 50 ? sc.payback : null,
+          npv20: 0,
+        };
+        const netCost = Math.max(0, (state.install_cost||0) - (state.grant_seai||0));
+        const r = 0.03, deg = state.panel_degradation || 0.005;
         let cum = -netCost;
-        for (let yr = 1; yr <= 20; yr++){
-          const yearBenefit = solSave * Math.pow(1 - deg, yr - 1);
-          cum += yearBenefit / Math.pow(1 + r, yr);
-          if (state.battery_kwh > 0 && yr === 12) cum -= 400 * state.battery_kwh / Math.pow(1 + r, 12);
-          pts.push({ x: yr, y: cum });
+        npvSeries.push(cum);
+        for (let yv = 1; yv <= 20; yv++){
+          cum += (scenario.solarBenefit * Math.pow(1-deg, yv-1)) / Math.pow(1+r, yv);
+          if ((state.battery_kwh||0) > 0 && yv === 12) cum -= (400*state.battery_kwh)/Math.pow(1+r,12);
+          npvSeries.push(cum);
+          if (breakevenYear === null && cum >= 0) breakevenYear = yv;
         }
-        lineChart(pts, { h:46, col:G });
-
-        // x-axis year labels (0,5,10,15,20) + endpoint values
-        fs(5.8); fw('normal'); tc(DIM);
-        [0,5,10,15,20].forEach(yr => {
-          const px = M + (yr/20)*CW;
-          T('Y'+yr, px, y+3.5, {align: yr===0?'left':yr===20?'right':'center'});
-        });
-        fs(6.5); fw('bold'); tc(npv20>0?G.dark:RE.dark);
-        T('Year 20: '+(npv20>=0?'+€':'-€')+Math.round(Math.abs(npv20)).toLocaleString(), M+CW, y+3.5, {align:'right'});
-        y += 9;
-      } catch(e){ dlog('PDF','cashflow',e&&e.message); }
-
-      // financial detail rows
-      [
-        ['Gross installation cost',  '€'+Math.round(state.install_cost||0).toLocaleString(), null],
-        ['SEAI grant (deducted)',    '- €'+Math.round(grantAmt).toLocaleString(), G.dark],
-        ['Net cost after grant',     '€'+Math.round(netCost).toLocaleString(), INK],
-        ['Solar saving year 1',      '€'+Math.round(solSave).toLocaleString()+'/yr', solSave>0?G.dark:RE.dark],
-        ['Simple payback',           payback2<50?payback2.toFixed(1)+' years':'N/A', payback2<10?G.dark:AM.dark],
-        ['NPV over 20 years',        (npv20>=0?'€':'- €')+Math.round(Math.abs(npv20)).toLocaleString(), npv20>0?G.dark:RE.dark],
-      ].forEach(([l,v,c]) => dRow(l,v,c));
-      y += 4;
+        scenario.npv20 = Math.round(cum);
+      } catch(e){ scenario = null; }
     }
 
-    // ══════════════════════════════════════════════════════
-    // EV ECONOMICS
-    // ══════════════════════════════════════════════════════
-    if (state.ev_active && econ) {
-      needPage(55);
-      secHead('EV TRANSPORT ECONOMICS', AM);
-      tile3([
-        { label:'ELECTRICITY INCREASE', main:'+€'+Math.round(econ.evElectricityCost).toLocaleString(), sub:Math.round(econ.evKwh).toLocaleString()+' kWh charged', col:RE.dark, bg:RE.light },
-        { label:'PETROL AVOIDED',       main:'-€'+Math.round(econ.petrolCost).toLocaleString(),        sub:Math.round(econ.litres).toLocaleString()+' litres saved', col:G.mid,  bg:G.light },
-        { label:'NET TRANSPORT SAVING', main:'€'+Math.round(econ.evVsPetrolNet).toLocaleString(),      sub:'vs petrol car · per year',
-          col:econ.evVsPetrolNet>0?G.dark:RE.dark, bg:econ.evVsPetrolNet>0?G.light:RE.light },
-      ]);
-      dRow('Annual distance', econ.km.toLocaleString()+' km/yr');
-      dRow('Fuel price assumed', '€'+(state.fuel_price||1.83).toFixed(2)+'/L');
-      dRow('EV efficiency',     (state.ev_l_per_100km||17)+' kWh/100 km equivalent');
-      y += 4;
-    }
+    const vdates = (TARIFFS||[]).map(t => t.verified_date).filter(Boolean).sort();
+    const guide = (typeof SWITCH_GUIDES !== 'undefined' && getSupplierKey)
+      ? SWITCH_GUIDES[getSupplierKey(best.plan.id)] : null;
+    const switchSteps = (guide && guide.steps ? guide.steps : [
+      { title:'Find your MPRN', body:'The 11-digit Meter Point Reference Number is printed on your current electricity bill. You need it to switch.' },
+      { title:'Check the rates still match', body:'Rates change. Confirm the unit rates and standing charge on the supplier\u2019s own site before signing up.' },
+      { title:'Sign up with the new supplier', body:'Complete the switch online \u2014 it takes about ten minutes. They notify your current supplier for you.' },
+      { title:'Wait for the changeover', body:'Completion takes 10\u201315 working days. Your supply is never interrupted and no one visits the property.' },
+    ]).map(s => ({ title: s.title, body: s.body }));
 
-    // ══════════════════════════════════════════════════════
-    // SWITCHING GUIDE
-    // ══════════════════════════════════════════════════════
-    needPage(65);
-    secHead('HOW TO SWITCH — STEP BY STEP GUIDE', BL);
+    // Hour-of-day unit rates, so the report can show WHY one plan wins
+    // rather than only asserting that it does.
+    const profileFor = (plan) => {
+      try { return Array.from({ length: 24 }, (_, h) => engineRateAt(h, plan, null, null)); }
+      catch(e){ return null; }
+    };
 
-    const steps3 = [
-      { n:'1', head:'Visit the supplier website',
-        body:'Search "'+best.plan.supplier+' electricity Ireland" or use the affiliate link on solarjune.replit.app to go directly.' },
-      { n:'2', head:'Verify the current rates match',
-        body:'Day: '+((rates.day||0)*100).toFixed(2)+'c/kWh · Night: '+((rates.night||rates.day||0)*100).toFixed(2)+'c/kWh'+
-             (best.plan.export_rate ? ' · CEG export: '+((best.plan.export_rate||0)*100).toFixed(2)+'c/kWh' : '')+
-             '. Rates can change — confirm before signing up.' },
-      { n:'3', head:'Get your MPRN number',
-        body:'Your 11-digit Meter Point Reference Number (starts with 10) is printed on your current electricity bill.' },
-      { n:'4', head:'Complete the switch online (about 10 minutes)',
-        body:'The new supplier handles the switch entirely. Effective date is typically 2–4 weeks. Your current supplier must release supply within 10 business days.' },
-      state.battery_kwh > 0 ? { n:'5', head:'Update battery / inverter schedule',
-        body:'Once live on the new plan, update your battery charge window in the inverter app to align with the new off-peak hours.' } : null,
-      state.has_solar ? { n:state.battery_kwh>0?'6':'5', head:'Register for Microgeneration (CEG)',
-        body:'If not already done, register your solar system with '+best.plan.supplier+' to receive the '+((best.plan.export_rate||0)*100).toFixed(2)+'c/kWh Clean Energy Grant export payment.' } : null,
-    ].filter(Boolean);
-
-    steps3.forEach(step => {
-      needPage(22);
-      f(G.mid); RR(M,y,7,7,1.5);
-      fs(8); fw('bold'); tc(255,255,255); T(step.n, M+3.5, y+5.5, {align:'center'});
-      fs(8.5); fw('bold'); tc(INK); T(step.head, M+11, y+4.5);
-      fs(7.5); fw('normal'); tc(SOFT);
-      const bl = splitText(step.body, CW-13);
-      T(bl, M+11, y+9.5);
-      y += 10 + bl.length*4.2;
-    });
-    y += 5;
-
-    // ── methodology & assumptions (Level 1 trust) ──────
-    needPage(46);
-    secHead('METHODOLOGY & ASSUMPTIONS', BL);
+    // Consumption from a bill carries real uncertainty; show whether the
+    // recommendation survives being wrong about it.
+    let sensitivity = null;
     try {
-      const vdates = (TARIFFS||[]).map(t => t.verified_date).filter(Boolean).sort();
-      const vlatest = vdates.length ? vdates[vdates.length-1] : null;
-      const fmtV = vlatest ? new Date(vlatest).toLocaleDateString('en-IE',{day:'numeric',month:'short',year:'numeric'}) : 'bundled with this release';
-      const region = IRISH_REGIONS[state.region] || {};
-      const assume = [
-        ['Tariff rates verified', fmtV + '  ·  ' + (TARIFFS||[]).filter(t=>!t.discontinued).length + ' active plans compared'],
-        ['Usage basis', state._csv_imported ? 'Your real ESB smart-meter data (HDF)' : (state.usage_input_mode==='kwh' ? 'Your stated annual kWh, shaped by heating profile' : 'Estimated from your bill, calibrated to your current plan')],
-        ['Simulation', '8,760 hourly steps per plan across a full year'],
-        ['Region sunshine', (region.name||state.region||'East') + '  ·  ' + (region.ghi_multiplier!=null ? (region.ghi_multiplier>=1?'+':'') + Math.round((region.ghi_multiplier-1)*100) + '% vs national average' : 'national average')],
+      const scale = (f) => {
+        const saved = state.bills;
+        state.bills = Object.fromEntries(Object.entries(saved).map(([k,v]) => [k, v*f]));
+        invalidate(); rebuildBase();
+        const b = getBestPlan();
+        const bs = baselineSim(state.baseline);
+        const cur = sumF(bs.cost) + baselinePlan.standing;
+        state.bills = saved;
+        return { best: b.net, current: cur };
+      };
+      const lo = scale(0.8), hi = scale(1.2);
+      invalidate(); rebuildBase();
+      sensitivity = [
+        { label: 'If your usage is 20% lower', best: lo.best, current: lo.current },
+        { label: 'As modelled in this report', best: best.net, current: baseCost },
+        { label: 'If your usage is 20% higher', best: hi.best, current: hi.current },
       ];
-      if (state.has_solar){
-        assume.push(['Solar finance', '20-yr horizon · 3% discount rate · 0.5%/yr panel degradation' + (state.battery_kwh>0 ? ' · battery replacement modelled at year 12' : '')]);
-        assume.push(['SEAI grant', 'Auto-calculated to current scheme cap unless you set it manually']);
-      }
-      if (state.baseline_discount_pct > 0){
-        assume.push(['Your plan discount', state.baseline_discount_pct + '% off unit rates applied to your current plan only']);
-      }
-      assume.forEach(([l,v]) => {
-        needPage(10);
-        fs(7); fw('bold'); tc(INK); T(l, M, y);
-        fs(7); fw('normal'); tc(SOFT);
-        const vl = splitText(v, CW);
-        T(vl, M, y+4);
-        y += 5 + vl.length*3.4 + 1.5;
-      });
-      y += 2;
-    } catch(e){ dlog('PDF','methodology',e&&e.message); }
+    } catch(e){ sensitivity = null; }
 
-    // ── disclaimer ─────────────────────────────────────
-    needPage(20);
-    f(242,246,244); R(M,y,CW,18);
-    d(190,210,200); lw(0.2); R(M,y,CW,18,'S');
-    fs(7); fw('bold'); tc(SOFT); T('DISCLAIMER', M+5, y+6);
-    fs(6.5); fw('normal'); tc(DIM);
-    const disc = 'This report is for general information only. Calculations use modelled consumption and published tariff data at time of generation. Actual savings may differ. This is not financial advice. Verify rates directly with suppliers before switching. SEAI grant eligibility is subject to SEAI terms and conditions — see seai.ie.';
-    T(splitText(disc, CW-10), M+5, y+11);
-    y += 22;
-
-    // ── footers on every page ──────────────────────────
-    const totalPgs = doc.getNumberOfPages();
-    for (let p=1; p<=totalPgs; p++) footerOn(p);
-
-    // ── save ──────────────────────────────────────────
-    // iOS Safari frequently throws inside jsPDF's doc.save() (its internal
-    // download path is unreliable on iOS). Generate a blob ourselves and hand it
-    // off via an <a> click, falling back to opening it in a new tab. This keeps
-    // the report appearing even when the native save throws.
-    const filename = 'solar-optimiser-'+new Date().toISOString().slice(0,10)+'.pdf';
-    let savedOk = false;
+    // Levers: each one re-runs the full 8,760-hour simulation with a single
+    // input changed. Nothing here is estimated — a lever that cannot be
+    // simulated is not offered, because a plausible-looking number the engine
+    // never produced is worse than no number at all.
+    const levers = [];
     try {
-      const blob = doc.output('blob');
-      const url  = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = filename; a.rel = 'noopener';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => { try { document.body.removeChild(a); } catch(_){} URL.revokeObjectURL(url); }, 5000);
-      savedOk = true;
-    } catch(blobErr){
-      try { doc.save(filename); savedOk = true; }
-      catch(saveErr){
-        try { window.open(doc.output('bloburl'), '_blank'); savedOk = true; } catch(_){}
-      }
-    }
+      const baseNet = best.net;
+      const trial = (mutate, restore) => {
+        mutate();
+        invalidate(); rebuildBase();
+        const v = getBestPlan().net;
+        restore();
+        invalidate(); rebuildBase();
+        return baseNet - v;   // positive = better off after the change
+      };
 
-    // ── mailto ────────────────────────────────────────
-    if (email) {
-      const subj = encodeURIComponent('Your Solar Optimiser Report');
-      const mailBody = encodeURIComponent(
-        'Solar Optimiser Report — '+new Date().toLocaleDateString('en-IE')+'\n\n'+
-        'Plan saving: €'+Math.round(saving).toLocaleString()+'/yr — switch to '+best.plan.supplier+' — '+best.plan.plan+'\n'+
-        (state.has_solar ? 'Solar installed: '+kwp.toFixed(1)+' kWp'+(state.battery_kwh>0?' + '+state.battery_kwh+' kWh battery':'')+'\n' : '')+
-        (econ ? 'EV transport saving: €'+Math.round(econ.evVsPetrolNet).toLocaleString()+'/yr vs petrol\n' : '')+
-        '\nThe full PDF report is in your Downloads folder — attach it and send.\nGenerated at solarjune.replit.app'
-      );
-      // iOS Safari silently blocks window.open() for mailto: — navigating the
-      // current document via location.href is the reliable cross-browser way to
-      // hand off to the mail app. Delay it so doc.save() finishes its own
-      // download/share hand-off first (otherwise iOS drops one of the two).
-      const mailtoUrl = 'mailto:'+encodeURIComponent(email)+'?subject='+subj+'&body='+mailBody;
-      setTimeout(() => { try { window.location.href = mailtoUrl; } catch(e){} }, 900);
-      showToast(savedOk ? 'Report ready · Email opening to '+email+' — attach the PDF' : 'Could not open the PDF on this device');
-    } else {
-      showToast(savedOk ? 'Report ready — check Downloads (or the opened tab)' : 'Could not open the PDF on this device');
-    }
-    fireEvent('pdf_report_downloaded', { has_solar: state.has_solar, has_email: !!email });
-  } catch(err){
-    dlog('PDF', 'fatal_error', err && (err.name + ': ' + err.message));
-    // Last resort — on memory-limited mobile browsers jsPDF can crash the tab
-    // before producing anything. Fall back to a plain-text report so the user
-    // always walks away with their numbers.
-    try { downloadTextReport(email); }
-    catch(_){
-      showToast('We hit an error generating the PDF. Try again — if it persists, your browser may not support inline PDFs.', { type:'amber', icon:ic('warn',16), title:'Report generation failed' });
-    }
+      if (state.has_solar && totalPanels() > 0){
+        const savedBatt = state.battery_kwh;
+        levers.push({
+          label: 'Add 5 kWh more battery storage',
+          effect: 'More evening demand met from store',
+          value: trial(() => { state.battery_kwh = savedBatt + 5; },
+                       () => { state.battery_kwh = savedBatt; }),
+          note: 'Energy benefit only — before the cost of the battery itself.',
+        });
+        if (savedBatt > 0){
+          levers.push({
+            label: 'Remove the battery entirely',
+            effect: 'All evening demand bought from the grid',
+            value: trial(() => { state.battery_kwh = 0; },
+                         () => { state.battery_kwh = savedBatt; }),
+          });
+        }
+        const savedPanels = state.count_A;
+        levers.push({
+          label: 'Add four more panels',
+          effect: 'More generation, more of it exported',
+          value: trial(() => { state.count_A = savedPanels + 4; },
+                       () => { state.count_A = savedPanels; }),
+        });
+
+        // Grid-charging arbitrage fills the battery overnight, which can leave
+        // no room for the day's generation. Worth showing what it is actually
+        // earning rather than assuming it helps.
+        if (savedBatt > 0 && state.charge_from_grid){
+          const savedMode = state.strategy_mode, savedCfg = state.charge_from_grid;
+          levers.push({
+            label: 'Stop charging the battery from the grid',
+            effect: 'Battery kept free for the day\u2019s solar',
+            value: trial(() => { state.strategy_mode = 'self-consume'; state.charge_from_grid = false; },
+                         () => { state.strategy_mode = savedMode; state.charge_from_grid = savedCfg; }),
+          });
+        }
+      }
+
+      const savedExport = getPlanById(best.plan.id).export_rate;
+      if (savedExport != null){
+        const plan = getPlanById(best.plan.id);
+        levers.push({
+          label: 'Export rate falls by a third',
+          effect: 'Less earned on unused surplus',
+          value: trial(() => { plan.export_rate = savedExport * (2 / 3); },
+                       () => { plan.export_rate = savedExport; }),
+          note: 'Export rates are set by suppliers and are not guaranteed.',
+        });
+      }
+    } catch(e){ /* levers are additive; a failure must not block the report */ }
+
+    const data = buildReportData({
+      hourly: (best.sim || sim(best.plan.id)),
+      levers: levers.filter(l => Number.isFinite(l.value) && Math.abs(l.value) >= 1)
+                    .map(l => ({ ...l, value: Math.round(l.value) })),
+      state, best, baselinePlan, baseCost, saving, annualKwh, econ,
+      ranked: rec.ranked,
+      bestDayProfile: profileFor(best.plan),
+      currentDayProfile: profileFor(baselinePlan),
+      sensitivity,
+      supplierUrl: (typeof getAffiliateUrl === 'function' ? getAffiliateUrl(best.plan.id) : null) || null,
+      baseEnergy: sumF(baseSim.cost),
+      bestEnergy: best.energy_cost,
+      bestExport: best.export_revenue,
+      scenario, npvSeries, breakevenYear,
+      regionName: (IRISH_REGIONS[state.region] || IRISH_REGIONS.east).name,
+      usageBasis: state._csv_imported
+        ? 'Your real ESB smart-meter data (HDF)'
+        : (state.usage_input_mode === 'kwh'
+            ? 'Your stated annual kWh, shaped by heating profile'
+            : 'Estimated from your bill, calibrated to your current plan'),
+      switchSteps,
+      tariffCount: rec.rankedCount,
+      verifiedDate: vdates.length ? fmtVerifiedDate(vdates[vdates.length-1]) : null,
+    });
+
+    const { jsPDF } = window.jspdf || window;
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    renderReport(doc, data);
+    doc.save('solar-optimiser-report-' + new Date().toISOString().slice(0,10) + '.pdf');
+    showToast('Report downloaded', { type:'accent', icon:ic('checkC',16) });
+    fireEvent('pdf_generated', { has_solar: !!state.has_solar, ev: !!state.ev_active });
+    if (email) submitPdfRequest(email);
+  } catch (err){
+    console.error('PDF generation failed', err);
+    showToast('Couldn\u2019t build the report \u2014 a plain-text summary was downloaded instead',
+      { type:'amber', icon:ic('warn',16) });
+    try { downloadTextReport(email); } catch(_){}
   }
 }
 
@@ -10343,6 +9781,8 @@ window.TARIFFS = TARIFFS;
 window.rebuildBase = rebuildBase;
 window.applyRegion = applyRegion;
 window.getRecommendation = getRecommendation;
+window.getBestPlan = getBestPlan;
+window.sim = sim;
 window.bandAt = bandAt;
 window.calcNPV20 = calcNPV20;
 

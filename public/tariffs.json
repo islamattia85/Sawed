@@ -259,7 +259,8 @@
     "plan": "Lifestyle Working from Home Time",
     "type": "tou",
     "rates": {
-      "day": 0.2924,
+      "day": 0.4177,
+      "wfh": 0.2924,
       "night": 0.4177,
       "peak": 0.4177,
       "ev": 0.4177
