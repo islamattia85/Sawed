@@ -538,13 +538,6 @@
   .intro-hero-blob svg{width:100px;height:100px}
   .intro-title{font-size:34px;font-weight:800;color:#fff;letter-spacing:-.035em;line-height:1.05;margin-bottom:14px;max-width:340px}
   .intro-sub{font-size:15px;color:rgba(255,255,255,.5);line-height:1.6;max-width:320px}
-  .intro-mood-list{display:flex;flex-direction:column;gap:10px;width:100%;max-width:420px;margin:16px auto 0;text-align:left}
-  .intro-mood-card{display:flex;align-items:center;gap:14px;padding:17px 18px;border-radius:18px;border:1.5px solid rgba(255,255,255,.09);background:rgba(255,255,255,.04);cursor:pointer;transition:border-color .18s,background .18s;font-size:16px;color:#fff;font-family:var(--display);font-weight:500}
-  .intro-mood-card:active{background:rgba(0,230,118,.06)}
-  .intro-mood-card.sel{border-color:var(--accent);background:rgba(0,230,118,.07)}
-  .intro-mood-card .mood-radio{width:24px;height:24px;border-radius:50%;border:1.5px solid rgba(255,255,255,.18);margin-left:auto;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:border-color .18s,background .18s}
-  .intro-mood-card.sel .mood-radio{border-color:var(--accent);background:var(--accent)}
-  .intro-mood-card.sel .mood-radio::after{content:'';width:9px;height:9px;border-radius:50%;background:#000}
   .intro-feat-list{display:flex;flex-direction:column;gap:26px;width:100%;max-width:400px;margin:8px auto 0;text-align:left}
   .intro-feat{display:flex;align-items:flex-start;gap:18px}
   .intro-feat-icon{width:58px;height:58px;border-radius:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -1300,7 +1293,7 @@ function renderProfileNavBtn(){
       <div class="profile-nav-avatar">${initials}</div>
     </button>`;
   }
-  return `<button class="profile-nav-btn" onclick="_introStep=4;state.current_screen='intro';renderApp()" aria-label="Sign in" style="font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;gap:5px">
+  return `<button class="profile-nav-btn" onclick="_introStep=3;state.current_screen='intro';renderApp()" aria-label="Sign in" style="font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;gap:5px">
     ${ic('shield',15)} <span>Sign in</span>
   </button>`;
 }
@@ -3998,23 +3991,16 @@ const OB_TOTAL_STEPS = 7;
 // ============================================================
 // INTRO FLOW — shown once to new users (app-store style onboarding)
 // ============================================================
-let _introStep = 1;  // 1=splash  2=mood  3=features  4=sign-in
-let _introMood = ''; // selected mood card
+let _introStep = 1;  // 1=splash  2=features  3=sign-in
 
 function introNext(){
-  if (_introStep === 2 && !_introMood) return; // must pick mood
-  _introStep = Math.min(_introStep + 1, 4);
+  _introStep = Math.min(_introStep + 1, 3);
   renderApp();
 }
 function introBack(){
   if (_introStep <= 1){ return; }
   _introStep--;
   renderApp();
-}
-function introPickMood(m){
-  _introMood = m;
-  // Auto-advance after a brief moment so the selection is visible
-  setTimeout(() => { _introStep = 3; renderApp(); }, 320);
 }
 function introFinish(){
   state.seen_intro = true;
@@ -4033,7 +4019,7 @@ function introSignInEmail(){
 
 function renderIntro(){
   const s = _introStep;
-  const pct = [0, 25, 58, 85, 100][s] || 0;
+  const pct = [0, 30, 65, 100][s] || 0;
   const showBack = s >= 2;
   const showProgress = s >= 2;
 
@@ -4074,31 +4060,6 @@ function renderIntro(){
       </div>`;
 
   } else if (s === 2){
-    // ── Mood question ──
-    const moods = [
-      {emoji:'😩', label:'Stressed — my bills are too high'},
-      {emoji:'🤔', label:'Unsure — I don\'t know what I\'m paying'},
-      {emoji:'😐', label:'Okay — but I want to do better'},
-      {emoji:'💪', label:'Optimising — I\'m all over it'},
-    ];
-    heroHTML = `
-      <div class="intro-hero" style="justify-content:flex-start;padding-top:24px">
-        <div class="intro-title" style="font-size:26px;text-align:left;margin-bottom:6px">How do you feel<br>about your energy bills?</div>
-        <div class="intro-mood-list">
-          ${moods.map(m => `
-            <div class="intro-mood-card ${_introMood===m.label?'sel':''}" onclick="introPickMood('${m.label.replace(/'/g,"\\'")}')">
-              <span style="font-size:22px">${m.emoji}</span>
-              <span>${m.label}</span>
-              <div class="mood-radio"></div>
-            </div>`).join('')}
-        </div>
-      </div>`;
-    footerHTML = `
-      <div class="intro-footer">
-        <button class="intro-cta" onclick="introNext()" ${_introMood?'':'disabled'}>Continue</button>
-      </div>`;
-
-  } else if (s === 3){
     // ── Features ──
     const feats = [
       { bg:'#0d2a1a', icon: `<svg viewBox="0 0 48 48" fill="none" stroke="#00e676" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M8 36V20"/><path d="M18 36V10"/><path d="M28 36V26"/><path d="M38 36V16"/></svg>`, title:'Find your cheapest tariff', body:'All Irish residential plans modelled against your actual usage — not averages.' },
@@ -4209,165 +4170,7 @@ function startOnboarding(){
   renderApp();
 }
 
-// ============================================================
-// EXPRESS MODE — "Brigid" persona. Max 2 questions → 1 answer.
-// No jargon. No kWh. No heating types. Just a bill and a supplier.
-// ============================================================
-function goExpress(){
-  state.express_step = 1;
-  state.express_bill = state.bimonthly_bill_eur || 180;
-  state.express_supplier = '';
-  state.current_screen = 'express';
-  saveState();
-  renderApp();
-}
 
-function expressNext(){
-  const billEl = document.getElementById('ex-bill');
-  if (billEl && +billEl.value >= 30) state.express_bill = Math.round(+billEl.value);
-  state.express_step = 2;
-  renderApp();
-}
-
-function expressPick(supplier){
-  state.express_supplier = supplier;
-  // Map supplier name to a typical plan id for the baseline
-  const map = {
-    'Electric Ireland':'EI-24','Bord Gáis':'BG-24','Energia':'EN-24',
-    'SSE Airtricity':'SSE-24','Yuno Energy':'YN-24','Flogas':'FL-24','Pinergy':'PN-24','Other':'EI-24'
-  };
-  state.baseline = map[supplier] || 'EI-24';
-  state.baseline_known = supplier !== 'Other';
-  // Estimate load from their bill using gas default (most common Irish heating)
-  state.heating_type = 'gas';
-  state.bimonthly_bill_eur = state.express_bill;
-  state.bills = inferBillsFromEuro(state.express_bill, 'gas');
-  state.has_solar = false; state.count_A = 0; state.battery_kwh = 0;
-  state.ev_active = false; state.ev_in_bill = false;
-  calibrateBillsToBaseline();
-  invalidate(); rebuildBase();
-  state.express_step = 3;
-  state.onboarding_complete = true;
-  state.current_screen = 'express';
-  saveState();
-  renderApp();
-}
-
-function expressToFull(){
-  state.express_step = 0;
-  state._express_hint = true;   // one-time orientation banner on Home (AUD-12)
-  state.current_screen = 'result';
-  saveState();
-  renderApp();
-}
-
-function renderExpress(){
-  const step = state.express_step || 1;
-
-  if (step === 1) return `
-    ${topbar('Quick answer', 'sage', false)}
-    <div class="screen" style="display:flex;flex-direction:column;min-height:75vh;justify-content:center;padding:30px 20px">
-      <button onclick="goLanding()" style="align-self:flex-start;margin-bottom:14px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-family:var(--display);font-size:12.5px;font-weight:600;color:var(--ink-soft);cursor:pointer">← Back</button>
-      <div style="font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.12em;text-transform:uppercase;font-weight:700;margin-bottom:12px">Step 1 of 2</div>
-      <h1 style="font-family:var(--display);font-size:28px;font-weight:800;color:var(--ink);line-height:1.2;margin-bottom:10px">How much is your electricity bill?</h1>
-      <p style="font-size:14px;color:var(--ink-soft);line-height:1.6;margin-bottom:28px">The amount on your electricity bill — the one from your electricity company. About every 2 months.</p>
-      <div style="position:relative;margin-bottom:12px">
-        <span style="position:absolute;left:18px;top:50%;transform:translateY(-50%);font-size:28px;color:var(--ink-soft);font-family:var(--mono)">€</span>
-        <input id="ex-bill" type="number" inputmode="numeric" value="${state.express_bill||180}" min="30" max="1200" step="10"
-          style="width:100%;padding:18px 16px 18px 50px;font-family:var(--mono);font-size:36px;font-weight:700;color:var(--ink);background:var(--panel);border:1.5px solid var(--line);border-radius:14px;box-sizing:border-box">
-      </div>
-      <p style="font-family:var(--mono);font-size:11px;color:var(--ink-dim);margin-bottom:32px;letter-spacing:.03em">Typical Irish home: €130–€280 every 2 months</p>
-      <button onclick="expressNext()" class="switch-cta" style="font-size:17px;padding:18px">Next →</button>
-      <button onclick="goFastPath()" style="margin-top:14px;padding:12px;font-size:13px;font-weight:600;font-family:var(--display);border:none;background:transparent;color:var(--ink-soft);text-decoration:underline;cursor:pointer">Want more detail? Use the full setup →</button>
-    </div>`;
-
-  if (step === 2){
-    const suppliers = ['Electric Ireland','Bord Gáis','Energia','SSE Airtricity','Yuno Energy','Flogas','Pinergy','Other'];
-    const icons = {'Electric Ireland':'⚡','Bord Gáis':'🔥','Energia':'🌿','SSE Airtricity':'💧','Yuno Energy':'☀️','Flogas':'🏠','Pinergy':'🔋','Other':'🏢'};
-    return `
-    ${topbar('Quick answer', 'sage', false)}
-    <div class="screen" style="padding:30px 20px">
-      <button onclick="state.express_step=1;renderApp()" style="margin-bottom:14px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-family:var(--display);font-size:12.5px;font-weight:600;color:var(--ink-soft);cursor:pointer">← Back</button>
-      <div style="font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.12em;text-transform:uppercase;font-weight:700;margin-bottom:12px">Step 2 of 2</div>
-      <h1 style="font-family:var(--display);font-size:28px;font-weight:800;color:var(--ink);line-height:1.2;margin-bottom:10px">Who is your electricity company?</h1>
-      <p style="font-size:14px;color:var(--ink-soft);line-height:1.6;margin-bottom:10px">It'll be on your bill — top of the first page.</p>
-      <button onclick="state._newcomer_open=!state._newcomer_open;renderApp()" style="margin-bottom:14px;padding:6px 0;border:none;background:transparent;font-family:var(--display);font-size:12.5px;font-weight:600;color:var(--blue);text-decoration:underline;cursor:pointer">New to Irish electricity? ${state._newcomer_open ? '▴' : '→'}</button>
-      ${state._newcomer_open ? `
-      <div style="background:var(--blue-soft);border:1px solid var(--blue);border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:12.5px;color:var(--ink);line-height:1.7">
-        All of these companies sell the <b>same electricity</b> over the same national grid — only the price differs. Switching is <b>free</b>, takes 10–15 working days, and your power is never interrupted. Bills usually arrive every <b>2 months</b>, and every plan includes the same standard levies.
-      </div>` : ''}
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        ${suppliers.map(s => `
-          <button onclick="expressPick('${s}')" style="padding:16px 12px;border-radius:14px;border:1.5px solid var(--line);background:var(--panel);cursor:pointer;text-align:left;font-family:var(--display)">
-            <div style="font-size:22px;margin-bottom:6px">${icons[s]}</div>
-            <div style="font-size:13.5px;font-weight:700;color:var(--ink);line-height:1.3">${s}</div>
-          </button>`).join('')}
-      </div>
-    </div>`;
-  }
-
-  if (step === 3){
-    const best = getBestPlan();
-    const basePlan = getPlanById(state.baseline);
-    const baseCost = Math.round(sumF(baselineSim(state.baseline).cost) + basePlan.standing);
-    const saving = Math.round(baseCost - best.net);
-    const bimonthly = Math.round(state.express_bill);
-    const newBimonthly = Math.round(best.net / 6);
-    const onBest = best.plan.id === state.baseline;
-
-    if (onBest || saving < 15) return `
-      ${topbar('Your result', 'sage', false)}
-      <div class="screen" style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:40px 24px;min-height:70vh;justify-content:center">
-        <div style="font-size:60px;margin-bottom:16px">✅</div>
-        <h1 style="font-family:var(--display);font-size:26px;font-weight:800;color:var(--ink);line-height:1.3;margin-bottom:12px">You're on a good deal.</h1>
-        <p style="font-size:15px;color:var(--ink-soft);line-height:1.6;margin-bottom:8px">${state.express_supplier || 'Your current supplier'} is already one of the better options for your usage.</p>
-        <p style="font-size:13px;color:var(--ink-dim);line-height:1.6;margin-bottom:32px">We checked all ${TARIFFS.filter(t=>!t.discontinued).length} plans available in Ireland today.</p>
-        <div style="background:var(--accent-faint);border:1px solid var(--accent);border-radius:14px;padding:18px 20px;width:100%;margin-bottom:24px;box-sizing:border-box">
-          <div style="font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">✓ Rates verified ${fmtShortDate(dataVerifiedDate())}</div>
-          <div style="font-size:13px;color:var(--ink-soft)">All ${TARIFFS.filter(t=>!t.discontinued).length} live Irish electricity plans checked</div>
-        </div>
-        <button onclick="expressToFull()" style="padding:14px 24px;border-radius:999px;font-size:13px;font-weight:700;font-family:var(--display);border:1px solid var(--line);background:transparent;color:var(--ink-soft);cursor:pointer">See the full picture →</button>
-      </div>
-      ${bottomNav()}`;
-
-    return `
-      ${topbar('Your result', 'sage', false)}
-      <div class="screen" style="padding:28px 20px">
-        <div style="background:var(--panel);border:1.5px solid var(--accent);border-radius:18px;padding:24px 20px;margin-bottom:18px;text-align:center">
-          <div style="font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:10px">● You could save</div>
-          <div style="font-family:var(--display);font-size:58px;font-weight:800;color:var(--accent);line-height:1" data-countup="${saving}" data-prefix="€">€${saving.toLocaleString()}</div>
-          <div style="font-family:var(--display);font-size:16px;color:var(--ink);font-weight:600;margin-top:4px">every year on electricity</div>
-          <div style="font-size:13px;color:var(--ink-soft);margin-top:10px;line-height:1.6">
-            Right now you pay about <b style="color:var(--ink)">€${bimonthly} every 2 months</b>.<br>
-            With <b style="color:var(--ink)">${best.plan.supplier}</b> you'd pay about <b style="color:var(--ink)">€${newBimonthly}</b> instead.
-          </div>
-        </div>
-
-        <div style="background:var(--well);border-radius:14px;padding:16px 18px;margin-bottom:18px">
-          <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px">Switch to</div>
-          <div style="font-size:17px;font-weight:700;color:var(--ink);margin-bottom:4px">${best.plan.supplier}</div>
-          <div style="font-size:13px;color:var(--ink-soft)">${best.plan.plan}</div>
-        </div>
-
-        <div style="font-size:13px;color:var(--ink-soft);line-height:1.7;background:var(--accent-faint);border-radius:12px;padding:14px 16px;margin-bottom:20px">
-          ${ic('checkC',14,'vertical-align:-2px;color:var(--accent)')} <b>Switching is free and takes 10–15 working days.</b><br>
-          ${ic('checkC',14,'vertical-align:-2px;color:var(--accent)')} You never lose power — your current supplier is notified automatically.<br>
-          ${ic('checkC',14,'vertical-align:-2px;color:var(--accent)')} Checked against all ${TARIFFS.filter(t=>!t.discontinued).length} live Irish plans · verified ${fmtShortDate(dataVerifiedDate())}
-        </div>
-
-        <button class="switch-cta" onclick="handleSwitchClick('${best.plan.id}','${best.plan.supplier} — ${best.plan.plan}',${saving})" style="font-size:16px;padding:18px">
-          Switch to ${best.plan.supplier} →
-        </button>
-        <p style="font-size:11px;color:var(--ink-dim);text-align:center;margin:10px 4px 0;line-height:1.6">Independent · ranked by your cost · we may earn a commission if you switch, which never changes the ranking</p>
-        <button onclick="expressToFull()" style="display:block;width:100%;margin-top:16px;padding:14px;border-radius:999px;font-size:13px;font-weight:600;font-family:var(--display);border:1px solid var(--line);background:transparent;color:var(--ink-soft);cursor:pointer">
-          See full detail (solar, EV, all plans) →
-        </button>
-      </div>
-      ${bottomNav()}`;
-  }
-
-  return renderResult();
-}
 
 function goFastPath(){
   // The 30-second quick answer is a no-solar electricity-only view. Clear any
@@ -5548,11 +5351,6 @@ function renderResult(){
   <div class="screen">
     ${renderStalenessBanner()}
     <div class="qr-hero">
-      ${state._express_hint ? `
-      <div onclick="state._express_hint=false;saveState();renderApp()" style="margin:-6px 0 12px;padding:10px 14px;background:var(--blue-soft);border:1px solid var(--blue);border-radius:12px;display:flex;align-items:center;gap:10px;cursor:pointer">
-        <div style="flex:1;font-size:12px;color:var(--ink);line-height:1.5">You're in the <b>full view</b> now — more detail, same numbers. Everything you entered is editable in Settings.</div>
-        <div style="font-family:var(--mono);font-size:14px;color:var(--ink-dim)">✕</div>
-      </div>` : ''}
       <div class="qr-eyebrow">You could save</div>
       <div class="qr-value" data-countup="${Math.round(annualSavings)}" data-prefix="€"><span data-countup-num>${fmtCurrency(annualSavings)}</span><span class="qr-value-unit">/yr</span></div>
       <div class="qr-headline">by switching to a better electricity plan</div>
@@ -9488,19 +9286,25 @@ function renderMonitor(){
   const total = rec.rankedCount;
   const countLabel = rec.countLabel;
   const on = state.monitoring_on !== false;
+  // Honest freshness: we re-run the comparison every time this screen opens,
+  // against tariff data that is refreshed upstream. There is no background
+  // job and no push channel — don't imply one.
+  const _vd = (TARIFFS || []).map(t => t.verified_date).filter(Boolean).sort();
+  const dataDate = _vd.length ? fmtVerifiedDate(_vd[_vd.length - 1]) : null;
+  const freshLine = dataDate ? `Re-checked just now · rates last verified ${dataDate}` : 'Re-checked just now';
 
   // status block
   let statusHtml;
   if (!on){
     statusHtml = `<div class="mon-status off">
       <div class="mon-status-eyebrow" style="color:var(--ink-soft)">○ Monitoring paused</div>
-      <div class="mon-status-line">We're not watching the market for you right now. Turn monitoring on and we'll re-check every Irish tariff whenever rates change.</div>
+      <div class="mon-status-line">Market checks are hidden. Turn them back on and we'll re-rank every Irish tariff against your usage each time you open the app.</div>
     </div>`;
   } else if (onBest || savings < 1){
     statusHtml = `<div class="mon-status good">
       <div class="mon-status-eyebrow">✓ You're on your best plan</div>
       <div class="mon-status-line">Checked against ${countLabel} for your exact home. Nothing currently beats <b>${baselinePlan.supplier} — ${baselinePlan.plan}</b>.</div>
-      <div class="mon-status-meta">Last checked just now · we'll tell you the moment that changes</div>
+      <div class="mon-status-meta">${freshLine} · open the app any time for a fresh check</div>
     </div>`;
   } else {
     statusHtml = `<div class="mon-status action">
@@ -9595,14 +9399,14 @@ function renderMonitor(){
     <div class="section-title">Recent activity</div>
     <div class="mon-timeline">${timelineHtml}</div>
 
-    <div class="section-title">What we'll alert you about</div>
+    <div class="section-title">What we check for you</div>
     <div class="mon-watch">
-      <div class="mon-watch-item"><span class="mon-watch-ic">${ic('bolt',14)}</span><div><b>A better plan appears.</b> A new or repriced tariff beats your current one for your usage.</div></div>
-      <div class="mon-watch-item"><span class="mon-watch-ic">${ic('bell',14)}</span><div><b>Your contract is ending.</b> Before you roll onto a default rate, we prompt a re-check.</div></div>
+      <div class="mon-watch-item"><span class="mon-watch-ic">${ic('bolt',14)}</span><div><b>A better plan appeared.</b> A new or repriced tariff now beats your current one for your usage.</div></div>
+      <div class="mon-watch-item"><span class="mon-watch-ic">${ic('bell',14)}</span><div><b>Your contract is ending.</b> Before you roll onto a default rate, we flag it here so you can re-check.</div></div>
       <div class="mon-watch-item"><span class="mon-watch-ic">${ic('sun',14)}</span><div><b>Seasonal solar insight.</b> If you have panels, how your roof performed and what it saved.</div></div>
     </div>
-    <div style="font-family:var(--mono);font-size:10px;color:var(--ink-dim);text-align:center;margin-top:12px;letter-spacing:.04em;line-height:1.6">
-      We interrupt you rarely, and only when it's worth acting.<br>An advisor who sometimes says "sit tight" is one you can trust.
+    <div style="font-size:11px;color:var(--ink-soft);text-align:center;margin-top:12px;line-height:1.6;padding:0 6px">
+      These checks run here, in the app — we don't email you or send push notifications, and there's no account required. Open Monitor whenever you want a fresh read.
     </div>
 
     <div class="secondary-card blue" onclick="setScreen('independence')" style="margin-top:16px">
@@ -9620,7 +9424,7 @@ function renderMonitor(){
 function toggleMonitoring(){
   state.monitoring_on = !(state.monitoring_on !== false);
   saveState();
-  showToast(state.monitoring_on ? 'Monitoring on — we\u2019ll watch the market for you' : 'Monitoring paused',
+  showToast(state.monitoring_on ? 'Market checks on — re-ranked every time you open the app' : 'Market checks hidden',
     { type: state.monitoring_on ? 'accent' : 'blue', icon: state.monitoring_on ? ic('checkC',16) : ic('radar',16) });
   renderApp();
 }
@@ -10244,8 +10048,54 @@ function bottomNav(){
   </div>`;
 }
 
+/* ============================================================
+   BROWSER HISTORY — the platform Back gesture/button walks the
+   in-app screen stack instead of leaving the app. Screens are
+   pushed as hash entries; the ?s= share param is left untouched.
+   ============================================================ */
+const APP_SCREENS = ['result','plans','plan-detail','solar','analytics','monitor',
+                     'compare','more','independence','quotes','auditor','refine',
+                     'how-to-switch','methodology','csv-import'];
+
+// Set while we are reacting to a popstate, so restoring a screen doesn't
+// push a fresh entry and trap the user in a loop.
+let _suppressHistoryPush = false;
+
+function _histDepth(){ return (history.state && +history.state.depth) || 0; }
+function _hashScreen(){
+  const h = (location.hash || '').replace(/^#/, '');
+  return APP_SCREENS.indexOf(h) >= 0 ? h : null;
+}
+
+function pushScreenHistory(name){
+  if (_suppressHistoryPush) return;
+  if (APP_SCREENS.indexOf(name) < 0) return;
+  try { history.pushState({ screen: name, depth: _histDepth() + 1 }, '', '#' + name); } catch(e){}
+}
+
+// Screens are also set by direct assignment in a few places (exploreSolar,
+// onboarding exit). Keep the URL honest for those without inventing a back
+// entry the user never created.
+function syncScreenHistory(){
+  if (_suppressHistoryPush || !state.onboarding_complete) return;
+  const cur = state.current_screen;
+  if (APP_SCREENS.indexOf(cur) < 0 || _hashScreen() === cur) return;
+  try { history.replaceState({ screen: cur, depth: _histDepth() }, '', '#' + cur); } catch(e){}
+}
+
+window.addEventListener('popstate', function(e){
+  const target = (e.state && e.state.screen) || _hashScreen();
+  // Nothing of ours left on the stack — let the browser leave the app.
+  if (!target || !state.onboarding_complete) return;
+  _suppressHistoryPush = true;
+  try { setScreen(target); } finally { _suppressHistoryPush = false; }
+});
+
 function goBack(){
   const t = state._return_to;
+  // Prefer real history so Back and the topbar arrow agree; _return_to is an
+  // explicit override used when a screen was opened as a sub-view.
+  if (!t && _histDepth() > 0){ history.back(); return; }
   delete state._return_to;
   setScreen(t || 'result');
 }
@@ -10267,6 +10117,7 @@ function setScreen(name){
   }
   state.current_screen = name;
   saveState();
+  pushScreenHistory(name);
   trackPageView(name);
   if (name === 'solar' && maybeAutoPaybackView()) return;
   renderApp();
@@ -10520,13 +10371,6 @@ function renderApp(){
   if (_renderDebounceTimer){ clearTimeout(_renderDebounceTimer); _renderDebounceTimer = null; }
   applyTheme();
   const root = document.getElementById('app-root');
-  // Express mode — no-jargon 2-step flow for Persona 6
-  if (state.current_screen === 'express'){
-    root.innerHTML = renderExpress();
-    const k = 'express-' + (state.express_step || 1);
-    if (window.__lastScreen !== k){ runCountUps(root); window.__lastScreen = k; }
-    return;
-  }
   // Intro onboarding — first-time users only
   if (state.current_screen === 'intro'){
     root.setAttribute('data-chrome','bare');
@@ -10612,6 +10456,7 @@ function renderApp(){
     modalEl.innerHTML = modalHtml;
     document.body.appendChild(modalEl);
   }
+  syncScreenHistory();
 }
 
 /* ============================================================
@@ -10624,6 +10469,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (loader) loader.remove();
     // Sprint 2 H5 — try to restore shared URL state before anything else
     tryRestoreFromUrl();
+    // Reopen the screen named in the URL hash (bookmark, refresh, or a Back
+    // that landed on our first entry) rather than always dropping on Home.
+    if (state.onboarding_complete){
+      const _h = _hashScreen();
+      if (_h) state.current_screen = _h;
+    }
     // Apply saved region (or default east) so engine has the right GHI from boot
     applyRegion(state.region || 'east');
     // Recover onboarding state from saved state if mid-flow
@@ -11650,10 +11501,6 @@ window.fpCycle = fpCycle;
 window.setTheme = setTheme;
 window.goFastPath = goFastPath;
 window.goLanding = goLanding;
-window.goExpress = goExpress;
-window.expressNext = expressNext;
-window.expressPick = expressPick;
-window.expressToFull = expressToFull;
 window.reRunOnboarding = reRunOnboarding;
 window.solarEstCycle = solarEstCycle;
 window.goRefineSolar = goRefineSolar;
