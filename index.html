@@ -2781,8 +2781,8 @@ function invalidate(){
    9. EV ECONOMICS
    ============================================================ */
 function evEconomics(planId){
-  if (!state.ev_active || state.ev_km_per_year <= 0) return null;
-  const km = state.ev_km_per_year;
+  if (!state.ev_active) return null;
+  const km = Math.max(0, +state.ev_km_per_year || 0);
   const evKwhPer100 = state.ev_kwh_per_100km || 17;
   const iceL = state.ice_l_per_100km || 6.0;
   const fuel = state.fuel_price || 1.83;
@@ -6312,7 +6312,7 @@ function renderSolarDashboard(){
     </button>
     <div class="switch-cta-sub">Same plan whether or not you install solar</div>
 
-    ${state.ev_active ? `
+    ${state.ev_active && econ ? `
       <div class="ev-banner">
         <div class="ev-banner-icon">${ic('car',20)}</div>
         <div>
