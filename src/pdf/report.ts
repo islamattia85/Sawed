@@ -89,6 +89,8 @@ export interface ReportData {
   };
   /** Share of the annual bill falling in the dearest 10% of hours. */
   peakConcentration?: number;
+  /** Export price and the cheapest price the plan lets you buy at, euro/kWh. */
+  arbitrage?: { exportRate: number; cheapestImport: number; cheapestBand: string };
   /** Levers the reader can pull, and what each is worth. */
   levers?: { label: string; effect: string; value: number; note?: string }[];
   switchSteps: { title: string; body: string }[];
@@ -510,10 +512,30 @@ function chDays(d: Doc, r: ReportData) {
     d.y += lines(2);
   }
 
+  /**
+   * A battery that is full for much of the year looks like a fault, and on
+   * most tariffs it is one. But whether it costs anything depends entirely on
+   * whether the plan pays more to export than it charges to import at the
+   * cheapest hour — and on an EV tariff it frequently does. Asserting the
+   * usual story without checking that would have been wrong here.
+   */
   if (r.battery && r.battery.hoursFull > 2000) {
-    d.paragraph(
-      `Your battery sits full for ${r.battery.hoursFull.toLocaleString('en-IE')} hours of the year. A battery that is already full when the sun comes up cannot absorb the day\u2019s generation, which is then exported at the lower rate instead of displacing something you would have bought. The table in the next section puts a figure on what changing that is worth.`,
-      TYPE.body!);
+    const hrs = r.battery.hoursFull.toLocaleString('en-IE');
+    const a = r.arbitrage;
+    if (a && a.exportRate > a.cheapestImport) {
+      const spread = (a.exportRate - a.cheapestImport) * 100;
+      d.paragraph(
+        `Your battery sits full for ${hrs} hours of the year, which usually signals a system that is not working. Here it is deliberate. This plan pays ${(a.exportRate * 100).toFixed(1)}c to export but only charges ${(a.cheapestImport * 100).toFixed(1)}c to buy during its ${a.cheapestBand} window, so selling the surplus and buying it back later earns ${spread.toFixed(1)}c on every unit. The battery is being used to move cheap electricity into expensive hours, not to store your own generation — and on these rates that is the more profitable of the two.`,
+        TYPE.body!);
+      d.skip(0.5);
+      d.paragraph(
+        `This depends on the export rate staying above the cheap-window rate. If that gap closes — and export rates are set by suppliers, not regulated — the arithmetic reverses and storing your own generation becomes the better use of the battery. The table in the next section prices that.`,
+        TYPE.caption!);
+    } else {
+      d.paragraph(
+        `Your battery sits full for ${hrs} hours of the year. A battery that is already full when the sun comes up cannot absorb the day\u2019s generation, so that surplus is exported${a ? ` at ${(a.exportRate * 100).toFixed(1)}c` : ''} instead of displacing electricity you would otherwise have bought${a ? ` at ${(a.cheapestImport * 100).toFixed(1)}c or more` : ''}. The table in the next section puts a figure on what changing that is worth.`,
+        TYPE.body!);
+    }
     d.skip(0.6);
   }
 }

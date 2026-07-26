@@ -168,6 +168,21 @@ export function buildReportData(ctx) {
   }
   if (ctx.levers?.length) data.levers = ctx.levers;
 
+  // Whether a full battery is a problem depends on the spread between what
+  // this plan pays to export and the least it lets you buy for.
+  {
+    const rr = best.plan.rates || {};
+    const entries = Object.entries(rr).filter(([, v]) => typeof v === 'number' && v > 0);
+    if (entries.length && best.plan.export_rate != null) {
+      const [band, cheapest] = entries.reduce((a, b) => (b[1] < a[1] ? b : a));
+      data.arbitrage = {
+        exportRate: best.plan.export_rate,
+        cheapestImport: cheapest,
+        cheapestBand: band === 'ev' ? 'EV-charging' : band === 'night' ? 'night' : band === 'wfh' ? 'working-hours' : band,
+      };
+    }
+  }
+
   if (econ && econ.netSaving !== 0) {
     data.ev = {
       electricityIncrease: econ.evElectricityCost || 0,
