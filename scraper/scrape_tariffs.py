@@ -21,7 +21,7 @@ from bs4 import BeautifulSoup
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
-TARIFFS_PATH = Path(__file__).parent.parent / "tariffs.json"
+TARIFFS_PATH = Path(__file__).parent.parent / "public" / "tariffs.json"
 TODAY = date.today().isoformat()
 HEADERS = {
     "User-Agent": (
