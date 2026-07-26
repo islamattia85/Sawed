@@ -6420,7 +6420,78 @@ function doGeneratePdf(email){
       ];
     } catch(e){ sensitivity = null; }
 
+    // Levers: each one re-runs the full 8,760-hour simulation with a single
+    // input changed. Nothing here is estimated — a lever that cannot be
+    // simulated is not offered, because a plausible-looking number the engine
+    // never produced is worse than no number at all.
+    const levers = [];
+    try {
+      const baseNet = best.net;
+      const trial = (mutate, restore) => {
+        mutate();
+        invalidate(); rebuildBase();
+        const v = getBestPlan().net;
+        restore();
+        invalidate(); rebuildBase();
+        return baseNet - v;   // positive = better off after the change
+      };
+
+      if (state.has_solar && totalPanels() > 0){
+        const savedBatt = state.battery_kwh;
+        levers.push({
+          label: 'Add 5 kWh more battery storage',
+          effect: 'More evening demand met from store',
+          value: trial(() => { state.battery_kwh = savedBatt + 5; },
+                       () => { state.battery_kwh = savedBatt; }),
+          note: 'Energy benefit only — before the cost of the battery itself.',
+        });
+        if (savedBatt > 0){
+          levers.push({
+            label: 'Remove the battery entirely',
+            effect: 'All evening demand bought from the grid',
+            value: trial(() => { state.battery_kwh = 0; },
+                         () => { state.battery_kwh = savedBatt; }),
+          });
+        }
+        const savedPanels = state.count_A;
+        levers.push({
+          label: 'Add four more panels',
+          effect: 'More generation, more of it exported',
+          value: trial(() => { state.count_A = savedPanels + 4; },
+                       () => { state.count_A = savedPanels; }),
+        });
+
+        // Grid-charging arbitrage fills the battery overnight, which can leave
+        // no room for the day's generation. Worth showing what it is actually
+        // earning rather than assuming it helps.
+        if (savedBatt > 0 && state.charge_from_grid){
+          const savedMode = state.strategy_mode, savedCfg = state.charge_from_grid;
+          levers.push({
+            label: 'Stop charging the battery from the grid',
+            effect: 'Battery kept free for the day\u2019s solar',
+            value: trial(() => { state.strategy_mode = 'self-consume'; state.charge_from_grid = false; },
+                         () => { state.strategy_mode = savedMode; state.charge_from_grid = savedCfg; }),
+          });
+        }
+      }
+
+      const savedExport = getPlanById(best.plan.id).export_rate;
+      if (savedExport != null){
+        const plan = getPlanById(best.plan.id);
+        levers.push({
+          label: 'Export rate falls by a third',
+          effect: 'Less earned on unused surplus',
+          value: trial(() => { plan.export_rate = savedExport * (2 / 3); },
+                       () => { plan.export_rate = savedExport; }),
+          note: 'Export rates are set by suppliers and are not guaranteed.',
+        });
+      }
+    } catch(e){ /* levers are additive; a failure must not block the report */ }
+
     const data = buildReportData({
+      hourly: (best.sim || sim(best.plan.id)),
+      levers: levers.filter(l => Number.isFinite(l.value) && Math.abs(l.value) >= 1)
+                    .map(l => ({ ...l, value: Math.round(l.value) })),
       state, best, baselinePlan, baseCost, saving, annualKwh, econ,
       ranked: rec.ranked,
       bestDayProfile: profileFor(best.plan),
@@ -9710,6 +9781,8 @@ window.TARIFFS = TARIFFS;
 window.rebuildBase = rebuildBase;
 window.applyRegion = applyRegion;
 window.getRecommendation = getRecommendation;
+window.getBestPlan = getBestPlan;
+window.sim = sim;
 window.bandAt = bandAt;
 window.calcNPV20 = calcNPV20;
 

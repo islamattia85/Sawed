@@ -376,3 +376,177 @@ export function splitBar(
   d.y += lines(1.2);
   if (opts.caption) { d.text(opts.caption, d.left, d.y, TYPE.caption!); d.y += lines(1); }
 }
+
+/**
+ * Stacked month columns: consumption behind, generation in front, so the
+ * reader sees at a glance the months where the array covers the house and the
+ * months where it cannot.
+ */
+export function monthlyEnergyChart(
+  d: Doc,
+  rows: { month: string; generated: number; consumed: number; imported: number }[],
+  opts: { height?: number; caption?: string } = {},
+) {
+  if (!rows.length) return;
+  const h = opts.height ?? lines(11);
+  d.ensure(h + lines(5));
+  const axisW = 14;
+  const x0 = d.left + axisW;
+  const plotW = d.width - axisW;
+  const base = d.y + h;
+  const max = Math.max(1, ...rows.flatMap((r) => [r.generated, r.consumed]));
+
+  for (let i = 0; i <= 2; i += 1) {
+    const gy = base - (i / 2) * h;
+    d.stroke(i === 0 ? RULE : RULE_SOFT).weight(LW.hair);
+    d.doc.line(x0, gy, d.right, gy);
+    d.text(Math.round((max * i) / 2).toLocaleString('en-IE'), x0 - 2.5, gy + 1,
+      { ...TYPE.micro!, align: 'right' });
+  }
+
+  const slot = plotW / rows.length;
+  const bw = slot * 0.34;
+  rows.forEach((r, i) => {
+    const cx = x0 + i * slot + slot / 2;
+    // Consumption sits behind as a light column; generation in front.
+    d.fill(RULE_SOFT);
+    d.doc.rect(cx - bw, base - (r.consumed / max) * h, bw * 2, (r.consumed / max) * h, 'F');
+    d.fill(ACCENT);
+    d.doc.rect(cx - bw * 0.55, base - (r.generated / max) * h, bw * 1.1, (r.generated / max) * h, 'F');
+    d.text(r.month, cx, base + 3.4, { ...TYPE.micro!, align: 'center', maxWidth: slot });
+  });
+
+  d.y = base + lines(1.6);
+  let lx = d.left;
+  for (const [c, t] of [[RULE_SOFT, 'What the house used'], [ACCENT, 'What the panels made']] as const) {
+    d.fill(c as Rgb);
+    d.doc.rect(lx, d.y - 2, 2.4, 2.4, 'F');
+    lx += d.text(t as string, lx + 3.8, d.y, { ...TYPE.micro!, color: INK_MID }) + 15;
+  }
+  d.y += lines(1.2);
+  if (opts.caption) { d.paragraph(opts.caption, TYPE.caption!); }
+}
+
+/**
+ * One day, hour by hour: generation, household demand, and battery state of
+ * charge. This is the view that makes a year of aggregates feel like a place
+ * someone lives.
+ */
+export function dayChart(
+  d: Doc,
+  p: {
+    label: string; generation: number[]; consumption: number[];
+    gridImport: number[]; gridExport: number[]; soc: number[];
+  },
+  opts: { height?: number; showSoc?: boolean; width?: number; x?: number } = {},
+) {
+  const h = opts.height ?? lines(7);
+  const left = opts.x ?? d.left;
+  const x0 = left + 9;
+  // Reserve a gutter on the right when a second axis is drawn, so the SOC
+  // scale has somewhere to live instead of being implied.
+  const socAxis = !!opts.showSoc && p.soc.some((v) => v > 0.01);
+  const plotW = (opts.width ?? d.width) - 9 - (socAxis ? 9 : 0);
+  const base = d.y + h;
+  const max = Math.max(0.3, ...p.generation, ...p.consumption);
+
+  d.text(p.label, left, d.y - 1.5, { ...TYPE.microBold!, color: INK });
+
+  for (let i = 0; i <= 2; i += 1) {
+    const gy = base - (i / 2) * h;
+    d.stroke(i === 0 ? RULE : RULE_SOFT).weight(LW.hair);
+    d.doc.line(x0, gy, x0 + plotW, gy);
+    if (i > 0) d.text(((max * i) / 2).toFixed(1), x0 - 1.5, gy + 1, { ...TYPE.micro!, align: 'right' });
+  }
+  d.text('kW', x0 - 1.5, base + 3, { ...TYPE.micro!, align: 'right' });
+
+  d.fill(ACCENT_TINT);
+  for (let hr = 0; hr < 24; hr += 1) {
+    const v = p.generation[hr] ?? 0;
+    if (v <= 0) continue;
+    d.doc.rect(x0 + (hr / 24) * plotW, base - (v / max) * h, plotW / 24, (v / max) * h, 'F');
+  }
+
+  d.stroke(SERIES).weight(LW.chart);
+  for (let hr = 0; hr < 24; hr += 1) {
+    const x1 = x0 + (hr / 24) * plotW;
+    const x2 = x0 + ((hr + 1) / 24) * plotW;
+    const y = base - ((p.consumption[hr] ?? 0) / max) * h;
+    d.doc.line(x1, y, x2, y);
+    if (hr > 0) d.doc.line(x1, base - ((p.consumption[hr - 1] ?? 0) / max) * h, x1, y);
+  }
+
+  /**
+   * State of charge is a percentage, not a power, so it gets its own axis on
+   * the right. Sharing the kW axis made a full battery look like a demand
+   * spike — the line simply ran to the top of the frame with nothing to say
+   * what it meant.
+   */
+  if (socAxis) {
+    const ax = x0 + plotW;
+    d.stroke(SERIES_ALT).weight(LW.hair);
+    for (let hr = 1; hr < 24; hr += 1) {
+      d.doc.line(
+        x0 + ((hr - 1) / 24) * plotW, base - (p.soc[hr - 1] ?? 0) * h,
+        x0 + (hr / 24) * plotW, base - (p.soc[hr] ?? 0) * h,
+      );
+    }
+    d.text('100%', ax + 1.5, base - h + 1, { ...TYPE.micro!, color: SERIES_ALT });
+    d.text('0%', ax + 1.5, base + 1, { ...TYPE.micro!, color: SERIES_ALT });
+  }
+
+  for (const hr of [0, 6, 12, 18, 24]) {
+    d.text(String(hr).padStart(2, '0'), x0 + (hr / 24) * plotW, base + 3,
+      { ...TYPE.micro!, align: hr === 0 ? 'left' : hr === 24 ? 'right' : 'center' });
+  }
+  d.y = base + lines(1.5);
+}
+
+/** Key for the day charts, so each mark is named once rather than guessed at. */
+export function dayChartLegend(d: Doc, withSoc: boolean) {
+  d.ensure(lines(2));
+  let lx = d.left;
+  d.fill(ACCENT_TINT);
+  d.doc.rect(lx, d.y - 2.2, 3, 2.4, 'F');
+  lx += d.text('generated by the panels', lx + 4.4, d.y, { ...TYPE.micro!, color: INK_MID }) + 12;
+  d.stroke(SERIES).weight(LW.chart);
+  d.doc.line(lx, d.y - 1, lx + 5, d.y - 1);
+  lx += d.text('household demand', lx + 6.5, d.y, { ...TYPE.micro!, color: INK_MID }) + 18;
+  if (withSoc) {
+    d.stroke(SERIES_ALT).weight(LW.hair);
+    d.doc.line(lx, d.y - 1, lx + 5, d.y - 1);
+    d.text('battery charge, right axis', lx + 6.5, d.y, { ...TYPE.micro!, color: INK_MID });
+  }
+  d.y += lines(1.4);
+}
+
+/** Horizontal bars for a small categorical breakdown, e.g. cost by band. */
+export function barBreakdown(
+  d: Doc,
+  rows: { label: string; value: number; note?: string }[],
+  opts: { color?: Rgb; format?: (v: number) => string; caption?: string } = {},
+) {
+  if (!rows.length) return;
+  const fmt = opts.format ?? ((v: number) => eur(v));
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  const labelW = 34;
+  const valueW = 26;
+  const trackW = d.width - labelW - valueW - 6;
+  rows.forEach((r) => {
+    d.ensure(lines(1.6));
+    d.text(r.label, d.left, d.y, { ...TYPE.data!, maxWidth: labelW - 2 });
+    d.fill(RULE_SOFT);
+    d.doc.rect(d.left + labelW, d.y - 2.4, trackW, 2.6, 'F');
+    d.fill(opts.color ?? ACCENT);
+    d.doc.rect(d.left + labelW, d.y - 2.4, Math.max(0.5, (r.value / max) * trackW), 2.6, 'F');
+    d.text(fmt(r.value), d.right, d.y, { ...TYPE.dataBold!, align: 'right' });
+    d.y += lines(1);
+    if (r.note) {
+      d.text(r.note, d.left + labelW, d.y, { ...TYPE.micro! });
+      d.y += lines(0.85);
+    }
+  });
+  d.y += lines(0.4);
+  if (opts.caption) { d.paragraph(opts.caption, TYPE.caption!); }
+}
+

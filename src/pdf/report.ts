@@ -16,6 +16,7 @@ import {
 import {
   chapter, heading, label, pullFigure, table, cellBar, definitions, callout,
   columnChart, rateProfile, cashFlow, splitBar, eur, kwh, signed, type Column,
+  monthlyEnergyChart, dayChart, dayChartLegend, barBreakdown,
 } from './blocks.js';
 
 export interface RankedPlan {
@@ -61,6 +62,35 @@ export interface ReportData {
     electricityIncrease: number; petrolAvoided: number; netSaving: number;
     km: number; fuelPrice: number; efficiency: number;
   };
+  /** Month-by-month energy and money, from the hourly simulation. */
+  months?: {
+    month: string; generated: number; consumed: number; selfUsed: number;
+    imported: number; exported: number; cost: number; revenue: number;
+    selfSufficiency: number; selfConsumption: number;
+  }[];
+  /** Representative days across the seasons. */
+  days?: {
+    label: string; generation: number[]; consumption: number[];
+    gridImport: number[]; gridExport: number[]; soc: number[];
+    peakGeneration: number; peakConsumption: number;
+    totalImported: number; totalExported: number;
+  }[];
+  /** Import cost split by tariff band. */
+  bands?: { band: string; kwh: number; cost: number; hours: number; effectiveRate: number }[];
+  /** How hard the battery works across the year. */
+  battery?: {
+    capacity: number; charged: number; discharged: number; equivalentCycles: number;
+    roundTripEfficiency: number; hoursFull: number; hoursEmpty: number; idleShare: number;
+  } | null;
+  /** Year-level ratios. */
+  year?: {
+    selfSufficiency: number; selfConsumption: number; specificYield: number;
+    bestMonth: string; worstMonth: string; seasonalSwing: number;
+  };
+  /** Share of the annual bill falling in the dearest 10% of hours. */
+  peakConcentration?: number;
+  /** Levers the reader can pull, and what each is worth. */
+  levers?: { label: string; effect: string; value: number; note?: string }[];
   switchSteps: { title: string; body: string }[];
   supplierUrl?: string;
   methodology: { term: string; value: string }[];
@@ -410,6 +440,143 @@ function appendix(d: Doc, r: ReportData) {
   });
 }
 
+
+/* ── the year in detail ──────────────────────────────────────────────────── */
+
+function chYear(d: Doc, r: ReportData) {
+  if (!r.months?.length) return;
+  const y = r.year;
+  chapter(d, 'Performance', 'Your year, month by month',
+    'A solar system in Ireland does not deliver evenly. These are the twelve months as the simulation produced them, hour by hour, on your own consumption.');
+
+  monthlyEnergyChart(d, r.months, {
+    caption: 'Generation against household consumption, kWh per month. Where the dark column falls short of the pale one, the shortfall came from the grid.',
+  });
+
+  if (y) {
+    d.paragraph(
+      `${y.bestMonth} is your strongest month and ${y.worstMonth} your weakest, a swing of about ${y.seasonalSwing.toFixed(1)}:1. That range is normal at this latitude and it is the reason a system sized for winter would be absurdly oversized for summer. Across the year the array returns ${Math.round(y.specificYield)} kWh for every kWp installed.`,
+      TYPE.body!);
+    d.skip(0.6);
+  }
+
+  const cols: Column[] = [
+    { head: 'Month', width: 16, cell: (row: never) => (row as { month: string }).month },
+    { head: 'Generated', width: 0, align: 'right', cell: (row: never) => Math.round((row as { generated: number }).generated).toLocaleString('en-IE') },
+    { head: 'Used', width: 22, align: 'right', cell: (row: never) => Math.round((row as { consumed: number }).consumed).toLocaleString('en-IE') },
+    { head: 'From solar', width: 24, align: 'right', cell: (row: never) => Math.round((row as { selfUsed: number }).selfUsed).toLocaleString('en-IE') },
+    { head: 'Imported', width: 22, align: 'right', cell: (row: never) => Math.round((row as { imported: number }).imported).toLocaleString('en-IE') },
+    { head: 'Exported', width: 22, align: 'right', cell: (row: never) => Math.round((row as { exported: number }).exported).toLocaleString('en-IE') },
+    {
+      head: 'Self-suff.', width: 22, align: 'right',
+      cell: (row: never) => `${Math.round((row as { selfSufficiency: number }).selfSufficiency * 100)}%`,
+      color: (row: never) => ((row as { selfSufficiency: number }).selfSufficiency > 0.5 ? ACCENT : INK),
+    },
+  ];
+  table(d, r.months, cols, {
+    caption: 'Energy balance by month, kWh',
+    note: 'Self-sufficiency is the share of what the house used that did not have to be bought. It is the number that falls hardest in winter, and no battery size changes that — in December there is simply little to store.',
+  });
+}
+
+function chDays(d: Doc, r: ReportData) {
+  if (!r.days?.length) return;
+  heading(d, 'Four days across the year', lines(30));
+  d.paragraph(
+    'Annual totals hide the thing that actually determines your bill: when the electricity arrives and when you need it. These are four real days from the simulation — the pale area is what the panels produced, the line is what the house drew.',
+    TYPE.body!);
+  d.skip(0.4);
+  dayChartLegend(d, !!r.battery);
+  d.skip(0.4);
+
+  const half = (d.width - 8) / 2;
+  for (let i = 0; i < r.days.length; i += 2) {
+    const pair = r.days.slice(i, i + 2);
+    d.ensure(lines(11));
+    const top = d.y;
+    let maxY = d.y;
+    pair.forEach((p, j) => {
+      d.y = top;
+      dayChart(d, p, { width: half, x: d.left + j * (half + 8), showSoc: !!r.battery });
+      maxY = Math.max(maxY, d.y);
+    });
+    d.y = maxY;
+    // Per-chart summary line, aligned under each.
+    pair.forEach((p, j) => {
+      const x = d.left + j * (half + 8);
+      d.text(`peak ${p.peakGeneration.toFixed(1)} kW  ·  imported ${p.totalImported.toFixed(1)} kWh  ·  exported ${p.totalExported.toFixed(1)} kWh`,
+        x, d.y, { ...TYPE.micro!, maxWidth: half });
+    });
+    d.y += lines(2);
+  }
+
+  if (r.battery && r.battery.hoursFull > 2000) {
+    d.paragraph(
+      `Your battery sits full for ${r.battery.hoursFull.toLocaleString('en-IE')} hours of the year. A battery that is already full when the sun comes up cannot absorb the day\u2019s generation, which is then exported at the lower rate instead of displacing something you would have bought. The table in the next section puts a figure on what changing that is worth.`,
+      TYPE.body!);
+    d.skip(0.6);
+  }
+}
+
+function chWhereMoneyGoes(d: Doc, r: ReportData) {
+  if (!r.bands?.length) return;
+  chapter(d, 'Analysis', 'Where the money actually goes',
+    'Not every kilowatt-hour costs the same. This is your annual import cost split by the rate band it fell in, on the recommended plan.');
+
+  barBreakdown(d, r.bands.map((b) => ({
+    label: b.band === 'day' ? 'Day rate' : b.band === 'night' ? 'Night rate'
+      : b.band === 'peak' ? 'Peak rate' : b.band === 'ev' ? 'EV window' : 'Working hours',
+    value: b.cost,
+    note: `${Math.round(b.kwh).toLocaleString('en-IE')} kWh at an effective ${(b.effectiveRate * 100).toFixed(1)}c`,
+  })), { color: DEBIT, caption: 'Annual import cost by rate band, excluding the standing charge.' });
+
+  if (r.peakConcentration != null && r.peakConcentration > 0) {
+    d.paragraph(
+      `The dearest 10% of hours account for ${Math.round(r.peakConcentration * 100)}% of what you spend on electricity. ${r.peakConcentration > 0.25
+        ? 'That concentration is what makes a time-of-use tariff worth having: moving even a little demand out of those hours has a disproportionate effect.'
+        : 'Your demand is spread fairly evenly, which limits how much any time-of-use tariff can do for you — the gain comes mostly from the headline rate rather than from shifting load.'}`,
+      TYPE.body!);
+    d.skip(0.6);
+  }
+
+  if (r.battery) {
+    const b = r.battery;
+    heading(d, 'How hard the battery works');
+    definitions(d, [
+      { term: 'Energy cycled through the battery', value: kwh(b.discharged) },
+      { term: 'Full equivalent cycles a year', value: b.equivalentCycles.toFixed(0), note: 'Most manufacturers warrant somewhere near 6,000 cycles over the life of the pack.' },
+      { term: 'Round-trip efficiency achieved', value: `${Math.round(b.roundTripEfficiency * 100)}%` },
+      { term: 'Hours sitting full', value: `${b.hoursFull.toLocaleString('en-IE')} of 8,760`, note: b.hoursFull > 1500 ? 'A battery that is often full has spare capacity you are not using — the constraint is generation or demand, not storage.' : undefined },
+      { term: 'Hours sitting empty', value: `${b.hoursEmpty.toLocaleString('en-IE')} of 8,760`, note: b.hoursEmpty > 3000 ? 'A battery that is often empty is working at its limit; a larger one would displace more grid import.' : undefined },
+    ]);
+  }
+}
+
+function chLevers(d: Doc, r: ReportData) {
+  if (!r.levers?.length) return;
+  chapter(d, 'Variables', 'What would change these numbers',
+    'Every figure in this report rests on assumptions. These are the ones that move the answer most, each re-simulated rather than estimated.');
+
+  const cols: Column[] = [
+    { head: 'Change', width: 0, cell: (row: never) => (row as { label: string }).label },
+    { head: 'What changes', width: 68, cell: (row: never) => (row as { effect: string }).effect },
+    {
+      head: 'Worth', width: 26, align: 'right',
+      cell: (row: never) => signed((row as { value: number }).value),
+      color: (row: never) => ((row as { value: number }).value >= 0 ? ACCENT : DEBIT),
+      bold: () => true,
+    },
+  ];
+  table(d, r.levers, cols, {
+    note: 'Each row re-runs the full 8,760-hour simulation with one input changed and everything else held constant. A positive figure means you would be better off after the change; energy effects only, before the cost of any equipment.',
+  });
+
+  d.paragraph(
+    'One lever costs nothing and is not in the table because it depends on habit rather than hardware: running the immersion, dishwasher, washing machine or car charger while the panels are producing. Every unit used at the moment it is generated avoids buying that unit entirely, which is worth more than the export rate you would otherwise receive for it.',
+    TYPE.body!);
+  d.skip(0.6);
+}
+
 /* ── entry ───────────────────────────────────────────────────────────────── */
 
 export function renderReport(pdf: PdfDoc, data: ReportData): void {
@@ -420,7 +587,11 @@ export function renderReport(pdf: PdfDoc, data: ReportData): void {
   contents(d, r);
   chUsage(d, r);
   chComparison(d, r);
+  chWhereMoneyGoes(d, r);
   chSolar(d, r);
+  chYear(d, r);
+  chDays(d, r);
+  chLevers(d, r);
   chTransport(d, r);
   chAct(d, r);
   chMethod(d, r);

@@ -7,6 +7,10 @@
  */
 
 import { renderReport } from './report';
+import {
+  monthlyBalance, dayProfile, bandBreakdown, batteryStats, yearSummary,
+  peakConcentration, REPRESENTATIVE_DAYS,
+} from '../engine/analysis';
 import { reportOrigin } from './theme';
 
 const PLAN_TYPE_LABEL = {
@@ -146,6 +150,23 @@ export function buildReportData(ctx) {
       batteryReplacementYear: state.battery_kwh > 0 ? 12 : undefined,
     };
   }
+
+  // ── year-scale analysis from the hourly simulation ──────────────────────
+  if (ctx.hourly) {
+    const h = ctx.hourly;
+    const cap = state.battery_kwh || 0;
+    try {
+      const months = monthlyBalance(h);
+      data.months = months;
+      data.year = yearSummary(months, kwp);
+      data.days = REPRESENTATIVE_DAYS.map((rd) =>
+        dayProfile(h, rd.dayIndex, rd.label, cap));
+      data.bands = bandBreakdown(h);
+      data.battery = batteryStats(h, cap);
+      data.peakConcentration = peakConcentration(h, 0.1);
+    } catch (e) { /* analysis is additive; never block the report */ }
+  }
+  if (ctx.levers?.length) data.levers = ctx.levers;
 
   if (econ && econ.netSaving !== 0) {
     data.ev = {
