@@ -2971,7 +2971,7 @@ function renderIntro(){
           </div>
         </div>
         <div class="intro-title" style="margin-bottom:12px">Access your results<br>on any device</div>
-        <div class="intro-sub">Sign in to save your analysis and settings — pick up where you left off on any device.</div>
+        <div class="intro-sub">Save your setup and pick it up on any device.</div>
       </div>`;
     footerHTML = `
       <div class="intro-footer">
@@ -3207,13 +3207,13 @@ function obStep5CurrentPlan(){
     ${_ob.baseline_known ? `
     <div style="margin-top:12px;padding:12px 14px;background:var(--accent-faint);border:1px solid var(--line);border-radius:12px">
       <div style="font-size:12.5px;font-weight:700;color:var(--ink)">Any discount on this plan?</div>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:2px;line-height:1.5">Sign-up or loyalty discounts change what you really pay. Pick the % off unit rates — it's on your bill.</div>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:2px;line-height:1.5">Discount off unit rates — it's on your bill.</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px">
         ${[0,5,10,15,20,25,30,40].map(p => `
           <div onclick="_ob.baseline_discount=${p};renderApp();" style="padding:7px 12px;border-radius:999px;font-size:11.5px;font-weight:700;font-family:var(--mono);cursor:pointer;border:1.5px solid ${(+_ob.baseline_discount||0)===p ? 'var(--accent)' : 'var(--line)'};background:${(+_ob.baseline_discount||0)===p ? 'var(--accent-soft)' : 'var(--panel)'};color:${(+_ob.baseline_discount||0)===p ? 'var(--accent)' : 'var(--ink-soft)'}">${p === 0 ? 'None' : p + '%'}</div>`).join('')}
       </div>
     </div>` : ''}
-    <p class="ob-help" style="margin-top:10px">Can't find your exact plan? Choose the closest match by type, or tap "Not sure" — the estimate will still be directionally accurate.</p>`;
+    <p class="ob-help" style="margin-top:10px">Not sure? Pick the closest match, or tap Not sure.</p>`;
 }
 
 
@@ -3221,7 +3221,7 @@ function obStep1Home(){
   return `
     <div class="ob-step-num">Step 1 of 5 · Your home</div>
     <h1 class="ob-title">Where are you, and how do you <em>heat</em> it?</h1>
-    <p class="ob-sub">Solar yield varies ~12% across Ireland, and heating shapes when you use electricity. Between them these set your whole load profile.</p>
+    <p class="ob-sub">Sets your solar yield and when you use power.</p>
 
     <div class="ob-field-label">Part of Ireland</div>
     ${renderRegionPicker(_ob.region)}
@@ -3240,7 +3240,7 @@ function obStep1Home(){
           <div class="ob-tile-sub">${sub}</div>
         </div>`).join('')}
     </div>
-    <p class="ob-help" style="margin-top:12px">County-level accuracy is all solar modelling needs — postcode precision wouldn't move the result by more than 1%.</p>`;
+    <p class="ob-help" style="margin-top:12px">County is accurate enough.</p>`;
 }
 
 
@@ -3261,15 +3261,15 @@ function obStep2Usage(){
     return `
     <div class="ob-step-num">Step 2 of 5 · Your usage</div>
     <h1 class="ob-title">Usage comes from your <em>smart meter</em></h1>
-    <p class="ob-sub">Real 30-minute readings are active — the most accurate source there is, so manual entry is locked while it's in use.</p>
+    <p class="ob-sub">Using your 30-minute meter readings. Manual entry is off.</p>
     ${csvLockCard()}
-    <p class="ob-help" style="margin-top:12px">Happy with this? Just continue — everything else in this setup applies on top of it.</p>`;
+    <p class="ob-help" style="margin-top:12px">Continue when you're ready.</p>`;
   }
 
   const head = `
     <div class="ob-step-num">Step 2 of 5 · Your usage</div>
     <h1 class="ob-title">How much electricity do you <em>use</em>?</h1>
-    <p class="ob-sub">Pick whichever you have to hand. A smart-meter file is most accurate; a bill figure is plenty to get started.</p>
+    <p class="ob-sub">Whichever you have to hand. A bill is enough.</p>
     ${pills}`;
 
   if (m === 'csv'){
@@ -3291,7 +3291,7 @@ function obStep2Usage(){
       <input id="ob-bill" class="ob-input mono" type="number" inputmode="numeric" min="500" max="40000" step="100" value="${_ob.annual_kwh || 4200}" style="padding-right:70px">
       <span style="position:absolute;right:18px;top:20px;font-size:16px;color:var(--ink-soft);font-family:var(--mono);">kWh</span>
     </div>
-    <p class="ob-help">Typical Irish home: 3,500–4,500 kWh/yr · heat pump homes: 7,000–12,000. This is the most accurate figure you can type in.</p>
+    <p class="ob-help">Typical: 3,500–4,500 kWh/yr · heat pump 7,000–12,000.</p>
     <div id="ob-bill-preview" class="ob-bill-preview" style="display:none"></div>`;
   }
 
@@ -3348,7 +3348,7 @@ function obStep6Solar(){
   return `
     <div class="ob-step-num">Step 4 of 5 · Solar (optional)</div>
     <h1 class="ob-title">Do you have or plan to add <em>solar</em>?</h1>
-    <p class="ob-sub">Skip this if no solar. Otherwise, more detail = more accurate payback.</p>
+    <p class="ob-sub">No solar? Skip this step.</p>
 
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
       <div onclick="_ob.has_solar=false; renderApp();" style="padding:11px 8px;border-radius:12px;cursor:pointer;text-align:center;border:1.5px solid ${!_ob.has_solar?'var(--accent)':'var(--line)'};background:${!_ob.has_solar?'var(--accent-soft)':'var(--panel)'}">
@@ -3403,21 +3403,21 @@ function obStep6Solar(){
         <div class="ob-mini-title">${ic('battery',14)} Battery</div>
         <div class="ob-mini-label">Capacity in kWh (enter 0 if no battery)</div>
         <input id="ob-batt" class="ob-mini-input" type="number" inputmode="decimal" min="0" max="50" step="0.1" value="${_ob.battery_kwh}">
-        <div style="margin-top:8px;font-size:10.5px;color:var(--ink-dim);font-family:var(--display);line-height:1.5">Typical Irish installs: 5–13.5 kWh. Common: Powerwall 13.5, GivEnergy 9.5, Sigenergy 8.</div>
+        <div style="margin-top:8px;font-size:10.5px;color:var(--ink-dim);font-family:var(--display);line-height:1.5">Typical: 5–13.5 kWh. Powerwall 13.5 · GivEnergy 9.5.</div>
       </div>
 
       ${_ob.battery_kwh > 0 ? `
       <div class="ob-mini-section">
         <div class="ob-mini-title">${ic('bolt',14)} Battery strategy</div>
-        <p style="font-size:11px;color:var(--ink-dim);margin:0 0 10px;line-height:1.6;font-family:var(--display)">How should your battery charge? Arbitrage uses cheap off-peak grid rates to fill the battery and discharge at peak prices — it earns more but needs a night-rate or EV plan.</p>
+        <p style="font-size:11px;color:var(--ink-dim);margin:0 0 10px;line-height:1.6;font-family:var(--display)">How should the battery charge?</p>
         <div style="display:flex;gap:8px">
           <div onclick="_ob.strategy='arbitrage';_ob.charge_from_grid=true;renderApp();" style="flex:1;padding:12px 10px;border:1.5px solid ${_ob.strategy === 'arbitrage' ? 'var(--accent)' : 'var(--line)'};border-radius:10px;cursor:pointer;background:${_ob.strategy === 'arbitrage' ? 'var(--accent-soft)' : 'transparent'}">
             <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:${_ob.strategy === 'arbitrage' ? 'var(--accent)' : 'var(--ink-soft)'};letter-spacing:.06em">ARBITRAGE</div>
-            <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;line-height:1.5">Charge from grid at cheap rate (2–8am), discharge at peak. Best on night/EV plans.</div>
+            <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;line-height:1.5">Fills overnight, discharges at peak. Needs a night or EV plan.</div>
           </div>
           <div onclick="_ob.strategy='self-consume';_ob.charge_from_grid=false;renderApp();" style="flex:1;padding:12px 10px;border:1.5px solid ${_ob.strategy !== 'arbitrage' ? 'var(--blue)' : 'var(--line)'};border-radius:10px;cursor:pointer;background:${_ob.strategy !== 'arbitrage' ? 'rgba(41,182,246,.06)' : 'transparent'}">
             <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:${_ob.strategy !== 'arbitrage' ? 'var(--blue)' : 'var(--ink-soft)'};letter-spacing:.06em">SELF-CONSUME</div>
-            <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;line-height:1.5">Battery only fills from solar surplus. Simpler — good if no cheap off-peak window.</div>
+            <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;line-height:1.5">Fills from solar only.</div>
           </div>
         </div>
       </div>
@@ -3435,7 +3435,7 @@ function obStep6Solar(){
             <input id="ob-grant" class="ob-mini-input" type="number" inputmode="numeric" min="0" max="5000" step="100" value="${_ob.install_grant >= 0 ? _ob.install_grant : calcSeaiGrant((_ob.count_A + _ob.count_B) * 440/1000, _ob.battery_kwh).total}">
           </div>
         </div>
-        <p style="font-size:11px;color:var(--ink-dim);margin-top:6px;line-height:1.5;font-family:var(--display)">Auto-calculated: €900/kWp for first 2 kWp — maximum grant €1,800 (SEAI 2025 scheme).</p>
+        <p style="font-size:11px;color:var(--ink-dim);margin-top:6px;line-height:1.5;font-family:var(--display)">SEAI 2025: €900/kWp on the first 2 kWp, max €1,800.</p>
       </div>
     ` : ''}`;
 }
@@ -3444,7 +3444,7 @@ function obStep7EV(){
   return `
     <div class="ob-step-num">Step 5 of 5 · Electric vehicle (optional)</div>
     <h1 class="ob-title">Do you have or plan to add an <em>EV</em>?</h1>
-    <p class="ob-sub">EV ownership transforms your tariff choice — night-boost plans become very attractive.</p>
+    <p class="ob-sub">An EV changes which plan wins.</p>
 
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
       <div onclick="_ob.has_ev=false; renderApp();" style="padding:11px 8px;border-radius:12px;cursor:pointer;text-align:center;border:1.5px solid ${!_ob.has_ev?'var(--accent)':'var(--line)'};background:${!_ob.has_ev?'var(--accent-soft)':'var(--panel)'}">
@@ -3477,7 +3477,7 @@ function obStep7EV(){
             <input id="ob-eveff" class="ob-mini-input" type="number" inputmode="decimal" min="5" max="35" step="0.5" value="${_ob.ev_eff}">
           </div>
         </div>
-        <p style="font-size:11px;color:var(--ink-dim);margin-top:6px;line-height:1.5;font-family:var(--display)">Average Irish driving: 16,500 km/yr. EV efficiency: small EVs 14, mid 16-18, large/SUV 20+.</p>
+        <p style="font-size:11px;color:var(--ink-dim);margin-top:6px;line-height:1.5;font-family:var(--display)">Irish average 16,500 km/yr · small EV 14, mid 16–18, SUV 20+.</p>
       </div>
     ` : ''}`;
 }
@@ -4191,7 +4191,7 @@ function renderResult(){
       <div class="card" style="margin:20px 16px;text-align:center;padding:32px 20px">
         <div style="margin-bottom:12px">${ic('bolt',32)}</div>
         <h2 style="font-size:18px;margin-bottom:8px">No active tariffs found</h2>
-        <p style="color:var(--ink-soft);font-size:13px;line-height:1.6;margin-bottom:18px">We couldn't find any current plans to compare against. This is usually temporary — try refreshing the tariff data, or check back shortly.</p>
+        <p style="color:var(--ink-soft);font-size:13px;line-height:1.6;margin-bottom:18px">No plans to compare right now. Try refreshing the tariff data.</p>
         <button class="switch-cta" style="margin:0 auto;max-width:240px" onclick="location.reload()">Reload app</button>
       </div>
     </div>`;
@@ -4274,7 +4274,7 @@ function renderResult(){
     ${annualSavings > 10 ? `<div style="text-align:center;margin:2px 0 8px">
       <span onclick="setScreen('how-to-switch')" style="display:inline-block;padding:8px 10px;font-size:12.5px;font-weight:600;color:var(--ink-soft);text-decoration:underline;text-underline-offset:3px;cursor:pointer">How switching works — takes ~10 minutes</span>
     </div>` : ''}
-    <div class="switch-cta-sub">Independent · ranked by your cost · we may earn a commission if you switch, which never changes the ranking</div>
+    <div class="switch-cta-sub">Independent. We may earn a commission — it never changes the ranking.</div>
 
     ${renderEnergyScore(best, baseCost)}
 
@@ -5158,8 +5158,8 @@ function openPlanPicker(){
   modal.innerHTML = `
     <div class="modal" style="max-height:86vh;display:flex;flex-direction:column">
       <div class="modal-handle"></div>
-      <h3 style="margin-bottom:2px">Which plan should we use?</h3>
-      <p style="margin-bottom:10px">Everything in the app and your PDF report is calculated on the plan you pick here. The ranking is by cost on your usage — but contract length, exit fees and service are yours to weigh.</p>
+      <h3 style="margin-bottom:2px">Choose your plan</h3>
+      <p style="margin-bottom:10px">Used for every figure in the app and your report. Ranked by cost on your usage.</p>
       <div style="overflow-y:auto;margin:0 -4px;padding:0 4px;flex:1">${rows}</div>
       ${state.chosen_plan ? `<button class="modal-btn" style="margin-top:12px" onclick="document.getElementById('plan-picker').remove(); clearChosenPlan()">Use the cheapest instead</button>` : ''}
       <button class="modal-skip" onclick="document.getElementById('plan-picker').remove()">Close</button>
@@ -5382,17 +5382,15 @@ function renderChoiceStrip(){
   if (!rec.best) return '';
   if (!rec.isManualChoice){
     return `<div class="choice-strip hint">
-      Ranked on cost. Tap any plan to see the detail — or to go with it instead of the cheapest.
+      Tap a plan for detail, or to go with it.
     </div>`;
   }
   const premium = rec.choicePremium;
   return `<div class="choice-strip">
     <div>
-      <b>${ic('checkC',13)} Using ${rec.best.plan.supplier} — ${rec.best.plan.plan}</b>
-      <div class="choice-strip-sub">Your pick, ranked #${rec.chosenRank}.${
-        premium > 1
-          ? ` It costs ${fmtCurrency(premium)}/yr more than ${rec.cheapest.plan.supplier}, and every figure in the app and your report uses it.`
-          : ' Every figure in the app and your report uses it.'
+      <b>${ic('checkC',13)} ${rec.best.plan.supplier} — ${rec.best.plan.plan}</b>
+      <div class="choice-strip-sub">Your plan · #${rec.chosenRank}${
+        premium > 1 ? ` · ${fmtCurrency(premium)}/yr more than the cheapest` : ''
       }</div>
     </div>
     <button class="chosen-banner-undo" onclick="clearChosenPlan()">Use cheapest</button>
@@ -5555,19 +5553,17 @@ function chooseAction(planId, plan, netCost){
 
   if (isChosen){
     return `<div class="chosen-banner">
-      <div>${ic('checkC',14)} <b>You're going with this plan</b><div class="chosen-banner-sub">Every figure in the app and your report is calculated on it.</div></div>
+      <div>${ic('checkC',14)} <b>Your plan</b><div class="chosen-banner-sub">Used for every figure in the app and your report.</div></div>
       <button class="chosen-banner-undo" onclick="clearChosenPlan()">Undo</button>
     </div>`;
   }
   if (isCheapest && !rec.isManualChoice){
-    return `<div style="font-family:var(--mono);font-size:11px;color:var(--accent);text-align:center;padding:10px;letter-spacing:.04em">★ Cheapest for your usage — already in use</div>`;
+    return `<div style="font-family:var(--mono);font-size:11px;color:var(--accent);text-align:center;padding:10px;letter-spacing:.04em">★ Cheapest for your usage</div>`;
   }
   const premium = rec.cheapest ? netCost - rec.cheapest.net : 0;
-  const note = premium > 1
-    ? `${fmtCurrency(premium)}/yr more than ${rec.cheapest.plan.supplier}`
-    : 'Same cost as the cheapest plan';
+  const note = premium > 1 ? `+${fmtCurrency(premium)}/yr` : 'same cost';
   return `<button class="btn-secondary" onclick="choosePlan('${planId}')">
-    Go with this plan<span style="opacity:.7;font-weight:400"> · ${note}</span>
+    Use this plan<span style="opacity:.7;font-weight:400"> · ${note}</span>
   </button>`;
 }
 
@@ -5625,8 +5621,8 @@ function choosePlan(planId){
   const premium = getRecommendation().choicePremium;
   showToast(
     premium > 1
-      ? `Using ${plan.supplier} — ${fmtCurrency(premium)}/yr more than the cheapest`
-      : `Using ${plan.supplier} — ${plan.plan}`,
+      ? `${plan.supplier} · ${fmtCurrency(premium)}/yr more than the cheapest`
+      : `${plan.supplier} — ${plan.plan}`,
     { type: 'accent', icon: ic('checkC', 16) });
 }
 
@@ -5636,7 +5632,7 @@ function clearChosenPlan(){
   invalidate();
   saveState();
   renderApp();
-  showToast('Back to the cheapest plan for your usage');
+  showToast('Using the cheapest plan');
 }
 
 function setAsBaseline(planId){
@@ -6833,15 +6829,15 @@ function renderStrategyControls(){
       <div class="strat-opt ${isArb ? 'active' : ''}" onclick="setStrategy('arbitrage', true)" style="${!hasBatt ? 'opacity:0.4;pointer-events:none' : ''}">
         <div class="strat-opt-icon">${ic('bolt',18)}</div>
         <div class="strat-opt-title">Arbitrage</div>
-        <div class="strat-opt-sub">Charge battery from grid in cheap windows · discharge at peak. Maximises savings on TOU/EV plans.</div>
+        <div class="strat-opt-sub">Fills in cheap windows, discharges at peak. Best on TOU/EV plans.</div>
       </div>
       <div class="strat-opt ${!isArb ? 'active' : ''}" onclick="setStrategy('self-consume', false)" style="${!hasBatt ? 'opacity:0.4;pointer-events:none' : ''}">
         <div class="strat-opt-icon">${ic('sun',18)}</div>
         <div class="strat-opt-title">Self-consume</div>
-        <div class="strat-opt-sub">Battery only fills from solar surplus. Simpler, but gives up arbitrage gain. Good if your plan has no cheap window.</div>
+        <div class="strat-opt-sub">Fills from solar only. Use if your plan has no cheap window.</div>
       </div>
     </div>
-    ${!hasBatt ? `<p style="font-size:11px;color:var(--ink-dim);margin:6px 0 0;font-family:var(--display);letter-spacing:.02em">Add a battery (Battery section above) to enable strategy selection.</p>` : ''}
+    ${!hasBatt ? `<p style="font-size:11px;color:var(--ink-dim);margin:6px 0 0;font-family:var(--display);letter-spacing:.02em">Add a battery to choose a strategy.</p>` : ''}
 
     <div style="margin-top:14px">
       <div style="font-size:11px;color:var(--ink-soft);font-family:var(--mono);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">Hot water strategy</div>
@@ -7781,7 +7777,7 @@ function renderMonitor(){
   if (!on){
     statusHtml = `<div class="mon-status off">
       <div class="mon-status-eyebrow" style="color:var(--ink-soft)">○ Monitoring paused</div>
-      <div class="mon-status-line">Market checks are hidden. Turn them back on and we'll re-rank every Irish tariff against your usage each time you open the app.</div>
+      <div class="mon-status-line">Market checks are off. Turn them on to re-rank tariffs on every visit.</div>
     </div>`;
   } else if (onBest || savings < 1){
     statusHtml = `<div class="mon-status good">
@@ -7856,7 +7852,7 @@ function renderMonitor(){
 
   return `${topbar('Market Monitor', 'blue', true)}
   <div class="screen">
-    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin:2px 2px 14px">We watch every Irish tariff for you, and only speak up when it's worth acting.</div>
+    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin:2px 2px 14px">We watch every Irish tariff and flag what's worth acting on.</div>
     ${contractAlert}
     <div class="mon-toggle">
       <div>
@@ -7907,7 +7903,7 @@ function renderMonitor(){
 function toggleMonitoring(){
   state.monitoring_on = !(state.monitoring_on !== false);
   saveState();
-  showToast(state.monitoring_on ? 'Market checks on — re-ranked every time you open the app' : 'Market checks hidden',
+  showToast(state.monitoring_on ? 'Market checks on' : 'Market checks off',
     { type: state.monitoring_on ? 'accent' : 'blue', icon: state.monitoring_on ? ic('checkC',16) : ic('radar',16) });
   renderApp();
 }
