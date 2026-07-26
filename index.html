@@ -113,7 +113,11 @@
   .icb:hover{color:var(--ink);border-color:var(--hair-strong)}
 
   /* Main content area */
-  .screen{flex:1;padding:18px 16px 100px;animation:fadeUp .25s ease}
+  .screen{flex:1;padding:18px 16px 100px}
+  /* Applied by renderApp() only on a real screen change. A full innerHTML
+     repaint happens on every micro-interaction (toggles, chips, steppers);
+     animating unconditionally replayed fadeUp on all of them. */
+  .screen.screen-enter{animation:fadeUp .25s ease}
   .screen-narrow{padding-left:14px;padding-right:14px}
   @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
@@ -10590,13 +10594,29 @@ function renderApp(){
     case 'csv-import':   html = renderCsvImport(); break;
     default:             html = renderResult();
   }
+  // A re-render of the SAME screen is a state update, not navigation: keep the
+  // user where they were and don't replay the entry animation. A different
+  // screen is navigation: animate in and start at the top.
+  const screenChanged = window.__lastScreen !== state.current_screen;
+  const keepScroll = screenChanged ? 0 : (window.scrollY || window.pageYOffset || 0);
+
   root.setAttribute('data-chrome','app');
   root.innerHTML = html;
   if (state.current_screen === 'auditor')    bindAuditor();
   if (state.current_screen === 'refine')     bindRefine();
   if (state.current_screen === 'csv-import') bindCsvImport();
   enhanceA11y();
-  if (window.__lastScreen !== state.current_screen){ runCountUps(root); window.__lastScreen = state.current_screen; }
+
+  if (screenChanged){
+    const sc = root.querySelector('.screen');
+    if (sc) sc.classList.add('screen-enter');
+    window.scrollTo(0, 0);
+    runCountUps(root);
+    window.__lastScreen = state.current_screen;
+  } else if (keepScroll){
+    // Restore synchronously so the browser never paints the jumped position.
+    window.scrollTo(0, keepScroll);
+  }
   // Inject auth modal overlay (if open) — outside the screen so it overlays all screens
   const existingModal = document.getElementById('auth-modal-root');
   if (existingModal) existingModal.remove();
