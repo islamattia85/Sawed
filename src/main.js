@@ -1352,8 +1352,17 @@ async function loadTariffs(){
     if (!Array.isArray(data) || data.length === 0) throw new Error('empty');
     const meta = data.find(t => t.id === '__meta__');
     if (meta) window._tariffsMeta = meta;
-    TARIFFS = data.filter(t => t.id && t.id !== '__meta__' && t.supplier);
-    return true;
+    const fetched = data.filter(t => t.id && t.id !== '__meta__' && t.supplier);
+
+    // Only report a refresh when the rates actually differ from the ones
+    // already loaded. This returned true on every successful fetch, so a normal
+    // load — where the served file is byte-identical to the bundled one, which
+    // is the overwhelmingly common case — still invalidated the whole cache and
+    // repainted the entire screen a quarter-second after first paint, for no
+    // change the reader could see.
+    const changed = JSON.stringify(fetched) !== JSON.stringify(TARIFFS);
+    TARIFFS = fetched;
+    return changed;
   } catch(e){ return false; }
 }
 
@@ -2481,7 +2490,7 @@ function renderOptimisations(){
   const opts = computeOptimisations();
   if (!opts.suggest.length && !opts.confirmed.length) return '';
   return `
-    <div class="section-title">Maximise your benefit — free changes</div>
+    <div class="section-title">Free changes worth making</div>
     ${opts.suggest.map(o => `
       <div class="advisor-card" style="border-color:var(--accent);box-shadow:0 0 24px -10px var(--accent-glow)">
         <div class="advisor-title" style="color:var(--accent)">Worth +${fmtCurrency(o.delta)}/yr · simulated on your home</div>
@@ -5538,7 +5547,50 @@ function renderSolarDashboard(){
     </div>` : ''}
 
     ${renderPlanChoiceBlock(best, annualSavings, { title: 'Best plan WITH this solar' })}
-    <div class="switch-cta-sub">Same plan whether or not you install solar</div>
+    <div class="solar-note">Same plan whether or not you install solar</div>
+
+    ${renderSeaiGrantCard(kwp, state.battery_kwh)}
+
+    <!-- Advice stays on the surface. Everything below this point either costs
+         nothing and raises the return, or is money the reader can claim. The
+         readouts — six metric tiles, the NPV maths, the day inspector, the
+         cost comparison — are instrumentation for someone who already believes
+         the headline, and they now sit behind one door. This screen was 4.2
+         phone-screens of simultaneous facts; a homeowner asking "is solar
+         worth it on my roof" was handed a modelling environment. -->
+    ${renderOptimisations()}
+
+    ${(advice.length > 0 || (computeOptimisations().upgrades || []).length > 0) ? `
+      <div class="section-title">Hardware upgrades</div>
+      ${(computeOptimisations().upgrades || []).map(u => `
+        <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+            <div style="font-size:15px;font-weight:700;color:var(--ink)">${u.label}</div>
+            <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:${u.gain > 0 ? 'var(--accent)' : 'var(--ink-dim)'};white-space:nowrap">+${fmtCurrency(u.gain)}/yr</div>
+          </div>
+          <div style="font-size:13px;color:var(--ink-soft);margin-top:5px;line-height:1.6">
+            ~${fmtCurrency(u.netExtra)} extra after grant · ${u.payback === Infinity || u.payback > 30 ? `<span style="color:var(--amber);font-weight:700">doesn't pay for itself — not recommended</span>` : u.payback > 12 ? `<span style="color:var(--amber)">pays back in ${u.payback.toFixed(0)} yr — long; not recommended at current prices</span>` : `pays itself back in <b style="color:var(--ink)">${u.payback.toFixed(0)} yr</b>`}
+          </div>
+        </div>
+      `).join('')}
+      ${advice.map(a => `
+        <div class="advisor-card">
+          <div class="advisor-title" ${a.kind === 'battery-hold' ? 'style="color:var(--ink-soft)"' : ''}>${a.kind === 'optimal' ? '✓ Optimal' : a.kind === 'battery-hold' ? 'On hold — honest call' : 'Upgrade opportunity'}</div>
+          <div class="advisor-headline">${a.headline}</div>
+          <div class="advisor-body">${a.body}</div>
+        </div>
+      `).join('')}
+    ` : ''}
+
+    <div class="working">
+      <button class="working-toggle" aria-expanded="${!!state._solar_detail_open}" onclick="state._solar_detail_open=!state._solar_detail_open;saveState();renderApp()">
+        <span class="working-toggle-label">${ic('flask',18)} Show me the working</span>
+        <span class="working-toggle-hint">${state._solar_detail_open ? 'Hide' : 'Generation, self-use, export, the 20-year maths and an hour-by-hour day'}</span>
+        <span class="working-toggle-chev" style="transform:rotate(${state._solar_detail_open ? '90' : '0'}deg)">›</span>
+      </button>
+      ${!state._solar_detail_open ? '' : `<div class="working-body">
+
+    ${renderSolarComparison()}
 
     ${state.ev_active && econ ? `
       <div class="card" style="margin-bottom:14px;border-color:var(--amber);background:linear-gradient(140deg,var(--amber-faint),var(--panel))">
@@ -5584,6 +5636,11 @@ function renderSolarDashboard(){
 
     ${state._show_npv_breakdown ? renderNpvBreakdown(currentScen.solarBenefit, sysCost, state.battery_kwh || 0, state.panel_degradation || 0.005) : ''}
 
+    ${renderDayInspector()}
+
+      </div>`}
+    </div>
+
     ${state.ev_active && econ ? `
       <div class="ev-banner">
         <div class="ev-banner-icon">${ic('car',20)}</div>
@@ -5602,40 +5659,6 @@ function renderSolarDashboard(){
         <div class="secondary-card-arrow">+</div>
       </div>
     `}
-
-    ${renderOptimisations()}
-
-    <!-- The day inspector used to sit third on this screen, above the free
-         changes. It is an instrument for people who already believe the
-         numbers; the free changes cost nothing and raise the return. Advice
-         above instrumentation. -->
-    ${renderDayInspector()}
-
-    ${(advice.length > 0 || (computeOptimisations().upgrades || []).length > 0) ? `
-      <div class="section-title">Hardware upgrades</div>
-      ${(computeOptimisations().upgrades || []).map(u => `
-        <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:8px">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
-            <div style="font-size:13px;font-weight:700;color:var(--ink)">${u.label}</div>
-            <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${u.gain > 0 ? 'var(--accent)' : 'var(--ink-dim)'};white-space:nowrap">+${fmtCurrency(u.gain)}/yr</div>
-          </div>
-          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:5px;letter-spacing:.02em">
-            ~${fmtCurrency(u.netExtra)} extra (after grant) · ${u.payback === Infinity || u.payback > 30 ? `<span style="color:var(--amber);font-weight:700">doesn't pay for itself — not recommended</span>` : u.payback > 12 ? `<span style="color:var(--amber)">pays back in ${u.payback.toFixed(0)} yr — long; not recommended at current prices</span>` : `pays itself back in <b style="color:var(--ink)">${u.payback.toFixed(0)} yr</b>`}
-          </div>
-        </div>
-      `).join('')}
-      ${advice.map(a => `
-        <div class="advisor-card">
-          <div class="advisor-title" ${a.kind === 'battery-hold' ? 'style="color:var(--ink-soft)"' : ''}>${a.kind === 'optimal' ? '✓ Optimal' : a.kind === 'battery-hold' ? 'On hold — honest call' : 'Upgrade opportunity'}</div>
-          <div class="advisor-headline">${a.headline}</div>
-          <div class="advisor-body">${a.body}</div>
-        </div>
-      `).join('')}
-    ` : ''}
-
-    ${renderSolarComparison()}
-
-    ${renderSeaiGrantCard(kwp, state.battery_kwh)}
 
     <div class="section-title">Get this system installed</div>
     <div class="secondary-card" onclick="openLeadForm()">
@@ -5668,7 +5691,7 @@ function renderSolarDashboard(){
     ` : ''}
 
     <p class="disclaimer">
-      <b>Disclaimer.</b> Estimates based on TMY data and your provided bill. Actual generation, degradation, and grid behaviour will vary by ±5-8%. Always validate with a qualified installer and your supplier.
+      Modelled from typical-year weather and your bill — real generation varies ±5-8%. Always check the figures with your installer.
     </p>
   </div>
   ${bottomNav()}`;
@@ -9703,17 +9726,45 @@ document.addEventListener('DOMContentLoaded', () => {
       invalidate();
     }
     renderApp();
-    loadTariffs().then(refreshed => {
-      if (refreshed && state.onboarding_complete){
-        invalidate();
-        renderApp();
-      }
-    });
-    // Initialise Supabase auth (non-blocking — runs after first render)
-    sbInit().then(() => { if (_sbUser) renderApp(); });
-    // Load last tariff-check status from server (non-blocking)
-    loadTariffStatus().then(() => {
-      if (state._tariff_status && state.onboarding_complete) renderApp();
+
+    /*
+     * Three async boot paths used to call renderApp() the moment they landed,
+     * each replacing the entire DOM. Measured on a warm load that was two full
+     * repaints between 240ms and 291ms after first paint — inside the window
+     * where someone is already reaching for the screen. A tap in that window
+     * lands on a node that is about to be detached, and scroll position, focus
+     * and any open disclosure reset underneath the reader. It also made two
+     * end-to-end tests intermittently fail with "element is not attached to the
+     * DOM", which is the same defect seen from the outside.
+     *
+     * They are debounced now, so a burst collapses into one paint, and the two
+     * that change nothing visible no longer paint at all.
+     */
+    const booted = [
+      loadTariffs().then(refreshed => {
+        // Rates actually changed — this one has to repaint. The app starts on
+        // the copy embedded in the bundle and swaps to the served file, so on
+        // a normal load this fires once and is correct.
+        if (refreshed && state.onboarding_complete){
+          invalidate();
+          renderAppDebounced();
+        }
+      }),
+      sbInit().then(() => { if (_sbUser) renderAppDebounced(); }),
+      loadTariffStatus().then(() => {
+        // Only the settings screen shows this. Repainting the home screen for a
+        // value it never displays is pure cost.
+        if (state._tariff_status && state.onboarding_complete && state.current_screen === 'more') renderAppDebounced();
+      }),
+    ];
+
+    // Boot is finished once those have landed and the coalesced paint has run.
+    // The end-to-end suite waits on this rather than racing it: two tests were
+    // intermittently failing with "element is not attached to the DOM" because
+    // they grabbed a node during the swap. That was the tests seeing the real
+    // defect above, and it stays visible — the repaint is measured, not hidden.
+    Promise.allSettled(booted).then(() => {
+      setTimeout(() => { window.__bootSettled = true; }, 160);
     });
   }, 50);
 });
@@ -9732,17 +9783,24 @@ function calcSeaiGrant(kwp, batteryKwh){
   return { panels: total, battery: 0, total };
 }
 
+/**
+ * The grant is a number the reader claims, not a calculation they audit.
+ *
+ * This was four monospace lines showing the arithmetic behind a figure that is
+ * fixed at €1,800 for almost every domestic system in the country — the working
+ * for a constant. It is one sentence and a link.
+ */
 function renderSeaiGrantCard(kwp, batteryKwh){
   const g = calcSeaiGrant(kwp, batteryKwh);
-  return `<div class="card" style="background:rgba(0,230,118,.04);border-color:var(--accent)">
-    <div class="card-label" style="color:var(--accent)">SEAI Home Solar Grant (2025)</div>
+  const capped = kwp > 2;
+  return `<div class="card" style="background:rgba(0,230,118,.04);border-color:var(--accent);margin-bottom:14px">
+    <div class="card-label" style="color:var(--accent)">SEAI home solar grant</div>
     <div class="card-value accent">€${g.total.toLocaleString()}</div>
-    <div style="margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.8">
-      ${kwp > 0 ? `Panels (${kwp.toFixed(2)} kWp): first 2 kWp × €900 = −€${g.panels.toLocaleString()}` : ''}<br>
-      ${kwp > 2 ? `<span style="color:var(--ink-dim)">Above 2 kWp: no additional grant (capped at €1,800)</span>` : ''}
-    </div>
-    <div style="margin-top:8px;padding:8px 10px;background:var(--overlay-tile);border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--ink-dim);line-height:1.6">
-      Current scheme: first 2 kWp × €900/kWp · max €1,800 total · <a href="https://www.seai.ie/grants/solar-electricity-grant/" target="_blank" style="color:var(--blue)">seai.ie ↗</a>
+    <div style="margin-top:6px;font-size:15px;color:var(--ink-soft);line-height:1.6">
+      ${capped
+        ? `The maximum for a domestic system — already deducted from the prices above.`
+        : `€900 per kWp on your first 2 kWp — already deducted from the prices above.`}
+      <a href="https://www.seai.ie/grants/solar-electricity-grant/" target="_blank" style="color:var(--blue);white-space:nowrap">seai.ie ↗</a>
     </div>
   </div>`;
 }

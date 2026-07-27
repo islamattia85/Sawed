@@ -67,6 +67,12 @@ export async function boot(page, overrides = {}) {
   );
   await page.reload();
   await page.waitForFunction(() => !document.getElementById('loader'));
+  // The app paints on the rates embedded in the bundle, then swaps to the
+  // served tariffs.json — a full re-render about 250ms in. Grabbing a node
+  // before that lands gives "element is not attached to the DOM", which is a
+  // real defect seen from the outside but makes every test that clicks
+  // something a coin flip. Wait for boot to settle.
+  await page.waitForFunction(() => window.__bootSettled === true, null, { timeout: 10_000 });
   return errors;
 }
 

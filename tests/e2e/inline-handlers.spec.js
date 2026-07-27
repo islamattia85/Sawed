@@ -26,7 +26,9 @@ test('window bridge exposes live module state, not a stale copy', async ({ page 
 });
 
 test('inline handler assigning a nested state field works (Day Inspector season)', async ({ page }) => {
-  const errors = await boot(page, { current_screen: 'solar', _di_season: 'summer' });
+  // The day inspector is instrumentation, so it sits behind "Show me the
+  // working" on the solar screen. Open it the way a reader would.
+  const errors = await boot(page, { current_screen: 'solar', _di_season: 'summer', _solar_detail_open: true });
   const winter = page.getByRole('button', { name: /Winter/ });
   await winter.scrollIntoViewIfNeeded();
   await winter.click();

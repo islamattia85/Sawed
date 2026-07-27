@@ -24,8 +24,19 @@ const EV_PLANNER = {
   ev_active: true, ev_in_bill: false, ev_km_per_year: 15000,
 };
 
-/** The three euro figures in the card, top to bottom. */
+/**
+ * The three euro figures in the card, top to bottom.
+ *
+ * The card moved behind "Show me the working" when the solar screen was cut
+ * from 4.2 phone-screens to 2.9 — it is instrumentation, not advice. The
+ * property it guards is unchanged and still load-bearing, so these tests open
+ * the door rather than assert the card is on the surface.
+ */
 async function rows(page) {
+  const toggle = page.locator('.working-toggle');
+  if (await toggle.count() && await toggle.getAttribute('aria-expanded') === 'false') {
+    await toggle.click();
+  }
   return page.evaluate(() => {
     const card = [...document.querySelectorAll('.card')]
       .find((c) => /Solar impact/i.test(c.textContent));
@@ -72,6 +83,7 @@ test('the same house is priced in all three rows', async ({ page }) => {
 
 test('a row that beats every switch says why instead of looking like a bug', async ({ page }) => {
   await boot(page, EV_PLANNER);
+  await rows(page);          // opens the working, where the card now lives
 
   const explained = await page.evaluate(() => {
     const card = [...document.querySelectorAll('.card')]
