@@ -22,6 +22,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
 TARIFFS_PATH = Path(__file__).parent.parent / "public" / "tariffs.json"
+MIN_COVERAGE = 0.60   # fail the run below this share of plans re-verified
 TODAY = date.today().isoformat()
 HEADERS = {
     "User-Agent": (
@@ -422,12 +423,27 @@ def scan_cru_for_new_plans(existing_ids: set) -> list:
         "sse airtricity", "yuno", "flogas", "pinergy",
         "prepay power", "community power",
     }
-    # Look for any company name patterns not in our set
-    for m in re.finditer(r"\b([A-Z][a-zA-Z& ]{3,30})\s+(?:Energy|Electricity|Power)", text):
-        name = m.group(0).strip().lower()
-        if not any(k in name for k in known_suppliers):
-            warnings.append(f"Possible new supplier detected on CRU page: {m.group(0).strip()!r}")
-    return list(set(warnings))
+    # Phrases that match the company-name pattern but are page furniture. The
+    # first version of this reported "Learn More Compare Energy" as a supplier
+    # three times over, which trains everyone to ignore the one channel meant
+    # to catch a competitor launching.
+    NOISE = {
+        "learn", "more", "compare", "fixed", "green", "smart", "home", "your",
+        "the", "all", "our", "new", "best", "switch", "save", "find", "view",
+        "read", "about", "renewable", "cheaper", "cheapest", "supplier",
+    }
+
+    for m in re.finditer(r"\b([A-Z][a-zA-Z&]{2,}(?: [A-Z][a-zA-Z&]{2,}){0,2})\s+(?:Energy|Electricity|Power)\b", text):
+        raw = m.group(0).strip()
+        name = raw.lower()
+        if any(k in name for k in known_suppliers):
+            continue
+        # Every leading word must look like a proper noun, not a verb or filler.
+        lead = [w for w in m.group(1).split() if w]
+        if not lead or any(w.lower() in NOISE for w in lead):
+            continue
+        warnings.append(f"Possible new supplier on the CRU comparison page: {raw!r}")
+    return sorted(set(warnings))
 
 
 # ---------------------------------------------------------------------------
@@ -497,6 +513,40 @@ def main():
         for w in cru_warnings:
             print(f"  {w}")
         print("Review and manually add any new plans to tariffs.json.\n")
+
+    # ------------------------------------------------------------------
+    # Fail loudly when the scrape did not actually verify anything.
+    #
+    # Every parser is wrapped in try/except and every miss is a silent
+    # no-op, so a run where all seven suppliers changed their markup used
+    # to finish green and write a last_scraped stamp described in this
+    # file as "proof the scraper ran". It proved only that the job
+    # started. Meanwhile 25 of 26 plans went eight weeks unverified while
+    # the dashboard stayed green and the app told users rates were
+    # current. A scraper that silently matches nothing is worse than no
+    # scraper, because it manufactures confidence.
+    # ------------------------------------------------------------------
+    verified_today = sum(
+        1 for t in updated_tariffs
+        if t.get("id") != "__meta__"
+        and not t.get("discontinued")
+        and t.get("verified_date") == TODAY
+    )
+    rankable = sum(
+        1 for t in updated_tariffs
+        if t.get("id") != "__meta__" and not t.get("discontinued")
+    )
+    coverage = verified_today / rankable if rankable else 0.0
+    log.info(f"Coverage: {verified_today}/{rankable} plans verified today ({coverage:.0%})")
+
+    if coverage < MIN_COVERAGE:
+        log.error(
+            f"Only {verified_today} of {rankable} plans were verified "
+            f"({coverage:.0%}, floor is {MIN_COVERAGE:.0%}). The supplier pages have "
+            f"almost certainly changed shape. Rates are now going stale silently — "
+            f"fix the parsers before trusting anything this job writes."
+        )
+        sys.exit(1)
 
 
 if __name__ == "__main__":

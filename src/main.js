@@ -1825,10 +1825,21 @@ function savingsBreakdown(best){
 
 // Most recent verification date across live tariffs — shown prominently so the
 // user always knows how fresh the data behind a recommendation is.
+/**
+ * Oldest verification date among plans that can be recommended.
+ *
+ * Deliberately the minimum, not the maximum. Taking the newest let a single
+ * re-scraped plan present the whole list as current — the result screen was
+ * printing "all 25 live plans checked" against today's date while 25 of them
+ * had not been checked in eight weeks.
+ */
 function dataVerifiedDate(){
-  let max = '';
-  for (const t of TARIFFS){ if (!t.discontinued && t.verified_date > max) max = t.verified_date; }
-  return max;
+  let min = '';
+  for (const t of TARIFFS){
+    if (t.discontinued || !t.verified_date) continue;
+    if (!min || t.verified_date < min) min = t.verified_date;
+  }
+  return min;
 }
 function dataAgeDays(){
   const d = dataVerifiedDate();
@@ -1858,7 +1869,7 @@ function renderSavingsBreakdown(best, baseCost){
         <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--accent)">${fmtCurrency(Math.round(b.total))}/yr</div>
       </div>
       <div style="font-family:var(--mono);font-size:9.5px;color:${age > 60 ? 'var(--amber)' : 'var(--ink-dim)'};margin-top:8px;letter-spacing:.03em">
-        ${age > 60 ? ic('warn',10,'vertical-align:-1px') + ' Rates last verified ' + fmtShortDate(dataVerifiedDate()) + ' — over 2 months old, re-check before switching' : '✓ Rates verified ' + fmtShortDate(dataVerifiedDate()) + ' · all ' + TARIFFS.filter(t=>!t.discontinued).length + ' live plans checked'}
+        ${age > 45 ? ic('warn',10,'vertical-align:-1px') + ' Oldest rate check ' + fmtShortDate(dataVerifiedDate()) + ' — ' + age + ' days ago, re-check before switching' : '✓ Every plan re-checked since ' + fmtShortDate(dataVerifiedDate())}
       </div>
     </div>`;
 }
@@ -2690,13 +2701,46 @@ function trackPageView(screen){
 /* ============================================================
    EMAIL CAPTURE — placeholder, wires to your email service
    ============================================================ */
+/**
+ * Capture contact details.
+ *
+ * There is no server. Nothing here is transmitted anywhere, and until an
+ * endpoint exists the interface must not imply otherwise — it used to confirm
+ * "we'll match you with 3 SEAI installers within 48h" while writing the address
+ * to this device and stopping.
+ *
+ * Details are queued locally so nothing the user typed is lost when the
+ * endpoint does arrive. Set `LEAD_ENDPOINT` to start sending; the queue drains
+ * on the next capture.
+ */
+const LEAD_ENDPOINT = '';   // e.g. 'https://formspree.io/f/xxxxxxx'
+
 function captureEmail(email, source){
   state.user_email = email;
   state.email_captured = true;
+  if (!Array.isArray(state.lead_queue)) state.lead_queue = [];
+  state.lead_queue.push({ email, source, at: new Date().toISOString(), address: state.address || '' });
+  if (state.lead_queue.length > 50) state.lead_queue = state.lead_queue.slice(-50);
   saveState();
   trackLeadSubmit(source);
   dlog('LEAD', 'email_capture', { email, source, address: state.address });
-  // Wire to email service: fetch('https://formspree.io/f/YOUR_FORM_ID', { method:'POST', ... })
+  flushLeadQueue();
+}
+
+/** Send anything queued, if an endpoint has been configured. No-op otherwise. */
+async function flushLeadQueue(){
+  if (!LEAD_ENDPOINT || !state.lead_queue?.length) return;
+  const batch = state.lead_queue.slice();
+  try {
+    const res = await fetch(LEAD_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leads: batch }),
+    });
+    if (!res.ok) return;                 // keep the queue; try again next time
+    state.lead_queue = state.lead_queue.slice(batch.length);
+    saveState();
+  } catch (e){ /* offline or blocked — the queue survives */ }
 }
 
 /* ============================================================
@@ -3740,25 +3784,55 @@ function confirmExitOnboarding(){
 /* ============================================================
    TARIFF STALENESS — warns users if rate data is >45 days old
    ============================================================ */
-function checkTariffStaleness(){
-  if (!TARIFFS || !TARIFFS.length) return null;
-  const dates = TARIFFS.map(t => t.verified_date).filter(Boolean).sort();
-  if (!dates.length) return null;
-  const mostRecent = dates[dates.length - 1];
-  const then = new Date(mostRecent);
-  const now = new Date();
-  const days = Math.floor((now - then) / 864e5);
-  return days > 45 ? { days, date: mostRecent } : null;
+/**
+ * Sorted verification dates for the plans that can actually be recommended.
+ *
+ * Discontinued plans are excluded: they are never offered, so their age says
+ * nothing about the quality of the advice.
+ */
+function verifiedDates(){
+  return (TARIFFS || [])
+    .filter(t => !t.discontinued && t.verified_date)
+    .map(t => t.verified_date)
+    .sort();
 }
 
-// Most-recent tariff verified date, formatted for display (always shown, to
-// make data freshness visible and build trust — separate from the >45-day
-// staleness warning).
+const daysSince = (iso) => Math.floor((Date.now() - new Date(iso)) / 864e5);
+
+/**
+ * Is the rate data too old to advise on?
+ *
+ * Keyed on the OLDEST plan, not the newest. Keying on the newest meant a single
+ * plan refreshed today silenced the warning for every other plan however stale,
+ * which is exactly what happened: 25 of 26 plans sat 54 days old behind one
+ * that had been re-scraped, and the banner never appeared.
+ */
+function checkTariffStaleness(){
+  const dates = verifiedDates();
+  if (!dates.length) return null;
+  const oldest = dates[0];
+  const days = daysSince(oldest);
+  if (days <= 45) return null;
+  const staleCount = dates.filter(d => daysSince(d) > 45).length;
+  return { days, date: oldest, staleCount, total: dates.length };
+}
+
+/**
+ * How fresh the rate data is, for the always-visible label.
+ *
+ * Reports the oldest plan, or a range when the set spans more than a week.
+ * Quoting the newest date let one re-scraped plan claim currency on behalf of
+ * the whole list — the app told users rates were verified today while most were
+ * eight weeks old.
+ */
 function latestVerifiedLabel(){
   try {
-    const dates = (TARIFFS||[]).map(t => t.verified_date).filter(Boolean).sort();
+    const dates = verifiedDates();
     if (!dates.length) return '';
-    return fmtVerifiedDate(dates[dates.length - 1]);
+    const oldest = dates[0];
+    const newest = dates[dates.length - 1];
+    if (daysSince(oldest) - daysSince(newest) <= 7) return fmtVerifiedDate(oldest);
+    return `${fmtVerifiedDate(oldest)} – ${fmtVerifiedDate(newest)}`;
   } catch(e){ return ''; }
 }
 
@@ -3773,8 +3847,8 @@ function renderStalenessBanner(){
   if (!stale) return '';
   return `<div class="staleness-banner">
     <span class="staleness-icon">${ic('warn',13)}</span>
-    <div><b>Rate data may be outdated</b> — last verified ${fmtVerifiedDate(stale.date)} (${stale.days} days ago). Irish suppliers can change rates without notice.
-      <a href="#" onclick="event.preventDefault(); setScreen('plans')">See plan details for upcoming changes →</a>
+    <div><b>${stale.staleCount} of ${stale.total} plans not re-checked recently</b> — oldest verified ${fmtVerifiedDate(stale.date)}, ${stale.days} days ago. Suppliers can change rates without notice.
+      <a href="#" onclick="event.preventDefault(); setScreen('plans')">See each plan's date →</a>
     </div>
   </div>`;
 }
@@ -4294,7 +4368,7 @@ function renderResult(){
     ${annualSavings > 10 ? `<div style="text-align:center;margin:2px 0 8px">
       <span onclick="setScreen('how-to-switch')" style="display:inline-block;padding:8px 10px;font-size:12.5px;font-weight:600;color:var(--ink-soft);text-decoration:underline;text-underline-offset:3px;cursor:pointer">How switching works — takes ~10 minutes</span>
     </div>` : ''}
-    <div class="switch-cta-sub">Independent. We may earn a commission — it never changes the ranking.</div>
+    <div class="switch-cta-sub">Independent and free. We take nothing from suppliers — the ranking is your simulated cost, nothing else.</div>
 
     ${renderEnergyScore(best, baseCost)}
 
@@ -5282,7 +5356,7 @@ function requestInstallerQuotes(){
       address: state.address
     }
   });
-  showToast('Lead submitted. We\'ll match you with 3 SEAI installers within 48h.', { type:'accent', icon:ic('checkC',16) });
+  showToast('Saved on this device. Installer matching isn\u2019t live yet — you can copy these details into a quote request.', { type:'blue', icon:ic('info',16) });
 }
 
 /* ============================================================
@@ -7322,7 +7396,7 @@ function renderRefine(){
           return html || '<span style="color:var(--ink-dim)">Tariff data bundled with this release.</span>';
         })()}
       </div>
-      ${state._refresh_api_available !== false ? `
+      ${state._refresh_api_available === true ? `
         <button class="btn-secondary" id="tariff-refresh-btn" onclick="refreshTariffs()" style="width:100%">
           ${state._tariff_refreshing ? 'Checking supplier sites…' : 'Try live refresh'}
         </button>
@@ -7664,7 +7738,7 @@ function submitModalEmail(source){
   captureEmail(email, source);
   closeEmailModal();
   if (source === 'installer_quotes'){
-    showToast('Lead submitted. We\'ll match you with 3 SEAI installers within 48h.');
+    showToast('Saved on this device. Installer matching isn\u2019t live yet.');
   } else {
     showToast('Got it — we\'ll email you the report.');
   }
@@ -8928,7 +9002,13 @@ function renderApp(){
     case 'how-to-switch':html = renderHowToSwitch(); break;
     case 'methodology':  html = renderMethodology(); break;
     case 'csv-import':   html = renderCsvImport(); break;
-    default:             html = renderResult();
+    default:
+      // Falling through to the home screen made every broken link look like a
+      // working one that went somewhere odd — a dead button shipped and
+      // survived until it was found by hand. Say so, then recover.
+      console.error(`[router] unknown screen "${state.current_screen}" — falling back to the result screen`);
+      state.current_screen = 'result';
+      html = renderResult();
   }
   // A re-render of the SAME screen is a state update, not navigation: keep the
   // user where they were and don't replay the entry animation. A different
@@ -9252,7 +9332,7 @@ function renderHowToSwitch(){
       </div>
     </div>
 
-    <p class="disclaimer">We are independent and earn a referral fee if you switch via our links — at no extra cost to you. This does not affect our rankings, which are based solely on your simulated annual cost.</p>
+    <p class="disclaimer">We are independent and take no payment from any supplier. Switching through our links costs you nothing and earns us nothing — the ranking is calculated purely from your simulated annual cost. If that ever changes, this notice changes with it.</p>
   </div>
   ${bottomNav()}`;
 }
@@ -9777,7 +9857,7 @@ function renderMethodology(){
     <div class="card">
       <div class="card-label">${ic('link',13)} Independence &amp; revenue</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.75;margin-top:6px">
-        Solar Optimiser is independent. We earn a small referral fee when you switch to a supplier via our links — this does not affect plan rankings, which are calculated purely from your simulated annual cost.<br><br>
+        Solar Optimiser is independent and currently takes no money from suppliers, installers or anyone else. There is no referral fee behind the switch links. Rankings are calculated purely from your simulated annual cost. If we ever introduce a commercial arrangement, it will be stated here first.<br><br>
         We do not sell your data. All calculations happen in your browser. Your inputs are stored only in your own device's local storage.
       </div>
     </div>
@@ -9902,7 +9982,7 @@ function submitLeadForm(){
   fireEvent('installer_lead', { kwp: parseFloat(kwp.toFixed(2)), region: state.region, battery: state.battery_kwh > 0, timeline });
 
   closeLeadModal();
-  showToast('Request sent — we\'ll match you with 3 SEAI installers within 24h', { type:'accent', icon:ic('checkC',16) });
+  showToast('Saved on this device. Installer matching isn\u2019t live yet.', { type:'blue', icon:ic('info',16) });
 }
 
 /* ============================================================
