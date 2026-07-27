@@ -205,3 +205,75 @@ test('picking a costlier plan lengthens payback, never shortens it', async ({ pa
   expect(previous).toBeGreaterThanOrEqual(base - 0.05);
   expect(errors).toEqual([]);
 });
+
+/**
+ * Hierarchy: the decision comes before the working.
+ *
+ * The switch button used to sit at 53% of page depth on the home screen,
+ * behind a disclosure, the plan comparison and a four-row savings breakdown —
+ * a reader who had already accepted the advice at the top had to scroll past
+ * three layers of justification to act on it.
+ */
+test('the primary action is above the fold, and the reasoning is below it', async ({ page }) => {
+  const errors = await boot(page);
+
+  const geo = await page.evaluate(() => {
+    const y = (sel) => {
+      const el = document.querySelector(sel);
+      return el ? el.getBoundingClientRect().top + window.scrollY : null;
+    };
+    return {
+      hero: y('.qr-hero'),
+      cta: y('.switch-cta'),
+      reasoning: y('.plan-compare'),
+      viewport: window.innerHeight,
+      page: document.body.scrollHeight,
+    };
+  });
+
+  expect(geo.cta, 'no primary action on the home screen').not.toBeNull();
+  expect(geo.cta, 'the action is below the fold').toBeLessThan(geo.viewport);
+  expect(geo.cta, 'the action does not follow the headline figure').toBeGreaterThan(geo.hero);
+  expect(geo.reasoning, 'the working is above the action, not below it').toBeGreaterThan(geo.cta);
+  expect(geo.cta / geo.page, 'the action sits too deep in the page').toBeLessThan(0.35);
+  expect(errors).toEqual([]);
+});
+
+test('the report is promoted, and the novelty tile is gone', async ({ page }) => {
+  const errors = await boot(page);
+  const promo = page.locator('.report-promo');
+  await expect(promo).toHaveCount(1);
+  await expect(promo).toContainText(/typeset pages/i);
+
+  // Full width, not a quarter tile beside a share-card gimmick.
+  const width = await promo.evaluate((el) => el.getBoundingClientRect().width);
+  const screen = await page.evaluate(() => document.querySelector('.screen')?.getBoundingClientRect().width ?? 0);
+  expect(width / screen).toBeGreaterThan(0.9);
+
+  const text = await page.evaluate(() => document.body.innerText);
+  expect(text).not.toMatch(/Challenge a friend/i);
+  expect(errors).toEqual([]);
+});
+
+test('the health score names its weakest factor instead of just scoring you', async ({ page }) => {
+  const errors = await boot(page);
+  const card = page.locator('text=Energy health score').locator('..').locator('..');
+  await expect(card).toContainText(/Weakest:|Little left on the table/);
+  expect(errors).toEqual([]);
+});
+
+test('the solar screen puts free advice above the instrument', async ({ page }) => {
+  const errors = await boot(page, { current_screen: 'solar' });
+  const order = await page.evaluate(() => {
+    const at = (re) => {
+      const el = [...document.querySelectorAll('.section-title')].find((e) => re.test(e.textContent));
+      return el ? el.getBoundingClientRect().top + window.scrollY : null;
+    };
+    return { advice: at(/Maximise your benefit/i), inspector: at(/Day inspector/i) };
+  });
+  if (order.advice !== null && order.inspector !== null) {
+    expect(order.advice, 'the day inspector still precedes the free changes')
+      .toBeLessThan(order.inspector);
+  }
+  expect(errors).toEqual([]);
+});

@@ -4015,18 +4015,21 @@ function computeEnergyScore(best, baseCost){
   // Plan efficiency: best-possible cost as % of what you pay now (100 = on the best plan)
   const planScore = clamp(100 * best.net / Math.max(1, baseCost));
   parts.push({ key:'plan', label:'Plan efficiency', score:planScore,
-    why: planScore >= 99 ? "You're on the best plan for your usage" : `You pay ${fmtCurrency(Math.round(baseCost))}, best is ${fmtCurrency(Math.round(best.net))} — switching closes the gap` });
+    why: planScore >= 99 ? "You're on the best plan for your usage" : `You pay ${fmtCurrency(Math.round(baseCost))}, best is ${fmtCurrency(Math.round(best.net))} — switching closes the gap`,
+    fix: planScore >= 99 ? null : { label:`Switch and save ${fmtCurrency(Math.round(baseCost - best.net))}/yr`, go:"setScreen('plans')" } });
   // Solar: performance if installed, potential if not
   if (state.has_solar && totalPanels() > 0){
     const s = best.sim;
     const gen = sumF(CACHE.solar.total);
     const selfUse = gen > 0 ? Math.max(0, (gen - sumF(s.grid_export) - sumF(s.curtailed)) / gen) * 100 : 0;
     parts.push({ key:'solar', label:'Solar performance', score: clamp(35 + selfUse * 0.6 + (state.export_enabled !== false ? 8 : 0)),
-      why: `${Math.round(selfUse)}% of generation used on-site${state.export_enabled === false ? ' · export payments OFF' : ''}` });
+      why: `${Math.round(selfUse)}% of generation used on-site${state.export_enabled === false ? ' · export payments OFF' : ''}`,
+      fix: { label:'See the free changes that raise this', go:"setScreen('solar')" } });
   } else {
     const mult = (IRISH_REGIONS[state.region] || {}).ghi_multiplier || 1;
     parts.push({ key:'solar', label:'Solar potential', score: clamp(80 + (mult - 1) * 200),
-      why: `${IRISH_REGIONS[state.region] ? IRISH_REGIONS[state.region].name : 'Your region'} yield ${mult >= 1 ? '+' : ''}${Math.round((mult-1)*100)}% vs national — model a system on the Solar tab` });
+      why: `${IRISH_REGIONS[state.region] ? IRISH_REGIONS[state.region].name : 'Your region'} yield ${mult >= 1 ? '+' : ''}${Math.round((mult-1)*100)}% vs national`,
+      fix: { label:'Model a system for your roof', go:"setScreen('solar')" } });
   }
   // EV readiness: is the charging actually landing in a cheap window?
   if (state.ev_active){
@@ -4035,7 +4038,8 @@ function computeEnergyScore(best, baseCost){
     const bestHasWindow = !!(best.plan.windows && (best.plan.windows.ev || best.plan.windows.night));
     const evScore = clamp(baseHasWindow ? 92 : (bestHasWindow ? 58 : 45));
     parts.push({ key:'ev', label:'EV readiness', score:evScore,
-      why: baseHasWindow ? 'Your plan has a cheap charging window' : 'Your current plan has no night/EV window — the recommended switch captures one' });
+      why: baseHasWindow ? 'Your plan has a cheap charging window' : 'Your current plan has no night/EV window — the recommended switch captures one',
+      fix: baseHasWindow ? null : { label:'See plans with a cheap EV window', go:"setScreen('plans')" } });
   }
   // Export optimisation
   if (state.has_solar && totalPanels() > 0){
@@ -4043,35 +4047,52 @@ function computeEnergyScore(best, baseCost){
     const cur = (getPlanById(state.baseline).export_rate || 0);
     parts.push({ key:'export', label:'Export optimisation',
       score: state.export_enabled === false ? 15 : clamp(100 * cur / Math.max(0.01, bestExport)),
-      why: state.export_enabled === false ? 'Export payments not registered — free money missed' : `Your export rate ${fmtCent(cur)} vs best available ${fmtCent(bestExport)}` });
+      why: state.export_enabled === false ? 'Export payments not registered — free money missed' : `Your export rate ${fmtCent(cur)} vs best available ${fmtCent(bestExport)}`,
+      fix: state.export_enabled === false ? { label:'How to register for export payments', go:"setScreen('how-to-switch')" } : null });
   }
   const overall = clamp(parts.reduce((a,p)=>a+p.score,0) / parts.length);
   return { overall, parts };
 }
 
+/**
+ * The health score, with its weakest factor stated up front.
+ *
+ * Collapsed, this used to read "58/100 — Energy health score, 3 factors" and
+ * nothing else: an unexplained scale, unnamed factors and no action, delivered
+ * immediately below the switch button. That is a criticism at the moment of
+ * commitment. It now names what is dragging the score down and offers the one
+ * thing that would raise it.
+ */
 function renderEnergyScore(best, baseCost){
   const s = computeEnergyScore(best, baseCost);
   const open = !!state._score_open;
+  const tone = (v) => v >= 80 ? 'var(--accent)' : v >= 55 ? 'var(--amber)' : 'var(--loss)';
+  const weakest = s.parts.reduce((a, p) => (p.score < a.score ? p : a), s.parts[0]);
   return `
     <div class="card" style="margin-bottom:14px">
       <div style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:10px 0;margin:-10px 0" onclick="state._score_open=!state._score_open;renderApp();">
-        <div style="font-family:var(--mono);font-size:25px;font-weight:700;color:${s.overall >= 80 ? 'var(--accent)' : s.overall >= 55 ? 'var(--amber)' : 'var(--loss)'}">${s.overall}<span style="font-size:12px;color:var(--ink-dim);font-weight:400">/100</span></div>
+        <div style="font-family:var(--mono);font-size:25px;font-weight:700;color:${tone(s.overall)}">${s.overall}<span style="font-size:12px;color:var(--ink-dim);font-weight:400">/100</span></div>
         <div style="flex:1">
           <div style="font-size:13px;font-weight:700;color:var(--ink)">Energy health score</div>
-          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.03em;margin-top:2px">${s.parts.length} factors · simulated on your home</div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.03em;margin-top:2px">${s.overall >= 80 ? 'Little left on the table' : 'Weakest: ' + weakest.label.toLowerCase()}</div>
         </div>
         <span style="font-family:var(--mono);font-size:12px;color:var(--ink-dim)">${open ? '▴' : '▾'}</span>
       </div>
+      ${!open && weakest && weakest.score < 80 ? `
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line-soft)">
+          <div style="font-size:13px;color:var(--ink-soft);line-height:1.5">${weakest.why}.</div>
+          ${weakest.fix && weakest.key !== 'plan' ? `<button class="btn-secondary" style="margin-top:8px" onclick="${weakest.fix.go}">${weakest.fix.label} →</button>` : ''}
+        </div>` : ''}
       ${open ? s.parts.map(p => `
         <div style="margin-top:11px">
-          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
             <span style="color:var(--ink);font-weight:600">${p.label}</span>
-            <span style="font-family:var(--mono);font-weight:700;color:${p.score >= 80 ? 'var(--accent)' : p.score >= 55 ? 'var(--amber)' : 'var(--loss)'}">${p.score}</span>
+            <span style="font-family:var(--mono);font-weight:700;color:${tone(p.score)}">${p.score}</span>
           </div>
-          <div style="height:5px;background:var(--track-soft);border-radius:999px;overflow:hidden"><div style="height:100%;width:${p.score}%;background:${p.score >= 80 ? 'var(--accent)' : p.score >= 55 ? 'var(--amber)' : 'var(--loss)'};border-radius:999px"></div></div>
-          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:4px;line-height:1.5">${p.why}</div>
-        </div>`).join('') + `
-      <div style="font-family:var(--display);font-size:12px;color:var(--ink-dim);margin-top:12px;letter-spacing:.03em">Improve it: apply the free changes on the Solar tab · switch when the gap is real</div>` : ''}
+          <div style="height:5px;background:var(--track-soft);border-radius:999px;overflow:hidden"><div style="height:100%;width:${p.score}%;background:${tone(p.score)};border-radius:999px"></div></div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.5">${p.why}.</div>
+          ${p.fix ? `<div style="margin-top:6px"><a href="#" onclick="event.preventDefault();${p.fix.go}" style="font-size:12px;color:var(--accent);text-decoration:underline;text-underline-offset:2px">${p.fix.label} →</a></div>` : ''}
+        </div>`).join('') : ''}
     </div>`;
 }
 
@@ -4332,6 +4353,23 @@ function renderResult(){
       ${configChips()}
     </div>
 
+    <!-- The action sits directly under the headline figure. It used to be at
+         53% of page depth, behind the disclosure, the plan comparison and the
+         savings breakdown — a reader who had already accepted the advice at
+         the top had to scroll past three layers of justification to act on it.
+         The working is still here, below the decision rather than in front of
+         it: available, not compulsory. -->
+    <button class="switch-cta" onclick="handleSwitchClick('${best.plan.id}', '${(best.plan.supplier + ' ' + best.plan.plan).replace(/'/g,"\\'")}', ${annualSavings.toFixed(0)})">
+      Switch to ${best.plan.supplier} →
+    </button>
+    <button class="btn-secondary" style="margin-bottom:6px" onclick="openPlanPicker()">
+      ${ic('tune',14)} ${state.chosen_plan ? 'Change plan' : 'Use a different plan'}
+    </button>
+    ${annualSavings > 10 ? `<div style="text-align:center;margin:2px 0 8px">
+      <span onclick="setScreen('how-to-switch')" style="display:inline-block;padding:8px 10px;font-size:12px;font-weight:600;color:var(--ink-soft);text-decoration:underline;text-underline-offset:3px;cursor:pointer">How switching works — takes ~10 minutes</span>
+    </div>` : ''}
+    <div class="switch-cta-sub">Independent and free. We take nothing from suppliers — the ranking is your simulated cost, nothing else.</div>
+
     ${renderTrustPanel()}
     ${renderContractAlert()}
     ${state.chosen_plan ? renderChoiceStrip() : ''}
@@ -4369,17 +4407,6 @@ function renderResult(){
     </div>
 
     ${renderSavingsBreakdown(best, baseCost)}
-
-    <button class="btn-secondary" style="margin-bottom:8px" onclick="openPlanPicker()">
-      ${ic('tune',14)} ${state.chosen_plan ? 'Change plan' : 'Use a different plan'}
-    </button>
-    <button class="switch-cta" onclick="handleSwitchClick('${best.plan.id}', '${(best.plan.supplier + ' ' + best.plan.plan).replace(/'/g,"\\'")}', ${annualSavings.toFixed(0)})">
-      Switch to ${best.plan.supplier} →
-    </button>
-    ${annualSavings > 10 ? `<div style="text-align:center;margin:2px 0 8px">
-      <span onclick="setScreen('how-to-switch')" style="display:inline-block;padding:8px 10px;font-size:12px;font-weight:600;color:var(--ink-soft);text-decoration:underline;text-underline-offset:3px;cursor:pointer">How switching works — takes ~10 minutes</span>
-    </div>` : ''}
-    <div class="switch-cta-sub">Independent and free. We take nothing from suppliers — the ranking is your simulated cost, nothing else.</div>
 
     ${renderEnergyScore(best, baseCost)}
 
@@ -4437,17 +4464,32 @@ function renderResult(){
     `}
 
     <div class="section-title">This result</div>
-    <div class="mini-action-grid">
-      <div class="mini-action" onclick="openPdfReportModal()">
-        ${ic('doc',18)}<div class="mini-action-t">PDF report</div><div class="mini-action-s">Emailed to you</div>
+
+    <!-- The report is the most differentiated thing the product makes: ten
+         typeset pages of year-scale analysis from the same hourly simulation.
+         It was a quarter-tile beside "Challenge a friend". It gets the width,
+         and says what is actually in it. -->
+    <div class="report-promo" onclick="openPdfReportModal()">
+      <div class="report-promo-pages" aria-hidden="true">
+        <span class="report-page p3"></span><span class="report-page p2"></span>
+        <span class="report-page p1">
+          <span class="report-rule w60"></span><span class="report-fig"></span>
+          <span class="report-rule w80"></span><span class="report-rule w50"></span>
+          <span class="report-chart"></span>
+          <span class="report-rule w70"></span><span class="report-rule w40"></span>
+        </span>
       </div>
+      <div class="report-promo-body">
+        <div class="report-promo-title">Your full report, as a PDF</div>
+        <div class="report-promo-sub">Ten typeset pages: month-by-month energy and money, four seasonal days hour by hour, where every unit of your bill goes, and the twenty-year position.</div>
+        <div class="report-promo-cta">Generate the report →</div>
+      </div>
+    </div>
+
+    <div class="mini-action-grid">
       <div class="mini-action" onclick="copyShareUrl()">
         ${ic('link',18)}<div class="mini-action-t">Share analysis</div><div class="mini-action-s">Link with your inputs</div>
       </div>
-      ${annualSavings > 25 ? `
-      <div class="mini-action" onclick="shareSavingsCard()">
-        ${ic('spark',18)}<div class="mini-action-t">Challenge a friend</div><div class="mini-action-s">Your €${Math.round(annualSavings).toLocaleString()}/yr card</div>
-      </div>` : ''}
       <div class="mini-action" onclick="reRunOnboarding()">
         ${ic('rotate',18)}<div class="mini-action-t">Re-run setup</div><div class="mini-action-s">Answers pre-filled</div>
       </div>
@@ -5082,9 +5124,6 @@ function renderSolarDashboard(){
 
     ${state._show_npv_breakdown ? renderNpvBreakdown(currentScen.solarBenefit, sysCost, state.battery_kwh || 0, state.panel_degradation || 0.005) : ''}
 
-    ${renderDayInspector()}
-
-
     ${state.ev_active && econ ? `
       <div class="ev-banner">
         <div class="ev-banner-icon">${ic('car',20)}</div>
@@ -5105,6 +5144,12 @@ function renderSolarDashboard(){
     `}
 
     ${renderOptimisations()}
+
+    <!-- The day inspector used to sit third on this screen, above the free
+         changes. It is an instrument for people who already believe the
+         numbers; the free changes cost nothing and raise the return. Advice
+         above instrumentation. -->
+    ${renderDayInspector()}
 
     ${(advice.length > 0 || (computeOptimisations().upgrades || []).length > 0) ? `
       <div class="section-title">Hardware upgrades</div>

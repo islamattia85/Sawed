@@ -282,7 +282,7 @@
   .switch-cta-sub{text-align:center;font-size:12px;color:var(--ink-dim);font-family:var(--mono);letter-spacing:.06em;margin-bottom:18px}
 
   /* Secondary CTAs */
-  .secondary-card{background:var(--surface);border:1px solid var(--hair);border-radius:16px;padding:16px 16px;margin-bottom:10px;cursor:pointer;transition:transform .12s,border-color .15s,box-shadow .15s;display:flex;align-items:center;gap:14px;box-shadow:var(--lift)}
+  .secondary-card{background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:16px 16px;margin-bottom:10px;cursor:pointer;transition:transform .12s,border-color .15s;display:flex;align-items:center;gap:14px}
   .secondary-card:active{transform:scale(.985)}
   .secondary-card:hover{transform:translateY(-1px);border-color:var(--accent);box-shadow:0 4px 16px -8px rgba(0,0,0,.6)}
   .secondary-card-icon{width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.035);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid var(--hair);color:var(--ink-soft)}
@@ -314,7 +314,7 @@
   .mini-action:hover{border-color:var(--hair-strong)}
   .mini-action-t{font-size:12px;font-weight:700;color:var(--ink);margin-top:7px;line-height:1.25}
   .mini-action-s{font-size:12px;color:var(--ink-dim);margin-top:2px;line-height:1.35}
-  .card{background:var(--surface);border:1px solid var(--hair);border-radius:16px;padding:16px;transition:transform .15s,border-color .15s;box-shadow:var(--lift)}
+  .card{background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:16px;transition:transform .15s,border-color .15s}
   .card:hover{transform:translateY(-1px);border-color:var(--track)}
   .card-label{font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.12em;font-weight:600;margin-bottom:8px;font-family:var(--mono);display:flex;align-items:center;gap:6px;line-height:1.2}
   .card-value{font-family:var(--mono);font-size:20px;font-weight:600;color:var(--ink);line-height:1.1;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
@@ -608,6 +608,29 @@
   .plan-cost{font-family:var(--mono);font-size:17px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;text-align:right;line-height:1}
   .plan-cost.best{color:var(--accent)}
   .plan-saving{font-size:12px;color:var(--accent);font-family:var(--mono);text-align:right;margin-top:2px;font-weight:600}
+  /* Report promotion — the PDF is the product's most differentiated artefact,
+     so it gets a full-width block and a glimpse of what it looks like, rather
+     than a quarter-tile beside a share-card novelty. The preview is drawn in
+     CSS: no image to ship, and it cannot go stale against the real document. */
+  .report-promo{display:flex;gap:16px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px;cursor:pointer;transition:border-color .15s,transform .15s}
+  .report-promo:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .report-promo-pages{position:relative;width:74px;height:98px;flex-shrink:0}
+  .report-page{position:absolute;inset:0;background:#fff;border:1px solid rgba(0,0,0,.14);border-radius:4px}
+  .report-page.p3{transform:rotate(-7deg) translate(-3px,2px);opacity:.35}
+  .report-page.p2{transform:rotate(-3.5deg) translate(-1px,1px);opacity:.6}
+  .report-page.p1{display:flex;flex-direction:column;gap:4px;padding:9px 8px;box-shadow:0 3px 12px -4px rgba(0,0,0,.4)}
+  .report-rule{height:2px;background:#c9cec8;border-radius:999px}
+  .report-rule.w40{width:40%} .report-rule.w50{width:50%}
+  .report-rule.w60{width:60%} .report-rule.w70{width:70%} .report-rule.w80{width:80%}
+  .report-fig{height:9px;width:52%;background:#0b6e4f;border-radius:2px;margin:1px 0}
+  .report-chart{height:22px;background:linear-gradient(to top,#dfe6e0 0 100%);border-radius:2px;margin:2px 0;
+    background-image:linear-gradient(to right,#0b6e4f 0 9%,transparent 9% 16%,#0b6e4f 16% 25%,transparent 25% 32%,#8a6210 32% 41%,transparent 41% 48%,#0b6e4f 48% 57%,transparent 57% 64%,#0b6e4f 64% 73%,transparent 73% 80%,#8a6210 80% 89%,transparent 89% 100%);
+    background-repeat:no-repeat;background-position:bottom;background-size:100% 70%}
+  .report-promo-body{flex:1;min-width:0}
+  .report-promo-title{font-size:17px;font-weight:700;color:var(--ink);line-height:1.25}
+  .report-promo-sub{font-size:13px;color:var(--ink-soft);line-height:1.5;margin-top:5px}
+  .report-promo-cta{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.03em;margin-top:9px}
+
   /* Manual plan choice — the plan the user decided to go with, overriding rank */
   .plan-card.chosen{border-color:var(--amber);background:linear-gradient(140deg,var(--panel) 0%,var(--panel-2) 100%)}
   .plan-rank.chosen{color:var(--amber);background:var(--amber-soft);border:1px solid var(--amber)}
