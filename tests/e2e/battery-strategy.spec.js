@@ -78,6 +78,12 @@ test('with no battery the strategy is simply not in force, and is not erased', a
 
 test('the suggested system is told apart from the one being modelled', async ({ page }) => {
   await boot(page, { ...ARBITRAGE, count_A: 12, battery_kwh: 5 });
+  // Lives on the customise screen now, not the solar tab.
+  await page.evaluate(() => {
+    window.setScreen('refine');
+    window.state._settings_open = 'solar';
+    window.renderApp();
+  });
   await expect.poll(
     () => page.evaluate(() => !document.querySelector('.opt-note.is-working')),
     { timeout: 20_000 },

@@ -5653,10 +5653,11 @@ function renderSolarDashboard(){
       </div>
     </div>
 
-    <!-- Directly under the payback headline, because every figure above and
-         below it is priced on this plan. It used to sit below the day
-         inspector, two screens down, where nobody found it. -->
-    ${renderOptimisedSuggestion()}
+    <!-- No size suggestion here. The solar tab answers one question — is this
+         worth it — and a second system alongside the reader's own turned that
+         into a comparison they had not asked for. The suggestion belongs where
+         someone has already decided to change the spec, so it lives on the
+         customise screen now. -->
 
     ${isEst ? `<div class="solar-correct">
       Already have panels, or planning a specific system?
@@ -8025,6 +8026,11 @@ function renderRefine(){
     `)}
 
     ${section('solar', ic('sun',17), 'Solar system', solarSummary, state.considering_solar ? `
+      <!-- The size suggestion lives here, above the controls it would change.
+           On the solar tab it sat beside the reader's own payback and turned
+           "is this worth it" into a comparison nobody asked for. Someone on
+           this screen has already decided to change the spec. -->
+      ${open === 'solar' ? renderOptimisedSuggestion() : ''}
       ${refineRow('Front roof — panels', state.count_A > 30 ? "\u26A0 That is a large array for one roof — double-check the count" : 'Number of panels on your main roof', refineNum('rf-cA', state.count_A, 0, 40, 1, ''))}
       ${refineRow('Front roof — orientation', sectorFromAzimuth(state.azimuth_A) + ' (' + state.azimuth_A + '°)', refineSel('rf-azA', sectorFromAzimuth(state.azimuth_A), [['S','South'],['SE','Southeast'],['SW','Southwest'],['E','East'],['W','West'],['NE','Northeast'],['NW','Northwest'],['N','North']]))}
       ${refineRow('Front roof — tilt', '', refineNum('rf-tiltA', state.tilt_A, 0, 90, 1, '°'))}

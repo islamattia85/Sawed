@@ -14,9 +14,14 @@ import { boot } from './support.js';
  * costs a tap and returns nothing, and "detail" says nothing about what is
  * behind it. Two walls instead of three tabs is not a simplification.
  *
- * So: no question, no gate, no modes. The screen lands on a working answer,
- * offers a better system underneath it, and gives one quiet sentence for
- * anyone we guessed wrong about.
+ * So: no question, no gate, no modes. The screen lands on a working answer and
+ * gives one quiet sentence for anyone we guessed wrong about.
+ *
+ * It also no longer offers a different system. A suggested spec sitting beside
+ * the reader's own turned "is this worth it" into a comparison they had not
+ * asked for, and made it hard to tell which figures described which system.
+ * That belongs where someone has already decided to change the spec, so it
+ * lives on the customise screen.
  */
 
 const NO_SOLAR = {
@@ -56,11 +61,34 @@ test('the answer is not blocked by the twelve-design sweep', async ({ page }) =>
   expect(errors).toEqual([]);
 });
 
-test('a better system is offered after the answer, never before it', async ({ page }) => {
+test('the solar tab does not offer a second system alongside the reader’s own', async ({ page }) => {
   const errors = await boot(page, NO_SOLAR);
   await page.evaluate(() => window.setScreen('solar'));
+  await page.waitForTimeout(2500);      // long enough for the old sweep to land
 
-  // The recommendation arrives once the sweep lands.
+  // The tab answers one question: is this worth it. A suggested system sitting
+  // beside the reader's own turned that into a comparison they had not asked
+  // for, and made it genuinely hard to tell which figures belonged to which.
+  // The suggestion lives on the customise screen now.
+  await expect(page.locator('.opt-card')).toHaveCount(0);
+  await expect(page.locator('.opt-note')).toHaveCount(0);
+  expect(await page.evaluate(() => document.body.innerText))
+    .not.toMatch(/better size for your roof/i);
+
+  expect(errors).toEqual([]);
+});
+
+test('the suggestion is on the customise screen, above the controls it changes', async ({ page }) => {
+  // A home that is actually modelling a system: with nothing configured the
+  // section offers "add a solar system" instead, which is the right answer to
+  // a different question.
+  const errors = await boot(page, { has_solar: true, considering_solar: true, count_A: 12, battery_kwh: 5 });
+  await page.evaluate(() => {
+    window.setScreen('refine');
+    window.state._settings_open = 'solar';
+    window.renderApp();
+  });
+
   const card = page.locator('.opt-card, .opt-note').first();
   await expect(card).toBeVisible({ timeout: 20_000 });
   await expect.poll(
@@ -68,23 +96,43 @@ test('a better system is offered after the answer, never before it', async ({ pa
     { timeout: 20_000 },
   ).toBe(true);
 
-  // It follows the reader's own figure rather than correcting them first.
-  const order = await page.evaluate(() => {
-    const y = (sel) => {
-      const el = document.querySelector(sel);
-      return el ? el.getBoundingClientRect().top + window.scrollY : null;
+  const placed = await page.evaluate(() => {
+    const el = document.querySelector('.opt-card, .opt-note');
+    const section = [...document.querySelectorAll('.settings-section-card')]
+      .find((c) => /Solar system/.test(c.textContent));
+    const firstControl = document.querySelector('.refine-row');
+    return {
+      inSolarSection: !!(section && section.contains(el)),
+      aboveControls: firstControl
+        ? el.getBoundingClientRect().top < firstControl.getBoundingClientRect().top : null,
     };
-    return { hero: y('.sd-hero'), rec: y('.opt-card, .opt-note') };
   });
-  expect(order.rec, 'the recommendation is above the reader’s own number')
-    .toBeGreaterThan(order.hero);
+  expect(placed.inSolarSection, 'the suggestion is not in the solar section').toBe(true);
+  expect(placed.aboveControls, 'the suggestion is below the controls it would change').toBe(true);
 
   expect(errors).toEqual([]);
 });
 
+test('a collapsed section does not start the twelve-design sweep', async ({ page }) => {
+  await boot(page, NO_SOLAR);
+  await page.evaluate(() => {
+    window.setScreen('refine');
+    window.state._settings_open = 'home';
+    window.renderApp();
+  });
+  await page.waitForTimeout(800);
+  // Section bodies render even when closed. Simulating twelve designs for a
+  // section nobody has opened is work done for nothing.
+  await expect(page.locator('.opt-card, .opt-note')).toHaveCount(0);
+});
+
 test('the recommendation is a single defensible pick, and applying it works', async ({ page }) => {
-  const errors = await boot(page, NO_SOLAR);
-  await page.evaluate(() => window.setScreen('solar'));
+  const errors = await boot(page, { has_solar: true, considering_solar: true, count_A: 12, battery_kwh: 5 });
+  await page.evaluate(() => {
+    window.setScreen('refine');
+    window.state._settings_open = 'solar';
+    window.renderApp();
+  });
   await expect.poll(
     () => page.evaluate(() => !document.querySelector('.opt-note.is-working')),
     { timeout: 20_000 },
@@ -99,14 +147,14 @@ test('the recommendation is a single defensible pick, and applying it works', as
   const nearTies = sweep.designs.filter((x) => x.npv >= top * 0.95);
   expect(d.net).toBe(Math.min(...nearTies.map((x) => x.net)));
 
-  const btn = page.getByRole('button', { name: /Use this system/i });
+  const btn = page.getByRole('button', { name: /Switch to the suggested system/i });
   if (await btn.count()) {
     await btn.click();
     await expect.poll(() => page.evaluate(() => window.state.count_A)).toBe(d.panels);
     expect(await page.evaluate(() => window.state.battery_kwh)).toBe(d.batt);
     // Now that we are on it, the offer becomes a one-line confirmation.
     await expect(page.locator('.opt-note')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Use this system/i })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Switch to the suggested system/i })).toHaveCount(0);
   }
   expect(errors).toEqual([]);
 });
