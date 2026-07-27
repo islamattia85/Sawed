@@ -6491,12 +6491,17 @@ function renderRegionPicker(currentRegion){
       const r = IRISH_REGIONS[id];
       const pct = Math.round((r.ghi_multiplier - 1) * 100);
       const cls = pct > 0 ? 'positive' : pct === 0 ? 'baseline' : 'negative';
-      const label = pct > 0 ? `+${pct}%` : pct === 0 ? 'baseline' : `${pct}%`;
+      // Every tile now reads as the same kind of thing: a percentage against the
+      // national average. The zero case said "baseline", a word twice the width
+      // of "-6%", and the badge is laid out in the row rather than floated over
+      // it — so on the first screen after the front door it covered the region
+      // name it was describing.
+      const label = pct === 0 ? '0%' : pct > 0 ? `+${pct}%` : `${pct}%`;
       return `<div class="region-tile ${id === currentRegion ? 'active' : ''}" onclick="setRegion('${id}')">
-        <div class="region-tile-multi ${cls}">${label}</div>
         <div class="region-tile-head">
           <div class="region-tile-icon">${ic('pin',16)}</div>
           <div class="region-tile-name">${r.name}</div>
+          <div class="region-tile-multi ${cls}">${label}</div>
         </div>
         <div class="region-tile-counties">${r.counties}</div>
       </div>`;
@@ -6930,7 +6935,7 @@ function renderAnalytics(){
       </div>
     </div>
 
-    <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);line-height:1.6;margin:-6px 0 14px;padding:10px 12px;background:rgba(90,156,255,.04);border:1px solid rgba(90,156,255,.15);border-radius:8px;letter-spacing:.02em">
+    <div style="font-size:13px;color:var(--ink-soft);line-height:1.7;margin:-6px 0 14px;padding:12px 14px;background:rgba(90,156,255,.04);border:1px solid rgba(90,156,255,.15);border-radius:var(--radius-md)">
       <b style="color:var(--blue);text-transform:uppercase;letter-spacing:.1em;font-size:12px">How to read these</b> · same kWh, two lenses.<br>
       <span style="color:var(--accent)">${(solarUtilization*100).toFixed(0)}% kept at home</span> = share of <b>generation</b> used on-site (rest exported).
       <span style="color:var(--blue)">${(demandFromSolar*100).toFixed(0)}% of your needs met by solar</span> = share of <b>demand</b> covered by your own panels.
@@ -7089,7 +7094,7 @@ function renderAnalytics(){
           <div style="padding:10px;background:rgba(0,230,118,.04);border-radius:8px;border:1px solid var(--accent);grid-column:span 2">
             <div style="font-family:var(--mono);font-size:12px;color:var(--accent);text-transform:uppercase;letter-spacing:.08em">Arbitrage strategy · est. annual gain</div>
             <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--accent);margin-top:3px">€${Math.round(arbValueEst).toLocaleString()}</div>
-            <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;font-family:var(--mono)">
+            <div style="font-size:13px;color:var(--ink-soft);margin-top:2px;line-height:1.6">
               Buy cheap (${fmtCent(nightRate)}/kWh) · sell dear (${fmtCent(peakRateV)}/kWh) · ${Math.round(annualDischarged).toLocaleString()} kWh/yr cycled
             </div>
           </div>` : `
@@ -7151,7 +7156,7 @@ function renderAnalytics(){
       <div class="an-hours">
         ${Array.from({length:24},(_,h) => `<div>${h % 6 === 0 || h === 23 ? h + 'h' : ''}</div>`).join('')}
       </div>
-      <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:6px;letter-spacing:.04em">Red = paid · Green = credit (export revenue exceeds import cost)</div>
+      <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;line-height:1.6">Red = paid · Green = credit (export revenue exceeds import cost)</div>
     </div>
 
     <div class="section-title">Monthly breakdown</div>
@@ -7714,7 +7719,7 @@ function renderAuditor(){
 
     <div class="card" style="background:rgba(41,182,246,.04);border-color:var(--blue);margin-top:14px">
       <div class="card-label" style="color:var(--blue)">How we benchmark</div>
-      <div style="font-size:12px;color:var(--ink-soft);line-height:1.7;font-family:var(--mono)">
+      <div style="font-size:13px;color:var(--ink-soft);line-height:1.8">
         Panels + inverter: €950-€1,200/kWp installed<br>
         Battery: €350-€480/kWh capacity<br>
         Scaffolding + SEAI cert + wiring: €1,100-€1,300 fixed<br>
@@ -8485,7 +8490,9 @@ function renderMonitor(){
     statusHtml = `<div class="mon-status action">
       <div class="mon-status-eyebrow">${ic('bolt',12,'vertical-align:-2px')} A better plan is available</div>
       <div class="mon-status-line">Switching to <b>${best.plan.supplier} — ${best.plan.plan}</b> would save you about <b style="color:var(--amber)">${fmtCurrency(savings)}/yr</b> versus your current plan.</div>
-      <div class="mon-status-meta">Your current plan ranks #${rank || '–'} of ${countLabel} for your usage</div>
+      <!-- countLabel already reads "22 of 25 — 3 dynamic plans excluded", so
+           interpolating it after "of" produced "ranks #20 of 22 of 25". -->
+      <div class="mon-status-meta">Your current plan ranks #${rank || '–'} of ${rec.rankedCount} for your usage</div>
       <button class="switch-cta" style="margin-top:13px;margin-bottom:0;font-size:13px;padding:13px"
         onclick="handleSwitchClick('${best.plan.id}','${(best.plan.supplier+' '+best.plan.plan).replace(/'/g,"\\'")}',${savings.toFixed(0)})">
         Review the switch →</button>
@@ -9922,7 +9929,7 @@ function renderHowToSwitch(){
       </div>
       <div class="card" style="margin-top:0">
         <div class="card-label">The general process</div>
-        <ol style="margin:10px 0 0 18px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:2;list-style:decimal">
+        <ol style="margin:10px 0 0 18px;font-size:15px;color:var(--ink-soft);line-height:1.9;list-style:decimal">
           <li>Find your MPRN (on your current bill)</li>
           <li>Sign up with the new supplier online</li>
           <li>New supplier notifies your current one</li>

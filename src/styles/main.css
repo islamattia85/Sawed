@@ -257,7 +257,7 @@
   .ob-input{width:100%;padding:16px 18px;font-size:17px;border:1px solid var(--line);border-radius:12px;background:var(--well);color:var(--ink);font-family:var(--display);transition:border-color .15s,box-shadow .15s}
   .ob-input.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:25px;font-weight:600;text-align:center}
   .ob-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-  .ob-help{font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:8px;font-family:var(--mono)}
+  .ob-help{font-size:13px;color:var(--ink-soft);line-height:1.5;margin-top:8px}
   .ob-help.warning{background:var(--amber-soft);border:1px solid rgba(255,145,0,.3);padding:10px 12px;border-radius:8px;color:var(--ink);margin-top:10px;font-family:var(--display);font-size:12px}
   /* Sub-headings inside a step that asks two related questions */
   .ob-field-label{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:9px}
@@ -267,7 +267,7 @@
   .ob-tile.active{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent),0 0 16px -4px var(--accent-glow)}
   .ob-tile-icon{font-size:25px;margin-bottom:6px}
   .ob-tile-label{font-size:13px;font-weight:600;color:var(--ink);line-height:1.25}
-  .ob-tile-sub{font-size:12px;color:var(--ink-soft);font-family:var(--mono);margin-top:3px;letter-spacing:.02em}
+  .ob-tile-sub{font-size:13px;color:var(--ink-soft);margin-top:3px}
   .ob-tile.active .ob-tile-label{color:var(--accent)}
   .ob-nav{position:sticky;bottom:0;padding:14px 0 16px;background:linear-gradient(180deg,transparent 0%,var(--glass-top) 30%,var(--bg) 100%);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;gap:10px;margin-top:24px}
   .ob-back-btn{background:transparent;border:1.5px solid var(--line);color:var(--ink-soft);padding:14px 22px;border-radius:12px;font-weight:600;cursor:pointer;flex:0 0 auto;transition:border-color .15s,color .15s,background .15s}
@@ -418,7 +418,13 @@
   .refine-row-label{flex:1;min-width:0}
   .refine-row-label > div:first-child{font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em;font-weight:600;font-family:var(--mono)}
   .refine-row-label > div:last-child{font-size:12px;color:var(--ink-dim);margin-top:3px;line-height:1.4}
-  .refine-row input,.refine-row select{padding:8px 10px;font-size:13px;background:var(--well);border:1px solid var(--line);border-radius:8px;color:var(--ink);font-family:var(--mono);min-width:110px;text-align:right}
+  /* A select holding "SSE Airtricity — 1 Year Fixed Smart Day/Night/Peak" has
+     no business being 110px wide and monospaced: it overflowed the row and
+     pushed the screen sideways. Numbers keep the mono face and the fixed
+     width; the name lists shrink to fit and read as names. */
+  .refine-row input{padding:8px 10px;font-size:13px;background:var(--well);border:1px solid var(--line);border-radius:var(--radius-md);color:var(--ink);font-family:var(--mono);min-width:110px;text-align:right}
+  .refine-row select{padding:8px 10px;font-size:13px;background:var(--well);border:1px solid var(--line);border-radius:var(--radius-md);color:var(--ink);min-width:0;max-width:100%;text-align:right;flex:1 1 auto;text-overflow:ellipsis}
+  .refine-row > :first-child{min-width:0}
 
   /* Email modal */
   .modal-overlay{position:fixed;inset:0;background:rgba(9,13,10,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:300;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fadeUp .2s ease}
@@ -432,7 +438,7 @@
   .modal-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);outline:none}
   .modal-btn{display:block;width:100%;padding:14px;background:var(--accent);color:var(--well);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:inherit;box-shadow:0 4px 16px -4px var(--accent-glow)}
   .modal-skip{display:block;width:100%;padding:10px;background:transparent;color:var(--ink-soft);font-size:12px;font-weight:500;cursor:pointer;text-align:center;margin-top:8px;font-family:var(--mono);letter-spacing:.04em}
-  .modal-privacy{font-size:12px;color:var(--ink-dim);text-align:center;margin-top:10px;font-family:var(--mono);letter-spacing:.04em;line-height:1.5}
+  .modal-privacy{font-size:13px;color:var(--ink-dim);text-align:center;margin-top:10px;line-height:1.5}
 
   /* Disclaimer */
   /* Prose, so it is set in the prose face. Monospace on a sentence reads as
@@ -446,7 +452,7 @@
   .staleness-banner a{color:var(--amber);text-decoration:underline}
 
   /* Verified date chip on plan cards */
-  .plan-verified{font-family:var(--mono);font-size:12px;color:var(--ink-dim);letter-spacing:.04em;display:flex;align-items:center;gap:3px;margin-top:5px}
+  .plan-verified{font-size:13px;color:var(--ink-dim);display:flex;align-items:center;gap:3px;margin-top:5px}
   .plan-verified::before{content:'✓';color:var(--accent);font-size:12px}
 
   /* Plan picker — onboarding step 2 */
@@ -524,7 +530,7 @@
   .trust-grid > div:nth-child(even){color:var(--ink);font-variant-numeric:tabular-nums;font-weight:500}
   .trust-method{padding:10px 12px;background:var(--well);border-radius:8px;margin-top:10px;font-size:12px;line-height:1.6;color:var(--ink-soft);letter-spacing:.01em}
   .trust-method b{color:var(--ink);font-family:var(--mono);text-transform:uppercase;font-size:12px;letter-spacing:.1em;display:block;margin-bottom:4px;font-weight:700}
-  .trust-sources{font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:10px;letter-spacing:.04em;line-height:1.6;text-align:center}
+  .trust-sources{font-size:13px;color:var(--ink-dim);margin-top:10px;line-height:1.6;text-align:center}
 
   /* Plans filter pills + context strip */
   /* One line, in the prose face. It was a three-line monospace block restating
@@ -558,7 +564,7 @@
   .settings-section-body{max-height:0;overflow:hidden;transition:max-height .35s ease}
   .settings-section-card.open .settings-section-body{max-height:3500px}
   .settings-section-body-inner{padding:0 16px 16px}
-  .settings-section-summary{padding:0 16px 14px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.02em}
+  .settings-section-summary{padding:0 16px 14px;font-size:13px;color:var(--ink-soft)}
   .settings-section-card.open .settings-section-summary{display:none}
   /* ======================================================
      COMPASS WIDGET — visual roof orientation picker
@@ -590,7 +596,7 @@
   .welcome-feature-text b{color:var(--ink);font-weight:600;display:block;margin-bottom:2px}
   .welcome-feature-text span{color:var(--ink-soft);font-size:12px}
   .welcome-actions{display:flex;flex-direction:column;gap:10px;padding-bottom:20px}
-  .welcome-trust{font-family:var(--mono);font-size:12px;color:var(--ink-dim);letter-spacing:.06em;text-align:center;margin-top:10px;line-height:1.6}
+  .welcome-trust{font-size:13px;color:var(--ink-dim);text-align:center;margin-top:10px;line-height:1.6}
 
   /* ── Intro onboarding flow ── */
   .intro-screen{position:fixed;inset:0;background:#0a0a0a;display:flex;flex-direction:column;z-index:200;overflow:hidden}
@@ -906,7 +912,7 @@
   .strat-opt.active{border-color:var(--accent);background:var(--accent-soft)}
   .strat-opt-icon{font-size:20px;margin-bottom:6px}
   .strat-opt-title{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:3px}
-  .strat-opt-sub{font-size:12px;color:var(--ink-soft);line-height:1.4;font-family:var(--mono);letter-spacing:.02em}
+  .strat-opt-sub{font-size:13px;color:var(--ink-soft);line-height:1.4}
 
   /* 4-bucket consumption shape */
   .shape-bucket{margin-bottom:14px}
@@ -944,7 +950,7 @@
   .pd-cost-card{background:var(--panel);border:1px solid var(--accent);border-radius:12px;padding:16px 18px;margin-bottom:14px;text-align:center;box-shadow:0 0 24px -10px var(--accent-glow)}
   .pd-cost-label{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.14em;text-transform:uppercase;font-weight:700;margin-bottom:4px}
   .pd-cost-value{font-family:var(--mono);font-size:32px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums;line-height:1.05}
-  .pd-cost-sub{font-size:12px;color:var(--ink-soft);margin-top:4px;font-family:var(--mono);letter-spacing:.02em}
+  .pd-cost-sub{font-size:13px;color:var(--ink-soft);margin-top:4px}
 
   .pd-section-title{font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.14em;text-transform:uppercase;font-weight:700;margin:18px 0 8px;display:flex;justify-content:space-between;align-items:center}
   .pd-section-title button{background:transparent;border:1px solid var(--line);color:var(--ink-soft);font-family:var(--mono);font-size:12px;padding:5px 10px;border-radius:4px;cursor:pointer;letter-spacing:.06em;text-transform:uppercase}
@@ -972,9 +978,11 @@
   .region-tile.active{border-color:var(--accent);background:linear-gradient(140deg,var(--accent-soft) 0%,var(--panel) 100%);box-shadow:0 0 16px -8px var(--accent-glow)}
   .region-tile-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
   .region-tile-icon{font-size:17px}
-  .region-tile-name{font-size:13px;font-weight:600;color:var(--ink);line-height:1.2}
-  .region-tile-counties{font-size:12px;color:var(--ink-soft);line-height:1.35;font-family:var(--mono);letter-spacing:.02em;margin-top:4px}
-  .region-tile-multi{position:absolute;top:8px;right:10px;font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.04em;padding:2px 6px;border-radius:4px}
+  .region-tile-name{font-size:13px;font-weight:600;color:var(--ink);line-height:1.2;min-width:0}
+  .region-tile-counties{font-size:12px;color:var(--ink-soft);line-height:1.4;margin-top:4px}
+  /* In the row, not floated over it: an absolutely-positioned badge covers
+     whatever sits beneath it as soon as the label grows. */
+  .region-tile-multi{margin-left:auto;flex:none;font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.04em;padding:2px 6px;border-radius:var(--radius-sm)}
   .region-tile-multi.positive{background:var(--accent-soft);color:var(--accent)}
   .region-tile-multi.baseline{background:var(--line);color:var(--ink-soft)}
   .region-tile-multi.negative{background:rgba(255,145,0,.12);color:var(--amber)}
@@ -985,7 +993,7 @@
   .region-map-info{flex:1;min-width:0}
   .region-map-info-label{font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.08em;text-transform:uppercase;font-weight:600;margin-bottom:3px}
   .region-map-info-name{font-size:13px;font-weight:600;color:var(--ink);line-height:1.2;margin-bottom:6px}
-  .region-map-info-sub{font-size:12px;color:var(--ink-soft);line-height:1.45;font-family:var(--mono);letter-spacing:.02em}
+  .region-map-info-sub{font-size:13px;color:var(--ink-soft);line-height:1.45}
   .region-map-zone{fill:var(--track-soft);stroke:var(--track);stroke-width:.8;cursor:pointer;transition:fill .15s}
   .region-map-zone:hover{fill:var(--track)}
   .region-map-zone.active{fill:var(--accent);stroke:var(--accent);filter:drop-shadow(0 0 4px var(--accent-glow))}
@@ -1023,10 +1031,10 @@
   .mon-status.good .mon-status-eyebrow{color:var(--accent)}
   .mon-status.action .mon-status-eyebrow{color:var(--amber)}
   .mon-status-line{font-size:13px;color:var(--ink);line-height:1.5;margin-bottom:3px}
-  .mon-status-meta{font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.02em}
+  .mon-status-meta{font-size:13px;color:var(--ink-soft)}
   .mon-toggle{display:flex;align-items:center;justify-content:space-between;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 16px;margin-bottom:14px}
   .mon-toggle-label{font-size:13px;color:var(--ink);font-weight:600}
-  .mon-toggle-sub{font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:2px;letter-spacing:.02em}
+  .mon-toggle-sub{font-size:13px;color:var(--ink-soft);margin-top:2px}
   .mon-switch{width:46px;height:27px;border-radius:12px;flex-shrink:0;position:relative;cursor:pointer;transition:background .2s}
   .mon-switch.on{background:var(--accent)}
   .mon-switch.off{background:var(--track)}
@@ -1089,7 +1097,7 @@
   .fp-cur{font-size:32px;font-weight:700;color:var(--accent);font-family:var(--display)}
   .fp-billinput{font-family:var(--mono);font-size:40px;font-weight:700;color:var(--ink);background:transparent;border:none;width:160px;padding:0}
   .fp-billinput:focus{outline:none}
-  .fp-billhint{font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:6px;letter-spacing:.02em}
+  .fp-billhint{font-size:13px;color:var(--ink-dim);margin-top:6px}
   .fp-billslider{width:100%;margin-top:10px}
   .fp-assume-label{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim);font-weight:600;margin-top:26px;margin-bottom:10px}
   .fp-assume-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -1100,7 +1108,7 @@
   .fp-assume-v{font-size:12px;color:var(--ink);font-weight:700;margin-top:1px}
   .fp-cta{background:linear-gradient(180deg,var(--cta-hi) 0%,var(--cta-lo) 100%);color:var(--on-accent);border:none;border-radius:16px;padding:17px;font-family:var(--display);font-size:15px;font-weight:800;width:100%;margin-top:26px;cursor:pointer;box-shadow:0 16px 34px -14px var(--accent-glow),inset 0 1px 0 rgba(255,255,255,.32);transition:transform .12s,filter .2s;letter-spacing:-.01em}
   .fp-cta:active{transform:scale(.98);filter:brightness(.96)}
-  .fp-foot{font-family:var(--mono);font-size:12px;color:var(--ink-dim);text-align:center;margin-top:12px;letter-spacing:.05em}
+  .fp-foot{font-size:13px;color:var(--ink-dim);text-align:center;margin-top:12px}
   .fp-customise{text-align:center;margin-top:16px;color:var(--ink-soft);font-size:12px;text-decoration:underline;cursor:pointer}
 
   /* ======================================================
