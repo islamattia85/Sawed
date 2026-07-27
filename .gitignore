@@ -7,3 +7,6 @@ test-results/
 playwright-report/
 blob-report/
 .playwright/
+__pycache__/
+*.pyc
+.pytest_cache/
