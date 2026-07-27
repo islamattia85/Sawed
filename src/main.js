@@ -1567,9 +1567,10 @@ function sim(planId){
   if (CACHE.sims[planId]) return CACHE.sims[planId];
   const plan = getPlanById(planId);
   // Build strategy object on the fly from flat state (matches tool's interface)
+  const eff = effectiveStrategy();
   const strategy = {
-    mode: state.strategy_mode || 'arbitrage',
-    charge_from_grid: state.charge_from_grid !== false,  // default true to match tool
+    mode: eff.mode,
+    charge_from_grid: eff.charge_from_grid,
     arbitrage_priority: 0.7,
     discharge_strategy: 'peak_first',
     reserve_for_evening: 0.0
@@ -1684,11 +1685,35 @@ function invalidate(){
   if ((ht === 'gas' || ht === 'oil' || ht === 'none') && state.hot_water_strategy !== 'none'){
     state.hot_water_strategy = 'none';
   }
-  // No battery → no grid-charging arbitrage
-  if ((state.battery_kwh || 0) === 0){
-    state.strategy_mode = 'self-consume';
-    state.charge_from_grid = false;
-  }
+  // A battery strategy with no battery is simply not in effect — see
+  // effectiveStrategy(). It used to be written back into state here, which
+  // destroyed the user's own choice: every routine that trials a batteryless
+  // design (the twelve-design sweep, the recommended-system search, the report
+  // levers) zeroes battery_kwh, invalidates, and restores the battery
+  // afterwards — but none of them knew to restore a setting they never touched.
+  // So arbitrage silently switched itself off while the reader was clicking
+  // around, and stayed off.
+}
+
+/**
+ * The battery strategy actually in force.
+ *
+ * state.strategy_mode is what the user asked for and is never overwritten by
+ * the engine. With no battery installed it cannot apply, so everything that
+ * simulates or displays the strategy reads it through here.
+ */
+function effectiveStrategy(){
+  const hasBattery = (state.battery_kwh || 0) > 0;
+  return {
+    mode: hasBattery ? (state.strategy_mode || 'arbitrage') : 'self-consume',
+    charge_from_grid: hasBattery ? state.charge_from_grid !== false : false,
+    hasBattery,
+  };
+}
+/** True when grid-charging arbitrage is genuinely running. */
+function arbitrageOn(){
+  const s = effectiveStrategy();
+  return s.hasBattery && s.mode === 'arbitrage' && s.charge_from_grid;
 }
 
 /* ============================================================
@@ -2387,7 +2412,7 @@ function computeOptimisations(){
 
   // Battery strategy — evaluate whichever direction the user ISN'T on
   if ((state.battery_kwh || 0) > 0){
-    const onArb = state.strategy_mode === 'arbitrage' && state.charge_from_grid !== false;
+    const onArb = arbitrageOn();
     if (onArb){
       tryOpt('selfconsume');
       if (!suggest.find(s => s.id === 'selfconsume'))
@@ -4912,13 +4937,40 @@ function renderOptimisedSuggestion(){
     </div>`;
   }
 
-  const now = state.has_solar && totalPanels() > 0
-    ? `You're modelling ${totalKwp().toFixed(1)} kWp${state.battery_kwh ? ` + ${state.battery_kwh} kWh` : ''}. ` : '';
+  /*
+   * Two systems, side by side and labelled.
+   *
+   * This was one sentence carrying both of them — "You're modelling 5.3 kWp +
+   * 5 kWh. 6.6 kWp, no battery — €1,136/yr saved, 5.9 year payback, €6,700
+   * after the grant" — with the only clue to which was which being that one
+   * half was bold. "no battery" read as a description of the reader's own
+   * setup, and the three figures sat adjacent to both systems while belonging
+   * to only one. Whatever a comparison is, it is not one run-on sentence.
+   */
+  const spec = (kwp, batt) => `${(+kwp).toFixed(1)} kWp<span class="opt-cmp-batt">${batt ? `${batt} kWh battery` : 'no battery'}</span>`;
+  const scen = computeSolarPaybackScenarios();
+  const cur = state.ev_active ? scen.withEv : scen.withoutEv;
+  const curPayback = state.has_solar && totalPanels() > 0 && cur && cur.payback < 50
+    ? `${cur.payback.toFixed(1)} yr payback` : '';
+  const hasNow = state.has_solar && totalPanels() > 0;
+
   return `<div class="opt-card">
-    <div class="opt-card-head">${ic('spark',15)} <span>Better system for your home</span></div>
-    <div class="opt-card-body">${now}<b>${d.kwp} kWp${d.batt ? ` + ${d.batt} kWh battery` : ', no battery'}</b> —
-      ${fmtCurrency(d.benefit)}/yr saved, ${d.payback.toFixed(1)} year payback, ${fmtCurrency(d.net)} after the grant.</div>
-    <button class="opt-card-btn" onclick="applyBestDesign()">Use this system</button>
+    <div class="opt-card-head">${ic('spark',15)} <span>A better size for your roof</span></div>
+    <div class="opt-cmp">
+      <div class="opt-cmp-col">
+        <div class="opt-cmp-label">${hasNow ? 'Yours' : 'No solar'}</div>
+        <div class="opt-cmp-spec">${hasNow ? spec(totalKwp(), state.battery_kwh || 0) : '—'}</div>
+        ${curPayback ? `<div class="opt-cmp-out">${curPayback}</div>` : ''}
+      </div>
+      <div class="opt-cmp-arrow" aria-hidden="true">→</div>
+      <div class="opt-cmp-col is-suggested">
+        <div class="opt-cmp-label">Suggested</div>
+        <div class="opt-cmp-spec">${spec(d.kwp, d.batt)}</div>
+        <div class="opt-cmp-out">${d.payback.toFixed(1)} yr payback</div>
+      </div>
+    </div>
+    <div class="opt-card-body">Saves ${fmtCurrency(d.benefit)} a year · ${fmtCurrency(d.net)} to install after the grant.</div>
+    <button class="opt-card-btn" onclick="applyBestDesign()">Switch to the suggested system</button>
   </div>`;
 }
 
@@ -6982,7 +7034,7 @@ function renderAnalytics(){
       const annualDischarged = sumF(s.battery_discharge);
       const roundTripLoss    = annualCharged - annualDischarged;
       const cap = state.battery_kwh;
-      const isArb = state.strategy_mode === 'arbitrage' && state.charge_from_grid;
+      const isArb = arbitrageOn();
 
       // Estimate arbitrage value: kWh discharged at avg day rate minus kWh charged at avg night rate
       const nightRate = plan.rates.ev || plan.rates.night || plan.rates.day;
@@ -7513,7 +7565,7 @@ function setAnalyticsView(v){
 
 function renderStrategyControls(){
   const hasBatt = (state.battery_kwh || 0) > 0;
-  const isArb = state.strategy_mode === 'arbitrage' && state.charge_from_grid;
+  const isArb = arbitrageOn();
   return `
     <div class="strat-row">
       <div class="strat-opt ${isArb ? 'active' : ''}" onclick="setStrategy('arbitrage', true)" style="${!hasBatt ? 'opacity:0.4;pointer-events:none' : ''}">
@@ -9353,7 +9405,7 @@ function computeScenarioSummary(){
   const baseCost = (baseSim ? sumF(baseSim.cost) : 0) + (baselinePlan ? baselinePlan.standing : 0);
   const annualKwh = Math.round(Object.values(state.bills || {}).reduce((a,b)=>a+b,0));
   const hasBatt = (state.battery_kwh || 0) > 0;
-  const isArb = hasBatt && state.strategy_mode === 'arbitrage' && state.charge_from_grid;
+  const isArb = arbitrageOn();
 
   // Solar economics (payback / NPV / annual benefit) when a system exists
   let payback = null, npv20 = null, solarBenefit = null, sysCostNet = null;
@@ -10780,6 +10832,8 @@ window.openPlanPicker = openPlanPicker;
 window.applyBestDesign = applyBestDesign;
 window.bestDesign = bestDesign;
 window.sweepGoalDesigns = sweepGoalDesigns;
+window.arbitrageOn = arbitrageOn;
+window.effectiveStrategy = effectiveStrategy;
 window.setPlansSort = setPlansSort;
 window.toggleCompare = toggleCompare;
 window.clearCompare = clearCompare;
