@@ -4983,6 +4983,98 @@ function toggleSettingsSection(id){
 /* ============================================================
    PLANS FILTER PILLS
    ============================================================ */
+/** Sort order for the ranked list. Cost is the default. */
+function setPlansSort(key){
+  state._plans_sort = key;
+  saveState();
+  renderApp();
+}
+
+/**
+ * Two-plan comparison.
+ *
+ * The plans screen is five viewports of near-identical rows, and its actual job
+ * — holding two tariffs side by side — had no support at all. Two is the limit
+ * on purpose: three columns of rates on a 390px screen is a table nobody reads.
+ */
+function toggleCompare(planId){
+  const sel = Array.isArray(state._cmp_plans) ? state._cmp_plans.slice() : [];
+  const at = sel.indexOf(planId);
+  if (at >= 0) sel.splice(at, 1);
+  else { sel.push(planId); while (sel.length > 2) sel.shift(); }
+  state._cmp_plans = sel;
+  saveState();
+  renderApp();
+}
+
+function clearCompare(){
+  state._cmp_plans = [];
+  saveState();
+  renderApp();
+}
+
+function openCompare(){
+  const sel = (state._cmp_plans || []).map(getPlanById).filter(Boolean);
+  if (sel.length < 2) return;
+  const old = document.getElementById('cmp-modal');
+  if (old) old.remove();
+  if (CACHE.dirty) rebuildBase();
+
+  const cols = sel.map(plan => {
+    const c = annualCost(sim(plan.id), plan);
+    return { plan, c };
+  });
+  const cheaper = cols[0].c.net <= cols[1].c.net ? 0 : 1;
+
+  const row = (label, pick, opts = {}) => {
+    const vals = cols.map(pick);
+    const best = opts.lowerIsBetter === false
+      ? (vals[0] >= vals[1] ? 0 : 1)
+      : (vals[0] <= vals[1] ? 0 : 1);
+    const same = opts.fmt ? opts.fmt(vals[0]) === opts.fmt(vals[1]) : vals[0] === vals[1];
+    return `<tr>
+      <th scope="row">${label}</th>
+      ${vals.map((v, i) => `<td class="${!same && i === best ? 'cmp-best' : ''}">${opts.fmt ? opts.fmt(v) : v}</td>`).join('')}
+    </tr>`;
+  };
+  const cent = (v) => (v == null ? '—' : fmtCent(v));
+
+  const modal = document.createElement('div');
+  modal.id = 'cmp-modal';
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal" style="max-height:88vh;overflow-y:auto">
+      <div class="modal-handle"></div>
+      <h3 style="margin-bottom:2px">Side by side</h3>
+      <p style="margin-bottom:12px">Both priced on your usage, hour by hour. The better figure in each row is marked.</p>
+      <div style="overflow-x:auto">
+      <table class="cmp-table">
+        <thead><tr><th></th>${cols.map(c => `<th scope="col"><span class="cmp-sup">${c.plan.supplier}</span><span class="cmp-plan">${c.plan.plan}</span></th>`).join('')}</tr></thead>
+        <tbody>
+          ${row('Annual cost', c => Math.round(c.c.net), { fmt: fmtCurrency })}
+          ${row('Energy', c => Math.round(c.c.energy_cost), { fmt: fmtCurrency })}
+          ${row('Standing charge', c => Math.round(c.plan.standing || 0), { fmt: fmtCurrency })}
+          ${state.has_solar ? row('Export income', c => Math.round(c.c.export_revenue || 0), { fmt: fmtCurrency, lowerIsBetter: false }) : ''}
+          ${row('Day rate', c => c.plan.rates.day, { fmt: cent })}
+          ${row('Night rate', c => c.plan.rates.night ?? null, { fmt: cent })}
+          ${row('EV window', c => c.plan.rates.ev ?? null, { fmt: cent })}
+          ${row('Export rate', c => c.plan.export_rate ?? null, { fmt: cent, lowerIsBetter: false })}
+          ${row('Contract', c => c.plan.length ? c.plan.length + ' months' : 'None', { fmt: v => v })}
+        </tbody>
+      </table>
+      </div>
+      <div class="cmp-verdict">${
+        Math.abs(cols[0].c.net - cols[1].c.net) < 1
+          ? 'On your usage these cost the same. Choose on contract length or service.'
+          : `<b>${cols[cheaper].plan.supplier}</b> is ${fmtCurrency(Math.abs(cols[0].c.net - cols[1].c.net))}/yr cheaper for your home.`
+      }</div>
+      <button class="modal-btn" style="margin-top:12px" onclick="document.getElementById('cmp-modal').remove(); pickPlan('${cols[cheaper].plan.id}')">Use ${cols[cheaper].plan.supplier}</button>
+      <button class="modal-skip" onclick="document.getElementById('cmp-modal').remove()">Close</button>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
 function setPlansFilter(cat){
   state._plans_filter = cat;
   saveState();
@@ -5557,6 +5649,15 @@ function renderPlans(){
   const annualKwh = Object.values(state.bills).reduce((a,b)=>a+b,0);
   const region = IRISH_REGIONS[state.region || 'east'];
 
+  // Cost is the default and the honest one; the others answer questions a
+  // reader legitimately has ("who has the cheapest standing charge?") that a
+  // single ranking cannot.
+  const sortBy = state._plans_sort || 'cost';
+  if (sortBy === 'standing') filtered.sort((a,b) => (a.onHold - b.onHold) || (a.standing - b.standing));
+  else if (sortBy === 'export') filtered.sort((a,b) => (a.onHold - b.onHold) || ((b.plan.export_rate||0) - (a.plan.export_rate||0)));
+
+  const cmpSel = Array.isArray(state._cmp_plans) ? state._cmp_plans : [];
+
   return `${topbar('All plans ranked', 'blue', true)}
   <div class="screen">
     ${renderStalenessBanner()}
@@ -5568,6 +5669,13 @@ function renderPlans(){
     </div>
 
     ${renderChoiceStrip()}
+
+    <div class="plans-sort">
+      <span class="plans-sort-label">Sort</span>
+      ${[['cost','Annual cost'],['standing','Standing charge'],['export','Export rate']].map(([k,lbl]) => `
+        <button class="plans-sort-btn ${sortBy === k ? 'on' : ''}" onclick="setPlansSort('${k}')">${lbl}</button>
+      `).join('')}
+    </div>
 
     <div class="plans-filters">
       ${['all','flat','tou','ev','dynamic'].map(cat => `
@@ -5608,8 +5716,8 @@ function renderPlans(){
             <div style="flex:1;min-width:0">
               <div class="plan-supplier">${r.plan.supplier}${r.plan._is_edited ? ' <span style="color:var(--amber);font-size:12px;font-family:var(--mono);letter-spacing:.06em">EDITED</span>' : ''}</div>
               <div class="plan-name">${r.plan.plan}</div>
-              <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:4px;letter-spacing:.02em">${rateSummary}${r.plan.export_rate ? ' · Export ' + fmtCent(r.plan.export_rate) : ''}</div>
-              ${r.onHold ? `<div style="font-family:var(--display);font-size:12px;color:#8AB4F8;margin-top:4px;letter-spacing:.03em">ON HOLD — wholesale-tracking price, too unpredictable to rank · shown for reference only</div>` : ''}
+              <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:4px;letter-spacing:.02em">${planCategoryLabel(r.cat)}${r.plan.export_rate ? ' · Export ' + fmtCent(r.plan.export_rate) : ''}</div>
+              ${r.onHold ? `<div style="font-family:var(--display);font-size:12px;color:#8AB4F8;margin-top:4px;letter-spacing:.03em">ON HOLD — wholesale price, too unpredictable to rank</div>` : ''}
             </div>
           </div>
           <div style="flex-shrink:0;text-align:right">
@@ -5617,7 +5725,14 @@ function renderPlans(){
             ${!isCurrent ? `<div class="plan-saving" style="color:${saving > 0 ? 'var(--accent)' : 'var(--loss)'}">${saving > 0 ? '−' + fmtCurrency(saving) : '+' + fmtCurrency(-saving)}</div>` : ''}
           </div>
         </div>
-        ${r.plan.verified_date ? `<div class="plan-verified">Verified ${fmtVerifiedDate(r.plan.verified_date)}</div>` : ''}
+        <div class="plan-card-foot">
+          ${r.plan.verified_date ? `<span class="plan-verified">Verified ${fmtVerifiedDate(r.plan.verified_date)}</span>` : '<span></span>'}
+          <button class="cmp-btn ${cmpSel.includes(r.plan.id) ? 'on' : ''}"
+                  onclick="event.stopPropagation(); toggleCompare('${r.plan.id}')"
+                  aria-pressed="${cmpSel.includes(r.plan.id)}">
+            ${cmpSel.includes(r.plan.id) ? '✓ Comparing' : 'Compare'}
+          </button>
+        </div>
         ${isChosen || (isBest && !state.chosen_plan) ? `
           <button class="switch-cta" style="margin-top:12px;margin-bottom:0;font-size:13px;padding:11px 16px"
                   onclick="event.stopPropagation(); handleSwitchClick('${r.plan.id}', '${(r.plan.supplier + ' ' + r.plan.plan).replace(/'/g,"\\'")}', ${saving.toFixed(0)})">
@@ -5626,6 +5741,13 @@ function renderPlans(){
         ` : ''}
       </div>`;
     }).join('')}
+
+    ${cmpSel.length ? `
+      <div class="cmp-tray">
+        <div class="cmp-tray-text">${cmpSel.length} selected${cmpSel.length === 1 ? ' — pick one more' : ''}</div>
+        <button class="cmp-tray-clear" onclick="clearCompare()">Clear</button>
+        <button class="cmp-tray-go" ${cmpSel.length < 2 ? 'disabled' : ''} onclick="openCompare()">Compare →</button>
+      </div>` : ''}
 
     <p class="disclaimer">
       <b>How we rank.</b> Each plan simulated hour-by-hour against your usage profile. We include energy, standing charge, and CEG export revenue. Tap any plan to see full rates &amp; edit. Rates verified June 2026, incl. VAT.
@@ -10285,6 +10407,10 @@ window.doUpdateProfile  = doUpdateProfile;
 window.doSyncState      = doSyncState;
 window.choosePlan = choosePlan;
 window.openPlanPicker = openPlanPicker;
+window.setPlansSort = setPlansSort;
+window.toggleCompare = toggleCompare;
+window.clearCompare = clearCompare;
+window.openCompare = openCompare;
 window.pickPlan = pickPlan;
 window.clearChosenPlan = clearChosenPlan;
 window.openPlanDetail = openPlanDetail;

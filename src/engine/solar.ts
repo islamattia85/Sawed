@@ -54,9 +54,44 @@ export function erbsDiffuse(kt: number): number {
 }
 
 /**
+ * Day-to-day clearness weights for a month, mean exactly 1.
+ *
+ * Every day used to receive the month's average irradiance, which is wrong in a
+ * way that matters. Real Irish months are a mix of bright days and washouts,
+ * and the difference is not cosmetic: on a clear day most of the light arrives
+ * as beam, which a tilted array collects far better than diffuse. Averaging the
+ * weather away removes every clear hour from the year, so Erbs — an hourly
+ * correlation — sees a permanently hazy sky and reports a diffuse fraction near
+ * 0.8 all year. That is what made roof pitch almost irrelevant.
+ *
+ * Deterministic by design: the same household must get the same answer twice.
+ * The spread is bimodal-ish and modest, and the weights are normalised so the
+ * monthly total still matches the location profile exactly.
+ */
+function clearnessWeights(monthIndex: number, days: number): number[] {
+  const w: number[] = [];
+  // Cheap deterministic sequence — reproducible across runs and machines.
+  let seed = (monthIndex + 1) * 9781;
+  const next = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  for (let d = 0; d < days; d += 1) {
+    const u = next();
+    // Skewed toward dull days with a tail of bright ones, which is the shape of
+    // an Irish month far better than a flat average.
+    w.push(0.25 + 1.55 * u * u);
+  }
+  const mean = w.reduce((a, b) => a + b, 0) / Math.max(1, days);
+  return w.map((x) => x / mean);
+}
+
+/**
  * Hourly global horizontal irradiance for a year, Wh/m².
- * Monthly totals are distributed across daylight hours in proportion to solar
- * altitude, so the monthly energy matches the location profile exactly.
+ *
+ * Monthly totals are distributed across days by a clearness weight and then
+ * across daylight hours in proportion to solar altitude, so the monthly energy
+ * matches the location profile exactly while individual days differ.
  */
 export function buildHourlyGhi(location: LocationProfile): Float32Array {
   const ghi = new Float32Array(HOURS_IN_YEAR);
@@ -64,8 +99,10 @@ export function buildHourlyGhi(location: LocationProfile): Float32Array {
   for (let m = 0; m < 12; m += 1) {
     const monthlyDailyGhi = (location.ghi_kwh_m2_day[m] ?? 0) * 1000;
     const days = DAYS_IN_MONTH[m] ?? 0;
+    const weights = clearnessWeights(m, days);
     for (let d = 0; d < days; d += 1) {
       const doy = dayOfYear(m, d + 1);
+      const dayGhi = monthlyDailyGhi * (weights[d] ?? 1);
       const altitudes: number[] = [];
       for (let h = 0; h < 24; h += 1) {
         const pos = solarPosition(doy, h + 0.5, location.lat, location.lon);
@@ -74,7 +111,7 @@ export function buildHourlyGhi(location: LocationProfile): Float32Array {
       const sumAlt = altitudes.reduce((a, b) => a + b, 0);
       for (let h = 0; h < 24; h += 1) {
         const frac = sumAlt > 0 ? (altitudes[h] ?? 0) / sumAlt : 0;
-        ghi[hourIdx] = monthlyDailyGhi * frac;
+        ghi[hourIdx] = dayGhi * frac;
         hourIdx += 1;
       }
     }
@@ -82,9 +119,30 @@ export function buildHourlyGhi(location: LocationProfile): Float32Array {
   return ghi;
 }
 
+/** Solar constant, W/m². */
+const SOLAR_CONSTANT = 1367;
+
+/**
+ * Extraterrestrial irradiance on a plane normal to the beam, W/m².
+ * Varies about 3.3% over the year with the Earth–Sun distance.
+ */
+function extraterrestrialNormal(doy: number): number {
+  return SOLAR_CONSTANT * (1 + 0.033 * Math.cos((2 * Math.PI * doy) / 365));
+}
+
 /**
  * Plane-of-array irradiance for a tilted, oriented surface, Wh/m².
- * Isotropic sky model plus 20% ground albedo.
+ *
+ * HDKR (Hay–Davies–Klucher–Reindl) sky, plus 20% ground albedo. Diffuse light
+ * is not uniform across the sky: there is a bright halo around the sun and a
+ * brighter band at the horizon, and a tilted array sees more of the first and
+ * less of the second than a flat one.
+ *
+ * The previous isotropic model ignored both, which rated a 35° south-facing
+ * array at roughly 0.99x a horizontal one — below the flat-roof case, and well
+ * under the 1.15–1.20x PVGIS reports for the same array in Ireland. It made
+ * every payback on the most common Irish installation systematically
+ * pessimistic, and quietly undercut the "PVGIS-calibrated" claim.
  *
  * @param azimuthDeg Array azimuth in degrees clockwise from north (180 = south).
  * @param tiltDeg    Array tilt from horizontal in degrees.
@@ -100,22 +158,42 @@ export function buildPoa(
   const arrayAz = azimuthDeg * DEG;
   let hourIdx = 0;
   for (let m = 0; m < 12; m += 1) {
-    const dfFrac = erbsDiffuse(location.kt[m] ?? 0);
     const days = DAYS_IN_MONTH[m] ?? 0;
     for (let d = 0; d < days; d += 1) {
       const doy = dayOfYear(m, d + 1);
+      const e0 = extraterrestrialNormal(doy);
       for (let h = 0; h < 24; h += 1) {
         const ghiH = ghi[hourIdx] ?? 0;
         if (ghiH <= 0) { poa[hourIdx] = 0; hourIdx += 1; continue; }
         const pos = solarPosition(doy, h + 0.5, location.lat, location.lon);
         const sinAlt = Math.sin(pos.altitude);
         if (sinAlt <= 0.01) { poa[hourIdx] = 0; hourIdx += 1; continue; }
-        const dni = (ghiH * (1 - dfFrac)) / Math.max(sinAlt, 0.05);
-        const dhi = ghiH * dfFrac;
+        // Hourly clearness index: this hour's irradiance against what a
+        // cloudless sky would deliver at this sun angle. The monthly mean was
+        // being fed to an hourly correlation, which is a convexity error — it
+        // reports the whole year as uniformly hazy and erases every clear hour.
+        const ktH = Math.max(0, Math.min(1, ghiH / Math.max(1, e0 * sinAlt)));
+        const dfFracH = erbsDiffuse(ktH);
+        const dni = (ghiH * (1 - dfFracH)) / Math.max(sinAlt, 0.05);
+        const dhi = ghiH * dfFracH;
+        const bhi = Math.max(0, ghiH - dhi);          // beam on the horizontal
         const cosTheta = Math.cos(pos.altitude) * Math.sin(tilt) * Math.cos(pos.azimuth - arrayAz)
           + Math.sin(pos.altitude) * Math.cos(tilt);
         const beamPoa = dni * Math.max(0, cosTheta);
-        const diffPoa = dhi * (1 + Math.cos(tilt)) / 2;
+
+        // Anisotropy index: the share of diffuse light behaving like beam, so
+        // arriving from the sun's direction rather than uniformly.
+        const ai = Math.max(0, Math.min(1, dni / e0));
+        // Geometric factor, beam on the tilted plane per unit beam on the flat.
+        const rb = Math.max(0, cosTheta) / Math.max(sinAlt, 0.05);
+        // Horizon-brightening weight (Reindl), damped near an overcast sky.
+        const f = ghiH > 0 ? Math.sqrt(Math.max(0, bhi / ghiH)) : 0;
+        const halfTiltSin = Math.sin(tilt / 2);
+        const diffPoa = dhi * (
+          ai * rb
+          + (1 - ai) * ((1 + Math.cos(tilt)) / 2) * (1 + f * halfTiltSin * halfTiltSin * halfTiltSin)
+        );
+
         const refPoa = ghiH * 0.2 * (1 - Math.cos(tilt)) / 2;
         poa[hourIdx] = beamPoa + diffPoa + refPoa;
         hourIdx += 1;

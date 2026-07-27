@@ -646,8 +646,8 @@
   .report-rule{height:2px;background:#c9cec8;border-radius:999px}
   .report-rule.w40{width:40%} .report-rule.w50{width:50%}
   .report-rule.w60{width:60%} .report-rule.w70{width:70%} .report-rule.w80{width:80%}
-  .report-fig{height:9px;width:52%;background:#0b6e4f;border-radius:2px;margin:1px 0}
-  .report-chart{height:22px;background:linear-gradient(to top,#dfe6e0 0 100%);border-radius:2px;margin:2px 0;
+  .report-fig{height:9px;width:52%;background:#0b6e4f;border-radius:4px;margin:1px 0}
+  .report-chart{height:22px;background:linear-gradient(to top,#dfe6e0 0 100%);border-radius:4px;margin:2px 0;
     background-image:linear-gradient(to right,#0b6e4f 0 9%,transparent 9% 16%,#0b6e4f 16% 25%,transparent 25% 32%,#8a6210 32% 41%,transparent 41% 48%,#0b6e4f 48% 57%,transparent 57% 64%,#0b6e4f 64% 73%,transparent 73% 80%,#8a6210 80% 89%,transparent 89% 100%);
     background-repeat:no-repeat;background-position:bottom;background-size:100% 70%}
   .report-promo-body{flex:1;min-width:0}
@@ -658,6 +658,34 @@
   /* Manual plan choice — the plan the user decided to go with, overriding rank */
   .plan-card.chosen{border-color:var(--amber);background:linear-gradient(140deg,var(--panel) 0%,var(--panel-2) 100%)}
   .plan-rank.chosen{color:var(--amber);background:var(--amber-soft);border:1px solid var(--amber)}
+  /* Plans screen: sort, compare selection and the side-by-side sheet. The
+     screen's actual job is holding two tariffs against each other, and it had
+     no support for that at all — 26 near-identical rows and a category filter. */
+  .plans-sort{display:flex;align-items:center;gap:6px;margin-bottom:10px;overflow-x:auto;padding-bottom:2px}
+  .plans-sort-label{font-family:var(--mono);font-size:12px;color:var(--ink-dim);letter-spacing:.08em;text-transform:uppercase;flex-shrink:0}
+  .plans-sort-btn{background:none;border:1px solid var(--line);color:var(--ink-soft);border-radius:999px;padding:7px 12px;font-size:12px;font-family:var(--display);white-space:nowrap;cursor:pointer;min-height:44px}
+  .plans-sort-btn.on{border-color:var(--blue);color:var(--blue);background:var(--blue-soft)}
+
+  .plan-card-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}
+  .cmp-btn{background:none;border:1px solid var(--line);color:var(--ink-soft);border-radius:8px;padding:7px 12px;font-size:12px;font-family:var(--mono);letter-spacing:.04em;cursor:pointer;min-height:44px;flex-shrink:0}
+  .cmp-btn.on{border-color:var(--blue);color:var(--blue);background:var(--blue-soft)}
+
+  .cmp-tray{position:sticky;bottom:78px;display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--blue);border-radius:12px;padding:10px 12px;margin:14px 0;box-shadow:var(--lift)}
+  .cmp-tray-text{flex:1;font-size:13px;color:var(--ink)}
+  .cmp-tray-clear{background:none;border:none;color:var(--ink-soft);font-size:12px;font-family:var(--mono);cursor:pointer;min-height:44px;padding:0 8px}
+  .cmp-tray-go{background:var(--blue);color:#04121b;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;min-height:44px}
+  .cmp-tray-go:disabled{opacity:.4;cursor:default}
+
+  .cmp-table{width:100%;border-collapse:collapse;font-size:13px}
+  .cmp-table th,.cmp-table td{padding:9px 8px;border-bottom:1px solid var(--line-soft);text-align:right}
+  .cmp-table thead th{text-align:right;vertical-align:bottom;border-bottom:1px solid var(--line)}
+  .cmp-table th[scope=row]{text-align:left;font-weight:500;color:var(--ink-soft);font-size:13px}
+  .cmp-table td{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--ink)}
+  .cmp-sup{display:block;font-size:13px;font-weight:700;color:var(--ink)}
+  .cmp-plan{display:block;font-size:12px;color:var(--ink-soft);font-weight:400;margin-top:2px}
+  .cmp-best{color:var(--accent);font-weight:700}
+  .cmp-verdict{margin-top:12px;padding:10px 12px;background:var(--accent-soft);border-radius:8px;font-size:13px;color:var(--ink);line-height:1.5}
+
   /* Plan picker sheet — the one control that sets the plan everything uses */
   .pp-row{display:flex;align-items:center;gap:11px;padding:11px 10px;border:1px solid var(--line);border-radius:12px;margin-bottom:7px;cursor:pointer;transition:border-color .15s,background .15s}
   .pp-row:hover{border-color:var(--track)}

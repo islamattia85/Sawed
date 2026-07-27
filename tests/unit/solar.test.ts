@@ -115,32 +115,54 @@ describe('buildPoa', () => {
    *
    * The transposition uses an isotropic sky: diffuse on a tilted plane is
    * dhi * (1 + cos(tilt)) / 2, which falls monotonically with tilt and models
-   * neither circumsolar brightening nor horizon brightening. Under Irish skies
-   * the diffuse fraction is high (kt 0.32-0.45), so that loss swamps the beam
-   * gain and the model reports peak yield at ~20 deg with a 35 deg roof coming
-   * out marginally BELOW horizontal.
+   * the sky is not uniform. There is a bright halo around the sun and a
+   * brighter band at the horizon, and a tilted array sees more of the first and
+   * less of the second than a flat one.
    *
-   * PVGIS for Dublin puts the optimum near 35 deg and ~15-20% above horizontal.
-   * So the engine currently understates a well-pitched roof and cannot really
-   * distinguish roof pitches from each other.
+   * Two errors used to combine here. The sky model was isotropic, ignoring both
+   * effects; and Erbs — an hourly correlation between clearness and diffuse
+   * fraction — was being fed the month's MEAN clearness, which is a convexity
+   * error. Averaging the weather away removes every clear hour from the year,
+   * so the model saw a permanently hazy sky, put the diffuse fraction near 0.8
+   * all year, and reported a 35 deg roof as marginally WORSE than horizontal.
    *
-   * These assertions pin today's behaviour so the extraction is provably
-   * faithful. Switching to Hay-Davies or Perez will fail them loudly, which is
-   * exactly what should happen - it is a deliberate change to every payback
-   * number in the app, not a silent one.
+   * The engine now varies clearness day to day (monthly totals unchanged),
+   * derives the clearness index per hour, and transposes with HDKR. PVGIS puts
+   * a 35 deg south-facing array in Dublin 15-20% above horizontal, with the
+   * optimum near 35 deg. These assertions hold the model inside that band.
    */
-  it('CHARACTERISATION: isotropic sky makes tilt nearly irrelevant', () => {
+  it('a well-pitched south roof beats horizontal by the margin PVGIS reports', () => {
     const flat = sumOf(buildPoa(180, 0, ghi, LOCATION_BASE));
     const ratio = (tilt: number) => sumOf(buildPoa(180, tilt, ghi, LOCATION_BASE)) / flat;
-    expect(ratio(20)).toBeCloseTo(1.015, 2);
-    expect(ratio(35)).toBeCloseTo(0.988, 2);
-    // The whole 0-40 deg range spans under 5% - the bug, stated as a number.
-    expect(Math.abs(ratio(40) - ratio(0))).toBeLessThan(0.05);
+    expect(ratio(35)).toBeGreaterThan(1.13);
+    expect(ratio(35)).toBeLessThan(1.22);
+    // The optimum is a roof pitch, not a flat roof.
+    const best = [0, 10, 20, 30, 35, 40, 50, 60]
+      .reduce((a, t) => (ratio(t) > ratio(a) ? t : a), 0);
+    expect(best).toBeGreaterThanOrEqual(30);
+    expect(best).toBeLessThanOrEqual(45);
+    // And pitch now matters: the 0-40 deg range spans far more than the 5%
+    // the isotropic model produced.
+    expect(ratio(40) - ratio(0)).toBeGreaterThan(0.1);
   });
 
-  it('still penalises steep tilts, which dominate the diffuse loss', () => {
+  it('orientation matters as much as pitch', () => {
+    const at = (az: number) => sumOf(buildPoa(az, 35, ghi, LOCATION_BASE));
+    // East and west are meaningfully worse than south, not a rounding error.
+    expect(at(90) / at(180)).toBeLessThan(0.9);
+    expect(at(135) / at(180)).toBeGreaterThan(0.9);
+  });
+
+  it('penalises tilts past the optimum, and a wall most of all', () => {
     const flat = sumOf(buildPoa(180, 0, ghi, LOCATION_BASE));
-    expect(sumOf(buildPoa(180, 70, ghi, LOCATION_BASE))).toBeLessThan(flat * 0.9);
+    const at = (t: number) => sumOf(buildPoa(180, t, ghi, LOCATION_BASE));
+    // Past the optimum, more pitch costs yield.
+    expect(at(70)).toBeLessThan(at(40));
+    expect(at(90)).toBeLessThan(at(70));
+    // Vertical is worse than flat. Steep-but-not-vertical is not: at 53°N the
+    // sun is low for much of the year, and the isotropic model's claim that a
+    // 70° array underperforms a flat one was an artefact, not physics.
+    expect(at(90)).toBeLessThan(flat);
   });
 
   it('south beats north at the same tilt', () => {

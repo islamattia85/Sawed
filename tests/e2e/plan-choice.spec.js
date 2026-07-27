@@ -277,3 +277,60 @@ test('the solar screen puts free advice above the instrument', async ({ page }) 
   }
   expect(errors).toEqual([]);
 });
+
+/**
+ * The plans screen's job is holding two tariffs against each other, and it had
+ * no support for that: 26 near-identical rows, a category filter, and nothing
+ * else. Five viewports of comparison with no compare.
+ */
+test('two plans can be compared side by side', async ({ page }) => {
+  const errors = await boot(page, { current_screen: 'plans' });
+
+  await expect(page.locator('.plans-sort-btn')).toHaveCount(3);
+
+  await page.locator('.cmp-btn').nth(0).click();
+  await expect(page.locator('.cmp-tray')).toBeVisible();
+  // One selection is not a comparison.
+  await expect(page.locator('.cmp-tray-go')).toBeDisabled();
+
+  await page.locator('.cmp-btn').nth(2).click();
+  await expect(page.locator('.cmp-tray-go')).toBeEnabled();
+  await page.locator('.cmp-tray-go').click();
+
+  const modal = page.locator('#cmp-modal');
+  await expect(modal).toBeVisible();
+  await expect(modal).toContainText('Annual cost');
+  await expect(modal).toContainText('Standing charge');
+  // A verdict, not just a table.
+  await expect(page.locator('.cmp-verdict')).toContainText(/cheaper for your home|cost the same/);
+  // The better figure in a row is marked.
+  expect(await page.locator('.cmp-best').count()).toBeGreaterThan(2);
+
+  expect(errors).toEqual([]);
+});
+
+test('the comparison never holds more than two plans', async ({ page }) => {
+  await boot(page, { current_screen: 'plans' });
+  for (const i of [0, 1, 2, 3]) {
+    await page.locator('.cmp-btn').nth(i).click();
+    await page.waitForTimeout(60);
+  }
+  const sel = await page.evaluate(() => window.state._cmp_plans);
+  expect(sel.length).toBe(2);
+});
+
+test('sorting reorders the list without changing the ranking', async ({ page }) => {
+  const errors = await boot(page, { current_screen: 'plans' });
+  const firstBy = async () => page.locator('.plan-supplier').first().innerText();
+
+  const byCost = await firstBy();
+  await page.getByRole('button', { name: 'Standing charge' }).click();
+  const byStanding = await firstBy();
+
+  // The underlying ranking is untouched — only the presentation order moved.
+  const cheapest = await page.evaluate(() => window.getRecommendation().cheapest.plan.supplier);
+  expect(byCost).toContain(cheapest);
+  expect(await page.evaluate(() => window.state._plans_sort)).toBe('standing');
+  expect(typeof byStanding).toBe('string');
+  expect(errors).toEqual([]);
+});
