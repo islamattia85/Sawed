@@ -148,7 +148,7 @@ function renderAuthSection(){
         <div style="width:40px;height:40px;border-radius:50%;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;flex-shrink:0">${initials}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
-          <div style="font-size:11px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_sbUser.email}</div>
+          <div style="font-size:12px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_sbUser.email}</div>
         </div>
         <button onclick="doSignOut()" style="flex-shrink:0;padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:transparent;font-family:var(--display);font-size:12px;font-weight:600;color:var(--ink-soft);cursor:pointer">Sign out</button>
       </div>
@@ -190,13 +190,13 @@ function renderAuthSection(){
 
   return `
   <div class="auth-panel" style="margin-top:24px">
-    <div style="font-size:11px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);text-align:center;margin-bottom:12px;font-weight:600">Save your results across devices</div>
+    <div style="font-size:12px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);text-align:center;margin-bottom:12px;font-weight:600">Save your results across devices</div>
     <button class="auth-google-btn" onclick="doGoogleSignIn()">
       ${GOOGLE_SVG} Continue with Google
     </button>
     <div class="auth-divider" style="margin:10px 0">or email</div>
     ${emailOpen ? emailForm : `
-      <button onclick="window._authEmailOpen=true;renderApp()" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--line);background:transparent;font-family:var(--display);font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer">Continue with email</button>
+      <button onclick="window._authEmailOpen=true;renderApp()" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--line);background:transparent;font-family:var(--display);font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer">Continue with email</button>
     `}
   </div>`;
 }
@@ -1854,24 +1854,24 @@ function renderSavingsBreakdown(best, baseCost){
   if (b.total <= 5) return '';
   const row = (label, v, sub) => Math.abs(v) < 3 ? '' : `
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px solid var(--line-soft)">
-      <div style="font-size:12px;color:var(--ink-soft)">${label}${sub ? `<div style="font-family:var(--mono);font-size:9.5px;color:var(--ink-dim);margin-top:2px">${sub}</div>` : ''}</div>
-      <div style="font-family:var(--mono);font-size:12.5px;font-weight:700;color:${v >= 0 ? 'var(--accent)' : 'var(--loss)'};white-space:nowrap">${v >= 0 ? '−' : '+'}${fmtCurrency(Math.abs(Math.round(v)))}</div>
+      <div style="font-size:12px;color:var(--ink-soft)">${label}${sub ? `<div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:2px">${sub}</div>` : ''}</div>
+      <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${v >= 0 ? 'var(--accent)' : 'var(--loss)'};white-space:nowrap">${v >= 0 ? '−' : '+'}${fmtCurrency(Math.abs(Math.round(v)))}</div>
     </div>`;
   const evKwh = Math.round((state.ev_km_per_year || 0) * (state.ev_kwh_per_100km || 17) / 100);
   const age = dataAgeDays();
   return `
     <div class="card" style="margin-bottom:14px">
-      <div style="font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:4px">${ic('scales',12,'vertical-align:-2px')} Why this plan wins</div>
-      <div style="font-size:11px;color:var(--ink-soft);line-height:1.5;margin-bottom:6px">Same usage, priced hour by hour on both plans. − means cheaper on the new plan.</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:4px">${ic('scales',12,'vertical-align:-2px')} Why this plan wins</div>
+      <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:6px">Same usage, priced hour by hour on both plans. − means cheaper on the new plan.</div>
       ${row('Your home\'s usage on the new rates', b.household)}
       ${state.ev_active ? row(state.ev_in_bill ? 'Your EV charging (night window)' : 'Adding the EV\'s charging', b.ev, evKwh ? evKwh.toLocaleString() + ' kWh in the cheap window' : '') : ''}
       ${row('Standing charge', b.standing)}
       ${state.has_solar ? row('Solar export payments (new plan)', b.export_) : ''}
       <div style="display:flex;justify-content:space-between;align-items:baseline;padding:9px 0 2px">
-        <div style="font-size:12.5px;font-weight:700;color:var(--ink)">Total saving</div>
-        <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--accent)">${fmtCurrency(Math.round(b.total))}/yr</div>
+        <div style="font-size:12px;font-weight:700;color:var(--ink)">Total saving</div>
+        <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent)">${fmtCurrency(Math.round(b.total))}/yr</div>
       </div>
-      <div style="font-family:var(--mono);font-size:9.5px;color:${age > 60 ? 'var(--amber)' : 'var(--ink-dim)'};margin-top:8px;letter-spacing:.03em">
+      <div style="font-family:var(--mono);font-size:12px;color:${age > 60 ? 'var(--amber)' : 'var(--ink-dim)'};margin-top:8px;letter-spacing:.03em">
         ${age > 45 ? ic('warn',10,'vertical-align:-1px') + ' Oldest rate check ' + fmtShortDate(dataVerifiedDate()) + ' — ' + age + ' days ago, re-check before switching' : '✓ Every plan re-checked since ' + fmtShortDate(dataVerifiedDate())}
       </div>
     </div>`;
@@ -2082,8 +2082,8 @@ function renderNpvBreakdown(annualBenefit, sysCostNet, batteryKwh, panelDegradat
 
   return `<div class="card" style="margin-bottom:14px;cursor:default;padding:18px 20px;border-color:var(--accent);background:linear-gradient(140deg,var(--panel) 0%,var(--panel-2) 100%);box-shadow:0 0 24px -12px var(--accent-glow)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <div style="font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.14em;text-transform:uppercase;font-weight:700">How the 20-yr NPV is built</div>
-      <button onclick="toggleNpvBreakdown()" style="background:transparent;border:1px solid var(--line);color:var(--ink-soft);font-family:var(--mono);font-size:10px;padding:5px 10px;border-radius:6px;cursor:pointer;letter-spacing:.04em">HIDE ▴</button>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.14em;text-transform:uppercase;font-weight:700">How the 20-yr NPV is built</div>
+      <button onclick="toggleNpvBreakdown()" style="background:transparent;border:1px solid var(--line);color:var(--ink-soft);font-family:var(--mono);font-size:12px;padding:5px 10px;border-radius:4px;cursor:pointer;letter-spacing:.04em">HIDE ▴</button>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr auto;gap:8px;font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;line-height:1.55">
@@ -2093,7 +2093,7 @@ function renderNpvBreakdown(annualBenefit, sysCostNet, batteryKwh, panelDegradat
       <div style="border-top:1px solid var(--line);padding-top:8px;font-weight:700;color:var(--ink)">= 20-yr NPV</div><div style="text-align:right;border-top:1px solid var(--line);padding-top:8px;font-weight:700;color:${finalNpv > 0 ? 'var(--accent)' : 'var(--loss)'}">${fmtCurrency(finalNpv)}</div>
     </div>
 
-    <div style="margin-top:14px;padding:10px 12px;background:var(--well);border:1px solid var(--line);border-radius:8px;font-size:11px;color:var(--ink-soft);line-height:1.55;font-family:var(--mono);letter-spacing:.02em">
+    <div style="margin-top:14px;padding:10px 12px;background:var(--well);border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.55;font-family:var(--mono);letter-spacing:.02em">
       <div style="color:var(--accent);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:6px">Assumptions</div>
       <div>· Annual benefit (Y1): <b style="color:var(--ink)">${fmtCurrency(annualBenefit)}</b> = solar electricity benefit only (same EV state, with vs without solar — petrol savings excluded)</div>
       <div>· Discount rate: <b style="color:var(--ink)">3%/yr</b> (Irish bond yields + small premium)</div>
@@ -2103,13 +2103,13 @@ function renderNpvBreakdown(annualBenefit, sysCostNet, batteryKwh, panelDegradat
     </div>
 
     <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--well);border-radius:8px">
-      <div style="font-family:var(--mono);font-size:11px;color:var(--ink-soft);letter-spacing:.04em">Break-even (discounted)</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.04em">Break-even (discounted)</div>
       <div style="font-family:var(--mono);font-size:13px;font-weight:600;color:${breakevenYear < 0 ? 'var(--loss)' : 'var(--accent)'}">${breakevenLabel}</div>
     </div>
 
     <div style="margin-top:14px">
-      <div style="font-family:var(--mono);font-size:10px;color:var(--ink-soft);letter-spacing:.1em;text-transform:uppercase;font-weight:600;margin-bottom:8px">Cumulative cash position (€, discounted)</div>
-      <div style="display:grid;grid-template-columns:repeat(20,1fr);gap:2px;height:64px;background:var(--well);padding:3px;border-radius:6px;position:relative">
+      <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.1em;text-transform:uppercase;font-weight:600;margin-bottom:8px">Cumulative cash position (€, discounted)</div>
+      <div style="display:grid;grid-template-columns:repeat(20,1fr);gap:2px;height:64px;background:var(--well);padding:3px;border-radius:4px;position:relative">
         ${(() => {
           const maxAbs = Math.max(...rows.map(r => Math.abs(r.cumulative)), 1);
           return rows.map(row => {
@@ -2117,17 +2117,17 @@ function renderNpvBreakdown(annualBenefit, sysCostNet, batteryKwh, panelDegradat
             const pos = row.cumulative >= 0;
             return `<div style="position:relative;height:100%" title="Y${row.y}: ${fmtCurrency(row.cumulative)}">
               <div style="position:absolute;left:0;right:0;${pos
-                ? `bottom:50%;height:${pct}%;background:var(--accent);border-radius:2px 2px 0 0`
+                ? `bottom:50%;height:${pct}%;background:var(--accent);border-radius:4px 2px 0 0`
                 : `top:50%;height:${pct}%;background:var(--loss);border-radius:0 0 2px 2px`}"></div>
             </div>`;
           }).join('');
         })()}
         <div style="position:absolute;left:3px;right:3px;top:50%;height:1px;background:var(--line);z-index:1"></div>
       </div>
-      <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--ink-dim);margin-top:4px;letter-spacing:.04em">
+      <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:4px;letter-spacing:.04em">
         <span>Y1</span><span>Y5</span><span>Y10</span><span>Y15</span><span>Y20</span>
       </div>
-      <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink-dim);margin-top:6px;letter-spacing:.03em">Red = still paying off the install · green = in profit · crosses zero at break-even</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:6px;letter-spacing:.03em">Red = still paying off the install · green = in profit · crosses zero at break-even</div>
     </div>
   </div>`;
 }
@@ -2322,7 +2322,7 @@ function renderOptimisations(){
         <div class="advisor-title" style="color:var(--accent)">Worth +${fmtCurrency(o.delta)}/yr · simulated on your home</div>
         <div class="advisor-headline">${o.title}</div>
         <div class="advisor-body">${o.body}</div>
-        <button onclick="applyOptimisation('${o.id}')" style="margin-top:11px;padding:10px 16px;border-radius:999px;font-size:12.5px;font-weight:700;font-family:var(--display);border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent)">Apply to my model →</button>
+        <button onclick="applyOptimisation('${o.id}')" style="margin-top:11px;padding:10px 16px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent)">Apply to my model →</button>
       </div>
     `).join('')}
     ${opts.confirmed.map(o => `
@@ -2330,17 +2330,17 @@ function renderOptimisations(){
         <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="toggleOptExpand('${o.id}')">
           <span style="color:var(--accent);flex-shrink:0">${ic('checkC',17)}</span>
           <div style="flex:1;font-size:13px;color:var(--ink);font-weight:600">${o.title}</div>
-          <div style="font-family:var(--mono);font-size:11px;color:var(--ink-soft);white-space:nowrap">~${fmtCurrency(o.keep)}/yr ${state._opt_open === o.id ? '▴' : '▾'}</div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);white-space:nowrap">~${fmtCurrency(o.keep)}/yr ${state._opt_open === o.id ? '▴' : '▾'}</div>
         </div>
         ${state._opt_open === o.id ? `
-        <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.55;margin:10px 0 0;padding-top:10px;border-top:1px solid var(--line)">${o.body}</div>
+        <div style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:10px 0 0;padding-top:10px;border-top:1px solid var(--line)">${o.body}</div>
         <div style="display:flex;gap:8px;margin-top:11px">
           <div style="flex:1;padding:9px;text-align:center;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent)">✓ Included · +${fmtCurrency(o.keep)}/yr</div>
           <button onclick="removeOptimisation('${o.id}')" style="padding:9px 16px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid var(--line);background:transparent;color:var(--ink-soft)">Exclude →</button>
         </div>` : ''}
       </div>
     `).join('')}
-    ${opts.suggest.length ? `<div style="font-family:var(--display);font-size:10px;color:var(--ink-dim);line-height:1.6;margin:4px 2px 0;letter-spacing:.02em">Values are re-simulated on your exact setup — applying one change can unlock others, so check back after applying.</div>` : ''}`;
+    ${opts.suggest.length ? `<div style="font-family:var(--display);font-size:12px;color:var(--ink-dim);line-height:1.6;margin:4px 2px 0;letter-spacing:.02em">Values are re-simulated on your exact setup — applying one change can unlock others, so check back after applying.</div>` : ''}`;
 }
 
 /* ============================================================
@@ -3011,7 +3011,7 @@ function renderIntro(){
     heroHTML = `
       <div class="intro-hero" style="justify-content:flex-start;padding-top:8px">
         <div class="intro-step-counter">Features</div>
-        <div class="intro-title" style="font-size:26px;text-align:left;margin-bottom:20px">All you need to<br>cut your energy bills</div>
+        <div class="intro-title" style="font-size:25px;text-align:left;margin-bottom:20px">All you need to<br>cut your energy bills</div>
         <div class="intro-feat-list">
           ${feats.map(f=>`
             <div class="intro-feat">
@@ -3096,7 +3096,7 @@ function renderWelcome(){
 
       <div class="welcome-actions">
         <button class="switch-cta" style="margin-bottom:0" onclick="goFastPath()">Get my quick answer → <span style="font-weight:400;font-size:13px;opacity:.85">one screen, 30 seconds</span></button>
-        <button onclick="startOnboarding()" style="width:100%;margin-top:10px;padding:16px;border-radius:14px;border:1.5px solid var(--line);background:var(--panel);font-family:var(--display);font-size:14px;font-weight:700;color:var(--ink);cursor:pointer">Full setup — guided, with solar &amp; EV →</button>
+        <button onclick="startOnboarding()" style="width:100%;margin-top:10px;padding:16px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);font-family:var(--display);font-size:13px;font-weight:700;color:var(--ink);cursor:pointer">Full setup — guided, with solar &amp; EV →</button>
         <button class="ob-skip-btn" onclick="navigateAuditor()">Just want to audit an installer quote? →</button>
       </div>
       ${state.onboarding_complete ? `<button class="ob-skip-btn" style="margin-top:10px" onclick="setScreen('result')">← Back to my results</button>` : ''}
@@ -3194,7 +3194,7 @@ function renderOnboarding(){
           return `<span class="${n < _ob.step ? 'done' : n === _ob.step ? 'current' : ''}"></span>`;
         }).join('')}
       </div>
-      <div style="font-family:var(--display);font-size:9.5px;color:var(--ink-dim);letter-spacing:.04em;margin:-22px 0 22px;text-align:center">${ic('info',10)} Takes about 2 minutes · you can change anything later</div>
+      <div style="font-family:var(--display);font-size:12px;color:var(--ink-dim);letter-spacing:.04em;margin:-22px 0 22px;text-align:center">${ic('info',10)} Takes about 2 minutes · you can change anything later</div>
       <div class="ob-content">${renderObStep(_ob.step)}</div>
       <div class="ob-nav">
         ${_ob.step > 1 ? `<button class="ob-back-btn" onclick="obBack()">← Back</button>` : ''}
@@ -3238,9 +3238,9 @@ function obStep5CurrentPlan(){
   const supplierGrid = suppliers.map(sup => {
     const active = selSup === sup;
     const count = plans.filter(p => p.supplier === sup).length;
-    return `<button onclick="_ob._ob5_supplier='${sup}';renderApp();" style="flex:1;min-width:calc(50% - 4px);padding:10px 8px;border-radius:10px;font-size:12px;font-weight:700;font-family:var(--display);border:1.5px solid ${active ? 'var(--accent)' : 'var(--line)'};background:${active ? 'var(--accent-soft)' : 'var(--well)'};color:${active ? 'var(--accent)' : 'var(--ink)'};cursor:pointer;text-align:center">
+    return `<button onclick="_ob._ob5_supplier='${sup}';renderApp();" style="flex:1;min-width:calc(50% - 4px);padding:10px 8px;border-radius:8px;font-size:12px;font-weight:700;font-family:var(--display);border:1.5px solid ${active ? 'var(--accent)' : 'var(--line)'};background:${active ? 'var(--accent-soft)' : 'var(--well)'};color:${active ? 'var(--accent)' : 'var(--ink)'};cursor:pointer;text-align:center">
       <div>${sup}</div>
-      <div style="font-size:9px;font-weight:400;color:${active ? 'var(--accent)' : 'var(--ink-dim)'};margin-top:2px;font-family:var(--mono)">${count} plan${count !== 1 ? 's' : ''}</div>
+      <div style="font-size:12px;font-weight:400;color:${active ? 'var(--accent)' : 'var(--ink-dim)'};margin-top:2px;font-family:var(--mono)">${count} plan${count !== 1 ? 's' : ''}</div>
     </button>`;
   }).join('');
 
@@ -3262,30 +3262,30 @@ function obStep5CurrentPlan(){
 
     <div class="ob-plan-notsure ${!_ob.baseline_known ? 'active' : ''}" onclick="setObBaseline(null)" style="margin-bottom:10px">
       <span>Not sure — I'll set it later</span>
-      <span style="font-family:var(--mono);font-size:10px;letter-spacing:.04em">${!_ob.baseline_known ? '✓' : '›'}</span>
+      <span style="font-family:var(--mono);font-size:12px;letter-spacing:.04em">${!_ob.baseline_known ? '✓' : '›'}</span>
     </div>
 
-    <div style="font-size:11px;font-weight:700;color:var(--ink-soft);font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">1. Pick your supplier</div>
+    <div style="font-size:12px;font-weight:700;color:var(--ink-soft);font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">1. Pick your supplier</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
       ${supplierGrid}
     </div>
 
     ${selSup ? `
-    <div style="font-size:11px;font-weight:700;color:var(--ink-soft);font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">2. Pick your plan</div>
+    <div style="font-size:12px;font-weight:700;color:var(--ink-soft);font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">2. Pick your plan</div>
     <div class="ob-plan-picker" style="max-height:240px">
       ${planList}
     </div>` : `
-    <div style="padding:14px;border:1px dashed var(--line);border-radius:10px;text-align:center;color:var(--ink-dim);font-size:12px">
+    <div style="padding:14px;border:1px dashed var(--line);border-radius:8px;text-align:center;color:var(--ink-dim);font-size:12px">
       Select a supplier above to see their plans
     </div>`}
 
     ${_ob.baseline_known ? `
     <div style="margin-top:12px;padding:12px 14px;background:var(--accent-faint);border:1px solid var(--line);border-radius:12px">
-      <div style="font-size:12.5px;font-weight:700;color:var(--ink)">Any discount on this plan?</div>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:2px;line-height:1.5">Discount off unit rates — it's on your bill.</div>
+      <div style="font-size:12px;font-weight:700;color:var(--ink)">Any discount on this plan?</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.5">Discount off unit rates — it's on your bill.</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px">
         ${[0,5,10,15,20,25,30,40].map(p => `
-          <div onclick="_ob.baseline_discount=${p};renderApp();" style="padding:7px 12px;border-radius:999px;font-size:11.5px;font-weight:700;font-family:var(--mono);cursor:pointer;border:1.5px solid ${(+_ob.baseline_discount||0)===p ? 'var(--accent)' : 'var(--line)'};background:${(+_ob.baseline_discount||0)===p ? 'var(--accent-soft)' : 'var(--panel)'};color:${(+_ob.baseline_discount||0)===p ? 'var(--accent)' : 'var(--ink-soft)'}">${p === 0 ? 'None' : p + '%'}</div>`).join('')}
+          <div onclick="_ob.baseline_discount=${p};renderApp();" style="padding:7px 12px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--mono);cursor:pointer;border:1.5px solid ${(+_ob.baseline_discount||0)===p ? 'var(--accent)' : 'var(--line)'};background:${(+_ob.baseline_discount||0)===p ? 'var(--accent-soft)' : 'var(--panel)'};color:${(+_ob.baseline_discount||0)===p ? 'var(--accent)' : 'var(--ink-soft)'}">${p === 0 ? 'None' : p + '%'}</div>`).join('')}
       </div>
     </div>` : ''}
     <p class="ob-help" style="margin-top:10px">Not sure? Pick the closest match, or tap Not sure.</p>`;
@@ -3328,7 +3328,7 @@ function pickObHeating(heating){
 
 function obStep2Usage(){
   const m = _ob.usage_mode || 'bill';
-  const pill = (mode, label) => `<button onclick="setObUsageMode('${mode}')" style="padding:8px 14px;font-size:11.5px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${m === mode ? 'var(--accent)' : 'transparent'};color:${m === mode ? '#fff' : 'var(--ink-soft)'}">${label}</button>`;
+  const pill = (mode, label) => `<button onclick="setObUsageMode('${mode}')" style="padding:8px 14px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${m === mode ? 'var(--accent)' : 'transparent'};color:${m === mode ? '#fff' : 'var(--ink-soft)'}">${label}</button>`;
   const pills = `<div style="display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--well);margin-bottom:14px">${pill('bill','€ Bill')}${pill('kwh','kWh / year')}${pill('csv','Smart meter')}</div>`;
 
   // An imported CSV wins over everything — one source of truth.
@@ -3350,7 +3350,7 @@ function obStep2Usage(){
   if (m === 'csv'){
     return `${head}
     <div class="card" style="margin-top:0;margin-bottom:12px">
-      <div style="font-size:12px;color:var(--ink-soft);line-height:1.7">Log in at <b>myaccount.esbnetworks.ie</b> → My Meter → <b>Download HDF Data</b> (12 months if offered). The file looks like <span style="font-family:var(--mono);font-size:10px;background:var(--well);padding:2px 6px;border-radius:4px">HDF_XXXXXXXX_YYYY-MM-DD.csv</span>.</div>
+      <div style="font-size:12px;color:var(--ink-soft);line-height:1.7">Log in at <b>myaccount.esbnetworks.ie</b> → My Meter → <b>Download HDF Data</b> (12 months if offered). The file looks like <span style="font-family:var(--mono);font-size:12px;background:var(--well);padding:2px 6px;border-radius:4px">HDF_XXXXXXXX_YYYY-MM-DD.csv</span>.</div>
       <label class="btn-secondary" style="display:block;text-align:center;cursor:pointer;margin-top:10px;padding:12px 16px;border:1px dashed var(--blue);color:var(--blue)">
         Choose CSV file
         <input id="csv-file-input" type="file" accept=".csv,.CSV" style="display:none" onchange="handleCsvFile(event)">
@@ -3364,7 +3364,7 @@ function obStep2Usage(){
     return `${head}
     <div style="position:relative;">
       <input id="ob-bill" class="ob-input mono" type="number" inputmode="numeric" min="500" max="40000" step="100" value="${_ob.annual_kwh || 4200}" style="padding-right:70px">
-      <span style="position:absolute;right:18px;top:20px;font-size:16px;color:var(--ink-soft);font-family:var(--mono);">kWh</span>
+      <span style="position:absolute;right:18px;top:20px;font-size:15px;color:var(--ink-soft);font-family:var(--mono);">kWh</span>
     </div>
     <p class="ob-help">Typical: 3,500–4,500 kWh/yr · heat pump 7,000–12,000.</p>
     <div id="ob-bill-preview" class="ob-bill-preview" style="display:none"></div>`;
@@ -3376,9 +3376,9 @@ function obStep2Usage(){
   const hintBg = _ob.heating === 'gas' ? 'background:var(--blue-soft);border:1px solid var(--blue)' : 'background:var(--accent-faint);border:1px solid var(--line)';
 
   return `${head}
-    <div style="${hintBg};border-radius:10px;padding:10px 13px;margin-bottom:12px;font-size:12px;color:var(--ink);line-height:1.5">${hint}</div>
+    <div style="${hintBg};border-radius:8px;padding:10px 13px;margin-bottom:12px;font-size:12px;color:var(--ink);line-height:1.5">${hint}</div>
     <div style="position:relative;">
-      <span style="position:absolute;left:18px;top:18px;font-size:24px;color:var(--ink-soft);font-family:var(--mono);">€</span>
+      <span style="position:absolute;left:18px;top:18px;font-size:25px;color:var(--ink-soft);font-family:var(--mono);">€</span>
       <input id="ob-bill" class="ob-input mono" type="number" inputmode="numeric" min="50" max="1500" step="10" value="${_ob.bill}" style="padding-left:46px">
     </div>
     <div id="ob-bill-preview" class="ob-bill-preview" style="display:none"></div>`;
@@ -3404,10 +3404,10 @@ function obAdj(key, delta, min, max){
   renderAppDebounced();
 }
 function obStepper(key, val, min, max, unit){
-  const btn = (d, sym) => `<button onclick="obAdj('${key}',${d},${min},${max})" style="width:46px;height:46px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);font-size:22px;font-weight:700;font-family:var(--mono);cursor:pointer;flex-shrink:0">${sym}</button>`;
+  const btn = (d, sym) => `<button onclick="obAdj('${key}',${d},${min},${max})" style="width:46px;height:46px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);font-size:20px;font-weight:700;font-family:var(--mono);cursor:pointer;flex-shrink:0">${sym}</button>`;
   return `<div style="display:flex;align-items:center;gap:10px">
     ${btn(-1, '−')}
-    <div style="flex:1;text-align:center;font-family:var(--mono);font-size:24px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums">${val}<span style="font-size:12px;font-weight:400;color:var(--ink-soft)"> ${unit || ''}</span></div>
+    <div style="flex:1;text-align:center;font-family:var(--mono);font-size:25px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums">${val}<span style="font-size:12px;font-weight:400;color:var(--ink-soft)"> ${unit || ''}</span></div>
     ${btn(1, '+')}
   </div>`;
 }
@@ -3416,7 +3416,7 @@ function obPills(key, val, options){
   // Preserve any custom value the user already has — show it as its own pill
   if (!opts.some(([v]) => Math.abs(v - val) < 0.001)) opts.push([val, String(val)]);
   return `<div style="display:flex;flex-wrap:wrap;gap:7px">${opts.map(([v, l]) => `
-    <div onclick="obSetVal('${key}',${v})" style="padding:9px 14px;border-radius:999px;font-size:12.5px;font-weight:700;font-family:var(--mono);cursor:pointer;border:1.5px solid ${Math.abs(v - val) < 0.001 ? 'var(--accent)' : 'var(--line)'};background:${Math.abs(v - val) < 0.001 ? 'var(--accent-soft)' : 'var(--panel)'};color:${Math.abs(v - val) < 0.001 ? 'var(--accent)' : 'var(--ink-soft)'}">${l}</div>`).join('')}</div>`;
+    <div onclick="obSetVal('${key}',${v})" style="padding:9px 14px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--mono);cursor:pointer;border:1.5px solid ${Math.abs(v - val) < 0.001 ? 'var(--accent)' : 'var(--line)'};background:${Math.abs(v - val) < 0.001 ? 'var(--accent-soft)' : 'var(--panel)'};color:${Math.abs(v - val) < 0.001 ? 'var(--accent)' : 'var(--ink-soft)'}">${l}</div>`).join('')}</div>`;
 }
 
 function obStep6Solar(){
@@ -3429,17 +3429,17 @@ function obStep6Solar(){
       <div onclick="_ob.has_solar=false; renderApp();" style="padding:11px 8px;border-radius:12px;cursor:pointer;text-align:center;border:1.5px solid ${!_ob.has_solar?'var(--accent)':'var(--line)'};background:${!_ob.has_solar?'var(--accent-soft)':'var(--panel)'}">
         <div style="margin-bottom:4px">${ic('sun',18)}</div>
         <div style="font-size:12px;font-weight:700;color:${!_ob.has_solar?'var(--accent)':'var(--ink)'}">No solar</div>
-        <div style="font-size:10px;color:var(--ink-soft);margin-top:2px">Don't have it</div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">Don't have it</div>
       </div>
       <div onclick="_ob.has_solar=true; _ob.solar_status='have'; renderApp();" style="padding:11px 8px;border-radius:12px;cursor:pointer;text-align:center;border:1.5px solid ${(_ob.has_solar&&_ob.solar_status!=='plan')?'var(--accent)':'var(--line)'};background:${(_ob.has_solar&&_ob.solar_status!=='plan')?'var(--accent-soft)':'var(--panel)'}">
         <div style="margin-bottom:4px">${ic('sun',18)}</div>
         <div style="font-size:12px;font-weight:700;color:${(_ob.has_solar&&_ob.solar_status!=='plan')?'var(--accent)':'var(--ink)'}">I have it</div>
-        <div style="font-size:10px;color:var(--ink-soft);margin-top:2px">Already installed</div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">Already installed</div>
       </div>
       <div onclick="_ob.has_solar=true; _ob.solar_status='plan'; renderApp();" style="padding:11px 8px;border-radius:12px;cursor:pointer;text-align:center;border:1.5px solid ${(_ob.has_solar&&_ob.solar_status==='plan')?'var(--accent)':'var(--line)'};background:${(_ob.has_solar&&_ob.solar_status==='plan')?'var(--accent-soft)':'var(--panel)'}">
         <div style="margin-bottom:4px">${ic('sun',18)}</div>
         <div style="font-size:12px;font-weight:700;color:${(_ob.has_solar&&_ob.solar_status==='plan')?'var(--accent)':'var(--ink)'}">Planning it</div>
-        <div style="font-size:10px;color:var(--ink-soft);margin-top:2px">Getting quotes</div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">Getting quotes</div>
       </div>
     </div>
 
@@ -3478,21 +3478,21 @@ function obStep6Solar(){
         <div class="ob-mini-title">${ic('battery',14)} Battery</div>
         <div class="ob-mini-label">Capacity in kWh (enter 0 if no battery)</div>
         <input id="ob-batt" class="ob-mini-input" type="number" inputmode="decimal" min="0" max="50" step="0.1" value="${_ob.battery_kwh}">
-        <div style="margin-top:8px;font-size:10.5px;color:var(--ink-dim);font-family:var(--display);line-height:1.5">Typical: 5–13.5 kWh. Powerwall 13.5 · GivEnergy 9.5.</div>
+        <div style="margin-top:8px;font-size:12px;color:var(--ink-dim);font-family:var(--display);line-height:1.5">Typical: 5–13.5 kWh. Powerwall 13.5 · GivEnergy 9.5.</div>
       </div>
 
       ${_ob.battery_kwh > 0 ? `
       <div class="ob-mini-section">
         <div class="ob-mini-title">${ic('bolt',14)} Battery strategy</div>
-        <p style="font-size:11px;color:var(--ink-dim);margin:0 0 10px;line-height:1.6;font-family:var(--display)">How should the battery charge?</p>
+        <p style="font-size:12px;color:var(--ink-dim);margin:0 0 10px;line-height:1.6;font-family:var(--display)">How should the battery charge?</p>
         <div style="display:flex;gap:8px">
-          <div onclick="_ob.strategy='arbitrage';_ob.charge_from_grid=true;renderApp();" style="flex:1;padding:12px 10px;border:1.5px solid ${_ob.strategy === 'arbitrage' ? 'var(--accent)' : 'var(--line)'};border-radius:10px;cursor:pointer;background:${_ob.strategy === 'arbitrage' ? 'var(--accent-soft)' : 'transparent'}">
-            <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:${_ob.strategy === 'arbitrage' ? 'var(--accent)' : 'var(--ink-soft)'};letter-spacing:.06em">ARBITRAGE</div>
-            <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;line-height:1.5">Fills overnight, discharges at peak. Needs a night or EV plan.</div>
+          <div onclick="_ob.strategy='arbitrage';_ob.charge_from_grid=true;renderApp();" style="flex:1;padding:12px 10px;border:1.5px solid ${_ob.strategy === 'arbitrage' ? 'var(--accent)' : 'var(--line)'};border-radius:8px;cursor:pointer;background:${_ob.strategy === 'arbitrage' ? 'var(--accent-soft)' : 'transparent'}">
+            <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${_ob.strategy === 'arbitrage' ? 'var(--accent)' : 'var(--ink-soft)'};letter-spacing:.06em">ARBITRAGE</div>
+            <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.5">Fills overnight, discharges at peak. Needs a night or EV plan.</div>
           </div>
-          <div onclick="_ob.strategy='self-consume';_ob.charge_from_grid=false;renderApp();" style="flex:1;padding:12px 10px;border:1.5px solid ${_ob.strategy !== 'arbitrage' ? 'var(--blue)' : 'var(--line)'};border-radius:10px;cursor:pointer;background:${_ob.strategy !== 'arbitrage' ? 'rgba(41,182,246,.06)' : 'transparent'}">
-            <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:${_ob.strategy !== 'arbitrage' ? 'var(--blue)' : 'var(--ink-soft)'};letter-spacing:.06em">SELF-CONSUME</div>
-            <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;line-height:1.5">Fills from solar only.</div>
+          <div onclick="_ob.strategy='self-consume';_ob.charge_from_grid=false;renderApp();" style="flex:1;padding:12px 10px;border:1.5px solid ${_ob.strategy !== 'arbitrage' ? 'var(--blue)' : 'var(--line)'};border-radius:8px;cursor:pointer;background:${_ob.strategy !== 'arbitrage' ? 'rgba(41,182,246,.06)' : 'transparent'}">
+            <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${_ob.strategy !== 'arbitrage' ? 'var(--blue)' : 'var(--ink-soft)'};letter-spacing:.06em">SELF-CONSUME</div>
+            <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.5">Fills from solar only.</div>
           </div>
         </div>
       </div>
@@ -3510,7 +3510,7 @@ function obStep6Solar(){
             <input id="ob-grant" class="ob-mini-input" type="number" inputmode="numeric" min="0" max="5000" step="100" value="${_ob.install_grant >= 0 ? _ob.install_grant : calcSeaiGrant((_ob.count_A + _ob.count_B) * 440/1000, _ob.battery_kwh).total}">
           </div>
         </div>
-        <p style="font-size:11px;color:var(--ink-dim);margin-top:6px;line-height:1.5;font-family:var(--display)">SEAI 2025: €900/kWp on the first 2 kWp, max €1,800.</p>
+        <p style="font-size:12px;color:var(--ink-dim);margin-top:6px;line-height:1.5;font-family:var(--display)">SEAI 2025: €900/kWp on the first 2 kWp, max €1,800.</p>
       </div>
     ` : ''}`;
 }
@@ -3525,17 +3525,17 @@ function obStep7EV(){
       <div onclick="_ob.has_ev=false; renderApp();" style="padding:11px 8px;border-radius:12px;cursor:pointer;text-align:center;border:1.5px solid ${!_ob.has_ev?'var(--accent)':'var(--line)'};background:${!_ob.has_ev?'var(--accent-soft)':'var(--panel)'}">
         <div style="margin-bottom:4px">${ic('car',18)}</div>
         <div style="font-size:12px;font-weight:700;color:${!_ob.has_ev?'var(--accent)':'var(--ink)'}">No EV</div>
-        <div style="font-size:10px;color:var(--ink-soft);margin-top:2px">Don't have one</div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">Don't have one</div>
       </div>
       <div onclick="_ob.has_ev=true; _ob.ev_in_bill=true; renderApp();" style="padding:11px 8px;border-radius:12px;cursor:pointer;text-align:center;border:1.5px solid ${(_ob.has_ev&&_ob.ev_in_bill)?'var(--accent)':'var(--line)'};background:${(_ob.has_ev&&_ob.ev_in_bill)?'var(--accent-soft)':'var(--panel)'}">
         <div style="margin-bottom:4px">${ic('car',18)}</div>
         <div style="font-size:12px;font-weight:700;color:${(_ob.has_ev&&_ob.ev_in_bill)?'var(--accent)':'var(--ink)'}">I have one</div>
-        <div style="font-size:10px;color:var(--ink-soft);margin-top:2px">In my bill already</div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">In my bill already</div>
       </div>
       <div onclick="_ob.has_ev=true; _ob.ev_in_bill=false; renderApp();" style="padding:11px 8px;border-radius:12px;cursor:pointer;text-align:center;border:1.5px solid ${(_ob.has_ev&&!_ob.ev_in_bill)?'var(--accent)':'var(--line)'};background:${(_ob.has_ev&&!_ob.ev_in_bill)?'var(--accent-soft)':'var(--panel)'}">
         <div style="margin-bottom:4px">${ic('car',18)}</div>
         <div style="font-size:12px;font-weight:700;color:${(_ob.has_ev&&!_ob.ev_in_bill)?'var(--accent)':'var(--ink)'}">Planning it</div>
-        <div style="font-size:10px;color:var(--ink-soft);margin-top:2px">Will add charging</div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">Will add charging</div>
       </div>
     </div>
 
@@ -3552,7 +3552,7 @@ function obStep7EV(){
             <input id="ob-eveff" class="ob-mini-input" type="number" inputmode="decimal" min="5" max="35" step="0.5" value="${_ob.ev_eff}">
           </div>
         </div>
-        <p style="font-size:11px;color:var(--ink-dim);margin-top:6px;line-height:1.5;font-family:var(--display)">Irish average 16,500 km/yr · small EV 14, mid 16–18, SUV 20+.</p>
+        <p style="font-size:12px;color:var(--ink-dim);margin-top:6px;line-height:1.5;font-family:var(--display)">Irish average 16,500 km/yr · small EV 14, mid 16–18, SUV 20+.</p>
       </div>
     ` : ''}`;
 }
@@ -3644,9 +3644,9 @@ function updateBillPreview(){
     if (!_ob.annual_kwh || _ob.annual_kwh < 500){ el.style.display = 'none'; return; }
     el.style.display = 'block';
     el.innerHTML = `
-      <div style="font-size:10px;color:var(--accent);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Using your real consumption — no € guessing</div>
-      <div style="font-family:var(--mono);font-size:18px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums">${(+_ob.annual_kwh).toLocaleString()} kWh/yr</div>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;font-family:var(--mono)">shaped across the year by your ${_ob.heating} heating profile</div>`;
+      <div style="font-size:12px;color:var(--accent);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Using your real consumption — no € guessing</div>
+      <div style="font-family:var(--mono);font-size:17px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums">${(+_ob.annual_kwh).toLocaleString()} kWh/yr</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;font-family:var(--mono)">shaped across the year by your ${_ob.heating} heating profile</div>`;
     return;
   }
   if (!_ob.bill || _ob.bill < 30){ el.style.display = 'none'; return; }
@@ -3654,9 +3654,9 @@ function updateBillPreview(){
   const bills = inferBillsFromEuro(_ob.bill, _ob.heating);
   const total = Object.values(bills).reduce((a,b)=>a+b,0);
   el.innerHTML = `
-    <div style="font-size:10px;color:var(--accent);font-family:var(--display);letter-spacing:.02em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Rough first estimate — refined against your plan at the end</div>
-    <div style="font-family:var(--mono);font-size:18px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums">${total.toLocaleString()} kWh/yr</div>
-    <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;font-family:var(--mono)">~€${(_ob.bill * 6).toLocaleString()} per year</div>`;
+    <div style="font-size:12px;color:var(--accent);font-family:var(--display);letter-spacing:.02em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Rough first estimate — refined against your plan at the end</div>
+    <div style="font-family:var(--mono);font-size:17px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums">${total.toLocaleString()} kWh/yr</div>
+    <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;font-family:var(--mono)">~€${(_ob.bill * 6).toLocaleString()} per year</div>`;
 }
 
 function obNext(){
@@ -3979,26 +3979,26 @@ function renderEvSavingsCard(best){
   const electricityCostIncrease = econ.evElectricityCost;
 
   return `<div style="margin-top:14px;padding:14px 16px;background:rgba(41,182,246,.06);border:1.5px solid var(--blue);border-radius:12px">
-    <div style="font-family:var(--mono);font-size:10px;color:var(--blue);letter-spacing:.08em;text-transform:uppercase;font-weight:700;margin-bottom:4px">${ic('car',12,'vertical-align:-2px')} ${state.ev_in_bill ? 'Your EV vs running a petrol car' : 'If you get the EV — what changes'}</div>
-    <div style="font-size:11px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px">${state.ev_in_bill
+    <div style="font-family:var(--mono);font-size:12px;color:var(--blue);letter-spacing:.08em;text-transform:uppercase;font-weight:700;margin-bottom:4px">${ic('car',12,'vertical-align:-2px')} ${state.ev_in_bill ? 'Your EV vs running a petrol car' : 'If you get the EV — what changes'}</div>
+    <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px">${state.ev_in_bill
       ? 'This is about the car, not your electricity plan — what driving electric saves you compared to doing the same kilometres in a petrol car. Plan-switching savings are shown separately above.'
       : 'What your bills would look like with the car, versus fuelling a petrol car for the same kilometres. Separate from plan-switching savings above.'}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
       <div style="padding:10px;background:${state.ev_in_bill ? 'var(--well)' : 'rgba(255,23,68,.06)'};border-radius:8px">
-        <div style="font-family:var(--mono);font-size:9px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em">${state.ev_in_bill ? 'Charging cost (in your bill)' : 'Electricity added to your bill'}</div>
-        <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:${state.ev_in_bill ? 'var(--ink)' : 'var(--loss)'};margin-top:3px">${state.ev_in_bill ? '' : '+'}${fmtCurrency(Math.round(electricityCostIncrease))}<span style="font-size:10px;font-weight:400">/yr</span></div>
-        <div style="font-size:10px;color:var(--ink-dim);margin-top:2px">${Math.round(econ.evKwh).toLocaleString()} kWh charging your ${econ.km.toLocaleString()} km</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em">${state.ev_in_bill ? 'Charging cost (in your bill)' : 'Electricity added to your bill'}</div>
+        <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:${state.ev_in_bill ? 'var(--ink)' : 'var(--loss)'};margin-top:3px">${state.ev_in_bill ? '' : '+'}${fmtCurrency(Math.round(electricityCostIncrease))}<span style="font-size:12px;font-weight:400">/yr</span></div>
+        <div style="font-size:12px;color:var(--ink-dim);margin-top:2px">${Math.round(econ.evKwh).toLocaleString()} kWh charging your ${econ.km.toLocaleString()} km</div>
       </div>
       <div style="padding:10px;background:var(--accent-faint);border-radius:8px">
-        <div style="font-family:var(--mono);font-size:9px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em">Petrol for the same km</div>
-        <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--accent);margin-top:3px">−${fmtCurrency(Math.round(econ.petrolCost))}<span style="font-size:10px;font-weight:400">/yr</span></div>
-        <div style="font-size:10px;color:var(--ink-dim);margin-top:2px">${Math.round(econ.litres).toLocaleString()} L @ €${(state.fuel_price || 1.83).toFixed(2)}/L ${state.ev_in_bill ? "you're NOT buying" : "you'd avoid buying"}</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em">Petrol for the same km</div>
+        <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--accent);margin-top:3px">−${fmtCurrency(Math.round(econ.petrolCost))}<span style="font-size:12px;font-weight:400">/yr</span></div>
+        <div style="font-size:12px;color:var(--ink-dim);margin-top:2px">${Math.round(econ.litres).toLocaleString()} L @ €${(state.fuel_price || 1.83).toFixed(2)}/L ${state.ev_in_bill ? "you're NOT buying" : "you'd avoid buying"}</div>
       </div>
     </div>
     <div style="padding:12px;background:${isPositive ? 'rgba(0,230,118,.08)' : 'rgba(255,145,0,.08)'};border-radius:8px;border:1px solid ${isPositive ? 'var(--accent)' : 'var(--amber)'}">
-      <div style="font-family:var(--mono);font-size:9px;color:${isPositive ? 'var(--accent)' : 'var(--amber)'};text-transform:uppercase;letter-spacing:.08em">${state.ev_in_bill ? 'Your EV saves vs a petrol car' : 'Net transport saving if you get it'}</div>
-      <div style="font-family:var(--mono);font-size:22px;font-weight:700;color:${isPositive ? 'var(--accent)' : 'var(--amber)'};margin-top:3px">${isPositive ? '' : '-'}${fmtCurrency(Math.abs(Math.round(netSaving)))}<span style="font-size:12px;font-weight:400;color:var(--ink-soft)">/yr</span></div>
-      <div style="font-size:10px;color:var(--ink-soft);margin-top:4px;font-family:var(--mono);line-height:1.6">
+      <div style="font-family:var(--mono);font-size:12px;color:${isPositive ? 'var(--accent)' : 'var(--amber)'};text-transform:uppercase;letter-spacing:.08em">${state.ev_in_bill ? 'Your EV saves vs a petrol car' : 'Net transport saving if you get it'}</div>
+      <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:${isPositive ? 'var(--accent)' : 'var(--amber)'};margin-top:3px">${isPositive ? '' : '-'}${fmtCurrency(Math.abs(Math.round(netSaving)))}<span style="font-size:12px;font-weight:400;color:var(--ink-soft)">/yr</span></div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;font-family:var(--mono);line-height:1.6">
         = ${fmtCurrency(Math.round(econ.petrolCost))} petrol − ${fmtCurrency(Math.round(electricityCostIncrease))} charging · ${econ.km.toLocaleString()} km/yr
       </div>
     </div>
@@ -4055,23 +4055,23 @@ function renderEnergyScore(best, baseCost){
   return `
     <div class="card" style="margin-bottom:14px">
       <div style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:10px 0;margin:-10px 0" onclick="state._score_open=!state._score_open;renderApp();">
-        <div style="font-family:var(--mono);font-size:26px;font-weight:700;color:${s.overall >= 80 ? 'var(--accent)' : s.overall >= 55 ? 'var(--amber)' : 'var(--loss)'}">${s.overall}<span style="font-size:12px;color:var(--ink-dim);font-weight:400">/100</span></div>
+        <div style="font-family:var(--mono);font-size:25px;font-weight:700;color:${s.overall >= 80 ? 'var(--accent)' : s.overall >= 55 ? 'var(--amber)' : 'var(--loss)'}">${s.overall}<span style="font-size:12px;color:var(--ink-dim);font-weight:400">/100</span></div>
         <div style="flex:1">
-          <div style="font-size:13.5px;font-weight:700;color:var(--ink)">Energy health score</div>
-          <div style="font-family:var(--mono);font-size:10px;color:var(--ink-soft);letter-spacing:.03em;margin-top:2px">${s.parts.length} factors · simulated on your home</div>
+          <div style="font-size:13px;font-weight:700;color:var(--ink)">Energy health score</div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.03em;margin-top:2px">${s.parts.length} factors · simulated on your home</div>
         </div>
         <span style="font-family:var(--mono);font-size:12px;color:var(--ink-dim)">${open ? '▴' : '▾'}</span>
       </div>
       ${open ? s.parts.map(p => `
         <div style="margin-top:11px">
-          <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
             <span style="color:var(--ink);font-weight:600">${p.label}</span>
             <span style="font-family:var(--mono);font-weight:700;color:${p.score >= 80 ? 'var(--accent)' : p.score >= 55 ? 'var(--amber)' : 'var(--loss)'}">${p.score}</span>
           </div>
-          <div style="height:5px;background:var(--track-soft);border-radius:99px;overflow:hidden"><div style="height:100%;width:${p.score}%;background:${p.score >= 80 ? 'var(--accent)' : p.score >= 55 ? 'var(--amber)' : 'var(--loss)'};border-radius:99px"></div></div>
-          <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink-dim);margin-top:4px;line-height:1.5">${p.why}</div>
+          <div style="height:5px;background:var(--track-soft);border-radius:999px;overflow:hidden"><div style="height:100%;width:${p.score}%;background:${p.score >= 80 ? 'var(--accent)' : p.score >= 55 ? 'var(--amber)' : 'var(--loss)'};border-radius:999px"></div></div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:4px;line-height:1.5">${p.why}</div>
         </div>`).join('') + `
-      <div style="font-family:var(--display);font-size:9.5px;color:var(--ink-dim);margin-top:12px;letter-spacing:.03em">Improve it: apply the free changes on the Solar tab · switch when the gap is real</div>` : ''}
+      <div style="font-family:var(--display);font-size:12px;color:var(--ink-dim);margin-top:12px;letter-spacing:.03em">Improve it: apply the free changes on the Solar tab · switch when the gap is real</div>` : ''}
     </div>`;
 }
 
@@ -4085,10 +4085,10 @@ function renderGoalDesigner(){
   const haveResults = CACHE._goalSweep_ck === ck && CACHE._goalSweep;
   const goalBtn = (g, icon, title, sub) => {
     const active = view === g;
-    return `<div onclick="${g === 'mine' ? "setSolarView('mine')" : "startGoalDesign('" + g + "')"}" style="flex:1;padding:12px 10px;border-radius:14px;cursor:pointer;border:1.5px solid ${active ? 'var(--accent)' : 'var(--line)'};background:${active ? 'var(--accent-soft)' : 'var(--well)'}">
+    return `<div onclick="${g === 'mine' ? "setSolarView('mine')" : "startGoalDesign('" + g + "')"}" style="flex:1;padding:12px 10px;border-radius:12px;cursor:pointer;border:1.5px solid ${active ? 'var(--accent)' : 'var(--line)'};background:${active ? 'var(--accent-soft)' : 'var(--well)'}">
       <div style="margin-bottom:4px">${ic(icon,17)}</div>
       <div style="font-size:12px;font-weight:700;color:${active ? 'var(--accent)' : 'var(--ink)'};line-height:1.25">${title}</div>
-      <div style="font-size:9.5px;color:var(--ink-soft);margin-top:3px;line-height:1.4">${sub}</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.4">${sub}</div>
     </div>`;
   };
 
@@ -4096,8 +4096,8 @@ function renderGoalDesigner(){
   let body = '';
   if (busy){
     body = `<div style="margin-top:12px;padding:14px;background:var(--well);border-radius:12px;text-align:center">
-      <div style="font-family:var(--mono);font-size:11px;color:var(--ink-soft);letter-spacing:.04em">Simulating ${GOAL_PANELS.length * GOAL_BATTS.length} system designs × ${TARIFFS.filter(t=>!t.discontinued).length} plans on your usage…</div>
-      <div style="height:4px;background:var(--track-soft);border-radius:99px;margin-top:10px;overflow:hidden"><div style="height:100%;width:55%;background:var(--accent);border-radius:99px;animation:pulse 1.1s ease infinite"></div></div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.04em">Simulating ${GOAL_PANELS.length * GOAL_BATTS.length} system designs × ${TARIFFS.filter(t=>!t.discontinued).length} plans on your usage…</div>
+      <div style="height:4px;background:var(--track-soft);border-radius:999px;margin-top:10px;overflow:hidden"><div style="height:100%;width:55%;background:var(--accent);border-radius:999px;animation:pulse 1.1s ease infinite"></div></div>
     </div>`;
   } else if (view !== 'mine' && haveResults){
     const goal = view;
@@ -4108,30 +4108,30 @@ function renderGoalDesigner(){
     const same = other.panels === win.panels && other.batt === win.batt;
     body = `
       <div style="margin-top:12px;margin-left:-16px;margin-right:-16px;padding:14px 16px;background:var(--accent-faint);border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);border-left:3px solid var(--accent)">
-        <div style="font-family:var(--mono);font-size:9.5px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:6px">${goal === 'npv' ? 'Most value over 20 years' : 'Fastest payback'} — best design</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:6px">${goal === 'npv' ? 'Most value over 20 years' : 'Fastest payback'} — best design</div>
         <div style="font-size:17px;font-weight:800;color:var(--ink);font-family:var(--display)">${win.panels} panels (${win.kwp} kWp)${win.batt ? ' · ' + win.batt + ' kWh battery' : ' · no battery'}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px">
-          <div><div style="font-family:var(--mono);font-size:8.5px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em;min-height:2.4em">Payback</div><div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)">${win.payback} yr</div></div>
-          <div><div style="font-family:var(--mono);font-size:8.5px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em;min-height:2.4em">20-yr profit (NPV)</div><div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent)">€${win.npv.toLocaleString()}</div></div>
-          <div><div style="font-family:var(--mono);font-size:8.5px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em;min-height:2.4em">Est. cost after grant</div><div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)">~€${win.net.toLocaleString()}</div></div>
+          <div><div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em;min-height:2.4em">Payback</div><div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)">${win.payback} yr</div></div>
+          <div><div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em;min-height:2.4em">20-yr profit (NPV)</div><div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent)">€${win.npv.toLocaleString()}</div></div>
+          <div><div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em;min-height:2.4em">Est. cost after grant</div><div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)">~€${win.net.toLocaleString()}</div></div>
         </div>
-        <div style="font-family:var(--mono);font-size:10px;color:var(--ink-soft);margin-top:8px;line-height:1.6">€${win.benefit.toLocaleString()}/yr benefit on ${win.planLabel} · ~€${win.cost.toLocaleString()} <b>estimated</b> install − €${win.grant.toLocaleString()} SEAI grant · estimated from 2026 Irish market prices, not an installer quote</div>
-        <div style="font-family:var(--mono);font-size:9.5px;color:var(--accent);margin-top:9px;letter-spacing:.04em">● LIVE PREVIEW — every card on this screen now shows this design</div>
-        <button onclick="commitGoalDesign()" class="switch-cta" style="margin:10px 0 0;padding:13px;font-size:14px">Make this my system →</button>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:8px;line-height:1.6">€${win.benefit.toLocaleString()}/yr benefit on ${win.planLabel} · ~€${win.cost.toLocaleString()} <b>estimated</b> install − €${win.grant.toLocaleString()} SEAI grant · estimated from 2026 Irish market prices, not an installer quote</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--accent);margin-top:9px;letter-spacing:.04em">● LIVE PREVIEW — every card on this screen now shows this design</div>
+        <button onclick="commitGoalDesign()" class="switch-cta" style="margin:10px 0 0;padding:13px;font-size:13px">Make this my system →</button>
       </div>
-      ${!same ? `<div style="margin-top:10px;padding:0 2px;font-size:11px;color:var(--ink-soft);line-height:1.6">
+      ${!same ? `<div style="margin-top:10px;padding:0 2px;font-size:12px;color:var(--ink-soft);line-height:1.6">
         ${goal === 'npv'
           ? `The fastest-payback design (${other.panels} panels${other.batt ? ' + ' + other.batt + ' kWh' : ''}) breaks even in <b>${other.payback} yr</b> but earns <b>€${(win.npv - other.npv).toLocaleString()} less</b> over 20 years.`
           : `The value-maximising design (${other.panels} panels${other.batt ? ' + ' + other.batt + ' kWh' : ''}) takes <b>${other.payback} yr</b> to break even but earns <b>€${(other.npv - win.npv).toLocaleString()} more</b> over 20 years.`}
-      </div>` : `<div style="margin-top:10px;padding:0 2px;font-size:11px;color:var(--ink-soft)">Both goals point to the same design for your home — an easy decision.</div>`}
-      <div style="margin-top:8px;font-family:var(--display);font-size:9px;color:var(--ink-dim);line-height:1.6;letter-spacing:.02em">~ Prices are 2026 install estimates + auto SEAI grant — not quotes · benefit is electricity-only · 20-yr value discounted at 3%</div>`;
+      </div>` : `<div style="margin-top:10px;padding:0 2px;font-size:12px;color:var(--ink-soft)">Both goals point to the same design for your home — an easy decision.</div>`}
+      <div style="margin-top:8px;font-family:var(--display);font-size:12px;color:var(--ink-dim);line-height:1.6;letter-spacing:.02em">~ Prices are 2026 install estimates + auto SEAI grant — not quotes · benefit is electricity-only · 20-yr value discounted at 3%</div>`;
   }
 
   const isEstD = !!state.solar_is_estimate;
   return `
     <div class="card" style="margin-bottom:14px${isEstD ? ';border:1.5px dashed var(--blue)' : ''}">
-      <div style="font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:4px">${ic('target',12,'vertical-align:-2px')} Design my system</div>
-      <div style="font-size:11.5px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px">${view !== 'mine' ? `You're previewing an optimised design — your own setup is safe under <b style="color:var(--ink)">My system</b>.` : isEstD ? `The numbers below use an <b style="color:var(--ink)">estimated system</b> — our model, not your confirmed setup. Pick a goal to preview ${GOAL_PANELS.length * GOAL_BATTS.length} optimised designs, or set your exact panels below.` : `Switch views any time — the whole screen re-simulates instantly. Your own setup always lives under My system.`}</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:4px">${ic('target',12,'vertical-align:-2px')} Design my system</div>
+      <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px">${view !== 'mine' ? `You're previewing an optimised design — your own setup is safe under <b style="color:var(--ink)">My system</b>.` : isEstD ? `The numbers below use an <b style="color:var(--ink)">estimated system</b> — our model, not your confirmed setup. Pick a goal to preview ${GOAL_PANELS.length * GOAL_BATTS.length} optimised designs, or set your exact panels below.` : `Switch views any time — the whole screen re-simulates instantly. Your own setup always lives under My system.`}</div>
       <div style="display:flex;gap:7px">
         ${goalBtn('mine', 'home', 'My system', view === 'mine' ? 'Your configuration — live now' : 'Back to your own setup')}
         ${goalBtn('payback', 'bolt', 'Fastest payback', 'Smallest spend, soonest break-even')}
@@ -4155,16 +4155,16 @@ function renderGoalDesigner(){
         if (battDelta !== 0) parts.push(`${battDelta > 0 ? '+' : ''}${battDelta.toFixed(1)} kWh battery`);
         if (Math.abs(costDelta) > 100) parts.push(`${costDelta > 0 ? '+' : ''}€${Math.abs(Math.round(costDelta)).toLocaleString()} install`);
         if (parts.length === 0) parts.push('same system');
-        return `<div style="margin-top:8px;padding:8px 12px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:8px;font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);letter-spacing:.02em">
+        return `<div style="margin-top:8px;padding:8px 12px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.02em">
           <b style="color:var(--ink)">vs my system:</b> ${parts.join(' · ')}
         </div>`;
       })()}
       ${body}
       <div style="display:flex;gap:8px;margin-top:12px;padding-top:11px;border-top:1px solid var(--line-soft);align-items:center;justify-content:space-between">
-        <div style="font-family:var(--mono);font-size:10px;color:var(--ink-dim)">${isEstD ? 'Install ~' + fmtCurrency(state.install_cost) + ' est. · grant −' + fmtCurrency(state.grant_seai) : 'Know your exact spec?'}</div>
-        <button onclick="goRefineSolar()" style="flex-shrink:0;padding:8px 13px;border-radius:999px;font-size:11.5px;font-weight:700;font-family:var(--display);border:1px solid var(--blue);background:transparent;color:var(--blue);cursor:pointer">Set my exact system →</button>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim)">${isEstD ? 'Install ~' + fmtCurrency(state.install_cost) + ' est. · grant −' + fmtCurrency(state.grant_seai) : 'Know your exact spec?'}</div>
+        <button onclick="goRefineSolar()" style="flex-shrink:0;padding:8px 13px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid var(--blue);background:transparent;color:var(--blue);cursor:pointer">Set my exact system →</button>
       </div>
-      ${isEstD ? `<div onclick="markSolarAsMine()" style="margin-top:8px;text-align:center;font-size:11px;color:var(--ink-soft);text-decoration:underline;cursor:pointer">These match my real system — mark as confirmed</div>` : ''}
+      ${isEstD ? `<div onclick="markSolarAsMine()" style="margin-top:8px;text-align:center;font-size:12px;color:var(--ink-soft);text-decoration:underline;cursor:pointer">These match my real system — mark as confirmed</div>` : ''}
     </div>`;
 }
 
@@ -4191,47 +4191,47 @@ function renderLogicBreakdown(){
   return `
     <div class="card" style="margin-bottom:14px">
       <div style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px 0;margin:-12px 0" onclick="state._logic_open=!state._logic_open;renderApp()">
-        <div style="font-family:var(--mono);font-size:10px;color:var(--blue);letter-spacing:.1em;text-transform:uppercase;font-weight:700;flex:1">${ic('flask',12,'vertical-align:-2px')} Energy flow breakdown</div>
-        <div style="font-family:var(--mono);font-size:11px;color:var(--ink-dim)">${open?'▴':'▾'}</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--blue);letter-spacing:.1em;text-transform:uppercase;font-weight:700;flex:1">${ic('flask',12,'vertical-align:-2px')} Energy flow breakdown</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim)">${open?'▴':'▾'}</div>
       </div>
       ${open ? `
-      <div style="font-size:11px;color:var(--ink-soft);line-height:1.5;margin:8px 0 12px">Exact kWh accounting for the best plan on your home — every number is a simulation output, not a guess.</div>
+      <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin:8px 0 12px">Exact kWh accounting for the best plan on your home — every number is a simulation output, not a guess.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div style="background:var(--accent-faint);border-radius:10px;padding:10px 12px">
-          <div style="font-family:var(--mono);font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.06em">Generated</div>
-          <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--accent);margin-top:2px">${gen.toLocaleString()}<span style="font-size:10px;font-weight:400"> kWh/yr</span></div>
-          <div style="font-size:10px;color:var(--ink-dim);margin-top:2px">From your ${totalKwp().toFixed(1)} kWp array</div>
+        <div style="background:var(--accent-faint);border-radius:8px;padding:10px 12px">
+          <div style="font-family:var(--mono);font-size:12px;color:var(--accent);text-transform:uppercase;letter-spacing:.06em">Generated</div>
+          <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--accent);margin-top:2px">${gen.toLocaleString()}<span style="font-size:12px;font-weight:400"> kWh/yr</span></div>
+          <div style="font-size:12px;color:var(--ink-dim);margin-top:2px">From your ${totalKwp().toFixed(1)} kWp array</div>
         </div>
-        <div style="background:var(--well);border-radius:10px;padding:10px 12px">
-          <div style="font-family:var(--mono);font-size:9px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em">Used on-site</div>
-          <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ink);margin-top:2px">${selfUse.toLocaleString()}<span style="font-size:10px;font-weight:400"> kWh</span></div>
-          <div style="font-size:10px;color:var(--ink-dim);margin-top:2px">${selfPct}% of generation</div>
+        <div style="background:var(--well);border-radius:8px;padding:10px 12px">
+          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em">Used on-site</div>
+          <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ink);margin-top:2px">${selfUse.toLocaleString()}<span style="font-size:12px;font-weight:400"> kWh</span></div>
+          <div style="font-size:12px;color:var(--ink-dim);margin-top:2px">${selfPct}% of generation</div>
         </div>
-        <div style="background:var(--well);border-radius:10px;padding:10px 12px">
-          <div style="font-family:var(--mono);font-size:9px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em">Exported to grid</div>
-          <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ink);margin-top:2px">${exp.toLocaleString()}<span style="font-size:10px;font-weight:400"> kWh</span></div>
-          <div style="font-size:10px;color:var(--ink-dim);margin-top:2px">Paid at ${fmtCent(getBestPlan().plan.export_rate||0)}/kWh</div>
+        <div style="background:var(--well);border-radius:8px;padding:10px 12px">
+          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em">Exported to grid</div>
+          <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ink);margin-top:2px">${exp.toLocaleString()}<span style="font-size:12px;font-weight:400"> kWh</span></div>
+          <div style="font-size:12px;color:var(--ink-dim);margin-top:2px">Paid at ${fmtCent(getBestPlan().plan.export_rate||0)}/kWh</div>
         </div>
-        <div style="background:var(--well);border-radius:10px;padding:10px 12px">
-          <div style="font-family:var(--mono);font-size:9px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em">Grid import</div>
-          <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ink);margin-top:2px">${gridImp.toLocaleString()}<span style="font-size:10px;font-weight:400"> kWh</span></div>
-          <div style="font-size:10px;color:var(--ink-dim);margin-top:2px">From supplier (cheapest window)</div>
+        <div style="background:var(--well);border-radius:8px;padding:10px 12px">
+          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em">Grid import</div>
+          <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ink);margin-top:2px">${gridImp.toLocaleString()}<span style="font-size:12px;font-weight:400"> kWh</span></div>
+          <div style="font-size:12px;color:var(--ink-dim);margin-top:2px">From supplier (cheapest window)</div>
         </div>
       </div>
       ${(state.battery_kwh||0) > 0 ? `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-        <div style="background:var(--amber-soft);border-radius:10px;padding:10px 12px">
-          <div style="font-family:var(--mono);font-size:9px;color:var(--amber);text-transform:uppercase;letter-spacing:.06em">Battery charged</div>
-          <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ink);margin-top:2px">${battIn.toLocaleString()}<span style="font-size:10px;font-weight:400"> kWh</span></div>
-          <div style="font-size:10px;color:var(--ink-dim);margin-top:2px">Solar + grid ${state.charge_from_grid ? '(arbitrage)' : '(solar only)'}</div>
+        <div style="background:var(--amber-soft);border-radius:8px;padding:10px 12px">
+          <div style="font-family:var(--mono);font-size:12px;color:var(--amber);text-transform:uppercase;letter-spacing:.06em">Battery charged</div>
+          <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ink);margin-top:2px">${battIn.toLocaleString()}<span style="font-size:12px;font-weight:400"> kWh</span></div>
+          <div style="font-size:12px;color:var(--ink-dim);margin-top:2px">Solar + grid ${state.charge_from_grid ? '(arbitrage)' : '(solar only)'}</div>
         </div>
-        <div style="background:var(--amber-soft);border-radius:10px;padding:10px 12px">
-          <div style="font-family:var(--mono);font-size:9px;color:var(--amber);text-transform:uppercase;letter-spacing:.06em">Battery discharged</div>
-          <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ink);margin-top:2px">${battOut.toLocaleString()}<span style="font-size:10px;font-weight:400"> kWh</span></div>
-          <div style="font-size:10px;color:var(--ink-dim);margin-top:2px">Round-trip eff: ${Math.round(state.battery_eff*100*state.battery_eff*100)/100}%</div>
+        <div style="background:var(--amber-soft);border-radius:8px;padding:10px 12px">
+          <div style="font-family:var(--mono);font-size:12px;color:var(--amber);text-transform:uppercase;letter-spacing:.06em">Battery discharged</div>
+          <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--ink);margin-top:2px">${battOut.toLocaleString()}<span style="font-size:12px;font-weight:400"> kWh</span></div>
+          <div style="font-size:12px;color:var(--ink-dim);margin-top:2px">Round-trip eff: ${Math.round(state.battery_eff*100*state.battery_eff*100)/100}%</div>
         </div>
       </div>` : ''}
-      ${curt > 0 ? `<div style="margin-top:8px;padding:9px 12px;background:rgba(255,145,0,.06);border-radius:8px;font-size:11px;color:var(--ink-soft)">⚠ ${curt.toLocaleString()} kWh curtailed (export limit or export disabled) — enable export to capture this.</div>` : ''}
+      ${curt > 0 ? `<div style="margin-top:8px;padding:9px 12px;background:rgba(255,145,0,.06);border-radius:8px;font-size:12px;color:var(--ink-soft)">⚠ ${curt.toLocaleString()} kWh curtailed (export limit or export disabled) — enable export to capture this.</div>` : ''}
       ` : ''}
     </div>`;
 }
@@ -4268,9 +4268,9 @@ function renderNightRateCard(best, baseCost){
   const dayRate   = (bestNight.rates.day   * 100).toFixed(1);
 
   return `<div style="margin-top:14px;padding:14px 16px;background:var(--amber-faint);border:1.5px solid var(--amber);border-radius:12px">
-    <div style="font-family:var(--mono);font-size:10px;color:var(--amber);letter-spacing:.08em;text-transform:uppercase;font-weight:700;margin-bottom:6px">${ic('bolt',12,'vertical-align:-2px')} Night-rate savings unlocked</div>
+    <div style="font-family:var(--mono);font-size:12px;color:var(--amber);letter-spacing:.08em;text-transform:uppercase;font-weight:700;margin-bottom:6px">${ic('bolt',12,'vertical-align:-2px')} Night-rate savings unlocked</div>
     <div style="font-size:13px;font-weight:700;color:var(--ink);line-height:1.4">An extra <span style="color:var(--amber)">${fmtCurrency(Math.round(extraSaving))}/yr</span> if you shift loads to off-peak</div>
-    <div style="font-family:var(--mono);font-size:10px;color:var(--ink-soft);margin-top:6px;line-height:1.65">
+    <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:6px;line-height:1.65">
       ${bestNight.supplier} — ${bestNight.plan} has a <b style="color:var(--ink)">${nightRate}c/kWh night rate</b> vs ${dayRate}c/kWh day.<br>
       Run dishwasher, washing machine &amp; hot water at <b style="color:var(--ink)">2am–8am</b> to capture this saving.
     </div>
@@ -4295,7 +4295,7 @@ function renderResult(){
       ${topbar('No plans available', 'sage', false)}
       <div class="card" style="margin:20px 16px;text-align:center;padding:32px 20px">
         <div style="margin-bottom:12px">${ic('bolt',32)}</div>
-        <h2 style="font-size:18px;margin-bottom:8px">No active tariffs found</h2>
+        <h2 style="font-size:17px;margin-bottom:8px">No active tariffs found</h2>
         <p style="color:var(--ink-soft);font-size:13px;line-height:1.6;margin-bottom:18px">No plans to compare right now. Try refreshing the tariff data.</p>
         <button class="switch-cta" style="margin:0 auto;max-width:240px" onclick="location.reload()">Reload app</button>
       </div>
@@ -4317,18 +4317,18 @@ function renderResult(){
       ${(() => {
         const split = plannedSolarSplit();
         if (!split) return '';
-        return `<div style="margin:8px auto 0;padding:8px 14px;background:rgba(255,145,0,.08);border:1px solid var(--amber);border-radius:10px;display:inline-block">
-          <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink);line-height:1.7">
+        return `<div style="margin:8px auto 0;padding:8px 14px;background:rgba(255,145,0,.08);border:1px solid var(--amber);border-radius:8px;display:inline-block">
+          <div style="font-family:var(--mono);font-size:12px;color:var(--ink);line-height:1.7">
             Switch today: <b>${fmtCurrency(split.switchNow)}/yr</b> · your <b>planned</b> solar adds <b>+${fmtCurrency(split.withPlanned)}/yr</b> once installed
           </div>
         </div>`;
       })()}
       <div class="qr-sub">Based on ${Math.round(Object.values(state.bills).reduce((a,b)=>a+b,0)).toLocaleString()} kWh/yr usage · ${state.heating_type} heating · ${setupLabel}</div>
-      ${!state._csv_imported ? `<div style="margin-top:7px;font-family:var(--mono);font-size:10px;color:var(--ink-dim);line-height:1.6;display:flex;align-items:center;gap:5px;justify-content:center;flex-wrap:wrap">
-        <span>${ic('info',11)} Estimated from your bill.</span>
-        <a href="#" onclick="event.preventDefault(); setScreen('csv-import')" style="color:var(--accent);text-decoration:underline">Import smart-meter data</a>
-        <span>for precise results.</span>
-      </div>` : `<div style="margin-top:7px;font-family:var(--mono);font-size:10px;color:var(--accent);line-height:1.6;display:flex;align-items:center;gap:5px;justify-content:center">${ic('checkC',11)} Based on your real smart-meter data</div>`}
+      ${!state._csv_imported ? `<div style="margin-top:7px;font-family:var(--mono);font-size:12px;color:var(--ink-dim);line-height:1.6;text-align:center">
+        ${ic('info',11)} Estimated from your bill —
+        <a href="#" onclick="event.preventDefault(); setScreen('csv-import')" style="color:var(--accent);text-decoration:underline;white-space:nowrap">import smart-meter data</a>
+        for precise results.
+      </div>` : `<div style="margin-top:7px;font-family:var(--mono);font-size:12px;color:var(--accent);line-height:1.6;display:flex;align-items:center;gap:5px;justify-content:center">${ic('checkC',11)} Based on your real smart-meter data</div>`}
       ${configChips()}
     </div>
 
@@ -4340,7 +4340,7 @@ function renderResult(){
       <div class="plan-row current">
         <div>
           <div class="plan-label">${state.baseline_known ? 'Your current plan' : 'Estimated baseline'}</div>
-          <div class="plan-value">${baselinePlan.supplier} — ${baselinePlan.plan}${!state.baseline_known ? ' <span style="font-size:10px;color:var(--ink-dim);font-family:var(--mono)">(not confirmed)</span>' : ''}</div>
+          <div class="plan-value">${baselinePlan.supplier} — ${baselinePlan.plan}${!state.baseline_known ? ' <span style="font-size:12px;color:var(--ink-dim);font-family:var(--mono)">(not confirmed)</span>' : ''}</div>
         </div>
         <div class="plan-amount">${fmtCurrency(baseCost)}/yr</div>
       </div>
@@ -4356,11 +4356,11 @@ function renderResult(){
         // cost + standing − export revenue). Label export income explicitly when it's material
         // so users aren't confused by the offset.
         if (best.net <= 0){
-          return `<div style="font-family:var(--mono);font-size:10px;color:var(--accent);margin-top:4px;letter-spacing:.03em">${ic('checkC',11)} Your system more than covers your usage — you'd earn about ${fmtCurrency(Math.round(Math.abs(best.net)))}/yr net from export income</div>`;
+          return `<div style="font-family:var(--mono);font-size:12px;color:var(--accent);margin-top:4px;letter-spacing:.03em">${ic('checkC',11)} Your system more than covers your usage — you'd earn about ${fmtCurrency(Math.round(Math.abs(best.net)))}/yr net from export income</div>`;
         }
         const exportRev = Math.round(best.export_revenue || 0);
         if (state.has_solar && exportRev > 50){
-          return `<div style="font-family:var(--display);font-size:10px;color:var(--ink-dim);margin-top:6px;letter-spacing:.03em;line-height:1.6">
+          return `<div style="font-family:var(--display);font-size:12px;color:var(--ink-dim);margin-top:6px;letter-spacing:.03em;line-height:1.6">
             Both figures: electricity cost + standing − export income. Export credit on this plan: <b style="color:var(--ink)">${fmtCurrency(exportRev)}/yr</b> (${fmtCent(best.plan.export_rate)}/kWh).
           </div>`;
         }
@@ -4377,7 +4377,7 @@ function renderResult(){
       Switch to ${best.plan.supplier} →
     </button>
     ${annualSavings > 10 ? `<div style="text-align:center;margin:2px 0 8px">
-      <span onclick="setScreen('how-to-switch')" style="display:inline-block;padding:8px 10px;font-size:12.5px;font-weight:600;color:var(--ink-soft);text-decoration:underline;text-underline-offset:3px;cursor:pointer">How switching works — takes ~10 minutes</span>
+      <span onclick="setScreen('how-to-switch')" style="display:inline-block;padding:8px 10px;font-size:12px;font-weight:600;color:var(--ink-soft);text-decoration:underline;text-underline-offset:3px;cursor:pointer">How switching works — takes ~10 minutes</span>
     </div>` : ''}
     <div class="switch-cta-sub">Independent and free. We take nothing from suppliers — the ranking is your simulated cost, nothing else.</div>
 
@@ -4391,15 +4391,15 @@ function renderResult(){
       const open = !!state._home_detail_open;
       return `<div style="margin-top:14px">
         <button onclick="state._home_detail_open=!state._home_detail_open;saveState();renderApp()"
-          style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:14px 16px;border-radius:14px;border:1px solid var(--hair);background:var(--surface);box-shadow:var(--lift);cursor:pointer;font-family:var(--display)">
+          style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:14px 16px;border-radius:12px;border:1px solid var(--hair);background:var(--surface);box-shadow:var(--lift);cursor:pointer;font-family:var(--display)">
           <span style="display:flex;align-items:center;gap:12px">
             ${ic('flask',19)}
             <span style="text-align:left">
-              <span style="display:block;font-size:14.5px;font-weight:700;color:var(--ink)">More about your result</span>
-              <span style="display:block;font-size:11.5px;color:var(--ink-soft);margin-top:2px">Our working, night-rate options${state.ev_active ? ', EV vs petrol' : ''}</span>
+              <span style="display:block;font-size:15px;font-weight:700;color:var(--ink)">More about your result</span>
+              <span style="display:block;font-size:12px;color:var(--ink-soft);margin-top:2px">Our working, night-rate options${state.ev_active ? ', EV vs petrol' : ''}</span>
             </span>
           </span>
-          <span style="color:var(--ink-soft);font-size:18px;transform:rotate(${open ? '90' : '0'}deg);transition:transform .2s">›</span>
+          <span style="color:var(--ink-soft);font-size:17px;transform:rotate(${open ? '90' : '0'}deg);transition:transform .2s">›</span>
         </button>
         ${open ? `<div style="margin-top:10px">${detail}</div>` : ''}
       </div>`;
@@ -4910,7 +4910,7 @@ function sysVisual(){
     }
     const w = Math.min(shown, COLS) * (PW + GAP) - GAP;
     const h = rows * (PH + GAP) - GAP;
-    const more = n > CAPN ? `<text x="${w/2}" y="${h + 9}" text-anchor="middle" font-size="7" font-family="var(--mono)" fill="var(--ink-dim)">+${n - CAPN} more</text>` : '';
+    const more = n > CAPN ? `<text x="${w/2}" y="${h + 9}" text-anchor="middle" font-size="10" font-family="var(--mono)" fill="var(--ink-dim)">+${n - CAPN} more</text>` : '';
     return { svg: `<g transform="translate(8,${yOff}) skewX(${skew})">${cells}${more}</g>`, h: h + (n > CAPN ? 11 : 0) };
   };
   let y = 3;
@@ -4928,11 +4928,11 @@ function sysVisual(){
       `<rect width="${bw}" height="${bh}" rx="3" fill="none" stroke="var(--ink-soft)" stroke-width="1.1"/>` +
       `<rect x="${bw + 1}" y="${bh/2 - 3}" width="2.5" height="6" rx="1" fill="var(--ink-soft)"/>` +
       `<rect x="2" y="2" width="${Math.round((bw - 4) * fill)}" height="${bh - 4}" rx="1.6" fill="var(--ink)" fill-opacity=".20"/>` +
-      `<text x="${bw/2}" y="${bh/2 + 3}" text-anchor="middle" font-size="7.5" font-family="var(--mono)" font-weight="700" fill="var(--ink-soft)">${batt} kWh</text></g>`);
+      `<text x="${bw/2}" y="${bh/2 + 3}" text-anchor="middle" font-size="10" font-family="var(--mono)" font-weight="700" fill="var(--ink-soft)">${batt} kWh</text></g>`);
     y += bh;
   }
   y += 13;
-  parts.push(`<text x="38" y="${y - 3}" text-anchor="middle" font-size="7.5" font-family="var(--mono)" letter-spacing=".05em" fill="var(--ink-dim)">${nA}${nB ? ' + ' + nB : ''} PANELS</text>`);
+  parts.push(`<text x="38" y="${y - 3}" text-anchor="middle" font-size="10" font-family="var(--mono)" letter-spacing=".05em" fill="var(--ink-dim)">${nA}${nB ? ' + ' + nB : ''} PANELS</text>`);
   return `<svg width="76" height="${y}" viewBox="0 0 76 ${y}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="display:block">${parts.join('')}</svg>`;
 }
 
@@ -4973,13 +4973,13 @@ function renderSolarDashboard(){
   <div class="screen">
     ${renderGoalDesigner()}
     <div class="sd-hero" style="position:relative">
-      <button onclick="goRefineSolar()" style="position:absolute;top:14px;right:14px;display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:999px;font-size:11px;font-weight:700;font-family:var(--display);border:1px solid var(--hair-strong);background:transparent;color:var(--ink-soft)">${ic('tune',13)} Customise</button>
+      <button onclick="goRefineSolar()" style="position:absolute;top:14px;right:14px;display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid var(--hair-strong);background:transparent;color:var(--ink-soft)">${ic('tune',13)} Customise</button>
       <div class="qr-eyebrow" style="margin-bottom:6px;padding-right:110px">${(state.solar_view || 'mine') === 'payback' ? 'Fastest-payback design — preview' : (state.solar_view || 'mine') === 'npv' ? 'Most 20-yr value design — preview' : isEst ? 'With this estimated system' : 'With this solar system'}</div>
       <div style="display:inline-flex;gap:0;border:1px solid rgba(255,255,255,.2);border-radius:999px;overflow:hidden;background:rgba(0,0,0,.15);margin-bottom:10px">
         ${['pessimist','realistic','optimist'].map(k => {
           const lbl = k==='pessimist'?'Worst':k==='realistic'?'Typical':'Best';
           const active = (state._scenario_view||'realistic')===k;
-          return '<button onclick="state._scenario_view=\''+k+'\';renderApp();" style="padding:6px 13px;font-size:10.5px;font-weight:700;font-family:var(--mono);border:none;cursor:pointer;border-radius:999px;background:'+(active?'rgba(255,255,255,.25)':'transparent')+';color:#fff">'+lbl+'</button>';
+          return '<button onclick="state._scenario_view=\''+k+'\';renderApp();" style="padding:6px 13px;font-size:12px;font-weight:700;font-family:var(--mono);border:none;cursor:pointer;border-radius:999px;background:'+(active?'rgba(255,255,255,.25)':'transparent')+';color:#fff">'+lbl+'</button>';
         }).join('')}
       </div>
       <div style="display:flex;align-items:flex-start;gap:12px">
@@ -4994,7 +4994,7 @@ function renderSolarDashboard(){
             const ben = s ? Math.round(s.solarBenefit) : 0;
             const lbl = view === 'pessimist' ? 'poor year −18% sun' : 'good year +15% sun';
             return '<div class="qr-value">'+pb+'<span class="qr-value-unit"> yr payback ('+view+')</span></div>'+
-                   '<div style="font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);margin-top:4px">€'+ben.toLocaleString()+'/yr solar benefit · '+lbl+'</div>';
+                   '<div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:4px">€'+ben.toLocaleString()+'/yr solar benefit · '+lbl+'</div>';
           } catch(e){}
         }
         return '<div class="qr-value">'+(currentScen.payback < 50 ? currentScen.payback.toFixed(1) : '—')+'<span class="qr-value-unit"> yr payback</span></div>';
@@ -5007,29 +5007,29 @@ function renderSolarDashboard(){
       ${evChip()}
 
       ${state.ev_active ? `
-      <div style="margin-top:14px;padding:12px 14px;background:var(--overlay-tile);border:1px solid var(--line);border-radius:10px">
-        <div style="font-family:var(--mono);font-size:9px;color:var(--ink-soft);letter-spacing:.14em;text-transform:uppercase;font-weight:700;margin-bottom:8px">Solar payback isolated (electricity only)</div>
+      <div style="margin-top:14px;padding:12px 14px;background:var(--overlay-tile);border:1px solid var(--line);border-radius:8px">
+        <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.14em;text-transform:uppercase;font-weight:700;margin-bottom:8px">Solar payback isolated (electricity only)</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           <div style="padding:10px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:8px;text-align:center">
-            <div style="font-family:var(--mono);font-size:9px;color:var(--accent);letter-spacing:.1em;font-weight:700;margin-bottom:4px">★ WITH EV</div>
-            <div style="font-family:var(--mono);font-size:22px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums">${scen.withEv.payback < 50 ? scen.withEv.payback.toFixed(1) : '—'}<span style="font-size:11px;color:var(--ink-soft);margin-left:2px">yr</span></div>
-            <div style="font-family:var(--mono);font-size:10px;color:var(--ink-soft);margin-top:4px">€${Math.round(scen.withEv.solarBenefit).toLocaleString()}/yr solar</div>
+            <div style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.1em;font-weight:700;margin-bottom:4px">★ WITH EV</div>
+            <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums">${scen.withEv.payback < 50 ? scen.withEv.payback.toFixed(1) : '—'}<span style="font-size:12px;color:var(--ink-soft);margin-left:2px">yr</span></div>
+            <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:4px">€${Math.round(scen.withEv.solarBenefit).toLocaleString()}/yr solar</div>
           </div>
           <div style="padding:10px;background:var(--well);border:1px solid var(--line);border-radius:8px;text-align:center">
-            <div style="font-family:var(--mono);font-size:9px;color:var(--ink-soft);letter-spacing:.1em;font-weight:700;margin-bottom:4px">IF NO EV</div>
-            <div style="font-family:var(--mono);font-size:22px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums">${scen.withoutEv.payback < 50 ? scen.withoutEv.payback.toFixed(1) : '—'}<span style="font-size:11px;color:var(--ink-soft);margin-left:2px">yr</span></div>
-            <div style="font-family:var(--mono);font-size:10px;color:var(--ink-soft);margin-top:4px">€${Math.round(scen.withoutEv.solarBenefit).toLocaleString()}/yr solar</div>
+            <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.1em;font-weight:700;margin-bottom:4px">IF NO EV</div>
+            <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums">${scen.withoutEv.payback < 50 ? scen.withoutEv.payback.toFixed(1) : '—'}<span style="font-size:12px;color:var(--ink-soft);margin-left:2px">yr</span></div>
+            <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:4px">€${Math.round(scen.withoutEv.solarBenefit).toLocaleString()}/yr solar</div>
           </div>
         </div>
-        <div style="font-family:var(--mono);font-size:10px;color:var(--ink-dim);text-align:center;margin-top:10px;line-height:1.5;letter-spacing:.02em">
+        <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);text-align:center;margin-top:10px;line-height:1.5;letter-spacing:.02em">
           ★ = your current setup. Solar payback compares <b>same EV state with vs without solar</b> — the EV-petrol savings happen regardless of solar, so they're not in the payback math.
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
-          <div style="font-size:12.5px;font-weight:600;color:var(--ink)">EV in the model <span style="font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);font-weight:400">· ${(state.ev_km_per_year||15000).toLocaleString()} km/yr · ${state.ev_in_bill ? 'already in your bill' : 'added on top'}</span></div>
+          <div style="font-size:12px;font-weight:600;color:var(--ink)">EV in the model <span style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);font-weight:400">· ${(state.ev_km_per_year||15000).toLocaleString()} km/yr · ${state.ev_in_bill ? 'already in your bill' : 'added on top'}</span></div>
           <div class="mon-switch ${state.ev_active ? 'on' : 'off'}" onclick="toggleSolarEvModel()" style="cursor:pointer"><div class="mon-knob"></div></div>
         </div>
       </div>` : `
-      <div style="font-family:var(--display);font-size:10px;color:var(--ink-dim);text-align:center;margin-top:12px;letter-spacing:.03em">Payback uses electricity savings only — solar vs no solar, everything else equal.</div>`}
+      <div style="font-family:var(--display);font-size:12px;color:var(--ink-dim);text-align:center;margin-top:12px;letter-spacing:.03em">Payback uses electricity savings only — solar vs no solar, everything else equal.</div>`}
     </div>
 
     <!-- Directly under the payback headline, because every figure above and
@@ -5053,7 +5053,7 @@ function renderSolarDashboard(){
         <div class="card-delta">vs no solar, ${state.ev_active ? 'with EV' : 'no EV'}</div>
       </div>
       <div class="card" onclick="toggleNpvBreakdown()" style="cursor:pointer">
-        <div class="card-label">∑ 20-yr NPV (3%) <span style="float:right;color:var(--accent);font-size:11px">tap for math ↓</span></div>
+        <div class="card-label">∑ 20-yr NPV (3%) <span style="float:right;color:var(--accent);font-size:12px">tap for math ↓</span></div>
         <div class="card-value ${npv20 > 0 ? 'accent' : 'red'}">${fmtCurrency(npv20)}</div>
         <div class="card-delta">After Y12 battery swap</div>
       </div>
@@ -5090,7 +5090,7 @@ function renderSolarDashboard(){
         <div class="ev-banner-icon">${ic('car',20)}</div>
         <div>
           <b>EV profile active.</b> Petrol displaced: ${fmtCurrency(econ.petrolCost)}/yr for ${econ.km.toLocaleString()} km. Your battery now grid-charges 2-5am to keep the EV on cheap rates.
-          <div style="margin-top:8px"><a href="#" onclick="event.preventDefault(); toggleEv();" style="color:var(--amber);font-size:11px;font-weight:600">Remove EV profile</a></div>
+          <div style="margin-top:8px"><a href="#" onclick="event.preventDefault(); toggleEv();" style="color:var(--amber);font-size:12px;font-weight:600">Remove EV profile</a></div>
         </div>
       </div>
     ` : `
@@ -5111,10 +5111,10 @@ function renderSolarDashboard(){
       ${(computeOptimisations().upgrades || []).map(u => `
         <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:8px">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
-            <div style="font-size:13.5px;font-weight:700;color:var(--ink)">${u.label}</div>
-            <div style="font-family:var(--mono);font-size:11px;font-weight:700;color:${u.gain > 0 ? 'var(--accent)' : 'var(--ink-dim)'};white-space:nowrap">+${fmtCurrency(u.gain)}/yr</div>
+            <div style="font-size:13px;font-weight:700;color:var(--ink)">${u.label}</div>
+            <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${u.gain > 0 ? 'var(--accent)' : 'var(--ink-dim)'};white-space:nowrap">+${fmtCurrency(u.gain)}/yr</div>
           </div>
-          <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);margin-top:5px;letter-spacing:.02em">
+          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:5px;letter-spacing:.02em">
             ~${fmtCurrency(u.netExtra)} extra (after grant) · ${u.payback === Infinity || u.payback > 30 ? `<span style="color:var(--amber);font-weight:700">doesn't pay for itself — not recommended</span>` : u.payback > 12 ? `<span style="color:var(--amber)">pays back in ${u.payback.toFixed(0)} yr — long; not recommended at current prices</span>` : `pays itself back in <b style="color:var(--ink)">${u.payback.toFixed(0)} yr</b>`}
           </div>
         </div>
@@ -5186,13 +5186,13 @@ function openTariffPopup(planId){
   const isCurrent = planId === state.baseline && state.baseline_known;
   const rows = flat
     ? `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--line-soft)">
-         <div><div style="font-size:13px;font-weight:600;color:var(--ink)">Flat rate</div><div style="font-size:10.5px;color:var(--ink-dim);font-family:var(--mono)">All hours, every day</div></div>
+         <div><div style="font-size:13px;font-weight:600;color:var(--ink)">Flat rate</div><div style="font-size:12px;color:var(--ink-dim);font-family:var(--mono)">All hours, every day</div></div>
          <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)">${fmtCent(plan.rates.day)}/kWh</div>
        </div>`
     : bands.map(b => {
         const w = plan.windows && plan.windows[b];
         return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--line-soft)">
-          <div><div style="font-size:13px;font-weight:600;color:var(--ink)">${labels[b] || b}</div><div style="font-size:10.5px;color:var(--ink-dim);font-family:var(--mono)">${w ? w[0] + 'h–' + w[1] + 'h' : b === 'day' ? 'All remaining hours' : ''}</div></div>
+          <div><div style="font-size:13px;font-weight:600;color:var(--ink)">${labels[b] || b}</div><div style="font-size:12px;color:var(--ink-dim);font-family:var(--mono)">${w ? w[0] + 'h–' + w[1] + 'h' : b === 'day' ? 'All remaining hours' : ''}</div></div>
           <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:${b === 'peak' ? 'var(--amber)' : b === 'ev' || b === 'night' ? 'var(--accent)' : 'var(--ink)'}">${fmtCent(plan.rates[b])}/kWh</div>
         </div>`;
       }).join('');
@@ -5202,20 +5202,20 @@ function openTariffPopup(planId){
   modal.innerHTML = `
     <div class="modal" style="max-height:82vh;overflow-y:auto">
       <div class="modal-handle"></div>
-      <div style="font-family:var(--mono);font-size:9.5px;color:var(--accent);letter-spacing:.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px">${plan.type === 'dynamic' ? 'Dynamic wholesale tariff' : flat ? 'Flat tariff' : 'Time-of-use tariff'}${isCurrent ? ' · your current plan' : ''}</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px">${plan.type === 'dynamic' ? 'Dynamic wholesale tariff' : flat ? 'Flat tariff' : 'Time-of-use tariff'}${isCurrent ? ' · your current plan' : ''}</div>
       <h3 style="margin-bottom:2px">${plan.supplier} — <em>${plan.plan}</em></h3>
       <p style="margin-bottom:10px">Rates incl. VAT — exactly what the simulation uses.</p>
       ${rows}
       <div style="display:flex;justify-content:space-between;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--line-soft)">
-        <div><div style="font-size:13px;font-weight:600;color:var(--ink)">Export (CEG)</div><div style="font-size:10.5px;color:var(--ink-dim);font-family:var(--mono)">Paid for surplus solar</div></div>
+        <div><div style="font-size:13px;font-weight:600;color:var(--ink)">Export (CEG)</div><div style="font-size:12px;color:var(--ink-dim);font-family:var(--mono)">Paid for surplus solar</div></div>
         <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent)">${fmtCent(plan.export_rate || 0)}/kWh</div>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;padding:11px 0">
-        <div><div style="font-size:13px;font-weight:600;color:var(--ink)">Standing charge</div><div style="font-size:10.5px;color:var(--ink-dim);font-family:var(--mono)">Fixed yearly, incl. PSO levy</div></div>
+        <div><div style="font-size:13px;font-weight:600;color:var(--ink)">Standing charge</div><div style="font-size:12px;color:var(--ink-dim);font-family:var(--mono)">Fixed yearly, incl. PSO levy</div></div>
         <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)">${fmtCurrency(plan.standing)}/yr</div>
       </div>
-      ${plan.type === 'dynamic' ? `<div style="padding:9px 12px;background:var(--blue-soft);border-radius:9px;font-size:11px;color:var(--ink-soft);line-height:1.5;margin-top:4px">Half-hourly wholesale pricing on top of the base rates above — hourly prices move with the market.</div>` : ''}
-      ${plan.notes ? `<div style="padding:9px 12px;background:var(--well);border-radius:9px;font-size:11px;color:var(--ink-soft);line-height:1.55;margin-top:8px"><b style="color:var(--ink)">Supplier note.</b> ${plan.notes}</div>` : ''}
+      ${plan.type === 'dynamic' ? `<div style="padding:9px 12px;background:var(--blue-soft);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:4px">Half-hourly wholesale pricing on top of the base rates above — hourly prices move with the market.</div>` : ''}
+      ${plan.notes ? `<div style="padding:9px 12px;background:var(--well);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.55;margin-top:8px"><b style="color:var(--ink)">Supplier note.</b> ${plan.notes}</div>` : ''}
       <button class="modal-btn" style="margin-top:14px" onclick="document.getElementById('tariff-popup').remove(); openPlanDetail('${planId}')">Full details &amp; edit rates →</button>
       <button class="modal-skip" onclick="document.getElementById('tariff-popup').remove()">Close</button>
     </div>`;
@@ -5448,14 +5448,14 @@ function renderPlans(){
           <div style="display:flex;align-items:flex-start;gap:10px;flex:1;min-width:0">
             <div class="plan-rank ${rankClass}" ${r.onHold ? 'style="background:rgba(138,180,248,.12);color:#8AB4F8"' : ''}>${r.onHold ? 'HOLD' : isChosen ? '✓ Yours' : isBest ? '★ #1' : isCurrent ? 'Current' : '#' + globalRank}</div>
             <div style="flex:1;min-width:0">
-              <div class="plan-supplier">${r.plan.supplier}${r.plan._is_edited ? ' <span style="color:var(--amber);font-size:9px;font-family:var(--mono);letter-spacing:.06em">EDITED</span>' : ''}</div>
+              <div class="plan-supplier">${r.plan.supplier}${r.plan._is_edited ? ' <span style="color:var(--amber);font-size:12px;font-family:var(--mono);letter-spacing:.06em">EDITED</span>' : ''}</div>
               <div class="plan-name">${r.plan.plan}</div>
-              <div style="font-family:var(--mono);font-size:10px;color:var(--ink-dim);margin-top:4px;letter-spacing:.02em">${rateSummary}${r.plan.export_rate ? ' · Export ' + fmtCent(r.plan.export_rate) : ''}</div>
-              ${r.onHold ? `<div style="font-family:var(--display);font-size:9.5px;color:#8AB4F8;margin-top:4px;letter-spacing:.03em">ON HOLD — wholesale-tracking price, too unpredictable to rank · shown for reference only</div>` : ''}
+              <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:4px;letter-spacing:.02em">${rateSummary}${r.plan.export_rate ? ' · Export ' + fmtCent(r.plan.export_rate) : ''}</div>
+              ${r.onHold ? `<div style="font-family:var(--display);font-size:12px;color:#8AB4F8;margin-top:4px;letter-spacing:.03em">ON HOLD — wholesale-tracking price, too unpredictable to rank · shown for reference only</div>` : ''}
             </div>
           </div>
           <div style="flex-shrink:0;text-align:right">
-            <div class="plan-cost ${isBest ? 'best' : ''}">${fmtCurrency(r.cost)}<span style="font-size:11px;color:var(--ink-soft);font-weight:500;margin-left:2px">/yr</span></div>
+            <div class="plan-cost ${isBest ? 'best' : ''}">${fmtCurrency(r.cost)}<span style="font-size:12px;color:var(--ink-soft);font-weight:500;margin-left:2px">/yr</span></div>
             ${!isCurrent ? `<div class="plan-saving" style="color:${saving > 0 ? 'var(--accent)' : 'var(--loss)'}">${saving > 0 ? '−' + fmtCurrency(saving) : '+' + fmtCurrency(-saving)}</div>` : ''}
           </div>
         </div>
@@ -5543,7 +5543,7 @@ function renderPlanDetail(){
 
     <div class="pd-cost-card">
       <div class="pd-cost-label">Your annual cost on this plan</div>
-      <div class="pd-cost-value">${fmtCurrency(c.net)}<span style="font-size:14px;color:var(--ink-soft);font-weight:500;margin-left:4px">/yr</span></div>
+      <div class="pd-cost-value">${fmtCurrency(c.net)}<span style="font-size:13px;color:var(--ink-soft);font-weight:500;margin-left:4px">/yr</span></div>
       <div class="pd-cost-sub">
         ${fmtCurrency(c.energy_cost)} energy · ${fmtCurrency(c.standing)} standing
         ${c.export_revenue > 0 ? ` · −${fmtCurrency(c.export_revenue)} export` : ''}
@@ -5633,7 +5633,7 @@ function renderPlanDetail(){
       ${chooseAction(planId, plan, c.net)}
       ${!isCurrent ? `
         <button class="btn-secondary" onclick="setAsBaseline('${planId}')">Use as comparison baseline</button>
-      ` : '<div style="font-family:var(--mono);font-size:11px;color:var(--ink-soft);text-align:center;padding:10px;letter-spacing:.04em">✓ This is your current baseline</div>'}
+      ` : '<div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-align:center;padding:10px;letter-spacing:.04em">✓ This is your current baseline</div>'}
     </div>
 
     <p class="disclaimer">
@@ -5663,7 +5663,7 @@ function chooseAction(planId, plan, netCost){
     </div>`;
   }
   if (isCheapest && !rec.isManualChoice){
-    return `<div style="font-family:var(--mono);font-size:11px;color:var(--accent);text-align:center;padding:10px;letter-spacing:.04em">★ Cheapest for your usage</div>`;
+    return `<div style="font-family:var(--mono);font-size:12px;color:var(--accent);text-align:center;padding:10px;letter-spacing:.04em">★ Cheapest for your usage</div>`;
   }
   const premium = rec.cheapest ? netCost - rec.cheapest.net : 0;
   const note = premium > 1 ? `+${fmtCurrency(premium)}/yr` : 'same cost';
@@ -5809,7 +5809,7 @@ function renderDetailsBlock(){
         <div class="details-icon">+</div>
       </div>
       <div class="details-body">
-        <div style="display:flex;gap:18px;font-family:var(--mono);font-size:10px;letter-spacing:.04em;margin-bottom:8px">
+        <div style="display:flex;gap:18px;font-family:var(--mono);font-size:12px;letter-spacing:.04em;margin-bottom:8px">
           <span style="color:var(--accent)">■ Solar generated</span>
           <span style="color:var(--amber)">■ Consumed</span>
         </div>
@@ -5960,7 +5960,7 @@ function setRegion(regionId){
 // Tiny configuration chips for hero cards — instantly shows what's in the model
 function configChips(){
   const chip = (icon, on, label) => `
-    <span style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;font-family:var(--mono);font-size:10px;letter-spacing:.02em;border:1px solid ${on ? 'var(--accent)' : 'var(--line)'};background:${on ? 'var(--accent-soft)' : 'transparent'};color:${on ? 'var(--accent)' : 'var(--ink-dim)'}">${icon}${label}</span>`;
+    <span style="display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;font-family:var(--mono);font-size:12px;letter-spacing:.02em;border:1px solid ${on ? 'var(--accent)' : 'var(--line)'};background:${on ? 'var(--accent-soft)' : 'transparent'};color:${on ? 'var(--accent)' : 'var(--ink-dim)'}">${icon}${label}</span>`;
   const pvOn = state.has_solar && totalPanels() > 0;
   const battOn = state.has_solar && (state.battery_kwh || 0) > 0;
   const evOn = !!state.ev_active;
@@ -6094,13 +6094,13 @@ function renderDayInspector(){
 
   return `
   <div class="section-title" style="margin-top:20px">Day inspector</div>
-  <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 12px 10px;margin-bottom:14px">
+  <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 12px 10px;margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div style="font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--ink)">${label}</div>
+      <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--ink)">${label}</div>
       <div style="display:inline-flex;gap:4px;padding:3px;background:var(--well);border:1px solid var(--line);border-radius:999px">
         ${['summer','winter'].map(s2 => {
           const active = season === s2;
-          return `<button onclick="state._di_season='${s2}';renderApp();" style="padding:4px 11px;font-size:10px;font-weight:700;font-family:var(--mono);border:none;cursor:pointer;border-radius:999px;background:${active ? 'var(--accent)' : 'transparent'};color:${active ? '#fff' : 'var(--ink-soft)'};">${s2 === 'summer' ? '☀ Summer' : '❄ Winter'}</button>`;
+          return `<button onclick="state._di_season='${s2}';renderApp();" style="padding:4px 11px;font-size:12px;font-weight:700;font-family:var(--mono);border:none;cursor:pointer;border-radius:999px;background:${active ? 'var(--accent)' : 'transparent'};color:${active ? '#fff' : 'var(--ink-soft)'};">${s2 === 'summer' ? '☀ Summer' : '❄ Winter'}</button>`;
         }).join('')}
       </div>
     </div>
@@ -6136,24 +6136,24 @@ function renderDayInspector(){
       <path d="${demandPath}" fill="none" stroke="#4ea8f0" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
 
       <!-- Y axis labels -->
-      ${yLabels.map(l => `<text x="${(PAD_L - 3).toFixed(1)}" y="${(l.y + 3).toFixed(1)}" text-anchor="end" fill="rgba(255,255,255,.3)" font-size="7.5" font-family="monospace">${l.v >= 0 ? l.v.toFixed(1) : l.v.toFixed(1)}</text>`).join('')}
+      ${yLabels.map(l => `<text x="${(PAD_L - 3).toFixed(1)}" y="${(l.y + 3).toFixed(1)}" text-anchor="end" fill="rgba(255,255,255,.3)" font-size="10" font-family="monospace">${l.v >= 0 ? l.v.toFixed(1) : l.v.toFixed(1)}</text>`).join('')}
 
       <!-- X axis labels -->
-      ${xLabels.map(l => `<text x="${l.x.toFixed(1)}" y="${(PAD_T + CH + 11).toFixed(1)}" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="7.5" font-family="monospace">${l.label}</text>`).join('')}
+      ${xLabels.map(l => `<text x="${l.x.toFixed(1)}" y="${(PAD_T + CH + 11).toFixed(1)}" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="10" font-family="monospace">${l.label}</text>`).join('')}
 
       <!-- Region labels -->
-      <text x="${((arbX1+arbX2)/2).toFixed(1)}" y="${(PAD_T + 9).toFixed(1)}" text-anchor="middle" fill="rgba(160,100,255,.6)" font-size="7" font-family="monospace">02–05h</text>
-      <text x="${((peakX1+peakX2)/2).toFixed(1)}" y="${(PAD_T + 9).toFixed(1)}" text-anchor="middle" fill="rgba(240,100,60,.7)" font-size="7" font-family="monospace">peak</text>
+      <text x="${((arbX1+arbX2)/2).toFixed(1)}" y="${(PAD_T + 9).toFixed(1)}" text-anchor="middle" fill="rgba(160,100,255,.6)" font-size="10" font-family="monospace">02–05h</text>
+      <text x="${((peakX1+peakX2)/2).toFixed(1)}" y="${(PAD_T + 9).toFixed(1)}" text-anchor="middle" fill="rgba(240,100,60,.7)" font-size="10" font-family="monospace">peak</text>
 
     </svg>
 
     <!-- Legend strip -->
     <div style="display:flex;flex-wrap:wrap;gap:7px 14px;margin-top:8px;padding:8px 2px 2px;border-top:1px solid var(--line-soft)">
-      <span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:#f5c800;border-radius:2px;flex-shrink:0"></span>Solar</span>
-      <span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:#4ea8f0;border-radius:2px;flex-shrink:0"></span>Load</span>
-      <span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:rgba(240,80,60,.7);border-radius:2px;flex-shrink:0"></span>Grid import</span>
-      <span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:rgba(0,200,100,.7);border-radius:2px;flex-shrink:0"></span>Export</span>
-      ${hasBattery ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:rgba(0,220,130,.8);border-radius:2px;flex-shrink:0"></span>Battery</span>` : ''}
+      <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:#f5c800;border-radius:4px;flex-shrink:0"></span>Solar</span>
+      <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:#4ea8f0;border-radius:4px;flex-shrink:0"></span>Load</span>
+      <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:rgba(240,80,60,.7);border-radius:4px;flex-shrink:0"></span>Grid import</span>
+      <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:rgba(0,200,100,.7);border-radius:4px;flex-shrink:0"></span>Export</span>
+      ${hasBattery ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:rgba(0,220,130,.8);border-radius:4px;flex-shrink:0"></span>Battery</span>` : ''}
     </div>
 
     <!-- Quick stats row -->
@@ -6164,7 +6164,7 @@ function renderDayInspector(){
         { label: 'Exported', val: totalExport.toFixed(1) + ' kWh', color: 'rgba(0,200,100,.9)' },
       ].map(st => `
         <div style="background:var(--well);border-radius:8px;padding:7px 8px;text-align:center">
-          <div style="font-family:var(--mono);font-size:8.5px;color:var(--ink-dim);margin-bottom:2px">${st.label}</div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-bottom:2px">${st.label}</div>
           <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${st.color}">${st.val}</div>
         </div>
       `).join('')}
@@ -6319,7 +6319,7 @@ function renderAnalytics(){
       <div style="font-family:var(--display);font-size:20px;font-weight:600;color:var(--ink);line-height:1.2;letter-spacing:-.01em">${Math.round(annualCons).toLocaleString()} kWh used / yr</div>
       ${evChip()}
       ${!isRecommended && recommendedId ? `
-        <div onclick="state._an_plan='${recommendedId}'; saveState(); renderApp(); showToast('Now viewing your recommended plan.',{type:'accent',icon:'★',title:''});" style="margin-top:8px;padding:8px 12px;background:var(--accent-faint);border:1px dashed var(--accent);border-radius:8px;font-family:var(--mono);font-size:11px;color:var(--accent);cursor:pointer;letter-spacing:.02em">
+        <div onclick="state._an_plan='${recommendedId}'; saveState(); renderApp(); showToast('Now viewing your recommended plan.',{type:'accent',icon:'★',title:''});" style="margin-top:8px;padding:8px 12px;background:var(--accent-faint);border:1px dashed var(--accent);border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--accent);cursor:pointer;letter-spacing:.02em">
           ★ Tap to view your <b>recommended</b> plan — ${getPlanById(recommendedId).supplier} — ${getPlanById(recommendedId).plan}
         </div>` : ''}
       <div class="an-hero-grid">
@@ -6350,8 +6350,8 @@ function renderAnalytics(){
       </div>
     </div>
 
-    <div style="font-family:var(--mono);font-size:10px;color:var(--ink-dim);line-height:1.6;margin:-6px 0 14px;padding:10px 12px;background:rgba(90,156,255,.04);border:1px solid rgba(90,156,255,.15);border-radius:8px;letter-spacing:.02em">
-      <b style="color:var(--blue);text-transform:uppercase;letter-spacing:.1em;font-size:9px">How to read these</b> · same kWh, two lenses.<br>
+    <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);line-height:1.6;margin:-6px 0 14px;padding:10px 12px;background:rgba(90,156,255,.04);border:1px solid rgba(90,156,255,.15);border-radius:8px;letter-spacing:.02em">
+      <b style="color:var(--blue);text-transform:uppercase;letter-spacing:.1em;font-size:12px">How to read these</b> · same kWh, two lenses.<br>
       <span style="color:var(--accent)">${(solarUtilization*100).toFixed(0)}% kept at home</span> = share of <b>generation</b> used on-site (rest exported).
       <span style="color:var(--blue)">${(demandFromSolar*100).toFixed(0)}% of your needs met by solar</span> = share of <b>demand</b> covered by your own panels.
     </div>
@@ -6461,7 +6461,7 @@ function renderAnalytics(){
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <div class="an-chart-title" style="margin-bottom:0">Battery charge / discharge · SOC</div>
         </div>
-        <div style="display:flex;gap:14px;font-family:var(--mono);font-size:10px;margin-bottom:10px;flex-wrap:wrap">
+        <div style="display:flex;gap:14px;font-family:var(--mono);font-size:12px;margin-bottom:10px;flex-wrap:wrap">
           <span style="color:var(--accent)">▲ charge ${dayCharge.toFixed(2)} kWh</span>
           <span style="color:var(--amber)">▼ discharge ${dayDischarge.toFixed(2)} kWh</span>
           <span style="color:var(--blue)">— SOC 0–${cap} kWh</span>
@@ -6473,9 +6473,9 @@ function renderAnalytics(){
           <!-- Midline (zero charge/discharge) -->
           <line x1="0" y1="${mid}" x2="${svgW}" y2="${mid}" stroke="var(--line)" stroke-width="1"/>
           <!-- Charge label -->
-          <text x="3" y="${mid - 3}" font-size="7" fill="#00E676" opacity=".6" font-family="monospace">CHARGE ▲</text>
+          <text x="3" y="${mid - 3}" font-size="10" fill="#00E676" opacity=".6" font-family="monospace">CHARGE ▲</text>
           <!-- Discharge label -->
-          <text x="3" y="${mid + 9}" font-size="7" fill="var(--amber)" opacity=".6" font-family="monospace">DISCHARGE ▼</text>
+          <text x="3" y="${mid + 9}" font-size="10" fill="var(--amber)" opacity=".6" font-family="monospace">DISCHARGE ▼</text>
           <!-- Bars -->
           ${battSvg}
           <!-- SOC line (blue) -->
@@ -6494,29 +6494,29 @@ function renderAnalytics(){
         <!-- Annual battery performance stats -->
         <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
           <div style="padding:10px;background:var(--bg-elev);border-radius:8px;border:1px solid var(--line)">
-            <div style="font-family:var(--mono);font-size:9px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em">Annual charged</div>
-            <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent);margin-top:3px;white-space:nowrap">${Math.round(annualCharged).toLocaleString()}</div>
-            <div style="font-family:var(--mono);font-size:9px;color:var(--ink-soft);letter-spacing:.04em;margin-top:1px">kWh / yr</div>
-            <div style="font-size:10px;color:var(--ink-dim);margin-top:2px">${isArb ? 'Solar + cheap grid' : 'Solar surplus only'}</div>
+            <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em">Annual charged</div>
+            <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent);margin-top:3px;white-space:nowrap">${Math.round(annualCharged).toLocaleString()}</div>
+            <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.04em;margin-top:1px">kWh / yr</div>
+            <div style="font-size:12px;color:var(--ink-dim);margin-top:2px">${isArb ? 'Solar + cheap grid' : 'Solar surplus only'}</div>
           </div>
           <div style="padding:10px;background:var(--bg-elev);border-radius:8px;border:1px solid var(--line)">
-            <div style="font-family:var(--mono);font-size:9px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em">Annual discharged</div>
-            <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--amber);margin-top:3px;white-space:nowrap">${Math.round(annualDischarged).toLocaleString()}</div>
-            <div style="font-family:var(--mono);font-size:9px;color:var(--ink-soft);letter-spacing:.04em;margin-top:1px">kWh / yr</div>
-            <div style="font-size:10px;color:var(--ink-dim);margin-top:2px">Roundtrip loss: ${Math.round(roundTripLoss)} kWh</div>
+            <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em">Annual discharged</div>
+            <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--amber);margin-top:3px;white-space:nowrap">${Math.round(annualDischarged).toLocaleString()}</div>
+            <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.04em;margin-top:1px">kWh / yr</div>
+            <div style="font-size:12px;color:var(--ink-dim);margin-top:2px">Roundtrip loss: ${Math.round(roundTripLoss)} kWh</div>
           </div>
           ${isArb ? `
           <div style="padding:10px;background:rgba(0,230,118,.04);border-radius:8px;border:1px solid var(--accent);grid-column:span 2">
-            <div style="font-family:var(--mono);font-size:9px;color:var(--accent);text-transform:uppercase;letter-spacing:.08em">Arbitrage strategy · est. annual gain</div>
-            <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--accent);margin-top:3px">€${Math.round(arbValueEst).toLocaleString()}</div>
-            <div style="font-size:10px;color:var(--ink-soft);margin-top:2px;font-family:var(--mono)">
+            <div style="font-family:var(--mono);font-size:12px;color:var(--accent);text-transform:uppercase;letter-spacing:.08em">Arbitrage strategy · est. annual gain</div>
+            <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--accent);margin-top:3px">€${Math.round(arbValueEst).toLocaleString()}</div>
+            <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;font-family:var(--mono)">
               Buy cheap (${fmtCent(nightRate)}/kWh) · sell dear (${fmtCent(peakRateV)}/kWh) · ${Math.round(annualDischarged).toLocaleString()} kWh/yr cycled
             </div>
           </div>` : `
           <div style="padding:10px;background:var(--bg-elev);border-radius:8px;border:1px solid var(--line);grid-column:span 2">
-            <div style="font-family:var(--mono);font-size:9px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em">Self-consume strategy</div>
-            <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;line-height:1.5">Battery fills from solar surplus only. Cheap-window grid charging is off.</div>
-            <button onclick="state.strategy_mode='arbitrage';state.charge_from_grid=true;invalidate();saveState();showToast('Switched to Arbitrage — your battery now charges on cheap overnight rates.',{type:'accent',icon:'⚡',title:'Arbitrage on'});renderApp();" style="margin-top:8px;display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:999px;font-size:11.5px;font-weight:700;font-family:var(--display);border:1.5px solid var(--accent);background:var(--accent-soft);color:var(--accent);cursor:pointer">
+            <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em">Self-consume strategy</div>
+            <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.5">Battery fills from solar surplus only. Cheap-window grid charging is off.</div>
+            <button onclick="state.strategy_mode='arbitrage';state.charge_from_grid=true;invalidate();saveState();showToast('Switched to Arbitrage — your battery now charges on cheap overnight rates.',{type:'accent',icon:'⚡',title:'Arbitrage on'});renderApp();" style="margin-top:8px;display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1.5px solid var(--accent);background:var(--accent-soft);color:var(--accent);cursor:pointer">
               ⚡ Switch to Arbitrage
             </button>
           </div>`}
@@ -6527,7 +6527,7 @@ function renderAnalytics(){
     <div class="an-chart">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <div class="an-chart-title" style="margin-bottom:0">Tariff bands &amp; rates</div>
-        <div onclick="openPlanDetail('${plan.id}')" style="font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.06em;cursor:pointer;padding:5px 9px;border:1px solid var(--accent);border-radius:6px">EDIT ↗</div>
+        <div onclick="openPlanDetail('${plan.id}')" style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.06em;cursor:pointer;padding:5px 9px;border:1px solid var(--accent);border-radius:4px">EDIT ↗</div>
       </div>
       ${isFlatPlan(plan) ? `
         <div class="an-bands">
@@ -6571,7 +6571,7 @@ function renderAnalytics(){
       <div class="an-hours">
         ${Array.from({length:24},(_,h) => `<div>${h % 6 === 0 || h === 23 ? h + 'h' : ''}</div>`).join('')}
       </div>
-      <div style="font-family:var(--mono);font-size:10px;color:var(--ink-soft);margin-top:6px;letter-spacing:.04em">Red = paid · Green = credit (export revenue exceeds import cost)</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:6px;letter-spacing:.04em">Red = paid · Green = credit (export revenue exceeds import cost)</div>
     </div>
 
     <div class="section-title">Monthly breakdown</div>
@@ -6582,7 +6582,7 @@ function renderAnalytics(){
 
     <div class="an-chart">
       ${state._an_view === 'flows' ? `
-        <div style="display:flex;gap:18px;font-family:var(--mono);font-size:10px;letter-spacing:.04em;margin-bottom:10px">
+        <div style="display:flex;gap:18px;font-family:var(--mono);font-size:12px;letter-spacing:.04em;margin-bottom:10px">
           <span style="color:var(--accent)">■ Solar generated</span>
           <span style="color:var(--amber)">■ House consumed</span>
         </div>
@@ -6593,7 +6593,7 @@ function renderAnalytics(){
           ${m.cons.map((c,i) => `<div class="an-month-bar cons" style="height:${Math.max(2,Math.round(c/monthMax*100))}%" title="Use ${Math.round(c)} kWh"></div>`).join('')}
         </div>
       ` : `
-        <div style="display:flex;gap:18px;font-family:var(--mono);font-size:10px;letter-spacing:.04em;margin-bottom:10px">
+        <div style="display:flex;gap:18px;font-family:var(--mono);font-size:12px;letter-spacing:.04em;margin-bottom:10px">
           <span style="color:var(--amber)">■ Grid imported</span>
           <span style="color:var(--accent)">■ Grid exported</span>
         </div>
@@ -6942,10 +6942,10 @@ function renderStrategyControls(){
         <div class="strat-opt-sub">Fills from solar only. Use if your plan has no cheap window.</div>
       </div>
     </div>
-    ${!hasBatt ? `<p style="font-size:11px;color:var(--ink-dim);margin:6px 0 0;font-family:var(--display);letter-spacing:.02em">Add a battery to choose a strategy.</p>` : ''}
+    ${!hasBatt ? `<p style="font-size:12px;color:var(--ink-dim);margin:6px 0 0;font-family:var(--display);letter-spacing:.02em">Add a battery to choose a strategy.</p>` : ''}
 
     <div style="margin-top:14px">
-      <div style="font-size:11px;color:var(--ink-soft);font-family:var(--mono);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">Hot water strategy</div>
+      <div style="font-size:12px;color:var(--ink-soft);font-family:var(--mono);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">Hot water strategy</div>
       <div class="strat-row" style="grid-template-columns:1fr 1fr 1fr">
         ${[['none','None','HW from gas/oil boiler — no electric load'],
            ['smart','Smart','15% of load shifted to 2-5am window'],
@@ -6955,7 +6955,7 @@ function renderStrategyControls(){
             <div class="strat-opt-sub">${sub}</div>
           </div>`).join('')}
       </div>
-      <p style="font-size:11px;color:var(--ink-dim);margin:8px 0 0;font-family:var(--mono);letter-spacing:.02em">
+      <p style="font-size:12px;color:var(--ink-dim);margin:8px 0 0;font-family:var(--mono);letter-spacing:.02em">
         Gas/oil heating auto-resets to "None" (combi boiler handles HW). Override here if you have separate electric immersion.
       </p>
     </div>`;
@@ -7032,7 +7032,7 @@ function renderShapeControls(){
       <div class="shape-preset" onclick="setShapePreset('storage')">Storage heat</div>
     </div>
     <div style="text-align:center;margin-top:10px">
-      <button onclick="clearShapeOverride()" style="background:transparent;border:1px solid var(--line);color:var(--ink-soft);padding:8px 14px;border-radius:8px;font-family:var(--mono);font-size:10px;letter-spacing:.04em;cursor:pointer">Reset to heating-type default</button>
+      <button onclick="clearShapeOverride()" style="background:transparent;border:1px solid var(--line);color:var(--ink-soft);padding:8px 14px;border-radius:8px;font-family:var(--mono);font-size:12px;letter-spacing:.04em;cursor:pointer">Reset to heating-type default</button>
     </div>`;
 }
 
@@ -7110,7 +7110,7 @@ function renderAuditor(){
   <div class="screen">
     <div class="qr-hero" style="border-color:var(--blue);box-shadow:var(--hero-shadow),0 0 32px -10px var(--blue-glow)">
       <div class="qr-eyebrow" style="color:var(--blue)">Solar quote auditor</div>
-      <div style="font-family:var(--display);font-size:22px;font-weight:700;color:var(--ink);line-height:1.3;letter-spacing:-.015em;margin-top:4px">Paste an installer quote.<br>Get an objective verdict.</div>
+      <div style="font-family:var(--display);font-size:20px;font-weight:700;color:var(--ink);line-height:1.3;letter-spacing:-.015em;margin-top:4px">Paste an installer quote.<br>Get an objective verdict.</div>
       <div class="qr-sub">Compared against 2026 Irish market benchmarks. We have no affiliations with installers.</div>
     </div>
 
@@ -7292,26 +7292,26 @@ function renderRefine(){
       <div style="font-family:var(--display);font-size:15px;font-weight:600;color:var(--ink);line-height:1.4;letter-spacing:-.01em">Tap any section. Changes autosave and re-run the simulation.</div>
       <div style="display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
         <div style="flex:1">
-          <div style="font-size:12.5px;font-weight:700;color:var(--ink)">View</div>
-          <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px">${state.simple_mode ? 'Essential fields only' : 'All fields shown'}</div>
+          <div style="font-size:12px;font-weight:700;color:var(--ink)">View</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:1px">${state.simple_mode ? 'Essential fields only' : 'All fields shown'}</div>
         </div>
         <div style="display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--well)">
-          <button onclick="state.simple_mode=true;saveState();renderApp();" style="padding:7px 14px;font-size:11px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${state.simple_mode?'var(--accent)':'transparent'};color:${state.simple_mode?'#fff':'var(--ink-soft)'}">Simple</button>
-          <button onclick="state.simple_mode=false;saveState();renderApp();" style="padding:7px 14px;font-size:11px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${!state.simple_mode?'var(--ink)':'transparent'};color:${!state.simple_mode?'#fff':'var(--ink-soft)'}">Expert</button>
+          <button onclick="state.simple_mode=true;saveState();renderApp();" style="padding:7px 14px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${state.simple_mode?'var(--accent)':'transparent'};color:${state.simple_mode?'#fff':'var(--ink-soft)'}">Simple</button>
+          <button onclick="state.simple_mode=false;saveState();renderApp();" style="padding:7px 14px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${!state.simple_mode?'var(--ink)':'transparent'};color:${!state.simple_mode?'#fff':'var(--ink-soft)'}">Expert</button>
         </div>
       </div>
     </div>
 
     ${section('home', ic('home',17), 'Home & bills', homeSummary, `
-      <div style="font-family:var(--mono);font-size:10px;color:var(--ink-soft);letter-spacing:.1em;text-transform:uppercase;font-weight:600;margin-bottom:10px">Region</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.1em;text-transform:uppercase;font-weight:600;margin-bottom:10px">Region</div>
       ${renderRegionPicker(state.region || 'east')}
       <div style="margin-top:14px">
         ${refineRow('Heating type', '', refineSel('rf-heat', state.heating_type, [['gas','Gas / Oil Boiler'],['heatpump','Heat pump'],['storage','Storage heaters'],['direct','Direct electric']]))}
         ${state._csv_imported ? `<div style="margin-bottom:10px">${csvLockCard(true)}</div>` : `
         ${refineRow('Usage from', 'kWh/yr beats a € bill for accuracy if you have it', `
           <div style="display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--well);width:fit-content">
-            <button onclick="setUsageMode('bill')" style="padding:7px 13px;font-size:11px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${state.usage_input_mode !== 'kwh' ? 'var(--accent)' : 'transparent'};color:${state.usage_input_mode !== 'kwh' ? '#fff' : 'var(--ink-soft)'}">€ Bill</button>
-            <button onclick="setUsageMode('kwh')" style="padding:7px 13px;font-size:11px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${state.usage_input_mode === 'kwh' ? 'var(--accent)' : 'transparent'};color:${state.usage_input_mode === 'kwh' ? '#fff' : 'var(--ink-soft)'}">kWh / year</button>
+            <button onclick="setUsageMode('bill')" style="padding:7px 13px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${state.usage_input_mode !== 'kwh' ? 'var(--accent)' : 'transparent'};color:${state.usage_input_mode !== 'kwh' ? '#fff' : 'var(--ink-soft)'}">€ Bill</button>
+            <button onclick="setUsageMode('kwh')" style="padding:7px 13px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${state.usage_input_mode === 'kwh' ? 'var(--accent)' : 'transparent'};color:${state.usage_input_mode === 'kwh' ? '#fff' : 'var(--ink-soft)'}">kWh / year</button>
           </div>`)}
         ${state.usage_input_mode === 'kwh'
           ? refineRow('Yearly consumption (kWh)', 'Ground truth — we shape it across the year by heating type. Derived bill: ~€' + (state.bimonthly_bill_eur || 0) + '/2mo', refineNum('rf-kwh', state.annual_kwh || (state.bills && Object.keys(state.bills).length ? Object.values(state.bills).reduce((a,b)=>a+b,0) : 4200), 500, 40000, 100, 'kWh'))
@@ -7332,25 +7332,25 @@ function renderRefine(){
       ${refineRow('Install cost (gross)', '', refineNum('rf-cost', state.install_cost, 0, 50000, 100, '€'))}
       ${refineRow('SEAI grant', state.grant_is_manual ? "You've set this manually — clear the field to return to auto" : 'Auto-calculated from your system size — editing locks it to your value', refineNum('rf-grant', state.grant_seai, 0, 5000, 100, '€'))}
       <div style="margin-top:14px;border-top:1px solid var(--line-soft);padding-top:12px">
-        <button onclick="state._expert_open=!state._expert_open;renderApp();" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;font-size:11px;font-weight:700;font-family:var(--mono);border:1px solid var(--line);background:${state._expert_open ? 'var(--well)' : 'transparent'};color:var(--ink-soft);cursor:pointer;letter-spacing:.04em">
+        <button onclick="state._expert_open=!state._expert_open;renderApp();" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--mono);border:1px solid var(--line);background:${state._expert_open ? 'var(--well)' : 'transparent'};color:var(--ink-soft);cursor:pointer;letter-spacing:.04em">
           ${ic('tune',12)} Expert mode ${state._expert_open ? '▲' : '▼'}
         </button>
         ${state._expert_open ? `
         <div style="margin-top:10px;padding:12px 14px;background:var(--well);border:1px solid var(--line);border-radius:12px">
-          <div style="font-family:var(--mono);font-size:9px;color:var(--ink-dim);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:10px">Advanced simulation parameters</div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:10px">Advanced simulation parameters</div>
           ${refineRow('Inverter size (kW)', 'Max AC output. Typical Irish home: 4.6–6 kW. Should roughly match your total array kWp.', refineNum('rf-inv', state.inverter_kw, 1, 20, 0.5, 'kW'))}
           ${refineRow('Battery depth of discharge (%)', 'Most lithium batteries: 90–100%. Lowering this reduces usable capacity but extends battery life.', refineNum('rf-dod', Math.round((state.battery_dod || 0.9) * 100), 50, 100, 5, '%'))}
           ${refineRow('Panel degradation (%/yr)', 'Industry typical: 0.4%/yr. Premium N-type panels: 0.3%/yr. Older poly: 0.6%/yr.', refineNum('rf-deg', Math.round((state.panel_degradation || 0.004) * 1000) / 10, 0.1, 1.5, 0.1, '%/yr'))}
         </div>` : ''}
       </div>
     ` : `
-      <div onclick="exploreSolar()" style="padding:12px;background:var(--amber-soft);border:1px solid var(--amber);border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:12px">
+      <div onclick="exploreSolar()" style="padding:12px;background:var(--amber-soft);border:1px solid var(--amber);border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:12px">
         <div>${ic('sun',22)}</div>
         <div style="flex:1">
           <div style="font-size:13px;font-weight:600;color:var(--ink)">Add a solar system to model</div>
-          <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">Currently only modelling tariff savings</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">Currently only modelling tariff savings</div>
         </div>
-        <div style="color:var(--ink-soft);font-size:18px">›</div>
+        <div style="color:var(--ink-soft);font-size:17px">›</div>
       </div>
     `)}
 
@@ -7361,8 +7361,8 @@ function renderRefine(){
       ${state.ev_active ? `
         ${refineRow('EV status', 'Determines whether its kWh are inside or on top of your bill', `
           <div style="display:flex;gap:6px">
-            <button onclick="setEvMode('have')" style="flex:1;padding:8px 6px;border-radius:999px;font-size:11px;font-weight:700;font-family:var(--display);border:1px solid ${state.ev_in_bill ? 'var(--accent)' : 'var(--line)'};background:${state.ev_in_bill ? 'var(--accent-soft)' : 'transparent'};color:${state.ev_in_bill ? 'var(--accent)' : 'var(--ink-soft)'}">Have it · in bill</button>
-            <button onclick="setEvMode('plan')" style="flex:1;padding:8px 6px;border-radius:999px;font-size:11px;font-weight:700;font-family:var(--display);border:1px solid ${!state.ev_in_bill ? 'var(--accent)' : 'var(--line)'};background:${!state.ev_in_bill ? 'var(--accent-soft)' : 'transparent'};color:${!state.ev_in_bill ? 'var(--accent)' : 'var(--ink-soft)'}">Planning · on top</button>
+            <button onclick="setEvMode('have')" style="flex:1;padding:8px 6px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid ${state.ev_in_bill ? 'var(--accent)' : 'var(--line)'};background:${state.ev_in_bill ? 'var(--accent-soft)' : 'transparent'};color:${state.ev_in_bill ? 'var(--accent)' : 'var(--ink-soft)'}">Have it · in bill</button>
+            <button onclick="setEvMode('plan')" style="flex:1;padding:8px 6px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid ${!state.ev_in_bill ? 'var(--accent)' : 'var(--line)'};background:${!state.ev_in_bill ? 'var(--accent-soft)' : 'transparent'};color:${!state.ev_in_bill ? 'var(--accent)' : 'var(--ink-soft)'}">Planning · on top</button>
           </div>`)}
         ${state._ev_just_enabled ? `
           <div class="ev-fields-prompt">
@@ -7379,13 +7379,13 @@ function renderRefine(){
       <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line-soft);margin-bottom:10px">
         <div style="flex:1">
           <div style="font-size:13px;font-weight:700;color:var(--ink)">Include dynamic-price plans</div>
-          <div style="font-size:10.5px;color:var(--ink-soft);margin-top:2px;line-height:1.5">Wholesale-tracking plans (hourly market price) are excluded from rankings until pricing clarity improves. Their real cost depends on market swings nobody can predict.</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.5">Wholesale-tracking plans (hourly market price) are excluded from rankings until pricing clarity improves. Their real cost depends on market swings nobody can predict.</div>
         </div>
-        <div onclick="state.include_dynamic=!state.include_dynamic;invalidate();saveState();renderApp()" style="flex-shrink:0;width:44px;height:26px;border-radius:99px;cursor:pointer;background:${state.include_dynamic ? 'var(--accent)' : 'var(--track-soft)'};position:relative;transition:background .15s">
+        <div onclick="state.include_dynamic=!state.include_dynamic;invalidate();saveState();renderApp()" style="flex-shrink:0;width:44px;height:26px;border-radius:999px;cursor:pointer;background:${state.include_dynamic ? 'var(--accent)' : 'var(--track-soft)'};position:relative;transition:background .15s">
           <div style="position:absolute;top:3px;left:${state.include_dynamic ? '21px' : '3px'};width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s"></div>
         </div>
       </div>
-      <div style="font-family:var(--mono);font-size:11px;color:var(--ink-soft);line-height:1.7;margin-bottom:12px">
+      <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.7;margin-bottom:12px">
         ${(() => {
           const dates = TARIFFS.map(t => t.verified_date).filter(Boolean).sort();
           const latest = dates.length ? dates[dates.length-1] : null;
@@ -7411,16 +7411,16 @@ function renderRefine(){
         <button class="btn-secondary" id="tariff-refresh-btn" onclick="refreshTariffs()" style="width:100%">
           ${state._tariff_refreshing ? 'Checking supplier sites…' : 'Try live refresh'}
         </button>
-        <div style="font-family:var(--mono);font-size:9px;color:var(--ink-dim);text-align:center;margin-top:6px;letter-spacing:.04em;line-height:1.5">
+        <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);text-align:center;margin-top:6px;letter-spacing:.04em;line-height:1.5">
           Heads up: most supplier sites block automated checks (HTTP 403).<br>If the refresh shows "0 confirmed", that's why — bundled rates are still accurate.
         </div>
       ` : `
-        <div style="padding:10px 12px;background:rgba(90,156,255,.04);border:1px solid rgba(90,156,255,.15);border-radius:8px;font-family:var(--mono);font-size:10px;color:var(--ink-soft);line-height:1.6;text-align:center">
+        <div style="padding:10px 12px;background:rgba(90,156,255,.04);border:1px solid rgba(90,156,255,.15);border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.6;text-align:center">
           ⓘ Live refresh runs on the dev server, not this static deploy.<br>Rates are manually verified and shipped with each release.
         </div>
       `}
       ${(state._tariff_status?.potential_changes || []).length > 0 ? `
-        <div style="margin-top:10px;padding:10px 12px;background:rgba(255,145,0,.08);border:1px solid rgba(255,145,0,.35);border-radius:8px;font-family:var(--mono);font-size:10px;line-height:1.7">
+        <div style="margin-top:10px;padding:10px 12px;background:rgba(255,145,0,.08);border:1px solid rgba(255,145,0,.35);border-radius:8px;font-family:var(--mono);font-size:12px;line-height:1.7">
           <b style="color:var(--amber)">Possible rate changes detected:</b><br>
           ${(state._tariff_status.potential_changes || []).map(c =>
             `${c.id}: ${c.stored}c → ${c.found}c (${c.diff_c > 0 ? '+' : ''}${c.diff_c}c/kWh)`
@@ -7431,19 +7431,19 @@ function renderRefine(){
     `)}
 
     ${section('csv', ic('csv',17), 'Smart meter data', csvSummary, `
-      <div onclick="setScreen('csv-import')" style="padding:12px;background:rgba(90,156,255,.05);border:1px solid rgba(90,156,255,.3);border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:12px">
+      <div onclick="setScreen('csv-import')" style="padding:12px;background:rgba(90,156,255,.05);border:1px solid rgba(90,156,255,.3);border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:12px">
         <div>${ic('csv',18)}</div>
         <div style="flex:1">
           <div style="font-size:13px;font-weight:600;color:var(--ink)">${state._csv_imported ? 'Update or replace imported CSV' : 'Import ESB smart meter CSV'}</div>
-          <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">${state._csv_imported ? `Currently using real 30-min data — ${Math.round(Object.values(state.bills).reduce((a,b)=>a+b,0)).toLocaleString()} kWh/yr` : 'Use real data from esbnetworks.ie instead of a bill estimate'}</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">${state._csv_imported ? `Currently using real 30-min data — ${Math.round(Object.values(state.bills).reduce((a,b)=>a+b,0)).toLocaleString()} kWh/yr` : 'Use real data from esbnetworks.ie instead of a bill estimate'}</div>
         </div>
-        <div style="color:var(--ink-soft);font-size:18px">›</div>
+        <div style="color:var(--ink-soft);font-size:17px">›</div>
       </div>
     `)}
 
     ${sectionIf(!state.simple_mode, 'shape', ic('chart',17), 'Advanced — consumption shape', shapeSummary, renderShapeControls())}
 
-    <div style="margin-top:18px;padding:12px 14px;background:var(--accent-faint);border:1px solid var(--accent);border-radius:10px;font-size:11px;color:var(--ink-soft);line-height:1.55;text-align:center">
+    <div style="margin-top:18px;padding:12px 14px;background:var(--accent-faint);border:1px solid var(--accent);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.55;text-align:center">
       <b style="color:var(--accent);font-family:var(--mono);letter-spacing:.08em">✓ AUTOSAVE</b><br>
       Every change saves immediately. Tap any tab to see new results.
     </div>
@@ -7453,13 +7453,13 @@ function renderRefine(){
       <button class="btn-secondary" style="flex:1" onclick="confirmResetAll()">Reset everything</button>
     </div>
 
-    <div onclick="setScreen('auditor')" style="margin-top:14px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:12px">
+    <div onclick="setScreen('auditor')" style="margin-top:14px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:12px">
       <div>${ic('clip',18)}</div>
       <div style="flex:1">
         <div style="font-size:13px;font-weight:600;color:var(--ink)">Audit an installer quote</div>
-        <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">Benchmark vs 2026 Irish prices</div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">Benchmark vs 2026 Irish prices</div>
       </div>
-      <div style="color:var(--ink-soft);font-size:18px">›</div>
+      <div style="color:var(--ink-soft);font-size:17px">›</div>
     </div>
 
     <div style="margin-top:8px">
@@ -7485,7 +7485,7 @@ function refineRow(label, help, inputHtml){
 function refineNum(id, val, min, max, step, unit){
   return `<div style="display:flex;align-items:center;gap:6px">
     <input type="number" inputmode="decimal" id="${id}" value="${val}" min="${min}" max="${max}" step="${step}">
-    ${unit ? `<span style="font-size:11px;color:var(--ink-soft);font-family:var(--mono)">${unit}</span>` : ''}
+    ${unit ? `<span style="font-size:12px;color:var(--ink-soft);font-family:var(--mono)">${unit}</span>` : ''}
   </div>`;
 }
 function refineSel(id, val, options){
@@ -7538,10 +7538,10 @@ function rfAdj(key, delta, min, max){
 }
 function rfStepper(key, val, min, max, unit, step){
   const s = step || 1;
-  const btn = (d, sym) => `<button onclick="rfAdj('${key}',${d},${min},${max})" style="width:38px;height:38px;border-radius:10px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);font-size:18px;font-weight:700;font-family:var(--mono);cursor:pointer;flex-shrink:0">${sym}</button>`;
+  const btn = (d, sym) => `<button onclick="rfAdj('${key}',${d},${min},${max})" style="width:38px;height:38px;border-radius:8px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);font-size:17px;font-weight:700;font-family:var(--mono);cursor:pointer;flex-shrink:0">${sym}</button>`;
   return `<div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
     ${btn(-s, '−')}
-    <div style="min-width:64px;text-align:center;font-family:var(--mono);font-size:16px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums">${val}<span style="font-size:10px;font-weight:400;color:var(--ink-soft)">${unit ? ' ' + unit : ''}</span></div>
+    <div style="min-width:64px;text-align:center;font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums">${val}<span style="font-size:12px;font-weight:400;color:var(--ink-soft)">${unit ? ' ' + unit : ''}</span></div>
     ${btn(s, '+')}
   </div>`;
 }
@@ -7551,7 +7551,7 @@ function rfBatteryControl(){
   if (!opts.some(([v]) => Math.abs(v - val) < 0.001)) opts.push([val, String(val)]);
   return `<div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end">${opts.map(([v, l]) => `
-      <div onclick="rfSet('battery_kwh',${v},0,50)" style="padding:7px 11px;border-radius:999px;font-size:11.5px;font-weight:700;font-family:var(--mono);cursor:pointer;border:1.5px solid ${Math.abs(v - val) < 0.001 ? 'var(--accent)' : 'var(--line)'};background:${Math.abs(v - val) < 0.001 ? 'var(--accent-soft)' : 'transparent'};color:${Math.abs(v - val) < 0.001 ? 'var(--accent)' : 'var(--ink-soft)'}">${l}</div>`).join('')}</div>
+      <div onclick="rfSet('battery_kwh',${v},0,50)" style="padding:7px 11px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--mono);cursor:pointer;border:1.5px solid ${Math.abs(v - val) < 0.001 ? 'var(--accent)' : 'var(--line)'};background:${Math.abs(v - val) < 0.001 ? 'var(--accent-soft)' : 'transparent'};color:${Math.abs(v - val) < 0.001 ? 'var(--accent)' : 'var(--ink-soft)'}">${l}</div>`).join('')}</div>
     <div style="margin-top:8px;display:flex;justify-content:flex-end">${rfStepper('battery_kwh', val, 0, 50, 'kWh', 0.5)}</div>
   </div>`;
 }
@@ -7895,7 +7895,7 @@ function renderMonitor(){
       <div class="mon-status-eyebrow">${ic('bolt',12,'vertical-align:-2px')} A better plan is available</div>
       <div class="mon-status-line">Switching to <b>${best.plan.supplier} — ${best.plan.plan}</b> would save you about <b style="color:var(--amber)">${fmtCurrency(savings)}/yr</b> versus your current plan.</div>
       <div class="mon-status-meta">Your current plan ranks #${rank || '–'} of ${countLabel} for your usage</div>
-      <button class="switch-cta" style="margin-top:13px;margin-bottom:0;font-size:14px;padding:13px"
+      <button class="switch-cta" style="margin-top:13px;margin-bottom:0;font-size:13px;padding:13px"
         onclick="handleSwitchClick('${best.plan.id}','${(best.plan.supplier+' '+best.plan.plan).replace(/'/g,"\\'")}',${savings.toFixed(0)})">
         Review the switch →</button>
     </div>`;
@@ -7910,13 +7910,13 @@ function renderMonitor(){
     contractHtml = `<div class="mon-toggle">
       <div><div class="mon-toggle-label">Contract review</div>
         <div class="mon-toggle-sub">${fmtShortDate(state.contract_end_date)} · ${days > 0 ? days + ' days away' : 'due now'}</div></div>
-      <div style="display:flex;gap:12px"><span style="font-family:var(--mono);font-size:11px;color:var(--blue);cursor:pointer" onclick="setContractReminder()">edit</span><span style="font-family:var(--mono);font-size:11px;color:var(--ink-dim);cursor:pointer" onclick="clearContractDate()">clear</span></div>
+      <div style="display:flex;gap:12px"><span style="font-family:var(--mono);font-size:12px;color:var(--blue);cursor:pointer" onclick="setContractReminder()">edit</span><span style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);cursor:pointer" onclick="clearContractDate()">clear</span></div>
     </div>`;
   } else if (state._contract_edit){
     contractHtml = `<div class="mon-toggle" style="flex-wrap:wrap;gap:10px">
       <div style="width:100%"><div class="mon-toggle-label">When does your contract end?</div>
         <div class="mon-toggle-sub">It's on your bill or in your sign-up email — roughly is fine</div></div>
-      <input type="date" id="contract-date-input" style="flex:1;padding:10px 12px;border-radius:9px;border:1px solid var(--line);background:var(--well);color:var(--ink);font-family:var(--mono);font-size:13px"/>
+      <input type="date" id="contract-date-input" style="flex:1;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--well);color:var(--ink);font-family:var(--mono);font-size:13px"/>
       <button onclick="saveContractDate()" style="padding:10px 16px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent)">Save</button>
       <button onclick="cancelContractEdit()" style="padding:10px 12px;border-radius:999px;font-size:12px;font-weight:600;font-family:var(--display);border:1px solid var(--line);background:transparent;color:var(--ink-soft)">Cancel</button>
     </div>`;
@@ -7924,7 +7924,7 @@ function renderMonitor(){
     contractHtml = `<div class="mon-toggle" onclick="setContractReminder()" style="cursor:pointer">
       <div><div class="mon-toggle-label">Add a contract-end reminder</div>
         <div class="mon-toggle-sub">Set your contract end date — we'll flag it here from 30 days out</div></div>
-      <div style="font-family:var(--mono);font-size:18px;color:var(--accent)">+</div>
+      <div style="font-family:var(--mono);font-size:17px;color:var(--accent)">+</div>
     </div>`;
   }
 
@@ -7957,7 +7957,7 @@ function renderMonitor(){
 
   return `${topbar('Market Monitor', 'blue', true)}
   <div class="screen">
-    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin:2px 2px 14px">We watch every Irish tariff and flag what's worth acting on.</div>
+    <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin:2px 2px 14px">We watch every Irish tariff and flag what's worth acting on.</div>
     ${contractAlert}
     <div class="mon-toggle">
       <div>
@@ -7972,13 +7972,13 @@ function renderMonitor(){
 
     ${(state.switch_history || []).length ? `
     <div class="card" style="margin-bottom:14px">
-      <div style="font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:8px">${ic('check',12,'vertical-align:-2px')} Your switching record</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:8px">${ic('check',12,'vertical-align:-2px')} Your switching record</div>
       ${state.switch_history.slice(-3).reverse().map(h => `
         <div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:12px">
-          <div style="color:var(--ink)">${h.planName}<div style="font-family:var(--mono);font-size:9.5px;color:var(--ink-dim);margin-top:2px">${fmtShortDate(h.date)}</div></div>
+          <div style="color:var(--ink)">${h.planName}<div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:2px">${fmtShortDate(h.date)}</div></div>
           <div style="font-family:var(--mono);font-weight:700;color:var(--accent);white-space:nowrap">€${(h.savings||0).toLocaleString()}/yr</div>
         </div>`).join('')}
-      <div style="font-family:var(--mono);font-size:9.5px;color:var(--ink-dim);margin-top:8px;letter-spacing:.03em">Projected savings at the moment you started each switch</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:8px;letter-spacing:.03em">Projected savings at the moment you started each switch</div>
     </div>` : ''}
     <div class="section-title">Recent activity</div>
     <div class="mon-timeline">${timelineHtml}</div>
@@ -7989,7 +7989,7 @@ function renderMonitor(){
       <div class="mon-watch-item"><span class="mon-watch-ic">${ic('bell',14)}</span><div><b>Your contract is ending.</b> Before you roll onto a default rate, we flag it here so you can re-check.</div></div>
       <div class="mon-watch-item"><span class="mon-watch-ic">${ic('sun',14)}</span><div><b>Seasonal solar insight.</b> If you have panels, how your roof performed and what it saved.</div></div>
     </div>
-    <div style="font-size:11px;color:var(--ink-soft);text-align:center;margin-top:12px;line-height:1.6;padding:0 6px">
+    <div style="font-size:12px;color:var(--ink-soft);text-align:center;margin-top:12px;line-height:1.6;padding:0 6px">
       These checks run here, in the app — we don't email you or send push notifications, and there's no account required. Open Monitor whenever you want a fresh read.
     </div>
 
@@ -8076,7 +8076,7 @@ function renderIndependence(){
   <div class="screen">
     <div class="qr-hero" style="border-color:var(--blue);box-shadow:var(--hero-shadow),0 0 32px -10px var(--blue-glow);text-align:left;padding:20px">
       <div class="qr-eyebrow" style="color:var(--blue)">The catch, stated plainly</div>
-      <div style="font-family:var(--display);font-size:18px;font-weight:600;color:var(--ink);line-height:1.35;margin-top:6px">We only make money when you actually save money. Here's exactly how.</div>
+      <div style="font-family:var(--display);font-size:17px;font-weight:600;color:var(--ink);line-height:1.35;margin-top:6px">We only make money when you actually save money. Here's exactly how.</div>
     </div>
     ${cards.map(([cls,ic,t,b]) => `<div class="indep-card ${cls}">
       <div class="indep-ic">${ic}</div>
@@ -8127,7 +8127,7 @@ function renderQuotes(){
         </div>
         <div style="text-align:right">
           <div class="quote-price">${fmtCurrency(+q.price||0)}</div>
-          <div style="font-family:var(--mono);font-size:9px;color:var(--ink-dim);cursor:pointer;margin-top:6px" onclick="removeQuote('${q.id}')">remove</div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);cursor:pointer;margin-top:6px" onclick="removeQuote('${q.id}')">remove</div>
         </div>
       </div>
       <div class="quote-take"><b>Our take</b>${a.take}</div>
@@ -8150,7 +8150,7 @@ function renderQuotes(){
         <input class="quote-input" id="q-kwp" inputmode="decimal" placeholder="kWp" />
         <input class="quote-input" id="q-batt" inputmode="decimal" placeholder="Battery kWh" />
       </div>
-      <button class="switch-cta" style="margin:6px 0 0;font-size:14px;padding:13px" onclick="addQuote()">Add &amp; assess quote</button>
+      <button class="switch-cta" style="margin:6px 0 0;font-size:13px;padding:13px" onclick="addQuote()">Add &amp; assess quote</button>
     </div>
 
     ${quotes.length ? `<div class="section-title">Your quotes, assessed</div>${list}` : `
@@ -8159,8 +8159,8 @@ function renderQuotes(){
       </div>`}
 
     <div class="refine-panel" style="padding:13px 15px;background:rgba(90,156,255,.04);border-color:rgba(90,156,255,.2);margin-top:8px">
-      <div style="font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--blue);font-weight:700;margin-bottom:5px">WHY YOU CAN TRUST THIS</div>
-      <div style="font-size:11.5px;color:var(--ink-soft);line-height:1.5">Installers pay us per introduction — never to rank higher or to soften a verdict. The benchmark is our own model of Irish 2026 prices.</div>
+      <div style="font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--blue);font-weight:700;margin-bottom:5px">WHY YOU CAN TRUST THIS</div>
+      <div style="font-size:12px;color:var(--ink-soft);line-height:1.5">Installers pay us per introduction — never to rank higher or to soften a verdict. The benchmark is our own model of Irish 2026 prices.</div>
     </div>
   </div>
   ${bottomNav()}`;
@@ -8193,7 +8193,7 @@ function renderCompare(){
   const saveBar = `
     <div class="card" style="margin-bottom:14px">
       <div style="font-size:12px;font-weight:700;color:var(--ink);margin-bottom:3px">Save this configuration</div>
-      <div style="font-size:11px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px">Snapshots your current setup — ${liveSummary.hasSolar ? liveSummary.panels + ' panels' : 'no solar'}${liveSummary.battery > 0 ? ' · ' + liveSummary.battery + ' kWh' : ''}${liveSummary.ev ? ' · EV' : ''}, best plan ${liveSummary.bestPlanName}. Load or compare it later.</div>
+      <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px">Snapshots your current setup — ${liveSummary.hasSolar ? liveSummary.panels + ' panels' : 'no solar'}${liveSummary.battery > 0 ? ' · ' + liveSummary.battery + ' kWh' : ''}${liveSummary.ev ? ' · EV' : ''}, best plan ${liveSummary.bestPlanName}. Load or compare it later.</div>
       <div style="display:flex;gap:8px">
         <input id="scenario-name-input" class="modal-input" style="flex:1;margin:0" type="text" placeholder="Name it (optional)" maxlength="40">
         <button class="switch-cta" style="margin:0;white-space:nowrap;padding:12px 18px;width:auto;flex:0 0 auto" onclick="saveCurrentScenario()">${ic('plus',15)} Save</button>
@@ -8205,7 +8205,7 @@ function renderCompare(){
     <div class="screen">
       <div class="qr-hero" style="border-color:var(--blue);box-shadow:var(--hero-shadow),0 0 32px -10px var(--blue-glow);text-align:left;padding:20px;margin-bottom:14px">
         <div class="qr-eyebrow" style="color:var(--blue)">Scenarios</div>
-        <div style="font-family:var(--display);font-size:18px;font-weight:600;color:var(--ink);line-height:1.35;margin-top:6px">Design a case, save it, compare them side by side.</div>
+        <div style="font-family:var(--display);font-size:17px;font-weight:600;color:var(--ink);line-height:1.35;margin-top:6px">Design a case, save it, compare them side by side.</div>
         <div style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin-top:8px">Panels, battery, EV, plan — save a few setups and see them ranked on cost, payback, best plan and more.</div>
       </div>
       ${saveBar}
@@ -8224,15 +8224,15 @@ function renderCompare(){
     return `<div class="card" style="margin-bottom:10px;border-color:${picked ? 'var(--accent)' : 'var(--line)'};${picked ? 'background:var(--accent-faint)' : ''}">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
         <div style="flex:1;min-width:0">
-          <div style="font-size:13.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
-          <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);margin-top:3px;line-height:1.5">
+          <div style="font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.5">
             ${sm.hasSolar ? sm.kwp + ' kWp · ' + sm.panels + ' panels' : 'no solar'}${sm.battery > 0 ? ' · ' + sm.battery + ' kWh' : ''}${sm.ev ? ' · EV' : ''}<br>
             ${sm.bestPlanName} · €${(sm.bestNet||0).toLocaleString()}/yr${sm.payback != null ? ' · ' + sm.payback.toFixed(1) + 'yr payback' : ''}
           </div>
         </div>
         <label style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;flex-shrink:0">
           <div onclick="toggleCompareSelect('${s.id}')" style="width:26px;height:26px;border-radius:8px;border:2px solid ${picked ? 'var(--accent)' : 'var(--line)'};background:${picked ? 'var(--accent)' : 'transparent'};display:grid;place-items:center">${picked ? '<span style="color:#fff;font-size:15px">' + ic('check',14,'stroke:#fff') + '</span>' : ''}</div>
-          <span style="font-size:8.5px;color:var(--ink-dim);font-family:var(--mono)">compare</span>
+          <span style="font-size:12px;color:var(--ink-dim);font-family:var(--mono)">compare</span>
         </label>
       </div>
       <div style="display:flex;gap:8px;margin-top:10px">
@@ -8278,7 +8278,7 @@ function renderCompareTable(selIds){
   ];
 
   const colW = `minmax(0,1fr)`;
-  const headCells = cols.map(s => `<div style="font-size:10.5px;font-weight:700;color:var(--ink);text-align:center;padding:6px 4px;line-height:1.3;overflow:hidden;text-overflow:ellipsis">${s.name}</div>`).join('');
+  const headCells = cols.map(s => `<div style="font-size:12px;font-weight:700;color:var(--ink);text-align:center;padding:6px 4px;line-height:1.3;overflow:hidden;text-overflow:ellipsis">${s.name}</div>`).join('');
 
   const rows = metrics.map(m => {
     const vals = cols.map(s => m.get(s.summary || {}));
@@ -8295,10 +8295,10 @@ function renderCompareTable(selIds){
     }
     const cells = vals.map((v, i) => {
       const win = i === winIdx;
-      return `<div style="font-family:var(--mono);font-size:11px;text-align:center;padding:7px 4px;${win ? 'color:var(--accent);font-weight:700' : 'color:var(--ink-soft)'}">${m.fmt(v)}${win ? ' ★' : ''}</div>`;
+      return `<div style="font-family:var(--mono);font-size:12px;text-align:center;padding:7px 4px;${win ? 'color:var(--accent);font-weight:700' : 'color:var(--ink-soft)'}">${m.fmt(v)}${win ? ' ★' : ''}</div>`;
     }).join('');
     return `<div style="display:grid;grid-template-columns:96px repeat(${cols.length}, ${colW});border-top:1px solid var(--line-soft);align-items:center">
-      <div style="font-size:10px;color:var(--ink-dim);font-family:var(--mono);text-transform:uppercase;letter-spacing:.03em;padding:7px 6px 7px 0">${m.k}</div>
+      <div style="font-size:12px;color:var(--ink-dim);font-family:var(--mono);text-transform:uppercase;letter-spacing:.03em;padding:7px 6px 7px 0">${m.k}</div>
       ${cells}
     </div>`;
   }).join('');
@@ -8309,7 +8309,7 @@ function renderCompareTable(selIds){
       <div></div>${headCells}
     </div>
     ${rows}
-    <div style="font-family:var(--mono);font-size:9px;color:var(--ink-dim);margin-top:10px;line-height:1.5">Best plan & payback computed at save time. Re-save a scenario to refresh against current tariffs.</div>
+    <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:10px;line-height:1.5">Best plan & payback computed at save time. Re-save a scenario to refresh against current tariffs.</div>
   </div>`;
 }
 
@@ -8359,7 +8359,7 @@ function renderMore(){
         <div class="secondary-card-arrow">›</div>
       </div>`).join('')}
     `).join('')}
-    <div style="font-family:var(--mono);font-size:10px;color:var(--ink-dim);text-align:center;margin-top:18px;letter-spacing:.04em;line-height:1.7">
+    <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);text-align:center;margin-top:18px;letter-spacing:.04em;line-height:1.7">
       Solar Optimiser · Independent · Ireland<br>Your data stays on this device.
     </div>
   </div>
@@ -8384,14 +8384,14 @@ function renderFastPath(){
 
     ${state._csv_imported ? `<div style="margin-bottom:14px">${csvLockCard()}</div>` : `<div class="fp-billbox">
       <div style="display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--well);margin-bottom:12px">
-        <button onclick="fpSetUsageMode('bill')" style="padding:7px 13px;font-size:11px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${!kwhMode && !state._fp_csv_mode?'var(--accent)':'transparent'};color:${!kwhMode && !state._fp_csv_mode?'#fff':'var(--ink-soft)'}">€ Bill</button>
-        <button onclick="fpSetUsageMode('kwh')" style="padding:7px 13px;font-size:11px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${kwhMode && !state._fp_csv_mode?'var(--accent)':'transparent'};color:${kwhMode && !state._fp_csv_mode?'#fff':'var(--ink-soft)'}">kWh / year</button>
-        <button onclick="fpSetUsageMode('csv')" style="padding:7px 13px;font-size:11px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${state._fp_csv_mode?'var(--accent)':'transparent'};color:${state._fp_csv_mode?'#fff':'var(--ink-soft)'}">Smart CSV</button>
+        <button onclick="fpSetUsageMode('bill')" style="padding:7px 13px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${!kwhMode && !state._fp_csv_mode?'var(--accent)':'transparent'};color:${!kwhMode && !state._fp_csv_mode?'#fff':'var(--ink-soft)'}">€ Bill</button>
+        <button onclick="fpSetUsageMode('kwh')" style="padding:7px 13px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${kwhMode && !state._fp_csv_mode?'var(--accent)':'transparent'};color:${kwhMode && !state._fp_csv_mode?'#fff':'var(--ink-soft)'}">kWh / year</button>
+        <button onclick="fpSetUsageMode('csv')" style="padding:7px 13px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${state._fp_csv_mode?'var(--accent)':'transparent'};color:${state._fp_csv_mode?'#fff':'var(--ink-soft)'}">Smart CSV</button>
       </div>
       ${state._fp_csv_mode ? `
       <div style="text-align:left">
         <div style="font-size:12px;color:var(--ink-soft);line-height:1.7">Most accurate — real 30-min readings. From <b>myaccount.esbnetworks.ie</b> → My Meter → <b>Download HDF Data</b>. Less than a year still works — we scale it to a full-year profile.</div>
-        <label class="btn-secondary" style="display:block;text-align:center;cursor:pointer;margin-top:10px;padding:12px 16px;border:1px dashed var(--blue);color:var(--blue);border-radius:10px">
+        <label class="btn-secondary" style="display:block;text-align:center;cursor:pointer;margin-top:10px;padding:12px 16px;border:1px dashed var(--blue);color:var(--blue);border-radius:8px">
           Choose CSV file
           <input id="csv-file-input" type="file" accept=".csv,.CSV" style="display:none" onchange="handleCsvFile(event)">
         </label>
@@ -8399,7 +8399,7 @@ function renderFastPath(){
       </div>` : kwhMode ? `
       <div class="fp-billrow">
         <input class="fp-billinput" id="fp-bill" inputmode="numeric" value="${kwh}" oninput="fpSync(this.value)" style="text-align:right"/>
-        <span class="fp-cur" style="font-size:16px;align-self:center">kWh</span>
+        <span class="fp-cur" style="font-size:15px;align-self:center">kWh</span>
       </div>
       <div class="fp-billhint">total per year · from your annual statement or smart meter</div>
       <input class="fp-billslider" type="range" min="1500" max="15000" step="100" value="${Math.min(15000, Math.max(1500, kwh))}" oninput="document.getElementById('fp-bill').value=this.value"/>` : `
@@ -8417,7 +8417,7 @@ function renderFastPath(){
         <span class="fp-assume-ic">${ic('bolt',16)}</span>
         <div style="flex:1;min-width:0"><div class="fp-assume-k">Current plan</div>
         <div class="fp-assume-v" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${state.baseline_known ? (getPlanById(state.baseline).supplier + ' — ' + getPlanById(state.baseline).plan) : "Not sure — we'll estimate"}</div></div>
-        <span style="color:var(--ink-dim);font-family:var(--mono);font-size:11px">${state._fp_plan_open ? '▴' : '▾'}</span>
+        <span style="color:var(--ink-dim);font-family:var(--mono);font-size:12px">${state._fp_plan_open ? '▴' : '▾'}</span>
       </div>
       ${state._fp_plan_open ? `
       <div class="ob-plan-picker" style="grid-column:span 2;max-height:280px">
@@ -8436,7 +8436,7 @@ function renderFastPath(){
         <span class="fp-assume-ic">${ic('spark',16)}</span>
         <div style="flex:1;min-width:0"><div class="fp-assume-k">Your discount on this plan</div>
         <div class="fp-assume-v">${(+state.baseline_discount_pct || 0) > 0 ? state.baseline_discount_pct + '% off unit rates' : 'None — sticker rates'}</div></div>
-        <span style="color:var(--ink-dim);font-family:var(--mono);font-size:11px">tap</span>
+        <span style="color:var(--ink-dim);font-family:var(--mono);font-size:12px">tap</span>
       </div>` : ''}
       <div class="fp-assume" onclick="fpCycle('heating')"><span class="fp-assume-ic">${ic('flame',16)}</span><div><div class="fp-assume-k">Heating</div><div class="fp-assume-v">${heatLabel}</div></div></div>
       <div class="fp-assume" onclick="fpCycle('ev')"><span class="fp-assume-ic">${ic('car',16)}</span><div><div class="fp-assume-k">EV</div><div class="fp-assume-v">${state.ev_active ? Math.round((state.ev_km_per_year||15000)/1000)+'k km · ' + (state.ev_in_bill ? 'have it' : 'planning') : 'None'}</div></div></div>
@@ -8464,9 +8464,9 @@ function csvLockCard(compact){
   const kwh = state.bills && Object.keys(state.bills).length ? Math.round(Object.values(state.bills).reduce((a,b)=>a+b,0)) : 0;
   const cov = state._csv_days ? ` · ${state._csv_days} days of data${state._csv_periods && state._csv_periods < 6 ? `, ${6 - state._csv_periods} period${6 - state._csv_periods === 1 ? '' : 's'} extrapolated` : ''}` : '';
   return `<div style="padding:${compact ? '12px 14px' : '14px 16px'};background:var(--blue-soft);border:1.5px solid var(--blue);border-radius:12px">
-    <div style="display:flex;align-items:center;gap:8px"><span>${ic('csv',16)}</span><div style="font-size:12.5px;font-weight:700;color:var(--ink)">Usage locked to your smart-meter CSV</div></div>
-    <div style="font-size:11px;color:var(--ink-soft);margin-top:5px;line-height:1.55"><b style="color:var(--ink)">${kwh.toLocaleString()} kWh/yr</b> from ${state._csv_filename || 'your imported file'}${cov}. Manual € / kWh entry is disabled so it can't silently fight the real data.</div>
-    <button onclick="clearCsvImport()" style="margin-top:9px;padding:8px 14px;border-radius:999px;font-size:11.5px;font-weight:700;font-family:var(--display);border:1px solid var(--blue);background:transparent;color:var(--blue);cursor:pointer">Remove CSV & enter manually</button>
+    <div style="display:flex;align-items:center;gap:8px"><span>${ic('csv',16)}</span><div style="font-size:12px;font-weight:700;color:var(--ink)">Usage locked to your smart-meter CSV</div></div>
+    <div style="font-size:12px;color:var(--ink-soft);margin-top:5px;line-height:1.55"><b style="color:var(--ink)">${kwh.toLocaleString()} kWh/yr</b> from ${state._csv_filename || 'your imported file'}${cov}. Manual € / kWh entry is disabled so it can't silently fight the real data.</div>
+    <button onclick="clearCsvImport()" style="margin-top:9px;padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid var(--blue);background:transparent;color:var(--blue);cursor:pointer">Remove CSV & enter manually</button>
   </div>`;
 }
 
@@ -9150,11 +9150,11 @@ function renderSeaiGrantCard(kwp, batteryKwh){
   return `<div class="card" style="background:rgba(0,230,118,.04);border-color:var(--accent)">
     <div class="card-label" style="color:var(--accent)">SEAI Home Solar Grant (2025)</div>
     <div class="card-value accent">€${g.total.toLocaleString()}</div>
-    <div style="margin-top:8px;font-family:var(--mono);font-size:10px;color:var(--ink-soft);line-height:1.8">
+    <div style="margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.8">
       ${kwp > 0 ? `Panels (${kwp.toFixed(2)} kWp): first 2 kWp × €900 = −€${g.panels.toLocaleString()}` : ''}<br>
       ${kwp > 2 ? `<span style="color:var(--ink-dim)">Above 2 kWp: no additional grant (capped at €1,800)</span>` : ''}
     </div>
-    <div style="margin-top:8px;padding:8px 10px;background:var(--overlay-tile);border-radius:7px;font-family:var(--mono);font-size:10px;color:var(--ink-dim);line-height:1.6">
+    <div style="margin-top:8px;padding:8px 10px;background:var(--overlay-tile);border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--ink-dim);line-height:1.6">
       Current scheme: first 2 kWp × €900/kWp · max €1,800 total · <a href="https://www.seai.ie/grants/solar-electricity-grant/" target="_blank" style="color:var(--blue)">seai.ie ↗</a>
     </div>
   </div>`;
@@ -9272,12 +9272,12 @@ function renderHowToSwitch(){
     <div class="screen">
       <div class="qr-hero" style="border-color:var(--blue)">
         <div class="qr-eyebrow" style="color:var(--blue)">Switching electricity in Ireland</div>
-        <div style="font-family:var(--display);font-size:18px;font-weight:600;color:var(--ink)">It takes 10–15 working days</div>
+        <div style="font-family:var(--display);font-size:17px;font-weight:600;color:var(--ink)">It takes 10–15 working days</div>
         <div class="qr-sub">Your current supplier is notified automatically. You never lose power.</div>
       </div>
       <div class="card" style="margin-top:0">
         <div class="card-label">The general process</div>
-        <ol style="margin:10px 0 0 18px;font-family:var(--mono);font-size:11px;color:var(--ink-soft);line-height:2;list-style:decimal">
+        <ol style="margin:10px 0 0 18px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:2;list-style:decimal">
           <li>Find your MPRN (on your current bill)</li>
           <li>Sign up with the new supplier online</li>
           <li>New supplier notifies your current one</li>
@@ -9312,17 +9312,17 @@ function renderHowToSwitch(){
 
     <div class="qr-hero" style="border-color:var(--blue);box-shadow:var(--hero-shadow),0 0 32px -10px var(--blue-glow)">
       <div class="qr-eyebrow" style="color:var(--blue)">Switching to</div>
-      <div style="font-family:var(--display);font-size:22px;font-weight:700;color:var(--ink);margin:4px 0">${guide.name}</div>
+      <div style="font-family:var(--display);font-size:20px;font-weight:700;color:var(--ink);margin:4px 0">${guide.name}</div>
       ${plan ? `<div class="qr-sub">${plan.plan}</div>` : ''}
     </div>
 
     ${guide.steps.map((step, i) => `
       <div class="card" style="margin-top:${i===0?'0':'10px'}">
         <div style="display:flex;gap:12px;align-items:flex-start">
-          <div style="font-size:22px;line-height:1;flex-shrink:0;margin-top:2px">${step.icon}</div>
+          <div style="font-size:20px;line-height:1;flex-shrink:0;margin-top:2px">${step.icon}</div>
           <div>
-            <div style="font-weight:700;color:var(--ink);font-size:14px;margin-bottom:4px">
-              <span style="font-family:var(--mono);font-size:10px;color:var(--ink-dim);margin-right:8px">${i+1}.</span>${step.title}
+            <div style="font-weight:700;color:var(--ink);font-size:13px;margin-bottom:4px">
+              <span style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-right:8px">${i+1}.</span>${step.title}
             </div>
             <div style="font-size:12px;color:var(--ink-soft);line-height:1.65">${step.body}</div>
           </div>
@@ -9342,7 +9342,7 @@ function renderHowToSwitch(){
 
     <div class="card" style="margin-top:14px;background:var(--overlay-tile)">
       <div class="card-label">${ic('bolt',13)} Good to know about all Irish switches</div>
-      <div style="font-family:var(--mono);font-size:10px;color:var(--ink-soft);line-height:1.8;margin-top:6px">
+      <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.8;margin-top:6px">
         ✓ You never lose power during a switch<br>
         ✓ Your current supplier is notified automatically — no cancellation call needed<br>
         ✓ CRU (energy regulator) guarantees the switch completes within 15 working days<br>
@@ -9371,14 +9371,14 @@ function renderCsvImport(){
 
     <div class="qr-hero" style="border-color:var(--blue)">
       <div class="qr-eyebrow" style="color:var(--blue)">Import from ESB Networks</div>
-      <div style="font-family:var(--display);font-size:18px;font-weight:600;color:var(--ink);margin:4px 0">Smart meter CSV import</div>
+      <div style="font-family:var(--display);font-size:17px;font-weight:600;color:var(--ink);margin:4px 0">Smart meter CSV import</div>
       <div class="qr-sub">Replace estimated bills with your actual 30-minute interval data for a more accurate simulation.</div>
     </div>
 
     ${hasImport ? `
       <div class="card" style="background:var(--accent-faint);border-color:var(--accent);margin-top:0">
         <div class="card-label" style="color:var(--accent)">✓ Smart meter data imported</div>
-        <div style="font-family:var(--mono);font-size:11px;color:var(--ink-soft);line-height:1.8;margin-top:6px">
+        <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.8;margin-top:6px">
           ${Object.entries(state.bills).map(([k,v]) => `${k}: ${Math.round(v).toLocaleString()} kWh`).join(' · ')}<br>
           Total: ${Math.round(Object.values(state.bills).reduce((a,b)=>a+b,0)).toLocaleString()} kWh/yr
         </div>
@@ -9399,7 +9399,7 @@ function renderCsvImport(){
     <div class="card" style="margin-top:10px">
       <div class="card-label">Step 2 — upload your HDF CSV file</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.7;margin:8px 0">
-        The file is typically named <span style="font-family:var(--mono);font-size:10px;background:var(--well);padding:2px 6px;border-radius:4px">HDF_XXXXXXXX_YYYY-MM-DD.csv</span>. It contains 30-minute readings.
+        The file is typically named <span style="font-family:var(--mono);font-size:12px;background:var(--well);padding:2px 6px;border-radius:4px">HDF_XXXXXXXX_YYYY-MM-DD.csv</span>. It contains 30-minute readings.
       </div>
       <label class="btn-secondary" style="display:block;text-align:center;cursor:pointer;margin-top:8px;padding:12px 16px;border:1px dashed var(--blue);color:var(--blue)">
         Choose CSV file
@@ -9411,11 +9411,11 @@ function renderCsvImport(){
 
     <div class="card" style="margin-top:10px;background:var(--overlay-tile)">
       <div class="card-label">CSV format — ESB Networks HDF (current format)</div>
-      <div style="font-family:var(--mono);font-size:9px;color:var(--ink-dim);line-height:1.9;margin-top:6px;white-space:pre-wrap">MPRN,Meter Serial Number,Read Value,Read Type,Read Date and End Time
+      <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);line-height:1.9;margin-top:6px;white-space:pre-wrap">MPRN,Meter Serial Number,Read Value,Read Type,Read Date and End Time
 10309xxxxxx,000000000xxxxxxxxx,0.154,Active Import Interval (kWh),01-01-2025 00:30
 10309xxxxxx,000000000xxxxxxxxx,0.142,Active Import Interval (kWh),01-01-2025 01:00
 ...</div>
-      <div style="font-size:11px;color:var(--ink-dim);margin-top:8px">Supports the current ESB Networks HDF format (5-column, <b>DD-MM-YYYY</b> dates). Log in at <b>myaccount.esbnetworks.ie</b> → My Meter → Download HDF Data → select last 12 months.</div>
+      <div style="font-size:12px;color:var(--ink-dim);margin-top:8px">Supports the current ESB Networks HDF format (5-column, <b>DD-MM-YYYY</b> dates). Log in at <b>myaccount.esbnetworks.ie</b> → My Meter → Download HDF Data → select last 12 months.</div>
     </div>
   </div>
   ${bottomNav()}`;
@@ -9449,14 +9449,14 @@ function handleCsvFile(evt){
   const file = evt.target.files && evt.target.files[0];
   if (!file) return;
   const resultEl = document.getElementById('csv-parse-result');
-  if (resultEl) resultEl.innerHTML = `<div class="card" style="color:var(--ink-soft);font-family:var(--mono);font-size:11px">Parsing ${file.name}…</div>`;
+  if (resultEl) resultEl.innerHTML = `<div class="card" style="color:var(--ink-soft);font-family:var(--mono);font-size:12px">Parsing ${file.name}…</div>`;
   const reader = new FileReader();
   reader.onload = (e) => {
     const text = e.target.result;
     parseCsvHdf(text, file.name);
   };
   reader.onerror = () => {
-    if (resultEl) resultEl.innerHTML = `<div class="card" style="color:var(--red);font-family:var(--mono);font-size:11px">✗ Could not read file — make sure it\'s a plain-text CSV.</div>`;
+    if (resultEl) resultEl.innerHTML = `<div class="card" style="color:var(--red);font-family:var(--mono);font-size:12px">✗ Could not read file — make sure it\'s a plain-text CSV.</div>`;
   };
   reader.readAsText(file);
 }
@@ -9697,11 +9697,11 @@ function parseCsvHdf(text, filename){
 
     let coverageHtml;
     if (totalDays < 45){
-      coverageHtml = `<div style="margin-top:10px;padding:10px 12px;background:var(--amber-soft);border:1px solid var(--amber);border-radius:9px;font-size:11.5px;color:var(--ink);line-height:1.6"><b style="color:var(--amber)">⚠ Only ${totalDays} day${totalDays === 1 ? '' : 's'} of data</b> — far short of a year. We scaled it to a full-year profile (per-day average × season length, missing periods filled from your ${state.heating_type} heating shape), but seasonal accuracy will be poor. Treat results as rough and import 12 months when you can.</div>`;
+      coverageHtml = `<div style="margin-top:10px;padding:10px 12px;background:var(--amber-soft);border:1px solid var(--amber);border-radius:8px;font-size:12px;color:var(--ink);line-height:1.6"><b style="color:var(--amber)">⚠ Only ${totalDays} day${totalDays === 1 ? '' : 's'} of data</b> — far short of a year. We scaled it to a full-year profile (per-day average × season length, missing periods filled from your ${state.heating_type} heating shape), but seasonal accuracy will be poor. Treat results as rough and import 12 months when you can.</div>`;
     } else if (totalDays < 300 || periodsCovered < 6){
-      coverageHtml = `<div style="margin-top:10px;padding:10px 12px;background:var(--blue-soft);border:1px solid var(--blue);border-radius:9px;font-size:11.5px;color:var(--ink);line-height:1.6"><b style="color:var(--blue)">Partial year:</b> ${totalDays} days across ${periodsCovered} of 6 billing periods. Measured periods were scaled to full length${periodsCovered < 6 ? `; the ${6 - periodsCovered} missing period${6 - periodsCovered === 1 ? ' was' : 's were'} extrapolated from your data + ${state.heating_type} heating profile` : ''}. A full 12 months will sharpen the seasonal picture.</div>`;
+      coverageHtml = `<div style="margin-top:10px;padding:10px 12px;background:var(--blue-soft);border:1px solid var(--blue);border-radius:8px;font-size:12px;color:var(--ink);line-height:1.6"><b style="color:var(--blue)">Partial year:</b> ${totalDays} days across ${periodsCovered} of 6 billing periods. Measured periods were scaled to full length${periodsCovered < 6 ? `; the ${6 - periodsCovered} missing period${6 - periodsCovered === 1 ? ' was' : 's were'} extrapolated from your data + ${state.heating_type} heating profile` : ''}. A full 12 months will sharpen the seasonal picture.</div>`;
     } else {
-      coverageHtml = `<div style="margin-top:10px;padding:9px 12px;background:var(--accent-soft);border-radius:9px;font-size:11.5px;color:var(--ink-soft)">✓ ${totalDays} days — full-year coverage${spanDays > 400 ? ` (file spans ~${Math.round(spanDays / 365 * 10) / 10} years — averaged per day, so the result is one typical year)` : ''}.</div>`;
+      coverageHtml = `<div style="margin-top:10px;padding:9px 12px;background:var(--accent-soft);border-radius:8px;font-size:12px;color:var(--ink-soft)">✓ ${totalDays} days — full-year coverage${spanDays > 400 ? ` (file spans ~${Math.round(spanDays / 365 * 10) / 10} years — averaged per day, so the result is one typical year)` : ''}.</div>`;
     }
 
     state.bills = bills;
@@ -9714,7 +9714,7 @@ function parseCsvHdf(text, filename){
     if (resultEl) resultEl.innerHTML = `
       <div class="card" style="background:var(--accent-faint);border-color:var(--accent)">
         <div class="card-label" style="color:var(--accent)">✓ Imported ${rowsRead.toLocaleString()} readings</div>
-        <div style="font-family:var(--mono);font-size:10px;color:var(--ink-soft);line-height:1.9;margin-top:6px">
+        <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.9;margin-top:6px">
           ${BIMONTHLY_KEYS.map((k,i) => `${k}: <b>${Math.round(bills[k]).toLocaleString()} kWh</b>${bucketDays[i].size === 0 ? '<span style="color:var(--amber)">*</span>' : ''}`).join(' · ')}<br>
           <b style="color:var(--accent)">Total: ${Math.round(total).toLocaleString()} kWh/yr</b> — anticipated full-year profile
           <br><span style="color:var(--ink-dim)">Readings in ${_unitIsKw ? 'kW (avg per 30-min interval) — converted ×0.5 to kWh' : 'kWh — used as-is'}</span>
@@ -9729,7 +9729,7 @@ function parseCsvHdf(text, filename){
     if (resultEl) resultEl.innerHTML = `
       <div class="card" style="border-color:var(--red);background:rgba(255,23,68,.06)">
         <div class="card-label" style="color:var(--red)">✗ Parse error</div>
-        <div style="font-family:var(--mono);font-size:11px;color:var(--ink-soft);margin-top:6px;line-height:1.6">${e.message}</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:6px;line-height:1.6">${e.message}</div>
       </div>`;
   }
 }
@@ -9770,7 +9770,7 @@ function renderSolarComparison(){
   const maxCost = Math.max(baseCost, noSolarCost, solarCost, 1);
   const bar = (val, color) => {
     const pct = Math.min(100, (val / maxCost) * 100);
-    return `<div style="background:${color};height:10px;border-radius:5px;width:${pct}%;min-width:4px;transition:width .3s"></div>`;
+    return `<div style="background:${color};height:10px;border-radius:4px;width:${pct}%;min-width:4px;transition:width .3s"></div>`;
   };
 
   const solarSaving = noSolarCost - solarCost;
@@ -9780,27 +9780,27 @@ function renderSolarComparison(){
     <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="font-family:var(--mono);font-size:10px;color:var(--ink-soft)">Your current plan (${baselinePlan.supplier})</span>
-          <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--ink)">${fmtCurrency(baseCost)}</span>
+          <span style="font-family:var(--mono);font-size:12px;color:var(--ink-soft)">Your current plan (${baselinePlan.supplier})</span>
+          <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--ink)">${fmtCurrency(baseCost)}</span>
         </div>
         ${bar(baseCost, 'var(--track)')}
       </div>
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="font-family:var(--mono);font-size:10px;color:var(--ink-soft)">Best plan, no solar (${noSolarScenario.bestPlanLabel.split('—')[0].trim()})</span>
-          <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--blue)">${fmtCurrency(noSolarCost)}</span>
+          <span style="font-family:var(--mono);font-size:12px;color:var(--ink-soft)">Best plan, no solar (${noSolarScenario.bestPlanLabel.split('—')[0].trim()})</span>
+          <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--blue)">${fmtCurrency(noSolarCost)}</span>
         </div>
         ${bar(noSolarCost, 'var(--blue)')}
       </div>
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="font-family:var(--mono);font-size:10px;color:var(--accent)">Best plan + solar (${best.plan.supplier})</span>
-          <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--accent)">${fmtCurrency(solarCost)}</span>
+          <span style="font-family:var(--mono);font-size:12px;color:var(--accent)">Best plan + solar (${best.plan.supplier})</span>
+          <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent)">${fmtCurrency(solarCost)}</span>
         </div>
         ${bar(solarCost, 'var(--accent)')}
       </div>
     </div>
-    <div style="margin-top:10px;padding:8px 10px;background:${solarSaving > 50 ? 'rgba(0,230,118,.06)' : 'rgba(41,182,246,.06)'};border-radius:7px;font-family:var(--mono);font-size:10px;color:var(--ink-soft);line-height:1.7">
+    <div style="margin-top:10px;padding:8px 10px;background:${solarSaving > 50 ? 'rgba(0,230,118,.06)' : 'rgba(41,182,246,.06)'};border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.7">
       ${solarSaving > 50
         ? `Solar saves you an extra <b style="color:var(--accent)">${fmtCurrency(solarSaving)}/yr</b> on top of the best no-solar plan (${fmtCurrency(noSolarCost)} → ${fmtCurrency(solarCost)})`
         : `At your usage level, the best no-solar tariff (${fmtCurrency(noSolarCost)}) closes most of the gap — solar adds <b style="color:var(--blue)">${fmtCurrency(Math.abs(solarSaving))}/yr</b> ${solarSaving >= 0 ? 'on top' : 'less than the no-solar optimum due to plan mix'}`
@@ -9821,7 +9821,7 @@ function renderMethodology(){
 
     <div class="qr-hero" style="border-color:var(--ink-soft);box-shadow:none">
       <div class="qr-eyebrow" style="color:var(--ink-soft)">Solar Optimiser</div>
-      <div style="font-family:var(--display);font-size:22px;font-weight:700;color:var(--ink)">Methodology &amp; About</div>
+      <div style="font-family:var(--display);font-size:20px;font-weight:700;color:var(--ink)">Methodology &amp; About</div>
       <div class="qr-sub">How we calculate your best electricity plan and solar payback — completely transparent.</div>
     </div>
 
@@ -9913,7 +9913,7 @@ function openLeadForm(){
       <h3>Get <em>3 installer quotes</em></h3>
       <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;line-height:1.6">SEAI-registered installers only. We match based on your spec and region. No spam — promise.</p>
 
-      <div style="background:var(--accent-faint);border:1px solid var(--accent);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-family:var(--mono);font-size:10px;color:var(--ink-soft);line-height:1.8">
+      <div style="background:var(--accent-faint);border:1px solid var(--accent);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.8">
         <b style="color:var(--accent)">Your spec:</b><br>
         ${kwp > 0 ? `${kwp.toFixed(2)} kWp · ${totalPanels ? totalPanels() : '?'} panels · ` : ''}${state.battery_kwh > 0 ? state.battery_kwh + ' kWh battery · ' : ''}Region: ${state.region || 'not set'}<br>
         SEAI grant estimate: <b style="color:var(--accent)">€${grant.total.toLocaleString()}</b>
@@ -10026,7 +10026,7 @@ function openPdfReportModal(){
         Your personalised PDF includes: plan comparison, solar payback (if modelled), SEAI grant estimate, and a switching guide.
         ${best ? `<br><br><b style="color:var(--accent)">Save ${fmtCurrency(publishableSavings())}/yr by switching to ${best.plan.supplier}${state.solar_planned ? ' (excludes your planned solar)' : ''}</b>` : ''}
       </p>
-      <div style="padding:10px 12px;background:rgba(41,182,246,.07);border-radius:8px;border:1px solid rgba(41,182,246,.25);margin-bottom:14px;font-size:11px;color:var(--ink-soft);line-height:1.65;font-family:var(--mono)">
+      <div style="padding:10px 12px;background:rgba(41,182,246,.07);border-radius:8px;border:1px solid rgba(41,182,246,.25);margin-bottom:14px;font-size:12px;color:var(--ink-soft);line-height:1.65;font-family:var(--mono)">
         ① PDF saves to your <b style="color:var(--ink)">Downloads</b> folder<br>
         ② Your <b style="color:var(--ink)">email app opens</b> pre-filled with a summary<br>
         ③ Attach the PDF and tap Send (or share it later)
