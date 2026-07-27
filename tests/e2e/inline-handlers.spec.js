@@ -38,7 +38,7 @@ test('inline handler assigning a nested state field works (Day Inspector season)
 
 test('inline handler toggling a boolean state field works (Home disclosure)', async ({ page }) => {
   const errors = await boot(page);
-  const toggle = page.getByText('More about your result');
+  const toggle = page.getByText('Show me the working');
   await toggle.scrollIntoViewIfNeeded();
   await toggle.click();
   await expect.poll(() => page.evaluate(() => !!window.state._home_detail_open)).toBe(true);

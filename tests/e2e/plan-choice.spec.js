@@ -56,7 +56,11 @@ test('choosing a plan replaces the recommendation everywhere, and clearing resto
   // computed on a non-cheapest plan can never look like our advice.
   await page.reload();
   await page.waitForFunction(() => !document.getElementById('loader'));
+  // The strip is on the default view: that is the guarantee that matters — a
+  // figure computed on a non-cheapest plan can never pass for our advice.
   await expect(page.locator('.choice-strip')).toBeVisible();
+  // The comparison names it too, one tap down in the working.
+  await page.locator('.working-toggle').click();
   await expect(page.locator('.plan-compare')).toContainText('Your chosen plan');
 
   await page.evaluate(() => window.clearChosenPlan());
@@ -139,6 +143,8 @@ test('the plan can be chosen from the solar screen, near the top', async ({ page
   expect(top, 'the plan block is missing from the solar screen').not.toBeNull();
   expect(top).toBeLessThan(900);
 
+  // Still a button on the solar screen, where it is the section's own action
+  // rather than a sibling of the primary CTA.
   await page.getByRole('button', { name: /different plan|Change plan/i }).first().click();
   await expect(page.locator('#plan-picker')).toBeVisible();
 
@@ -159,7 +165,9 @@ test('the plan can be chosen from the solar screen, near the top', async ({ page
 
 test('the picker is reachable from the result screen too', async ({ page }) => {
   const errors = await boot(page);
-  await page.getByRole('button', { name: /different plan|Change plan/i }).first().click();
+  // A link now, not a second button: two buttons of equal weight made the
+  // reader choose between choosing and acting.
+  await page.getByRole('link', { name: /different plan|Change plan/i }).first().click();
   await expect(page.locator('#plan-picker')).toBeVisible();
   const rows = await page.locator('.pp-row').count();
   const ranked = await page.evaluate(() => window.getRecommendation().ranked.length);
@@ -225,7 +233,7 @@ test('the primary action is above the fold, and the reasoning is below it', asyn
     return {
       hero: y('.qr-hero'),
       cta: y('.switch-cta'),
-      reasoning: y('.plan-compare'),
+      working: y('.working'),
       viewport: window.innerHeight,
       page: document.body.scrollHeight,
     };
@@ -234,8 +242,20 @@ test('the primary action is above the fold, and the reasoning is below it', asyn
   expect(geo.cta, 'no primary action on the home screen').not.toBeNull();
   expect(geo.cta, 'the action is below the fold').toBeLessThan(geo.viewport);
   expect(geo.cta, 'the action does not follow the headline figure').toBeGreaterThan(geo.hero);
-  expect(geo.reasoning, 'the working is above the action, not below it').toBeGreaterThan(geo.cta);
+  expect(geo.working, 'the working is above the action, not below it').toBeGreaterThan(geo.cta);
   expect(geo.cta / geo.page, 'the action sits too deep in the page').toBeLessThan(0.35);
+
+  // …and the reasoning is still all there, one tap down. The working is now
+  // collapsed by default, so "below the action" has to be checked after
+  // opening it — otherwise this test would pass on a screen that had simply
+  // deleted the justification.
+  await page.locator('.working-toggle').click();
+  const reasoning = await page.evaluate(() => {
+    const el = document.querySelector('.plan-compare');
+    return el ? el.getBoundingClientRect().top + window.scrollY : null;
+  });
+  expect(reasoning, 'the plan comparison vanished instead of moving').not.toBeNull();
+  expect(reasoning, 'the working opened above the action').toBeGreaterThan(geo.cta);
   expect(errors).toEqual([]);
 });
 
@@ -257,6 +277,10 @@ test('the report is promoted, and the novelty tile is gone', async ({ page }) =>
 
 test('the health score names its weakest factor instead of just scoring you', async ({ page }) => {
   const errors = await boot(page);
+  // The score moved behind "Show me the working" — it is context, not the
+  // answer, and a number the reader cannot act on has no claim on the fold.
+  // It still has to name the weakest factor wherever it lives.
+  await page.locator('.working-toggle').click();
   const card = page.locator('text=Energy health score').locator('..').locator('..');
   await expect(card).toContainText(/Weakest:|Little left on the table/);
   expect(errors).toEqual([]);

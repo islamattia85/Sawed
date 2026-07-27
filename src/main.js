@@ -4500,117 +4500,114 @@ function renderResult(){
     ? `${totalKwp().toFixed(1)} kWp ${state.solar_planned ? 'planned solar' : 'solar'}${state.battery_kwh > 0 ? ' + ' + state.battery_kwh + ' kWh battery' : ''}`
     : 'no solar yet';
 
+  /**
+   * The screen answers one question and offers one action.
+   *
+   * It used to open with an amber warning about data freshness — an apology
+   * above the answer — then state the saving and immediately hedge it four
+   * times: usage assumptions, "estimated from your bill", an import nudge, and
+   * three config chips, all before the button. Below that sat ten cards of
+   * near-identical weight, so the reader had to build the hierarchy themselves.
+   * That is what a calculator does: it shows every register at once.
+   *
+   * Now there are three tiers and nothing else. The answer, the action, and one
+   * door marked "Show me the working". Nothing is deleted; the caveats, the
+   * comparison, the breakdown, the score and the assumptions all live behind
+   * that door, one tap away. Honesty stays; it stops being the first thing in
+   * the reader's way.
+   */
+  const chosen = state.chosen_plan === best.plan.id;
+  const split = plannedSolarSplit();
+
   return `${topbar('Solar Optimiser', 'accent')}
   <div class="screen">
-    ${renderStalenessBanner()}
     <div class="qr-hero">
-      <div class="qr-eyebrow">You could save</div>
+      <div class="qr-eyebrow">${annualSavings > 10 ? 'You could save' : 'Your best plan'}</div>
       <div class="qr-value" data-countup="${Math.round(annualSavings)}" data-prefix="€"><span data-countup-num>${fmtCurrency(annualSavings)}</span><span class="qr-value-unit">/yr</span></div>
-      <div class="qr-headline">by switching to a better electricity plan</div>
-      ${(() => {
-        const split = plannedSolarSplit();
-        if (!split) return '';
-        return `<div style="margin:8px auto 0;padding:8px 14px;background:rgba(255,145,0,.08);border:1px solid var(--amber);border-radius:8px;display:inline-block">
-          <div style="font-family:var(--mono);font-size:12px;color:var(--ink);line-height:1.7">
-            Switch today: <b>${fmtCurrency(split.switchNow)}/yr</b> · your <b>planned</b> solar adds <b>+${fmtCurrency(split.withPlanned)}/yr</b> once installed
-          </div>
-        </div>`;
-      })()}
-      <div class="qr-sub">Based on ${Math.round(Object.values(state.bills).reduce((a,b)=>a+b,0)).toLocaleString()} kWh/yr usage · ${state.heating_type} heating · ${setupLabel}</div>
-      ${!state._csv_imported ? `<div style="margin-top:7px;font-family:var(--mono);font-size:12px;color:var(--ink-dim);line-height:1.6;text-align:center">
-        ${ic('info',11)} Estimated from your bill —
-        <a href="#" onclick="event.preventDefault(); setScreen('csv-import')" style="color:var(--accent);text-decoration:underline;white-space:nowrap">import smart-meter data</a>
-        for precise results.
-      </div>` : `<div style="margin-top:7px;font-family:var(--mono);font-size:12px;color:var(--accent);line-height:1.6;display:flex;align-items:center;gap:5px;justify-content:center">${ic('checkC',11)} Based on your real smart-meter data</div>`}
-      ${configChips()}
+      <div class="qr-headline">${chosen ? 'on the plan you picked — ' : 'by switching to '}${best.plan.supplier}</div>
+      ${split ? `
+        <!-- Load-bearing, not a caveat: without it the headline credits panels
+             that are not on the roof yet. -->
+        <div class="qr-split">
+          <b>${fmtCurrency(split.switchNow)}/yr</b> today, <b>+${fmtCurrency(split.withPlanned)}/yr</b> once your solar is installed
+        </div>` : ''}
     </div>
 
-    <!-- The action sits directly under the headline figure. It used to be at
-         53% of page depth, behind the disclosure, the plan comparison and the
-         savings breakdown — a reader who had already accepted the advice at
-         the top had to scroll past three layers of justification to act on it.
-         The working is still here, below the decision rather than in front of
-         it: available, not compulsory. -->
     <button class="switch-cta" onclick="handleSwitchClick('${best.plan.id}', '${(best.plan.supplier + ' ' + best.plan.plan).replace(/'/g,"\\'")}', ${annualSavings.toFixed(0)})">
       Switch to ${best.plan.supplier} →
     </button>
-    <button class="btn-secondary" style="margin-bottom:6px" onclick="openPlanPicker()">
-      ${ic('tune',14)} ${state.chosen_plan ? 'Change plan' : 'Use a different plan'}
-    </button>
-    ${annualSavings > 10 ? `<div style="text-align:center;margin:2px 0 8px">
-      <span onclick="setScreen('how-to-switch')" style="display:inline-block;padding:8px 10px;font-size:12px;font-weight:600;color:var(--ink-soft);text-decoration:underline;text-underline-offset:3px;cursor:pointer">How switching works — takes ~10 minutes</span>
-    </div>` : ''}
-    <div class="switch-cta-sub">Independent and free. We take nothing from suppliers — the ranking is your simulated cost, nothing else.</div>
 
-    ${renderTrustPanel()}
+    <!-- Two links, not two buttons. A second button of equal weight makes the
+         reader choose between choosing and acting. -->
+    <div class="qr-actions">
+      <a href="#" onclick="event.preventDefault();openPlanPicker()">${state.chosen_plan ? 'Change plan' : 'Pick a different plan'}</a>
+      ${annualSavings > 10 ? `<span class="qr-actions-dot">·</span>
+      <a href="#" onclick="event.preventDefault();setScreen('how-to-switch')">How switching works</a>` : ''}
+    </div>
+
+    ${freshnessChip()}
     ${renderContractAlert()}
     ${state.chosen_plan ? renderChoiceStrip() : ''}
 
-    <div class="plan-compare">
-      <div class="plan-row current">
-        <div>
-          <div class="plan-label">${state.baseline_known ? 'Your current plan' : 'Estimated baseline'}</div>
-          <div class="plan-value">${baselinePlan.supplier} — ${baselinePlan.plan}${!state.baseline_known ? ' <span style="font-size:12px;color:var(--ink-dim);font-family:var(--mono)">(not confirmed)</span>' : ''}</div>
-        </div>
-        <div class="plan-amount">${fmtCurrency(baseCost)}/yr</div>
-      </div>
-      <div class="plan-row best">
-        <div>
-          <div class="plan-label">${state.chosen_plan === best.plan.id ? '→ Your chosen plan' : '→ Switch to'}</div>
-          <div class="plan-value">${best.plan.supplier} — ${best.plan.plan}</div>
-        </div>
-        <div class="plan-amount">${best.net <= 0 ? 'Net earner' : fmtCurrency(best.net)+'/yr'}</div>
-      </div>
-      ${(() => {
-        // P0.3: symmetric netting labels — both figures are on the same basis (gross import
-        // cost + standing − export revenue). Label export income explicitly when it's material
-        // so users aren't confused by the offset.
-        if (best.net <= 0){
-          return `<div style="font-family:var(--mono);font-size:12px;color:var(--accent);margin-top:4px;letter-spacing:.03em">${ic('checkC',11)} Your system more than covers your usage — you'd earn about ${fmtCurrency(Math.round(Math.abs(best.net)))}/yr net from export income</div>`;
-        }
-        const exportRev = Math.round(best.export_revenue || 0);
-        if (state.has_solar && exportRev > 50){
-          return `<div style="font-family:var(--display);font-size:12px;color:var(--ink-dim);margin-top:6px;letter-spacing:.03em;line-height:1.6">
-            Both figures: electricity cost + standing − export income. Export credit on this plan: <b style="color:var(--ink)">${fmtCurrency(exportRev)}/yr</b> (${fmtCent(best.plan.export_rate)}/kWh).
-          </div>`;
-        }
-        return '';
-      })()}
-    </div>
-
-    ${renderSavingsBreakdown(best, baseCost)}
-
-    ${renderEnergyScore(best, baseCost)}
-
     ${(() => {
-      // Everything that answers "how did you work that out?" rather than
-      // "what should I do?" — one tap away instead of in the default scroll.
-      const detail = renderLogicBreakdown() + renderNightRateCard(best, baseCost) + renderEvSavingsCard(best);
-      if (!detail.trim()) return '';
+      // One door. Everything answering "how did you work that out?" is behind
+      // it — including the parts that used to be the loudest things on screen.
       const open = !!state._home_detail_open;
-      return `<div style="margin-top:14px">
-        <button onclick="state._home_detail_open=!state._home_detail_open;saveState();renderApp()"
-          style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:14px 16px;border-radius:12px;border:1px solid var(--hair);background:var(--surface);box-shadow:var(--lift);cursor:pointer;font-family:var(--display)">
-          <span style="display:flex;align-items:center;gap:12px">
-            ${ic('flask',19)}
-            <span style="text-align:left">
-              <span style="display:block;font-size:15px;font-weight:700;color:var(--ink)">More about your result</span>
-              <span style="display:block;font-size:12px;color:var(--ink-soft);margin-top:2px">Our working, night-rate options${state.ev_active ? ', EV vs petrol' : ''}</span>
-            </span>
-          </span>
-          <span style="color:var(--ink-soft);font-size:17px;transform:rotate(${open ? '90' : '0'}deg);transition:transform .2s">›</span>
+      const working = `
+        <div class="plan-compare">
+          <div class="plan-row current">
+            <div>
+              <div class="plan-label">${state.baseline_known ? 'Your current plan' : 'Estimated baseline'}</div>
+              <div class="plan-value">${baselinePlan.supplier} — ${baselinePlan.plan}${!state.baseline_known ? ' <span style="font-size:12px;color:var(--ink-dim)">(not confirmed)</span>' : ''}</div>
+            </div>
+            <div class="plan-amount">${fmtCurrency(baseCost)}/yr</div>
+          </div>
+          <div class="plan-row best">
+            <div>
+              <div class="plan-label">${chosen ? '→ Your chosen plan' : '→ Switch to'}</div>
+              <div class="plan-value">${best.plan.supplier} — ${best.plan.plan}</div>
+            </div>
+            <div class="plan-amount">${best.net <= 0 ? 'Net earner' : fmtCurrency(best.net)+'/yr'}</div>
+          </div>
+          ${(() => {
+            // Both figures are on the same basis (gross import cost + standing
+            // − export revenue). Say so when export is material, so the offset
+            // is not read as an error.
+            if (best.net <= 0){
+              return `<div style="font-size:13px;color:var(--accent);margin-top:6px;line-height:1.6">${ic('checkC',11)} Your system more than covers your usage — you'd earn about ${fmtCurrency(Math.round(Math.abs(best.net)))}/yr net from export income</div>`;
+            }
+            const exportRev = Math.round(best.export_revenue || 0);
+            if (state.has_solar && exportRev > 50){
+              return `<div style="font-size:13px;color:var(--ink-dim);margin-top:6px;line-height:1.6">
+                Both figures: electricity cost + standing − export income. Export credit on this plan: <b style="color:var(--ink)">${fmtCurrency(exportRev)}/yr</b> (${fmtCent(best.plan.export_rate)}/kWh).
+              </div>`;
+            }
+            return '';
+          })()}
+        </div>
+        ${renderSavingsBreakdown(best, baseCost)}
+        ${renderAssumptions(setupLabel)}
+        ${renderTrustPanel()}
+        ${renderLogicBreakdown()}
+        ${renderNightRateCard(best, baseCost)}
+        ${renderEvSavingsCard(best)}
+        ${renderEnergyScore(best, baseCost)}`;
+
+      return `<div class="working">
+        <button class="working-toggle" aria-expanded="${open}" onclick="state._home_detail_open=!state._home_detail_open;saveState();renderApp()">
+          <span class="working-toggle-label">${ic('flask',18)} Show me the working</span>
+          <span class="working-toggle-hint">${open ? 'Hide' : `Both plans, where the ${fmtCurrency(annualSavings)} comes from, and every assumption`}</span>
+          <span class="working-toggle-chev" style="transform:rotate(${open ? '90' : '0'}deg)">›</span>
         </button>
-        ${open ? `<div style="margin-top:10px">${detail}</div>` : ''}
+        ${open ? `<div class="working-body">${working}</div>` : ''}
       </div>`;
     })()}
-
-    <div class="section-title">Save me money</div>
 
     <div class="secondary-card blue" onclick="setScreen('plans')">
       <div class="secondary-card-icon">${ic('chart',19)}</div>
       <div class="secondary-card-body">
-        <div class="secondary-card-title">See all ${TARIFFS.length} plans ranked</div>
-        <div class="secondary-card-sub">Compare every Irish residential tariff against your usage</div>
+        <div class="secondary-card-title">See all ${TARIFFS.filter(isRankablePlan).length} plans ranked</div>
+        <div class="secondary-card-sub">Every Irish tariff, priced on your usage</div>
       </div>
       <div class="secondary-card-arrow">›</div>
     </div>
@@ -4619,8 +4616,8 @@ function renderResult(){
       <div class="secondary-card amber" onclick="setScreen('solar')">
         <div class="secondary-card-icon">${ic('sun',19)}</div>
         <div class="secondary-card-body">
-          <div class="secondary-card-title">Your solar payback details</div>
-          <div class="secondary-card-sub">Payback, free optimisations, hardware advisor</div>
+          <div class="secondary-card-title">Your solar payback</div>
+          <div class="secondary-card-sub">What your roof returns, and when it pays back</div>
         </div>
         <div class="secondary-card-arrow">›</div>
       </div>
@@ -4628,14 +4625,12 @@ function renderResult(){
       <div class="secondary-card amber" onclick="exploreSolar()">
         <div class="secondary-card-icon">${ic('sun',19)}</div>
         <div class="secondary-card-body">
-          <div class="secondary-card-title">Model a solar + battery system</div>
-          <div class="secondary-card-sub">See real payback for your home + best plan together</div>
+          <div class="secondary-card-title">Is solar worth it here?</div>
+          <div class="secondary-card-sub">Your roof, your tariff, real payback</div>
         </div>
         <div class="secondary-card-arrow">›</div>
       </div>
     `}
-
-    <div class="section-title">This result</div>
 
     <!-- The report is the most differentiated thing the product makes: ten
          typeset pages of year-scale analysis from the same hourly simulation.
@@ -4653,7 +4648,7 @@ function renderResult(){
       </div>
       <div class="report-promo-body">
         <div class="report-promo-title">Your full report, as a PDF</div>
-        <div class="report-promo-sub">Ten typeset pages: month-by-month energy and money, four seasonal days hour by hour, where every unit of your bill goes, and the twenty-year position.</div>
+        <div class="report-promo-sub">Ten typeset pages — your year, hour by hour, and the twenty-year position.</div>
         <div class="report-promo-cta">Generate the report →</div>
       </div>
     </div>
@@ -4668,10 +4663,53 @@ function renderResult(){
     </div>
 
     <p class="disclaimer">
-      <b>How we estimate.</b> We ${state._csv_imported ? 'used your imported smart meter CSV data' : `back-calculated your kWh from your €${state.bimonthly_bill_eur} bimonthly bill and applied a ${state.heating_type} load shape`}. Edit anything in <a onclick="setScreen('refine')" style="cursor:pointer;padding:12px 6px;margin:-12px -6px;display:inline-block">Settings</a> for more accuracy. <a onclick="setScreen('methodology')" style="cursor:pointer;padding:12px 6px;margin:-12px -6px;display:inline-block">About our methodology →</a>
+      Independent and free — we take nothing from suppliers.
+      <a onclick="setScreen('methodology')" style="cursor:pointer;padding:12px 6px;margin:-12px -6px;display:inline-block">How we work it out →</a>
     </p>
   </div>
   ${bottomNav()}`;
+}
+
+/**
+ * Freshness as an object rather than a paragraph.
+ *
+ * This was a five-line amber banner sitting above the answer — the first thing
+ * a new reader met was an apology about our data. The honesty is worth keeping;
+ * it is the reason a stale-rate problem was ever visible. But a dot and four
+ * words carry it, and they carry it *after* the answer instead of in front of
+ * it. Tapping still opens the per-plan dates.
+ */
+function freshnessChip(){
+  const stale = checkTariffStaleness();
+  const label = stale
+    ? `Rates last checked ${stale.days} days ago`
+    : `Rates verified ${fmtVerifiedDate(latestVerifiedDate())}`;
+  return `<button class="fresh-chip ${stale ? 'is-stale' : ''}" onclick="setScreen('plans')">
+    <span class="fresh-dot" aria-hidden="true"></span>${label}<span class="fresh-chev">›</span>
+  </button>`;
+}
+
+function latestVerifiedDate(){
+  const dates = (TARIFFS || []).map(t => t.verified_date).filter(Boolean).sort();
+  return dates.length ? dates[dates.length - 1] : null;
+}
+
+/** The inputs behind the figure — moved off the hero, kept in full. */
+function renderAssumptions(setupLabel){
+  const kwh = Math.round(Object.values(state.bills || {}).reduce((a,b)=>a+b,0));
+  return `<div class="card" style="margin-bottom:14px">
+    <div class="card-label">${ic('info',13)} What this is based on</div>
+    <div style="margin-top:10px;font-size:15px;color:var(--ink-soft);line-height:1.7">
+      ${kwh.toLocaleString()} kWh a year · ${state.heating_type} heating · ${setupLabel}
+    </div>
+    <div style="margin-top:8px;font-size:13px;color:var(--ink-dim);line-height:1.6">
+      ${state._csv_imported
+        ? `Taken from the smart-meter data you imported.`
+        : `Estimated from your €${state.bimonthly_bill_eur} bimonthly bill.
+           <a href="#" onclick="event.preventDefault();setScreen('csv-import')" style="color:var(--accent)">Import smart-meter data</a> for exact figures.`}
+    </div>
+    ${configChips()}
+  </div>`;
 }
 
 // Typical 2026 Irish install price for a spec — same benchmarks the quote
@@ -5875,17 +5913,40 @@ function renderPlans(){
 
   const cmpSel = Array.isArray(state._cmp_plans) ? state._cmp_plans : [];
 
+  /**
+   * The shortlist, then the archive.
+   *
+   * This screen was 5.6 phone-screens of twenty-five near-identical dense rows,
+   * each carrying rank, supplier, plan, price, delta, category, export rate,
+   * verified date and a Compare button. Nobody reads plan #19. Presenting it
+   * with the same weight as #1 is not neutrality, it is refusing to have an
+   * opinion — and it makes the product a spreadsheet with a filter bar.
+   *
+   * So: the plans worth considering are shown, and the rest are one tap away
+   * for the reader who genuinely wants to audit the ranking. Filters and sort
+   * are unchanged, and reveal the full list as soon as either is used, because
+   * someone who has just filtered to "EV" is asking to see all of them.
+   */
+  const SHORTLIST = 5;
+  const showingAll = !!state._plans_all || f !== 'all' || sortBy !== 'cost';
+  const visible = showingAll ? filtered : filtered.slice(0, SHORTLIST);
+  const hidden = filtered.length - visible.length;
+
   return `${topbar('All plans ranked', 'blue', true)}
   <div class="screen">
+    <!-- The banner belongs here, not on the home screen. This is where the chip
+         on the answer leads, and where the per-plan dates are: the screen for
+         someone who has asked how current the rates are. Putting the compact
+         chip here instead left a control that linked to the screen it was
+         already on, and dropped the detail the reader came for. -->
     ${renderStalenessBanner()}
 
-    <div class="plans-context">
-      <div><span class="plans-context-label">Ranking for</span><b>${annualKwh.toLocaleString()} kWh/yr</b> · <b>${state.heating_type}</b> heating · ${ic('pin',11)} <b>${region.name}</b></div>
-      <div style="margin-top:3px"><span class="plans-context-label">System</span>${state.has_solar ? `<b>${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ' + ' + state.battery_kwh + ' kWh battery' : ''}</b>` : '<b>no solar</b>'} · ${state.ev_active ? `<b style="color:var(--amber)">EV ${(state.ev_km_per_year || 0).toLocaleString()} km/yr</b>` : 'no EV'}</div>
-      ${latestVerifiedLabel() ? `<div class="plan-verified" style="margin-top:6px">Rates verified ${latestVerifiedLabel()} · ${TARIFFS.filter(t=>!t.discontinued).length} active plans</div>` : ''}
-    </div>
-
     ${renderChoiceStrip()}
+
+    <div class="plans-context">
+      Priced on <b>${annualKwh.toLocaleString()} kWh/yr</b> · <b>${state.heating_type}</b> heating · <b>${region.name}</b>${state.has_solar ? ` · <b>${totalKwp().toFixed(1)} kWp</b>${state.battery_kwh > 0 ? ` + <b>${state.battery_kwh} kWh</b>` : ''}` : ''}${state.ev_active ? ' · <b>EV</b>' : ''}
+      ${latestVerifiedLabel() ? `<div class="plan-verified" style="margin-top:5px">Rates verified ${latestVerifiedLabel()} · ${ranked.length} active plans</div>` : ''}
+    </div>
 
     <div class="plans-sort">
       <span class="plans-sort-label">Sort</span>
@@ -5906,7 +5967,7 @@ function renderPlans(){
       <div style="padding:30px 20px;text-align:center;color:var(--ink-soft);font-family:var(--display);font-size:12px;letter-spacing:.02em">
         No plans in this category match. Try a different filter.
       </div>
-    ` : filtered.map((r, i) => {
+    ` : visible.map((r, i) => {
       const globalRank = ranked.indexOf(r) + 1;
       const isBest = globalRank === 1 && f === 'all';
       const isCurrent = r.plan.id === state.baseline;
@@ -5915,17 +5976,6 @@ function renderPlans(){
       const rankClass = isChosen ? 'chosen' : isBest ? 'best' : isCurrent ? 'current' : '';
       const saving = baseCost - r.cost;
 
-      let rateSummary;
-      if (isFlatPlan(r.plan)){
-        rateSummary = `Flat ${fmtCent(r.plan.rates.day)}/kWh`;
-      } else if (r.plan.rates.ev && r.plan.rates.ev !== r.plan.rates.night){
-        rateSummary = `EV ${fmtCent(r.plan.rates.ev)} · Night ${fmtCent(r.plan.rates.night)} · Day ${fmtCent(r.plan.rates.day)}`;
-      } else if (r.plan.rates.night && r.plan.rates.night !== r.plan.rates.day){
-        rateSummary = `Night ${fmtCent(r.plan.rates.night)} · Day ${fmtCent(r.plan.rates.day)}`;
-      } else {
-        rateSummary = `Day ${fmtCent(r.plan.rates.day)}/kWh`;
-      }
-
       return `<div class="plan-card ${cardClass}" onclick="showPlanDetail('${r.plan.id}')">
         <div class="plan-card-header">
           <div style="display:flex;align-items:flex-start;gap:10px;flex:1;min-width:0">
@@ -5933,8 +5983,12 @@ function renderPlans(){
             <div style="flex:1;min-width:0">
               <div class="plan-supplier">${r.plan.supplier}${r.plan._is_edited ? ' <span style="color:var(--amber);font-size:12px;font-family:var(--mono);letter-spacing:.06em">EDITED</span>' : ''}</div>
               <div class="plan-name">${r.plan.plan}</div>
-              <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:4px;letter-spacing:.02em">${planCategoryLabel(r.cat)}${r.plan.export_rate ? ' · Export ' + fmtCent(r.plan.export_rate) : ''}</div>
-              ${r.onHold ? `<div style="font-family:var(--display);font-size:12px;color:#8AB4F8;margin-top:4px;letter-spacing:.03em">ON HOLD — wholesale price, too unpredictable to rank</div>` : ''}
+              <!-- The band rates and export figure live on the plan's own
+                   screen. Repeated on every row they made twenty-five cards
+                   look identical at a glance, which is the opposite of what a
+                   ranking is for. -->
+              <div style="font-size:13px;color:var(--ink-dim);margin-top:4px">${planCategoryLabel(r.cat)}${state.has_solar && r.plan.export_rate ? ' · export ' + fmtCent(r.plan.export_rate) : ''}</div>
+              ${r.onHold ? `<div style="font-size:13px;color:#8AB4F8;margin-top:4px">On hold — wholesale price, too unpredictable to rank</div>` : ''}
             </div>
           </div>
           <div style="flex-shrink:0;text-align:right">
@@ -5959,6 +6013,12 @@ function renderPlans(){
       </div>`;
     }).join('')}
 
+    ${hidden > 0 ? `
+      <button class="plans-more" onclick="state._plans_all=true;renderApp()">
+        Show the other ${hidden} plan${hidden > 1 ? 's' : ''}
+        <span class="plans-more-sub">Ranked the same way, just further down</span>
+      </button>` : ''}
+
     ${cmpSel.length ? `
       <div class="cmp-tray">
         <div class="cmp-tray-text">${cmpSel.length} selected${cmpSel.length === 1 ? ' — pick one more' : ''}</div>
@@ -5967,7 +6027,7 @@ function renderPlans(){
       </div>` : ''}
 
     <p class="disclaimer">
-      <b>How we rank.</b> Each plan simulated hour-by-hour against your usage profile. We include energy, standing charge, and CEG export revenue. Tap any plan to see full rates &amp; edit. Rates verified June 2026, incl. VAT.
+      Every plan simulated hour by hour on your usage — energy, standing charge and export income. Tap any plan for its rates.
     </p>
   </div>
   ${bottomNav()}`;

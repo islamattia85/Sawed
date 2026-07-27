@@ -64,9 +64,17 @@ test('the result screen never claims every plan was checked when they were not',
   if (a.oldest > 45) {
     expect(text, 'stale data is being presented as a clean bill of health')
       .not.toMatch(/Every plan re-checked/i);
-    expect(text).toMatch(/Oldest rate check/i);
+    // The age must be legible on the default view — not behind a disclosure,
+    // and not softened to "recently". It used to be a five-line amber banner
+    // above the answer; it is now a chip below it. Either is honest. Silence,
+    // or a figure the reader has to go looking for, is not.
+    const chip = page.locator('.fresh-chip');
+    await expect(chip, 'nothing on the result screen discloses the rate age').toBeVisible();
+    await expect(chip, 'the staleness is disclosed without saying how stale')
+      .toContainText(/\d+ days ago/i);
+    await expect(chip).toHaveClass(/is-stale/);
   } else {
-    expect(text).toMatch(/Every plan re-checked/i);
+    await expect(page.locator('.fresh-chip')).not.toHaveClass(/is-stale/);
   }
 });
 

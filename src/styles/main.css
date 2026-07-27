@@ -287,6 +287,33 @@
   .qr-value-unit{font-size:17px;color:var(--ink-soft);font-weight:500;margin-left:6px;font-family:var(--display);letter-spacing:0}
   .qr-headline{font-size:17px;font-weight:600;line-height:1.3;color:var(--ink);margin-top:14px;letter-spacing:-.015em}
   .qr-sub{font-size:13px;color:var(--ink-soft);margin-top:8px;line-height:1.5}
+  /* The one qualifier that changes what the headline means, so it stays with
+     it. Everything else moved behind the working. */
+  .qr-split{margin-top:12px;padding:9px 14px;background:var(--amber-soft,rgba(255,145,0,.08));border:1px solid var(--amber);border-radius:var(--radius-md);font-size:13px;line-height:1.6;color:var(--ink);display:inline-block}
+
+  /* Two links, not two buttons — a second button of equal weight makes the
+     reader choose between choosing and acting. */
+  .qr-actions{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin:2px 0 14px}
+  .qr-actions a{font-size:15px;font-weight:600;color:var(--ink-soft);text-decoration:underline;text-underline-offset:3px;padding:12px 6px;cursor:pointer}
+  .qr-actions a:hover{color:var(--ink)}
+  .qr-actions-dot{color:var(--ink-dim)}
+
+  /* Freshness as an object, not a paragraph. Was a five-line amber banner above
+     the answer; the first thing a reader met was an apology about our data. */
+  .fresh-chip{display:flex;align-items:center;gap:8px;width:100%;padding:11px 14px;margin-bottom:14px;background:var(--surface);border:1px solid var(--hair);border-radius:var(--radius-pill);font-family:inherit;font-size:13px;color:var(--ink-soft);cursor:pointer;text-align:left}
+  .fresh-chip:hover{border-color:var(--line)}
+  .fresh-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
+  .fresh-chip.is-stale .fresh-dot{background:var(--amber)}
+  .fresh-chip.is-stale{color:var(--ink)}
+  .fresh-chev{margin-left:auto;color:var(--ink-dim);font-size:17px}
+
+  /* One door for everything that answers "how did you work that out?" */
+  .working{margin-bottom:14px}
+  .working-toggle{display:grid;grid-template-columns:1fr auto;align-items:center;width:100%;padding:16px;border-radius:var(--radius-lg);border:1px solid var(--hair);background:var(--surface);box-shadow:var(--lift);cursor:pointer;font-family:inherit;text-align:left;gap:2px 12px}
+  .working-toggle-label{grid-column:1;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;color:var(--ink)}
+  .working-toggle-hint{grid-column:1;font-size:13px;color:var(--ink-soft);line-height:1.5}
+  .working-toggle-chev{grid-column:2;grid-row:1 / span 2;color:var(--ink-soft);font-size:17px;transition:transform .2s}
+  .working-body{margin-top:12px}
 
   /* Plan comparison block */
   .plan-compare{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px}
@@ -406,7 +433,9 @@
   .modal-privacy{font-size:12px;color:var(--ink-dim);text-align:center;margin-top:10px;font-family:var(--mono);letter-spacing:.04em;line-height:1.5}
 
   /* Disclaimer */
-  .disclaimer{margin-top:24px;padding:14px 16px;font-size:12px;color:var(--ink-soft);line-height:1.55;font-family:var(--mono);border:1px solid var(--line);border-radius:8px;background:rgba(130,146,137,.04)}
+  /* Prose, so it is set in the prose face. Monospace on a sentence reads as
+     terminal output and makes the whole surface feel like machine exhaust. */
+  .disclaimer{margin-top:24px;padding:14px 16px;font-size:13px;color:var(--ink-soft);line-height:1.6;border:1px solid var(--line);border-radius:var(--radius-md);background:rgba(130,146,137,.04)}
 
   /* Staleness banner — shown when tariff data is >45 days old */
   .staleness-banner{display:flex;gap:12px;align-items:flex-start;background:rgba(255,145,0,.08);border:1px solid rgba(255,145,0,.4);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--ink);line-height:1.55}
@@ -496,7 +525,15 @@
   .trust-sources{font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:10px;letter-spacing:.04em;line-height:1.6;text-align:center}
 
   /* Plans filter pills + context strip */
-  .plans-context{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin-bottom:10px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.02em;line-height:1.7}
+  /* One line, in the prose face. It was a three-line monospace block restating
+     the whole setup before the reader had seen a single plan. */
+  .plans-context{padding:0 2px 10px;font-size:13px;color:var(--ink-soft);line-height:1.6}
+  .plans-context b{color:var(--ink);font-weight:600}
+
+  /* The rest of the ranking, for whoever wants to audit it. */
+  .plans-more{display:block;width:100%;padding:15px 16px;margin:4px 0 14px;border-radius:var(--radius-lg);border:1px solid var(--hair);background:var(--surface);font-family:inherit;font-size:15px;font-weight:600;color:var(--ink);cursor:pointer;text-align:center}
+  .plans-more:hover{border-color:var(--line)}
+  .plans-more-sub{display:block;font-size:13px;font-weight:400;color:var(--ink-soft);margin-top:3px}
   .plans-context-label{color:var(--blue);text-transform:uppercase;letter-spacing:.1em;font-weight:700;font-size:12px;margin-right:4px}
   .plans-context b{color:var(--ink);font-weight:600}
   .plans-filters{display:flex;gap:5px;margin-bottom:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
@@ -653,7 +690,7 @@
   .report-promo-body{flex:1;min-width:0}
   .report-promo-title{font-size:17px;font-weight:700;color:var(--ink);line-height:1.25}
   .report-promo-sub{font-size:13px;color:var(--ink-soft);line-height:1.5;margin-top:5px}
-  .report-promo-cta{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.03em;margin-top:9px}
+  .report-promo-cta{font-size:15px;font-weight:700;color:var(--accent);margin-top:9px}
 
   /* Manual plan choice — the plan the user decided to go with, overriding rank */
   .plan-card.chosen{border-color:var(--amber);background:linear-gradient(140deg,var(--panel) 0%,var(--panel-2) 100%)}
