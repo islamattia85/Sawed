@@ -1717,6 +1717,94 @@ function arbitrageOn(){
 }
 
 /* ============================================================
+   8b. SIMULATING A HYPOTHETICAL WITHOUT LOSING THE USER'S STATE
+   ============================================================
+
+   Half the app's value comes from answering "what if?" — what if there were no
+   panels, what if the battery were bigger, what if this lever were flipped. The
+   engine reads global state, so every one of those questions is asked by
+   mutating `state`, simulating, and putting it back.
+
+   Putting it back was done by hand, at five call sites, each with its own list
+   of fields to save. That produced the same bug twice:
+
+     · generating a report permanently switched the battery to self-consume,
+       because a lever set battery_kwh to 0 and the sanitiser rewrote the
+       strategy, which the lever's snapshot did not include;
+     · arbitrage switched itself off while the reader clicked around, because
+       the design sweep and the recommended-system search zero the battery too,
+       and their snapshots did not include it either.
+
+   Both were a field somebody forgot. A hand-written list per call site means
+   four chances to forget and no way to notice: the restore silently succeeds,
+   and the user's setting is simply gone.
+
+   One list, used everywhere. Adding a field to state means adding it here once.
+   ============================================================ */
+
+/**
+ * Every field the engine reads, or that the sanitiser may rewrite, while a
+ * hypothetical is being simulated.
+ *
+ * Deliberately broader than any one call site needs. Restoring a field that
+ * never changed costs nothing; failing to restore one costs the user's setting.
+ */
+const SIM_FIELDS = [
+  'has_solar', 'solar_planned', 'count_A', 'count_B',
+  'azimuth_A', 'azimuth_B', 'tilt_A', 'tilt_B', 'panel_w', 'panel_degradation',
+  'battery_kwh', 'strategy_mode', 'charge_from_grid',
+  'install_cost', 'grant_seai',
+  'ev_active', 'ev_in_bill', 'ev_km_per_year', 'ev_kwh_per_100km',
+  'heating_type', 'hot_water_strategy', 'region',
+  'baseline', 'baseline_discount_pct', 'chosen_plan', 'include_dynamic',
+  'bills', 'annual_kwh', 'usage_input_mode', 'bimonthly_bill_eur',
+  // Economic inputs. coerceNumericState() writes every numeric field back on
+  // each invalidate, so a hypothetical touches these whether it meant to or
+  // not — sim-state.spec.js caught fuel_price missing from this list.
+  'fuel_price', 'ice_l_per_100km', 'ev_km', 'ev_eff',
+  '_ghi_override',
+];
+
+/**
+ * A copy of the simulation state.
+ *
+ * Shallow, which is what the hand-written versions were: `bills` is captured by
+ * reference, so a trial must replace it rather than mutate it in place. Every
+ * current caller does.
+ */
+function snapshotSim(){
+  const snap = {};
+  for (const k of SIM_FIELDS) snap[k] = state[k];
+  return snap;
+}
+
+function restoreSim(snap){
+  Object.assign(state, snap);
+}
+
+/**
+ * Run `fn` with `changes` applied to state, then restore everything.
+ *
+ * The restore runs in a finally block: a parser throwing halfway through a
+ * hypothetical must not leave the user looking at a home they do not own.
+ */
+function withSimState(changes, fn){
+  const snap = snapshotSim();
+  _scenarioDepth += 1;
+  try {
+    if (changes) Object.assign(state, changes);
+    invalidate();
+    rebuildBase();
+    return fn();
+  } finally {
+    _scenarioDepth -= 1;
+    restoreSim(snap);
+    invalidate();
+    rebuildBase();
+  }
+}
+
+/* ============================================================
    9. EV ECONOMICS
    ============================================================ */
 function evEconomics(planId){
@@ -1744,17 +1832,7 @@ function evEconomics(planId){
    so we can compare with/without solar AND with/without EV.
    ============================================================ */
 function runScenario(hasSolar, hasEv){
-  // Snapshot
-  const snap = {
-    count_A: state.count_A,
-    count_B: state.count_B,
-    battery_kwh: state.battery_kwh,
-    has_solar: state.has_solar,
-    ev_active: state.ev_active,
-    ev_km_per_year: state.ev_km_per_year,
-    strategy_mode: state.strategy_mode,
-    charge_from_grid: state.charge_from_grid
-  };
+  const snap = snapshotSim();
   // Mutate state to scenario
   if (!hasSolar){
     state.count_A = 0;
@@ -1831,7 +1909,7 @@ function runScenario(hasSolar, hasEv){
     evElectricityCost: hasEv ? (evEconomics(best.plan.id)?.evElectricityCost || 0) : 0
   };
   // Restore + rebuild so the global CACHE matches the user's actual state
-  Object.assign(state, snap);
+  restoreSim(snap);
   invalidate();
   rebuildBase();
   return result;
@@ -2081,13 +2159,9 @@ function plannedSolarSplit(){
   const baseCost = sumF(baselineSim(state.baseline).cost) + basePlan.standing;
   // No-solar best computed with a direct, minimal snapshot — rebuilt in the
   // same pass so it can never read a stale per-plan sim cache.
-  const snap = { count_A: state.count_A, count_B: state.count_B,
-                 battery_kwh: state.battery_kwh, has_solar: state.has_solar };
-  state.count_A = 0; state.count_B = 0; state.battery_kwh = 0; state.has_solar = false;
-  invalidate(); rebuildBase();
-  const noSolarNet = getBestPlan().net;
-  Object.assign(state, snap);
-  invalidate(); rebuildBase();
+  const noSolarNet = withSimState(
+    { count_A: 0, count_B: 0, battery_kwh: 0, has_solar: false },
+    () => getBestPlan().net);
   const switchNow = Math.max(0, Math.round(baseCost - noSolarNet));
   const total = Math.max(0, Math.round(baseCost - withSolar.net));
   return { switchNow, withPlanned: Math.max(0, total - switchNow), total };
@@ -2333,22 +2407,13 @@ function renderNpvBreakdown(annualBenefit, sysCostNet, batteryKwh, panelDegradat
    and reports the actual annual delta vs the current setup.
    ============================================================ */
 function simulateWithOverrides(overrides){
-  const snap = {};
-  for (const k in overrides) snap[k] = state[k];
-  _scenarioDepth += 1;
-  try {
-    Object.assign(state, overrides);
-    invalidate();
-    rebuildBase();
+  // This used to snapshot only the keys in `overrides`, so a lever that set
+  // battery_kwh to 0 restored the battery but not the strategy the sanitiser
+  // rewrote underneath it.
+  return withSimState(overrides, () => {
     const best = getBestPlan();
-    const out = { net: best.net, planLabel: best.plan.supplier + ' — ' + best.plan.plan };
-    Object.assign(state, snap);
-    invalidate();
-    rebuildBase();
-    return out;
-  } finally {
-    _scenarioDepth -= 1;
-  }
+    return { net: best.net, planLabel: best.plan.supplier + ' — ' + best.plan.plan };
+  });
 }
 
 const OPTIMISATIONS = {
@@ -4783,11 +4848,11 @@ function sweepGoalDesigns(){
   const ck = goalSweepCk();
   if (CACHE._goalSweep_ck === ck && CACHE._goalSweep) return CACHE._goalSweep;
 
-  const snap = {
-    count_A: state.count_A, count_B: state.count_B, battery_kwh: state.battery_kwh,
-    has_solar: state.has_solar, install_cost: state.install_cost, grant_seai: state.grant_seai,
-    azimuth_A: state.azimuth_A, tilt_A: state.tilt_A
-  };
+  // Eight fields by hand once. battery_kwh was in the list; strategy_mode was
+  // not, and zeroing the battery below made the sanitiser rewrite it — which is
+  // how arbitrage switched itself off while the reader was only looking at a
+  // screen.
+  const snap = snapshotSim();
   const az = state.azimuth_A || 180;
   const tilt = state.tilt_A || 30;
   const ev = !!state.ev_active;
@@ -4821,7 +4886,7 @@ function sweepGoalDesigns(){
     }
   }
 
-  Object.assign(state, snap);
+  restoreSim(snap);
   invalidate(); rebuildBase();
 
   const byPayback = designs.slice().sort((a,b) => a.payback - b.payback || a.net - b.net);
@@ -7400,25 +7465,26 @@ function doGeneratePdf(email){
       /**
        * Run one what-if and put everything back.
        *
-       * The caller's own restore is not enough. Rebuilding runs the state
-       * sanitizer, which owns some fields outright — set battery_kwh to 0 for
-       * the "remove the battery" lever and it forces strategy_mode to
-       * 'self-consume' and clears charge_from_grid. Restoring the battery does
-       * not restore those, so generating a report used to silently change the
-       * user's dispatch strategy and every figure computed afterwards. Snapshot
-       * the sanitizer-owned fields here, where no individual lever can forget.
+       * The lever's own restore is not enough and never was: rebuilding runs
+       * the state sanitiser, which can rewrite fields the lever never touched.
+       * This used to keep its own three-field guard list; it now shares the one
+       * list every other hypothetical uses, so a field added to state is
+       * covered here without anyone remembering to come and add it.
+       *
+       * `mutate`/`restore` are kept because several levers reach outside state
+       * entirely — the export-rate lever edits the tariff object.
        */
-      const GUARDED = ['strategy_mode', 'charge_from_grid', 'hot_water_strategy'];
       const trial = (mutate, restore) => {
-        const guard = {};
-        GUARDED.forEach(k => { guard[k] = state[k]; });
-        mutate();
-        invalidate(); rebuildBase();
-        const v = getBestPlan().net;
-        restore();
-        GUARDED.forEach(k => { state[k] = guard[k]; });
-        invalidate(); rebuildBase();
-        return baseNet - v;   // positive = better off after the change
+        const snap = snapshotSim();
+        try {
+          mutate();
+          invalidate(); rebuildBase();
+          return baseNet - getBestPlan().net;   // positive = better off
+        } finally {
+          restore();
+          restoreSim(snap);
+          invalidate(); rebuildBase();
+        }
       };
 
       if (state.has_solar && totalPanels() > 0){
@@ -10834,6 +10900,9 @@ window.bestDesign = bestDesign;
 window.sweepGoalDesigns = sweepGoalDesigns;
 window.arbitrageOn = arbitrageOn;
 window.effectiveStrategy = effectiveStrategy;
+window.SIM_FIELDS = SIM_FIELDS;
+window.withSimState = withSimState;
+window.snapshotSim = snapshotSim;
 window.setPlansSort = setPlansSort;
 window.toggleCompare = toggleCompare;
 window.clearCompare = clearCompare;
@@ -10873,6 +10942,8 @@ window.setEvMode = setEvMode;
 window.calibrateBillsToBaseline = calibrateBillsToBaseline;
 window.shareSavingsCard = shareSavingsCard;
 window.computeScenarioRange = computeScenarioRange;
+window.computeOptimisations = computeOptimisations;
+window.cachedScenario = cachedScenario;
 window.startGoalDesign = startGoalDesign;
 window.applyGoalDesign = applyGoalDesign;
 window.setSolarView = setSolarView;
