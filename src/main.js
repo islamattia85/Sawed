@@ -1759,8 +1759,34 @@ function runScenario(hasSolar, hasEv){
   const totalGen = sumF(CACHE.solar.total);
   const totalImport = sumF(best.sim.grid_import);
   const totalExport = sumF(best.sim.grid_export);
+
+  /**
+   * The current plan costed under THIS scenario's assumptions.
+   *
+   * baselineSim() answers a different question — "what does your bill say
+   * today?" — and for someone planning an EV it deliberately excludes the car,
+   * because the car is not in the bill yet. Comparing that against a scenario
+   * that includes the car compares two different houses. On screen it produced
+   * a "best plan" that cost €267 more than the plan the user was already on,
+   * which is not a thing that can be true, and reasonably destroyed their trust
+   * in every other number on the page.
+   *
+   * So the comparison prices the current plan over the same load as everything
+   * it is compared against.
+   */
+  const basePlan = getPlanById(state.baseline);
+  let baselineCost = 0;
+  if (basePlan){
+    const bsim = simulateBaseline(basePlan, hasEv ? CACHE.cons : CACHE.consNoEv);
+    const df = baselineDiscountFactor(basePlan.id);
+    baselineCost = sumF(bsim.cost) * df + basePlan.standing;
+  }
+
   const result = {
     hasSolar, hasEv,
+    baselineCost,
+    baselinePlanId: basePlan ? basePlan.id : null,
+    baselineSwitchable: isRankablePlan(basePlan),
     bestPlanId: best.plan.id,
     bestPlanLabel: best.plan.supplier + ' — ' + best.plan.plan,
     annualCost: best.net,
@@ -1844,7 +1870,9 @@ function cachedScenario(hasSolar, hasEv){
   const ck = JSON.stringify([hasSolar, hasEv, state.region, state.count_A, state.count_B,
     state.tilt_A, state.azimuth_A, state.battery_kwh, state.panel_w, state.heating_type,
     usageKey(), state.ev_km_per_year, state.baseline, state.chosen_plan,
-    state.hot_water_strategy, state._ghi_override]);
+    state.hot_water_strategy, state._ghi_override,
+    // The scenario now costs the current plan too, so its discount is an input.
+    state.baseline_discount_pct]);
   const hit = singleScenarioMemo.get(ck);
   if (hit) return hit;
   _scenarioDepth += 1;
@@ -10258,15 +10286,24 @@ function renderSolarComparison(){
 
   const best = getBestPlan();
   const baselinePlan = getPlanById(state.baseline);
-  const baseSim = baselineSim(state.baseline);
-  const baseCost = sumF(baseSim.cost) + baselinePlan.standing;
 
   // No-solar scenario — run the full engine with solar removed. Memoised: this
   // is a full-year simulation of every plan, and it was being re-run on every
   // paint of the solar screen, unguarded, which also cleared every other memo.
+  //
+  // The current-plan figure comes from the scenario as well, so all three rows
+  // price the same house. Reading it off baselineSim() instead priced row one
+  // without the EV and rows two and three with it.
   const noSolarScenario = cachedScenario(false, state.ev_active);
+  const baseCost = noSolarScenario.baselineCost;
   const noSolarCost = noSolarScenario.annualCost;
   const solarCost = best.net;
+
+  // Staying put can genuinely beat every switch when the plan has been
+  // withdrawn — a legacy rate no new customer can get. That is worth saying out
+  // loud rather than leaving as an apparent contradiction.
+  const stayingIsBest = noSolarCost > baseCost + 1;
+  const evCounted = state.ev_active && !state.ev_in_bill;
 
   const maxCost = Math.max(baseCost, noSolarCost, solarCost, 1);
   const bar = (val, color) => {
@@ -10281,21 +10318,21 @@ function renderSolarComparison(){
     <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="font-family:var(--mono);font-size:12px;color:var(--ink-soft)">Your current plan (${baselinePlan.supplier})</span>
+          <span style="font-family:var(--mono);font-size:12px;color:var(--ink-soft)">Stay as you are (${baselinePlan.supplier})</span>
           <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--ink)">${fmtCurrency(baseCost)}</span>
         </div>
         ${bar(baseCost, 'var(--track)')}
       </div>
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="font-family:var(--mono);font-size:12px;color:var(--ink-soft)">Best plan, no solar (${noSolarScenario.bestPlanLabel.split('—')[0].trim()})</span>
+          <span style="font-family:var(--mono);font-size:12px;color:var(--ink-soft)">Switch plan, no solar (${noSolarScenario.bestPlanLabel.split('—')[0].trim()})</span>
           <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--blue)">${fmtCurrency(noSolarCost)}</span>
         </div>
         ${bar(noSolarCost, 'var(--blue)')}
       </div>
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="font-family:var(--mono);font-size:12px;color:var(--accent)">Best plan + solar (${best.plan.supplier})</span>
+          <span style="font-family:var(--mono);font-size:12px;color:var(--accent)">Switch plan + solar (${best.plan.supplier})</span>
           <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent)">${fmtCurrency(solarCost)}</span>
         </div>
         ${bar(solarCost, 'var(--accent)')}
@@ -10307,6 +10344,14 @@ function renderSolarComparison(){
         : `At your usage level, the best no-solar tariff (${fmtCurrency(noSolarCost)}) closes most of the gap — solar adds <b style="color:var(--blue)">${fmtCurrency(Math.abs(solarSaving))}/yr</b> ${solarSaving >= 0 ? 'on top' : 'less than the no-solar optimum due to plan mix'}`
       }
     </div>
+    ${stayingIsBest ? `
+      <div style="margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--ink-dim);line-height:1.6">
+        Your ${baselinePlan.supplier} rate beats anything on sale today${baselinePlan.discontinued ? ' — it is no longer offered to new customers' : ''}, so switching alone would cost you more. Solar is still worth it; keep the plan.
+      </div>` : ''}
+    ${evCounted ? `
+      <div style="margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--ink-dim);line-height:1.6">
+        All three include charging the EV, so every figure is higher than the bill you get today.
+      </div>` : ''}
   </div>`;
 }
 
