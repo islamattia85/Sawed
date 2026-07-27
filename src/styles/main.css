@@ -658,6 +658,29 @@
   /* Manual plan choice — the plan the user decided to go with, overriding rank */
   .plan-card.chosen{border-color:var(--amber);background:linear-gradient(140deg,var(--panel) 0%,var(--panel-2) 100%)}
   .plan-rank.chosen{color:var(--amber);background:var(--amber-soft);border:1px solid var(--amber)}
+  /* The single recommendation, in place of the three-goal chooser. */
+  .opt-card{background:var(--panel);border:1px solid var(--accent);border-radius:12px;padding:16px;margin-bottom:14px}
+  .opt-card-head{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--accent);margin-bottom:8px}
+  .opt-card-body{font-size:15px;color:var(--ink);line-height:1.55}
+  .opt-card-btn{display:block;width:100%;margin-top:12px;background:var(--accent);color:var(--on-accent);border:none;border-radius:8px;padding:13px;font-family:var(--display);font-size:15px;font-weight:700;cursor:pointer;min-height:44px}
+
+  /* Already on the recommendation: one line, not a card restating the hero. */
+  .opt-note{display:flex;align-items:flex-start;gap:7px;font-size:13px;color:var(--ink-soft);line-height:1.5;padding:10px 12px;background:var(--well);border-radius:8px;margin-bottom:12px}
+  .opt-note svg{flex-shrink:0;color:var(--accent);margin-top:1px}
+  .opt-note a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
+
+  .opt-note.is-working{color:var(--ink-dim)}
+  .opt-note.is-working svg{color:var(--ink-dim);animation:pulse 1.6s ease infinite}
+
+  .wx-range{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:10px;flex-wrap:wrap}
+  .wx-range-label{font-family:var(--mono);font-size:12px;color:var(--ink-dim);letter-spacing:.06em;text-transform:uppercase;margin-right:3px}
+  .wx-range-btn{background:none;border:1px solid var(--hair-strong);color:var(--ink-soft);border-radius:999px;padding:5px 11px;font-family:var(--mono);font-size:12px;cursor:pointer;min-height:32px}
+  .wx-range-btn.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+
+  /* Correcting an assumption should be a sentence, never a gate. */
+  .solar-correct{font-size:13px;color:var(--ink-soft);line-height:1.5;margin:-2px 0 14px;text-align:center}
+  .solar-correct a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
+
   /* Plans screen: sort, compare selection and the side-by-side sheet. The
      screen's actual job is holding two tariffs against each other, and it had
      no support for that at all — 26 near-identical rows and a category filter. */

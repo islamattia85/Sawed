@@ -4688,6 +4688,9 @@ function sweepGoalDesigns(){
   const tilt = state.tilt_A || 30;
   const ev = !!state.ev_active;
 
+  _scenarioDepth += 1;
+  try {
+
   // Shared no-solar reference (one run for all 12 designs)
   state.count_A = 0; state.count_B = 0; state.battery_kwh = 0; state.has_solar = false;
   invalidate(); rebuildBase();
@@ -4723,6 +4726,121 @@ function sweepGoalDesigns(){
   CACHE._goalSweep_ck = ck;
   CACHE._goalSweep = out;
   return out;
+
+  } finally { _scenarioDepth -= 1; }
+}
+
+/**
+ * The single best system for this household.
+ *
+ * The tab used to open on a chooser: "fastest payback" against "most 20-year
+ * value", each with its own ranked list to page through. That is an analyst's
+ * framing. A homeowner is not deciding between two objective functions, they
+ * are deciding whether to spend twelve thousand euro, and asking them to pick a
+ * metric first is asking them to do our job.
+ *
+ * One answer instead, defined so it can be defended in a sentence: of the
+ * designs that come within 5% of the best twenty-year value, the cheapest.
+ * Best value without spending more than you need to. Payback, saving and cost
+ * are quoted alongside it, so anyone who does care about a faster return can
+ * see exactly what they would be trading.
+ */
+function bestDesign(){
+  const sweep = sweepGoalDesigns();
+  if (!sweep || !sweep.designs || !sweep.designs.length) return null;
+  const worthwhile = sweep.designs.filter(d => d.npv > 0 && d.payback < 25);
+  const pool = worthwhile.length ? worthwhile : sweep.designs;
+  const topNpv = Math.max(...pool.map(d => d.npv));
+  if (!(topNpv > 0)) return null;
+  const nearBest = pool.filter(d => d.npv >= topNpv * 0.95);
+  return nearBest.reduce((a, b) => (b.net < a.net ? b : a));
+}
+
+/** Adopt the recommended design as the user's own system. */
+function applyBestDesign(){
+  const d = bestDesign();
+  if (!d) return;
+  state.solar_view = 'mine';
+  applySystemConfig(designToConfig(d));
+  state.considering_solar = true;
+  state.solar_is_estimate = true;
+  snapshotMySystem();
+  saveState();
+  renderApp();
+  showToast(`${d.kwp} kWp${d.batt ? ' + ' + d.batt + ' kWh battery' : ''} — ${d.payback.toFixed(1)} yr payback`,
+    { type:'accent', icon:ic('checkC',16) });
+}
+
+/**
+ * The recommended system, as one card.
+ *
+ * Replaces a three-way chooser — "My system", "Fastest payback", "Most 20-yr
+ * value" — that asked the reader to pick an objective function before they
+ * could see a number. When the reader is already on the recommendation there is
+ * nothing to switch to, so the card says so in one line instead of restating
+ * the spec the hero below already carries.
+ */
+let _sweepScheduled = false;
+
+/**
+ * Run the design sweep off the critical path.
+ *
+ * Twelve designs, each a full year simulated against every tariff, is about two
+ * and a half seconds — fine to wait for, unacceptable to block the first paint
+ * with. The screen shows a working answer immediately and this upgrades it.
+ */
+function scheduleGoalSweep(){
+  if (_sweepScheduled) return;
+  _sweepScheduled = true;
+  const run = () => {
+    try { sweepGoalDesigns(); } catch (e) { /* additive */ }
+    _sweepScheduled = false;
+    // Swap the placeholder for the result rather than re-rendering the screen.
+    // A full repaint a second after landing detaches whatever the reader was
+    // reaching for — it broke a click on the day inspector mid-gesture.
+    try {
+      const slot = document.querySelector('.opt-note.is-working');
+      if (slot){
+        const html = renderOptimisedSuggestion();
+        const holder = document.createElement('div');
+        holder.innerHTML = html;
+        const node = holder.firstElementChild;
+        if (node) slot.replaceWith(node); else slot.remove();
+        enhanceA11y();
+      }
+    } catch (e) { /* the placeholder simply stays */ }
+  };
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 1500 });
+  else setTimeout(run, 60);
+}
+
+function renderOptimisedSuggestion(){
+  const ready = CACHE._goalSweep_ck === goalSweepCk() && CACHE._goalSweep;
+  if (!ready){
+    scheduleGoalSweep();
+    return `<div class="opt-note is-working">
+      ${ic('spark',14)} <span>Checking whether a different size would suit you better…</span>
+    </div>`;
+  }
+  const d = bestDesign();
+  if (!d) return '';
+  const onIt = state.count_A === d.panels && (state.battery_kwh || 0) === d.batt;
+
+  if (onIt){
+    return `<div class="opt-note">
+      ${ic('checkC',14)} <span>Best value of every size we simulated for your home.
+      <a href="#" onclick="event.preventDefault();goRefineSolar()">Change the spec</a></span>
+    </div>`;
+  }
+
+  const now = state.has_solar && totalPanels() > 0
+    ? `You're modelling ${totalKwp().toFixed(1)} kWp${state.battery_kwh ? ` + ${state.battery_kwh} kWh` : ''}. ` : '';
+  return `<div class="opt-card">
+    <div class="opt-card-head">${ic('spark',15)} <span>Better system for your home</span></div>
+    <div class="opt-card-body">${now}<b>${d.kwp} kWp${d.batt ? ` + ${d.batt} kWh battery` : ', no battery'}</b> —
+      ${fmtCurrency(d.benefit)}/yr saved, ${d.payback.toFixed(1)} year payback, ${fmtCurrency(d.net)} after the grant.</div>
+    <button class="opt-card-btn" onclick="applyBestDesign()">Use this system</button>
+  </div>`;
 }
 
 function startGoalDesign(goal){
@@ -4825,15 +4943,20 @@ function applyEstimatedSolarCost(){
 function exploreSolar(){
   state.considering_solar = true;
   state.solar_is_estimate = true;
-  // Size a sensible example system from the user's annual kWh
+  state.has_solar = true;
+  state.current_screen = 'solar';
+
+  // Size something sensible instantly. Working out the genuinely best design
+  // means simulating twelve of them across a full year, which is two and a half
+  // seconds — far too long to hold the first paint. The recommendation arrives
+  // a moment later and offers itself; see renderOptimisedSuggestion().
   const annualKwh = Object.values(state.bills).reduce((a,b)=>a+b,0);
-  state.count_A = Math.max(6, Math.min(16, Math.round(annualKwh / 450))); state.count_B = 0; state.has_solar = true;
+  state.count_A = Math.max(6, Math.min(16, Math.round(annualKwh / 450))); state.count_B = 0;
   state.battery_kwh = annualKwh > 6000 ? 10 : annualKwh > 3500 ? 5 : 0;
   applyEstimatedSolarCost();
-  state.current_screen = 'solar';
+  snapshotMySystem();
   invalidate();
   saveState();
-  if (maybeAutoPaybackView()) return;
   renderApp();
 }
 
@@ -5269,17 +5392,9 @@ function renderSolarDashboard(){
   const isEst = !!state.solar_is_estimate;
   return `${topbar('Solar payback', 'accent', true)}
   <div class="screen">
-    ${renderGoalDesigner()}
     <div class="sd-hero" style="position:relative">
       <button onclick="goRefineSolar()" style="position:absolute;top:14px;right:14px;display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid var(--hair-strong);background:transparent;color:var(--ink-soft)">${ic('tune',13)} Customise</button>
       <div class="qr-eyebrow" style="margin-bottom:6px;padding-right:110px">${(state.solar_view || 'mine') === 'payback' ? 'Fastest-payback design — preview' : (state.solar_view || 'mine') === 'npv' ? 'Most 20-yr value design — preview' : isEst ? 'With this estimated system' : 'With this solar system'}</div>
-      <div style="display:inline-flex;gap:0;border:1px solid rgba(255,255,255,.2);border-radius:999px;overflow:hidden;background:rgba(0,0,0,.15);margin-bottom:10px">
-        ${['pessimist','realistic','optimist'].map(k => {
-          const lbl = k==='pessimist'?'Worst':k==='realistic'?'Typical':'Best';
-          const active = (state._scenario_view||'realistic')===k;
-          return '<button onclick="state._scenario_view=\''+k+'\';renderApp();" style="padding:6px 13px;font-size:12px;font-weight:700;font-family:var(--mono);border:none;cursor:pointer;border-radius:999px;background:'+(active?'rgba(255,255,255,.25)':'transparent')+';color:#fff">'+lbl+'</button>';
-        }).join('')}
-      </div>
       <div style="display:flex;align-items:flex-start;gap:12px">
         <div style="flex:1;min-width:0">
       ${(() => {
@@ -5328,11 +5443,30 @@ function renderSolarDashboard(){
         </div>
       </div>` : `
       <div style="font-family:var(--display);font-size:12px;color:var(--ink-dim);text-align:center;margin-top:12px;letter-spacing:.03em">Payback uses electricity savings only — solar vs no solar, everything else equal.</div>`}
+
+      <!-- The weather range qualifies the number, so it belongs under it. Three
+           buttons standing in front of the figure read as a decision the reader
+           has to make before they are allowed to see anything. -->
+      <div class="wx-range">
+        <span class="wx-range-label">Weather year</span>
+        ${['pessimist','realistic','optimist'].map(k => {
+          const lbl = k==='pessimist'?'Poor':k==='realistic'?'Typical':'Good';
+          const active = (state._scenario_view||'realistic')===k;
+          return '<button class="wx-range-btn'+(active?' on':'')+'" onclick="state._scenario_view=\''+k+'\';renderApp();">'+lbl+'</button>';
+        }).join('')}
+      </div>
     </div>
 
     <!-- Directly under the payback headline, because every figure above and
          below it is priced on this plan. It used to sit below the day
          inspector, two screens down, where nobody found it. -->
+    ${renderOptimisedSuggestion()}
+
+    ${isEst ? `<div class="solar-correct">
+      Already have panels, or planning a specific system?
+      <a href="#" onclick="event.preventDefault();goRefineSolar()">Set your exact spec</a>
+    </div>` : ''}
+
     ${renderPlanChoiceBlock(best, annualSavings, { title: 'Best plan WITH this solar' })}
     <div class="switch-cta-sub">Same plan whether or not you install solar</div>
 
@@ -9061,16 +9195,13 @@ function setScreen(name){
 // straight in the fastest-payback designer, so the user starts from "what
 // should I buy" instead of a pre-filled system they never configured.
 // One-time — after that the tab remembers whatever the user was doing.
-function maybeAutoPaybackView(){
-  if (state._solar_payback_intro_done) return false;
-  if (state._solar_user_configured) return false;                  // solar set up in the full setup → land on My system
-  if (state.has_solar && !state.solar_is_estimate) return false;   // user set their exact system
-  if ((state.solar_view || 'mine') !== 'mine') return false;       // already in a design view
-  state._solar_payback_intro_done = true;
-  saveState();
-  startGoalDesign('payback');
-  return true;
-}
+/**
+ * Retired. This silently entered the "fastest payback" design view the first
+ * time anyone opened the Solar tab, so the screen the reader landed on was a
+ * preview of a design they had not asked for, labelled as such in small type.
+ * The tab now simply opens on the recommendation.
+ */
+function maybeAutoPaybackView(){ return false; }
 
 /* ============================================================
    SCENARIO SAVE / LOAD / COMPARE
@@ -10472,6 +10603,9 @@ window.doUpdateProfile  = doUpdateProfile;
 window.doSyncState      = doSyncState;
 window.choosePlan = choosePlan;
 window.openPlanPicker = openPlanPicker;
+window.applyBestDesign = applyBestDesign;
+window.bestDesign = bestDesign;
+window.sweepGoalDesigns = sweepGoalDesigns;
 window.setPlansSort = setPlansSort;
 window.toggleCompare = toggleCompare;
 window.clearCompare = clearCompare;
