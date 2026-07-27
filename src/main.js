@@ -7665,6 +7665,28 @@ function renderStrategyControls(){
     </div>`;
 }
 
+/**
+ * Throw away the cached page and reload onto the current build.
+ *
+ * The service worker serves the document network-first, but falls back to its
+ * cached copy when a fetch fails — and that copy names the old hashed bundles,
+ * which are still on the CDN and load quite happily. The result is an app that
+ * looks current and is not.
+ */
+async function hardRefreshApp(){
+  try {
+    if (window.caches) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+    if (navigator.serviceWorker) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+  } catch (e) { /* best effort — the reload below still helps */ }
+  location.reload(true);
+}
+
 function setStrategy(mode, chargeFromGrid){
   state.strategy_mode = mode;
   state.charge_from_grid = chargeFromGrid;
@@ -9081,8 +9103,16 @@ function renderMore(){
         <div class="secondary-card-arrow">›</div>
       </div>`).join('')}
     `).join('')}
-    <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);text-align:center;margin-top:18px;letter-spacing:.04em;line-height:1.7">
+    <div style="font-size:13px;color:var(--ink-dim);text-align:center;margin-top:18px;line-height:1.7">
       Solar Optimiser · Independent · Ireland<br>Your data stays on this device.
+      <!-- Which build you are actually running. A fix can be deployed and
+           verified and still not be what is on someone's phone: the installed
+           app caches the page, and an offline or flaky load falls back to that
+           cached copy, which points at the previous bundle. Without this there
+           is no way to tell "the bug is back" from "you are on last week's
+           code", and I spent a session unable to distinguish them. -->
+      <span style="display:block;margin-top:6px;font-family:var(--mono);font-size:12px;color:var(--ink-dim)"
+            onclick="hardRefreshApp()" title="Tap to force the latest version">build ${__BUILD_ID__}</span>
     </div>
   </div>
   ${bottomNav()}`;
@@ -10905,6 +10935,7 @@ window.applyBestDesign = applyBestDesign;
 window.bestDesign = bestDesign;
 window.sweepGoalDesigns = sweepGoalDesigns;
 window.arbitrageOn = arbitrageOn;
+window.hardRefreshApp = hardRefreshApp;
 window.effectiveStrategy = effectiveStrategy;
 window.SIM_FIELDS = SIM_FIELDS;
 window.withSimState = withSimState;
