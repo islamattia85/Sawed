@@ -35,16 +35,16 @@ let _authView = 'login'; // 'login' | 'signup' | 'profile'
 async function sbInit(){
   if (_sb || !SUPABASE_URL || !SUPABASE_ANON_KEY) return;
   try {
-    // Dynamically load Supabase JS SDK
-    await new Promise((resolve, reject) => {
-      if (window.supabase) { resolve(); return; }
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-      s.onload = resolve;
-      s.onerror = reject;
-      document.head.appendChild(s);
-    });
-    _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // The client is bundled, not fetched from a CDN at click time.
+    //
+    // It used to be injected as a <script> from jsdelivr the moment someone
+    // pressed a sign-in button. Any network that could not reach that host —
+    // a corporate proxy, a strict content policy, a bad minute for the CDN —
+    // meant authentication simply did not work, and the only signal was a
+    // rejected promise this function swallows. Bundling makes signing in
+    // depend on the app loading, which it already did.
+    const { createClient } = await import('@supabase/supabase-js');
+    _sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const { data: { session } } = await _sb.auth.getSession();
     if (session) {
       _sbUser = session.user;
@@ -202,9 +202,30 @@ function renderAuthSection(){
 }
 
 /* Profile modal — opened from topbar avatar */
+/**
+ * Account sheet: sign in when signed out, profile when signed in.
+ *
+ * Signed out, this used to return an empty string, so the header control had
+ * nowhere to go and sent the user to a hard-coded black intro screen instead —
+ * whose "Continue with Email" set a flag and navigated to the welcome screen,
+ * which returns from renderApp() before any modal is injected. The email form
+ * therefore never rendered anywhere: renderAuthSection() had been written,
+ * styled and left unreferenced by any call site in the app.
+ */
 function renderAuthModal(){
   if (!_authModalOpen) return '';
-  if (!_sbUser) return '';
+  if (!sbInitialized()) return '';
+  if (!_sbUser){
+    return `
+    <div class="auth-modal-backdrop" onclick="if(event.target===this){_authModalOpen=false;renderApp()}">
+      <div class="auth-modal" role="dialog" aria-modal="true" aria-label="Sign in">
+        <button class="auth-modal-close" onclick="_authModalOpen=false;renderApp()" aria-label="Close">${ic('x',18)}</button>
+        <h3 style="margin:0 0 4px;font-size:20px">Sign in</h3>
+        <p style="margin:0 0 4px;font-size:13px;color:var(--ink-soft);line-height:1.5">Save your setup and pick it up on another device. Everything works without an account too.</p>
+        ${renderAuthSection()}
+      </div>
+    </div>`;
+  }
   const initials = (_sbProfile && _sbProfile.display_name
     ? _sbProfile.display_name : (_sbUser.email || '?')).slice(0, 1).toUpperCase();
   const displayName = (_sbProfile && _sbProfile.display_name) || '';
@@ -241,7 +262,7 @@ function renderProfileNavBtn(){
     </button>`;
   }
   if (!sbInitialized()) return '';
-  return `<button class="profile-nav-btn" onclick="_introStep=3;state.current_screen='intro';renderApp()" aria-label="Sign in" style="font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;gap:5px">
+  return `<button class="profile-nav-btn" onclick="_authModalOpen=true;window._authEmailOpen=false;renderApp()" aria-label="Sign in" style="font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;gap:5px">
     ${ic('shield',15)} <span>Sign in</span>
   </button>`;
 }
@@ -254,7 +275,7 @@ async function doGoogleSignIn(){
   if (btn){ btn.disabled = true; btn.innerHTML = '<span style="opacity:.6">Connecting…</span>'; }
   if (!_sb) await sbInit();
   if (!_sb){
-    showAuthMsg('Could not connect to auth service. Try again in a moment.', 'err');
+    showAuthMsg('Could not reach the sign-in service. Check your connection and try again — everything in the app works without an account.', 'err');
     if (btn){ btn.disabled = false; btn.innerHTML = origHTML; }
     return;
   }
@@ -268,6 +289,33 @@ async function doGoogleSignIn(){
   }
 }
 
+/**
+ * Turn an auth failure into something a person can act on.
+ *
+ * The raw strings the client returns are for developers: "Failed to fetch"
+ * tells a user nothing about what went wrong or what to try.
+ */
+function authErrorText(err){
+  const raw = String((err && err.message) || err || '').toLowerCase();
+  if (!raw) return 'Something went wrong. Try again in a moment.';
+  if (raw.includes('failed to fetch') || raw.includes('networkerror') || raw.includes('load failed')) {
+    return 'Could not reach the sign-in service. Check your connection and try again — everything in the app works without an account.';
+  }
+  if (raw.includes('invalid login') || raw.includes('invalid credentials')) {
+    return 'That email and password do not match an account.';
+  }
+  if (raw.includes('email not confirmed')) {
+    return 'Check your inbox and confirm your email address first.';
+  }
+  if (raw.includes('already registered') || raw.includes('already been registered')) {
+    return 'There is already an account with that email. Try signing in instead.';
+  }
+  if (raw.includes('rate limit') || raw.includes('too many')) {
+    return 'Too many attempts. Wait a minute and try again.';
+  }
+  return (err && err.message) || 'Something went wrong. Try again in a moment.';
+}
+
 async function doSignIn(){
   const email = (document.getElementById('auth-email') || {}).value || '';
   const pw    = (document.getElementById('auth-password') || {}).value || '';
@@ -275,7 +323,7 @@ async function doSignIn(){
   if (!email || !pw){ showAuthMsg('Please enter your email and password.', 'err'); return; }
   if (btn) btn.disabled = true;
   const err = await sbSignIn(email, pw);
-  if (err){ showAuthMsg(err.message, 'err'); if(btn) btn.disabled=false; return; }
+  if (err){ showAuthMsg(authErrorText(err), 'err'); if(btn) btn.disabled=false; return; }
   _authModalOpen = false;
   renderApp();
 }
@@ -289,7 +337,7 @@ async function doSignUp(){
   if (!pw || pw.length < 8){ showAuthMsg('Password must be at least 8 characters.', 'err'); return; }
   if (btn) btn.disabled = true;
   const err = await sbSignUp(email, pw, name);
-  if (err){ showAuthMsg(err.message, 'err'); if(btn) btn.disabled=false; return; }
+  if (err){ showAuthMsg(authErrorText(err), 'err'); if(btn) btn.disabled=false; return; }
   showAuthMsg('Account created! Check your email to confirm, then sign in.', 'ok');
 }
 
@@ -302,7 +350,7 @@ async function doForgotPassword(){
   const email = (document.getElementById('auth-email') || {}).value || '';
   if (!email){ showAuthMsg('Enter your email address first.', 'err'); return; }
   const err = await sbResetPassword(email);
-  if (err){ showAuthMsg(err.message, 'err'); return; }
+  if (err){ showAuthMsg(authErrorText(err), 'err'); return; }
   showAuthMsg('Reset link sent — check your inbox.', 'ok');
 }
 
@@ -3041,7 +3089,10 @@ function introFinish(){
 }
 function introSignInEmail(){
   state.seen_intro = true;
-  state.current_screen = 'welcome';
+  // Stay where the user is and open the sheet over it. Navigating to the
+  // welcome screen dropped them out of the flow AND past the modal injection.
+  state.current_screen = state.onboarding_complete ? 'result' : 'welcome';
+  _authModalOpen = true;
   window._authEmailOpen = true;
   _authEmailView = 'login';
   saveState();
@@ -9266,11 +9317,13 @@ function renderApp(){
     }
     root.setAttribute('data-chrome','bare');
     root.innerHTML = renderIntro();
+    paintAuthModal();
     return;
   }
   // Landing page — first thing new users see; also reachable via the logo
   if (state.current_screen === 'welcome'){
     root.innerHTML = renderWelcome();
+    paintAuthModal();
     return;
   }
   // Fast-path activation (30-second simple setup)
@@ -9282,6 +9335,7 @@ function renderApp(){
   if (state.current_screen === 'onboarding'){
     root.setAttribute('data-chrome','bare');
     root.innerHTML = renderOnboarding();
+    paintAuthModal();
     bindOnboarding();
     enhanceA11y();
     return;
@@ -9292,6 +9346,7 @@ function renderApp(){
     root.setAttribute('data-chrome','bare');
     root.innerHTML = renderWelcome();
     enhanceA11y();
+    paintAuthModal();
     return;
   }
   // Post-onboarding screens
@@ -9351,17 +9406,27 @@ function renderApp(){
     // Restore synchronously so the browser never paints the jumped position.
     window.scrollTo(0, keepScroll);
   }
-  // Inject auth modal overlay (if open) — outside the screen so it overlays all screens
-  const existingModal = document.getElementById('auth-modal-root');
-  if (existingModal) existingModal.remove();
-  const modalHtml = renderAuthModal();
-  if (modalHtml) {
-    const modalEl = document.createElement('div');
-    modalEl.id = 'auth-modal-root';
-    modalEl.innerHTML = modalHtml;
-    document.body.appendChild(modalEl);
-  }
+  paintAuthModal();
   syncScreenHistory();
+}
+
+/**
+ * Paint the account sheet over whatever screen is showing.
+ *
+ * Attached to document.body rather than the screen container, and called from
+ * every branch of renderApp(). It used to be injected only at the very end of
+ * the post-onboarding path, so any branch that returned early — welcome, intro,
+ * onboarding — could set the modal flag and render nothing.
+ */
+function paintAuthModal(){
+  const existing = document.getElementById('auth-modal-root');
+  if (existing) existing.remove();
+  const html = renderAuthModal();
+  if (!html) return;
+  const el = document.createElement('div');
+  el.id = 'auth-modal-root';
+  el.innerHTML = html;
+  document.body.appendChild(el);
 }
 
 /* ============================================================

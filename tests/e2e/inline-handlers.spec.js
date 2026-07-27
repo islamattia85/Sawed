@@ -47,23 +47,24 @@ test('inline handler toggling a boolean state field works (Home disclosure)', as
   expect(errors).toEqual([]);
 });
 
-test('inline handler assigning a module-scoped PRIMITIVE works (intro step)', async ({ page }) => {
-  // _introStep is a bare `let` number. Without an accessor bridge, an inline
-  // `_introStep=3` writes a dead global and the screen never changes.
-  //
-  // The intro carousel is no longer the front door — it restated the welcome
-  // screen's own pitch and put a sign-in wall between the two — so this drives
-  // the bridge through the control that still sets it inline: the header
-  // sign-in button, whose handler is the string `_introStep=3;…`.
+test('inline handlers assigning module-scoped PRIMITIVES work', async ({ page }) => {
+  // _authModalOpen and _authEmailView are bare `let` bindings in module scope.
+  // Without the accessor bridge an inline `_authModalOpen=true` writes a dead
+  // global and nothing on screen changes.
   const errors = await boot(page);
+  await page.route('**/*', (r) => (/supabase\.co|jsdelivr/.test(r.request().url()) ? r.abort() : r.continue()));
 
   await page.locator('.profile-nav-btn').first().click();
-  await expect.poll(() => page.evaluate(() => window._introStep)).toBe(3);
-  await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('intro');
+  await expect.poll(() => page.evaluate(() => window._authModalOpen)).toBe(true);
+  await expect(page.locator('#auth-modal-root')).toHaveCount(1);
 
-  // And the step-back handler decrements the same binding.
-  await page.evaluate(() => { window.introBack?.(); });
-  await expect.poll(() => page.evaluate(() => window._introStep)).toBe(2);
+  await page.getByRole('button', { name: /Continue with email/i }).first().click();
+  await expect.poll(() => page.evaluate(() => window._authEmailView)).toBe('login');
+
+  // …and the view toggles write through the same bridge.
+  await page.locator('#auth-modal-root').getByText('Create free account').click();
+  await expect.poll(() => page.evaluate(() => window._authEmailView)).toBe('signup');
+
   expect(errors).toEqual([]);
 });
 
