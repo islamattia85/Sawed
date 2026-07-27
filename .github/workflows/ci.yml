@@ -31,6 +31,21 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # The scraper feeds every rate in the app, and until now nothing exercised
+      # it except the live daily run — which is how it spent eight weeks failing
+      # while reporting success. These tests run against fixtures, no network.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scraper/requirements.txt
+
+      - name: Install scraper dependencies
+        run: pip install -r scraper/requirements.txt pytest
+
+      - name: Scraper tests
+        run: python -m pytest scraper/test_sources.py -q
+
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 

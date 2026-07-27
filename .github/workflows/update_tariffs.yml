@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   scrape:
@@ -29,18 +30,44 @@ jobs:
         run: pip install -r scraper/requirements.txt
 
       - name: Run tariff scraper
-        run: python scraper/scrape_tariffs.py
+        run: python scraper/scrape_tariffs.py 2>&1 | tee scrape.log
 
-      - name: Check for changes
-        id: diff
-        run: |
-          git diff --quiet public/tariffs.json && echo "changed=false" >> "$GITHUB_OUTPUT" || echo "changed=true" >> "$GITHUB_OUTPUT"
+      # A scraped rate is a number a stranger's markup handed us, and it lands
+      # in a payback figure somebody spends ten thousand euro on. It used to be
+      # committed straight to main and deployed within the minute, unreviewed.
+      # A pull request costs one glance a day and puts a human between a
+      # misparsed decimal point and a recommendation.
+      #
+      # This step is deliberately not `if: always()`. When the coverage gate
+      # fails, the run is red and there is nothing worth merging — a PR
+      # containing only a fresh timestamp over unverified rates is exactly the
+      # false reassurance this whole change exists to remove.
+      - name: Open a pull request with the new rates
+        uses: peter-evans/create-pull-request@v6
+        with:
+          add-paths: public/tariffs.json
+          branch: tariffs/auto-update
+          commit-message: "chore: update electricity tariffs"
+          title: "Tariff update — review the numbers before merging"
+          labels: tariffs
+          delete-branch: true
+          body: |
+            Automated scrape from the supplier sites.
 
-      - name: Commit & push updated tariffs
-        if: steps.diff.outputs.changed == 'true'
-        run: |
-          git config user.name  "tariff-bot[bot]"
-          git config user.email "tariff-bot@users.noreply.github.com"
-          git add public/tariffs.json
-          git commit -m "chore: auto-update electricity tariffs $(date -u '+%Y-%m-%d')"
-          git push
+            **Check before merging:** every changed rate against the diff. A
+            wrong number here reaches a recommendation, and the app presents it
+            as verified.
+
+            The full run log — which pages were discovered, what each supplier
+            yielded, and which links are broken — is attached to
+            [this run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            as the `scrape-log` artifact.
+
+      - name: Upload scrape log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrape-log
+          path: scrape.log
+          retention-days: 30
+          if-no-files-found: ignore

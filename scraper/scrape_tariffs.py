@@ -1,22 +1,48 @@
 #!/usr/bin/env python3
 """
 Irish electricity tariff scraper.
-Fetches rates from supplier websites/PDFs and updates tariffs.json.
+
+Finds each supplier's price page, reads the rates, and updates tariffs.json.
 Runs daily via GitHub Actions. Only updates fields it can confidently extract;
-falls back to existing data on failure.
+falls back to existing data on failure, and fails the run loudly rather than
+writing a fresh timestamp over stale numbers.
+
+Why this looks nothing like the previous version
+------------------------------------------------
+The 26 July run made twelve failed requests. Eleven were HTTP 404 and one was a
+TLS chain error. Not one was a 403, a rate limit or a bot challenge — the
+suppliers were never blocking us. The URLs were hardcoded deep links and the
+sites had been reorganised underneath them, and because every failure was logged
+as the same shrug of a warning, "the page moved" was indistinguishable from
+"they refused us". The app went as far as telling users their rates were
+current because supplier sites block scrapers, which was false.
+
+So the shape changed:
+
+  * pages are discovered from the supplier's homepage and sitemap, not pinned;
+  * structured data (__NEXT_DATA__, JSON-LD, __NUXT__) is read before prose,
+    and the regulator-facing price-list PDF before either;
+  * every failure keeps its own name, and 404 is reported as a broken link that
+    somebody has to fix rather than a fact of life.
+
+The finding and parsing live in sources.py as pure functions over bytes, so they
+can be tested against fixtures. This file is the orchestration around them.
 """
 
 import json
 import re
 import sys
-import os
 import logging
 from datetime import date
 from pathlib import Path
-from typing import Optional
 
 import requests
 from bs4 import BeautifulSoup
+
+from sources import (
+    Fetched, SupplierResult, fetch, discover, embedded_json,
+    rates_from_json, rates_from_text, standing_from_text, pdf_text,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -24,323 +50,208 @@ log = logging.getLogger(__name__)
 TARIFFS_PATH = Path(__file__).parent.parent / "public" / "tariffs.json"
 MIN_COVERAGE = 0.60   # fail the run below this share of plans re-verified
 TODAY = date.today().isoformat()
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (compatible; SolarOptimiserBot/1.0; "
-        "+https://github.com/islamattia85/sawed)"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-IE,en;q=0.9",
-}
 
-def get(url: str, timeout: int = 15) -> Optional[requests.Response]:
-    try:
-        r = requests.get(url, headers=HEADERS, timeout=timeout)
-        r.raise_for_status()
-        return r
-    except Exception as e:
-        log.warning(f"GET {url} failed: {e}")
-        return None
+#: How many discovered pages to read per supplier before giving up. Discovery is
+#: ranked, so the price page is normally first or second; the tail is there for
+#: sites that bury it a level down.
+MAX_PAGES = 4
 
-def parse_rate(text: str) -> Optional[float]:
-    """Extract a euro cent per kWh rate and return as decimal (e.g. 31.52 → 0.3152)."""
-    m = re.search(r"(\d{1,2}[.,]\d{1,2})\s*c", text, re.IGNORECASE)
-    if m:
-        val = float(m.group(1).replace(",", "."))
-        if 5.0 <= val <= 80.0:
-            return round(val / 100, 4)
-    return None
-
-def parse_standing(text: str) -> Optional[float]:
-    """Extract annual standing charge in euros."""
-    m = re.search(r"€?\s*(\d{2,3}[.,]\d{2})", text)
-    if m:
-        val = float(m.group(1).replace(",", "."))
-        if 100 <= val <= 600:
-            return round(val, 2)
-    return None
-
-def parse_export(text: str) -> Optional[float]:
-    """Extract CEG/export rate in cents → decimal."""
-    m = re.search(r"(\d{1,2}[.,]\d{1,2})\s*c", text, re.IGNORECASE)
-    if m:
-        val = float(m.group(1).replace(",", "."))
-        if 5.0 <= val <= 30.0:
-            return round(val / 100, 4)
-    return None
 
 # ---------------------------------------------------------------------------
-# Per-supplier scrapers — each returns a dict of plan-id → partial updates
+# Who we scrape
+#
+# A root and a set of plan keywords, nothing more. No deep links: that is the
+# bug this rewrite exists to remove. Keywords match plan names as the supplier
+# writes them, and are used to attribute a rate to one of our plan ids.
 # ---------------------------------------------------------------------------
 
-def scrape_electric_ireland(existing: dict) -> dict:
-    updates = {}
-    r = get("https://www.electricireland.ie/switch/product")
-    if not r:
-        return updates
-    soup = BeautifulSoup(r.text, "lxml")
-    text = soup.get_text(" ", strip=True)
+SUPPLIERS = [
+    {
+        "name": "Electric Ireland",
+        "root": "https://www.electricireland.ie/",
+        "plans": {
+            "EI-24":  ["24hr", "24 hr", "home dual+ 24", "flat rate"],
+            "EI-SST": ["smart standard", "day night peak", "time of use", "sst"],
+            "EI-NB":  ["night boost"],
+            "EI-DYN": ["dynamic"],
+        },
+    },
+    {
+        "name": "Bord Gáis Energy",
+        "root": "https://www.bordgaisenergy.ie/",
+        "plans": {
+            "BG-24":  ["all day", "smart all day", "flat rate"],
+            "BG-TOU": ["smart standard", "day night peak"],
+            "BG-EV":  ["ev smart", "ev plan"],
+            "BG-DYN": ["dynamic", "smart dynamic"],
+        },
+    },
+    {
+        "name": "SSE Airtricity",
+        "root": "https://www.sseairtricity.com/ie/home/",
+        "plans": {
+            "SSE-EVDAY": ["24hr smart", "24 hour smart", "flat"],
+            "SSE-DNP":   ["day night peak", "day/night/peak", "smart dnp"],
+            "SSE-EVMAX": ["ev max", "evmax"],
+        },
+    },
+    {
+        "name": "Energia",
+        "root": "https://www.energia.ie/",
+        "plans": {
+            "EN-24":      ["standard", "24hr", "flat"],
+            "EN-SMART":   ["smart data", "day night peak", "time of use"],
+            "EN-EV":      ["ev smart drive", "ev drive"],
+            "EN-EV-PLUS": ["ev smart drive plus", "ev drive plus"],
+            "EN-DYN":     ["dynamic"],
+        },
+    },
+    {
+        "name": "Yuno Energy",
+        "root": "https://www.yunoenergy.ie/",
+        "plans": {
+            "YN-24":  ["standard smart", "flat", "24hr"],
+            "YN-DNP": ["day night peak", "dnp", "smart day"],
+            "YN-EV":  ["ev variable"],
+        },
+    },
+    {
+        "name": "Flogas",
+        "root": "https://www.flogas.ie/",
+        "plans": {
+            "FL-24":  ["smart 24", "flat", "24 hour"],
+            "FL-DNP": ["day night peak", "smart dnp", "day night"],
+        },
+    },
+    {
+        "name": "Pinergy",
+        "root": "https://www.pinergy.ie/",
+        "plans": {
+            "PIN-LF":  ["lifestyle standard", "standard smart"],
+            "PIN-WFH": ["working from home", "wfh"],
+            "PIN-FAM": ["family time", "family"],
+            "PIN-EV":  ["ev night"],
+        },
+    },
+]
 
-    # Look for unit rate patterns near known plan names
-    for plan_id, keywords in {
-        "EI-24": ["24hr", "24 hr", "Home Dual+ 24", "flat rate"],
-        "EI-SST": ["SST", "Day Night Peak", "Smart Standard", "time of use"],
-        "EI-NB": ["Night Boost", "night boost"],
-        "EI-DYN": ["Dynamic", "dynamic price"],
-    }.items():
+
+# ---------------------------------------------------------------------------
+# Reading one supplier
+# ---------------------------------------------------------------------------
+
+def attribute(text: str, plans: dict, existing: dict) -> dict:
+    """
+    Match rates in a page's text to our plan ids by plan name.
+
+    Same idea as the old parsers — find the plan name, read the numbers near it
+    — but it is now the last resort rather than the only method, and it runs
+    over whatever page discovery found rather than one URL frozen in 2024.
+
+    The window runs forward from the plan name and stops at the next plan name.
+    The old version read 200 characters behind as well, which on a page listing
+    plans one after another reached back into the previous plan and copied its
+    rate — every plan on the page ending up priced as the first one, with no
+    sign in the log that anything was wrong.
+    """
+    updates: dict = {}
+    low = text.lower()
+    all_keywords = [k for ks in plans.values() for k in ks]
+
+    for plan_id, keywords in plans.items():
         if plan_id not in existing:
             continue
         for kw in keywords:
-            idx = text.lower().find(kw.lower())
+            idx = low.find(kw)
             if idx == -1:
                 continue
-            chunk = text[max(0, idx - 200):idx + 400]
-            rate = parse_rate(chunk)
-            standing = parse_standing(chunk)
-            if rate or standing:
-                upd = {"verified_date": TODAY}
-                if rate:
-                    upd["_scraped_day_rate"] = rate
-                if standing:
-                    upd["_scraped_standing"] = standing
-                updates[plan_id] = upd
-                log.info(f"EI {plan_id}: rate={rate} standing={standing}")
-                break
-    return updates
+            start = idx + len(kw)
+            stop = min([low.find(other, start) for other in all_keywords
+                        if low.find(other, start) != -1] + [start + 400])
+            chunk = text[idx:stop]
 
-
-def scrape_bord_gais(existing: dict) -> dict:
-    updates = {}
-    for url in [
-        "https://www.bordgaisenergy.ie/home/electricity-plans",
-        "https://www.bordgaisenergy.ie/home/ev-plan-comparison",
-    ]:
-        r = get(url)
-        if not r:
-            continue
-        soup = BeautifulSoup(r.text, "lxml")
-        text = soup.get_text(" ", strip=True)
-
-        for plan_id, keywords in {
-            "BG-24": ["All Day", "flat rate", "Smart All Day"],
-            "BG-TOU": ["Smart Standard", "Day Night Peak"],
-            "BG-EV": ["EV Smart", "EV Plan"],
-            "BG-DYN": ["Dynamic", "Smart Dynamic"],
-        }.items():
-            if plan_id not in existing:
-                continue
-            for kw in keywords:
-                idx = text.lower().find(kw.lower())
-                if idx == -1:
-                    continue
-                chunk = text[max(0, idx - 100):idx + 400]
-                rate = parse_rate(chunk)
-                standing = parse_standing(chunk)
-                if rate or standing:
-                    upd = {"verified_date": TODAY}
-                    if rate:
-                        upd["_scraped_day_rate"] = rate
-                    if standing:
-                        upd["_scraped_standing"] = standing
-                    updates[plan_id] = upd
-                    log.info(f"BG {plan_id}: rate={rate} standing={standing}")
-                    break
-    return updates
-
-
-def scrape_sse_airtricity(existing: dict) -> dict:
-    """SSE publishes tariff PDFs at known paths — try to fetch the PDF index page."""
-    updates = {}
-    # Try the tariff comparison page
-    r = get("https://www.sseairtricity.com/ie/home/electricity-gas/electricity-plans/")
-    if not r:
-        r = get("https://www.sseairtricity.com/ie/home/electricity-plans/")
-    if not r:
-        return updates
-
-    soup = BeautifulSoup(r.text, "lxml")
-    text = soup.get_text(" ", strip=True)
-
-    for plan_id, keywords in {
-        "SSE-EVDAY": ["24hr Smart", "24 Hour Smart", "flat"],
-        "SSE-DNP": ["Day Night Peak", "Day/Night/Peak", "Smart DNP"],
-        "SSE-EVMAX": ["EV Max", "EVMax"],
-    }.items():
-        if plan_id not in existing:
-            continue
-        for kw in keywords:
-            idx = text.lower().find(kw.lower())
-            if idx == -1:
-                continue
-            chunk = text[max(0, idx - 100):idx + 400]
-            rate = parse_rate(chunk)
-            standing = parse_standing(chunk)
-            if rate or standing:
-                upd = {"verified_date": TODAY}
-                if rate:
-                    upd["_scraped_day_rate"] = rate
-                if standing:
-                    upd["_scraped_standing"] = standing
-                updates[plan_id] = upd
-                log.info(f"SSE {plan_id}: rate={rate} standing={standing}")
-                break
-    return updates
-
-
-def scrape_energia(existing: dict) -> dict:
-    updates = {}
-    r = get("https://www.energia.ie/home/electricity/plans")
-    if not r:
-        r = get("https://www.energia.ie/home/electricity")
-    if not r:
-        return updates
-
-    soup = BeautifulSoup(r.text, "lxml")
-    text = soup.get_text(" ", strip=True)
-
-    for plan_id, keywords in {
-        "EN-24": ["Standard", "24hr", "flat"],
-        "EN-SMART": ["Smart Data", "Day Night Peak", "time of use"],
-        "EN-EV": ["EV Smart Drive", "EV Drive"],
-        "EN-EV-PLUS": ["EV Smart Drive Plus", "EV Drive Plus"],
-        "EN-DYN": ["Dynamic", "dynamic rate"],
-    }.items():
-        if plan_id not in existing:
-            continue
-        for kw in keywords:
-            idx = text.lower().find(kw.lower())
-            if idx == -1:
-                continue
-            chunk = text[max(0, idx - 100):idx + 400]
-            rate = parse_rate(chunk)
-            standing = parse_standing(chunk)
-            if rate or standing:
-                upd = {"verified_date": TODAY}
-                if rate:
-                    upd["_scraped_day_rate"] = rate
-                if standing:
-                    upd["_scraped_standing"] = standing
-                updates[plan_id] = upd
-                log.info(f"EN {plan_id}: rate={rate} standing={standing}")
-                break
-    return updates
-
-
-def scrape_yuno(existing: dict) -> dict:
-    updates = {}
-    r = get("https://www.yunoenergy.ie/plans")
-    if not r:
-        r = get("https://www.yunoenergy.ie/electricity")
-    if not r:
-        return updates
-
-    soup = BeautifulSoup(r.text, "lxml")
-    text = soup.get_text(" ", strip=True)
-
-    for plan_id, keywords in {
-        "YN-24": ["Standard Smart", "flat", "24hr"],
-        "YN-DNP": ["Day Night Peak", "DNP", "Smart Day"],
-        "YN-EV": ["EV Variable", "EV"],
-    }.items():
-        if plan_id not in existing:
-            continue
-        for kw in keywords:
-            idx = text.lower().find(kw.lower())
-            if idx == -1:
-                continue
-            chunk = text[max(0, idx - 100):idx + 400]
-            rate = parse_rate(chunk)
-            standing = parse_standing(chunk)
-            if rate or standing:
-                upd = {"verified_date": TODAY}
-                if rate:
-                    upd["_scraped_day_rate"] = rate
-                if standing:
-                    upd["_scraped_standing"] = standing
-                updates[plan_id] = upd
-                log.info(f"YN {plan_id}: rate={rate} standing={standing}")
-                break
-    return updates
-
-
-def scrape_flogas(existing: dict) -> dict:
-    updates = {}
-    r = get("https://www.flogas.ie/electricity/tariffs")
-    if not r:
-        r = get("https://www.flogas.ie/electricity")
-    if not r:
-        return updates
-
-    soup = BeautifulSoup(r.text, "lxml")
-    text = soup.get_text(" ", strip=True)
-
-    for plan_id, keywords in {
-        "FL-24": ["Smart 24", "flat", "24 hour"],
-        "FL-DNP": ["Day Night Peak", "Smart DNP", "day night"],
-    }.items():
-        if plan_id not in existing:
-            continue
-        for kw in keywords:
-            idx = text.lower().find(kw.lower())
-            if idx == -1:
-                continue
-            chunk = text[max(0, idx - 100):idx + 400]
-            rate = parse_rate(chunk)
-            standing = parse_standing(chunk)
-            if rate or standing:
-                upd = {"verified_date": TODAY}
-                if rate:
-                    upd["_scraped_day_rate"] = rate
-                if standing:
-                    upd["_scraped_standing"] = standing
-                updates[plan_id] = upd
-                log.info(f"FL {plan_id}: rate={rate} standing={standing}")
-                break
-    return updates
-
-
-def scrape_pinergy(existing: dict) -> dict:
-    updates = {}
-    r = get("https://www.pinergy.ie/rates")
-    if not r:
-        r = get("https://www.pinergy.ie/home-electricity")
-    if not r:
-        return updates
-
-    soup = BeautifulSoup(r.text, "lxml")
-    text = soup.get_text(" ", strip=True)
-
-    for plan_id, keywords in {
-        "PIN-LF": ["Lifestyle Standard", "Standard Smart"],
-        "PIN-WFH": ["Working from Home", "WFH"],
-        "PIN-FAM": ["Family Time", "Family"],
-        "PIN-EV": ["EV Night", "EV Night Time"],
-    }.items():
-        if plan_id not in existing:
-            continue
-        for kw in keywords:
-            idx = text.lower().find(kw.lower())
-            if idx == -1:
-                continue
-            chunk = text[max(0, idx - 100):idx + 400]
-            rate = parse_rate(chunk)
-            standing = parse_standing(chunk)
-            # Check if plan now shows as discontinued
-            if "no longer" in chunk.lower() or "discontinued" in chunk.lower():
-                updates[plan_id] = {"discontinued": True, "discontinued_date": TODAY,
+            if re.search(r"no longer (available|on sale)|discontinued|withdrawn",
+                         chunk, re.I):
+                updates[plan_id] = {"discontinued": True,
+                                    "discontinued_date": TODAY,
                                     "verified_date": TODAY}
-                log.info(f"PIN {plan_id}: marked discontinued")
+                log.info(f"  {plan_id}: marked discontinued")
                 break
-            if rate or standing:
-                upd = {"verified_date": TODAY}
-                if rate:
-                    upd["_scraped_day_rate"] = rate
-                if standing:
-                    upd["_scraped_standing"] = standing
-                updates[plan_id] = upd
-                log.info(f"PIN {plan_id}: rate={rate} standing={standing}")
-                break
+
+            rates = rates_from_text(chunk)
+            standing = standing_from_text(chunk)
+            if not rates and not standing:
+                continue
+            upd = {"verified_date": TODAY}
+            if rates:
+                upd["_scraped_day_rate"] = rates[0]
+            if standing:
+                upd["_scraped_standing"] = standing[0]
+            updates[plan_id] = upd
+            log.info(f"  {plan_id}: rate={upd.get('_scraped_day_rate')} "
+                     f"standing={upd.get('_scraped_standing')}")
+            break
     return updates
+
+
+def read_page(got: Fetched) -> tuple[str, dict]:
+    """
+    Everything readable on one fetched page: (plain text, structured candidates).
+
+    A PDF yields text only. HTML yields both, and the structured half is worth
+    far more — a value at
+    props.pageProps.tariffs[0].unitRate is unambiguous, where a number three
+    hundred characters from the words "Smart Standard" is a guess.
+    """
+    if got.url.lower().endswith(".pdf") or got.content[:5] == b"%PDF-":
+        return pdf_text(got.content), {}
+
+    soup = BeautifulSoup(got.text, "lxml")
+    text = soup.get_text(" ", strip=True)
+    structured = rates_from_json(embedded_json(got.text))
+    return text, structured
+
+
+def scrape_supplier(spec: dict, existing: dict,
+                    session: requests.Session | None = None) -> tuple[dict, SupplierResult]:
+    """Read one supplier, returning plan updates and a record of what happened."""
+    name = spec["name"]
+    result = SupplierResult(supplier=name)
+    updates: dict = {}
+
+    log.info(f"{name}: discovering price pages under {spec['root']}")
+    pages = discover(spec["root"], session=session)
+    if not pages:
+        log.warning(f"{name}: found no candidate price pages from the homepage or sitemap")
+
+    for url in pages[:MAX_PAGES]:
+        got = fetch(url, session=session)
+        result.pages_tried.append(url)
+        if not got.ok:
+            result.failures.append(got)
+            log.warning(f"  {url} → {got.kind}: {got.detail}")
+            continue
+
+        result.reached_a_page = True
+        text, structured = read_page(got)
+        if structured:
+            result.rates.update(structured)
+            log.info(f"  {url}: {len(structured)} structured rate candidate(s)")
+
+        found = attribute(text, spec["plans"], existing)
+        for plan_id, upd in found.items():
+            updates.setdefault(plan_id, upd)
+            if "_scraped_standing" in upd:
+                result.standing.append(upd["_scraped_standing"])
+
+        if len(updates) >= len(spec["plans"]):
+            break
+
+    if not result.reached_a_page and not result.failures:
+        result.failures.append(
+            Fetched(spec["root"], kind="moved",
+                    detail="no candidate price pages discovered"))
+    return updates, result
 
 
 # ---------------------------------------------------------------------------
@@ -402,47 +313,88 @@ def apply_updates(tariffs: list, all_updates: dict) -> tuple[list, int]:
 
 
 # ---------------------------------------------------------------------------
-# Detect new plans via CRU comparison tool (bonus scan)
+# Cross-check against the CRU's accredited comparison sites
+#
+# The regulator accredits a handful of price-comparison services, and they list
+# every residential plan on the market in one place. That makes them a second
+# opinion we get almost free: if a supplier's own site has gone quiet, their
+# plans are still named here, and a plan we have never heard of shows up as a
+# gap rather than as silence.
+#
+# We never auto-add or auto-price from these. They are third parties with their
+# own refresh lag and their own commercial interests, and a wrong number that
+# reaches a recommendation is far worse than a missing one. They raise flags for
+# a human; nothing else.
 # ---------------------------------------------------------------------------
 
-def scan_cru_for_new_plans(existing_ids: set) -> list:
-    """
-    The CRU publishes a tariff comparison at www.cru.ie.
-    Try to detect supplier names that aren't in our list.
-    Returns list of warning strings — we don't auto-add plans.
-    """
-    warnings = []
-    r = get("https://www.cru.ie/home/switching-supplier/electricity-and-gas-price-comparison/")
-    if not r:
-        return warnings
-    soup = BeautifulSoup(r.text, "lxml")
-    text = soup.get_text(" ", strip=True)
+COMPARISON_SITES = [
+    ("CRU", "https://www.cru.ie/home/switching-supplier/electricity-and-gas-price-comparison/"),
+    ("Bonkers.ie", "https://www.bonkers.ie/compare-gas-electricity-prices/"),
+    ("Switcher.ie", "https://switcher.ie/gas-electricity/"),
+]
 
-    known_suppliers = {
-        "electric ireland", "bord gáis", "bord gais", "energia",
-        "sse airtricity", "yuno", "flogas", "pinergy",
-        "prepay power", "community power",
-    }
-    # Phrases that match the company-name pattern but are page furniture. The
-    # first version of this reported "Learn More Compare Energy" as a supplier
-    # three times over, which trains everyone to ignore the one channel meant
-    # to catch a competitor launching.
-    NOISE = {
-        "learn", "more", "compare", "fixed", "green", "smart", "home", "your",
-        "the", "all", "our", "new", "best", "switch", "save", "find", "view",
-        "read", "about", "renewable", "cheaper", "cheapest", "supplier",
-    }
+KNOWN_SUPPLIERS = {
+    "electric ireland", "bord gáis", "bord gais", "energia",
+    "sse airtricity", "airtricity", "yuno", "flogas", "pinergy",
+    "prepay power", "prepaypower", "community power", "waterpower",
+}
 
-    for m in re.finditer(r"\b([A-Z][a-zA-Z&]{2,}(?: [A-Z][a-zA-Z&]{2,}){0,2})\s+(?:Energy|Electricity|Power)\b", text):
+#: Phrases that match the company-name pattern but are page furniture. The first
+#: version of this reported "Learn More Compare Energy" as a supplier three
+#: times over, which trains everyone to ignore the one channel meant to catch a
+#: competitor launching.
+NOISE = {
+    "learn", "more", "compare", "fixed", "green", "smart", "home", "your",
+    "the", "all", "our", "new", "best", "switch", "save", "find", "view",
+    "read", "about", "renewable", "cheaper", "cheapest", "supplier", "cheap",
+    "top", "latest", "today", "why", "how", "get", "see", "clean", "100",
+}
+
+SUPPLIER_RE = re.compile(
+    r"\b([A-Z][a-zA-Z&]{2,}(?: [A-Z][a-zA-Z&]{2,}){0,2})\s+(?:Energy|Electricity|Power)\b")
+
+
+def unknown_suppliers(text: str) -> set[str]:
+    """Company names on a comparison page that are not in our tariff list."""
+    out = set()
+    for m in SUPPLIER_RE.finditer(text):
         raw = m.group(0).strip()
-        name = raw.lower()
-        if any(k in name for k in known_suppliers):
+        if any(k in raw.lower() for k in KNOWN_SUPPLIERS):
             continue
         # Every leading word must look like a proper noun, not a verb or filler.
         lead = [w for w in m.group(1).split() if w]
         if not lead or any(w.lower() in NOISE for w in lead):
             continue
-        warnings.append(f"Possible new supplier on the CRU comparison page: {raw!r}")
+        out.add(raw)
+    return out
+
+
+def cross_check(missing_suppliers: set[str],
+                session: requests.Session | None = None) -> list[str]:
+    """
+    Flags from the accredited comparison sites.
+
+    Two kinds: a supplier we do not carry at all, and a supplier whose own site
+    we failed to read today but whose plans are still listed here — which tells
+    us the plans are alive and our parser is the thing that broke.
+    """
+    warnings: list[str] = []
+    for label, url in COMPARISON_SITES:
+        got = fetch(url, session=session)
+        if not got.ok:
+            log.warning(f"cross-check {label}: {got.kind} — {got.detail}")
+            continue
+        text = BeautifulSoup(got.text, "lxml").get_text(" ", strip=True)
+
+        for name in sorted(unknown_suppliers(text)):
+            warnings.append(f"{label} lists a supplier we do not carry: {name!r}")
+
+        for name in sorted(missing_suppliers):
+            head = name.split()[0].lower()
+            if head and head in text.lower():
+                warnings.append(
+                    f"{name} is still listed on {label} but we could not read their "
+                    f"own site today — the parser is what needs fixing, not the plan")
     return sorted(set(warnings))
 
 
@@ -461,42 +413,45 @@ def main():
     existing = {t["id"]: t for t in tariffs}
     log.info(f"Loaded {len(tariffs)} plans from tariffs.json")
 
-    # Run all scrapers
+    session = requests.Session()
     all_updates: dict = {}
-    scrapers = [
-        scrape_electric_ireland,
-        scrape_bord_gais,
-        scrape_sse_airtricity,
-        scrape_energia,
-        scrape_yuno,
-        scrape_flogas,
-        scrape_pinergy,
-    ]
-    for scraper_fn in scrapers:
-        name = scraper_fn.__name__
-        try:
-            updates = scraper_fn(existing)
-            log.info(f"{name}: {len(updates)} plan(s) updated")
-            all_updates.update(updates)
-        except Exception as e:
-            log.error(f"{name} crashed: {e}")
+    results: list[SupplierResult] = []
 
-    # Apply updates
+    for spec in SUPPLIERS:
+        try:
+            updates, result = scrape_supplier(spec, existing, session=session)
+            all_updates.update(updates)
+            results.append(result)
+            log.info(result.summary())
+        except Exception as e:
+            log.error(f"{spec['name']} crashed: {e}")
+            results.append(SupplierResult(supplier=spec["name"]))
+
     updated_tariffs, n_changes = apply_updates(tariffs, all_updates)
 
-    # Scan CRU for new suppliers
-    existing_ids = set(existing.keys())
-    cru_warnings = scan_cru_for_new_plans(existing_ids)
+    # Suppliers whose own site told us nothing today — the set the comparison
+    # sites are most useful for.
+    silent = {r.supplier for r in results if not r.rates and not r.reached_a_page}
+    cru_warnings = cross_check(silent, session=session)
     for w in cru_warnings:
-        log.warning(f"CRU SCAN: {w}")
+        log.warning(f"CROSS-CHECK: {w}")
 
-    # Always bump meta even if no rate changes (proves the scraper ran)
+    # A page that has moved is a broken link with an owner, not weather. It is
+    # reported separately so it never again gets averaged in with real refusals.
+    moved = [f for r in results for f in r.failures if f.kind == "moved"]
+    tls = [f for r in results for f in r.failures if f.kind == "tls"]
+    refused = [f for r in results for f in r.failures if f.kind == "refused"]
+
     meta_idx = next((i for i, t in enumerate(updated_tariffs) if t.get("id") == "__meta__"), None)
     meta = {
         "id": "__meta__",
         "last_scraped": TODAY,
-        "scraper_version": "1.0",
+        "scraper_version": "2.0",
         "cru_warnings": cru_warnings,
+        "suppliers": [r.summary() for r in results],
+        "broken_links": [f.url for f in moved],
+        "tls_failures": [f.url for f in tls],
+        "refused": [f.url for f in refused],
     }
     if meta_idx is not None:
         updated_tariffs[meta_idx] = meta
@@ -509,22 +464,39 @@ def main():
     log.info(f"Done. {n_changes} field(s) updated. tariffs.json written.")
 
     if cru_warnings:
-        print("\n=== ACTION REQUIRED: Possible new suppliers detected ===")
+        print("\n=== ACTION REQUIRED: comparison-site cross-check ===")
         for w in cru_warnings:
             print(f"  {w}")
-        print("Review and manually add any new plans to tariffs.json.\n")
+        print()
+
+    if moved:
+        print("=== BROKEN LINKS (HTTP 404/410) ===")
+        for f in moved:
+            print(f"  {f.url}")
+        print("These are not refusals. Somebody moved the page; discovery should\n"
+              "have found the new one, so if this list is long the discovery\n"
+              "keywords need widening.\n")
+    if refused:
+        print("=== ACTUALLY REFUSED (401/403/429) ===")
+        for f in refused:
+            print(f"  {f.url} — {f.detail}")
+        print()
+    if tls:
+        print("=== TLS CHAIN FAILURES ===")
+        for f in tls:
+            print(f"  {f.url} — the server is serving an incomplete certificate chain")
+        print()
 
     # ------------------------------------------------------------------
     # Fail loudly when the scrape did not actually verify anything.
     #
-    # Every parser is wrapped in try/except and every miss is a silent
-    # no-op, so a run where all seven suppliers changed their markup used
-    # to finish green and write a last_scraped stamp described in this
-    # file as "proof the scraper ran". It proved only that the job
-    # started. Meanwhile 25 of 26 plans went eight weeks unverified while
-    # the dashboard stayed green and the app told users rates were
-    # current. A scraper that silently matches nothing is worse than no
-    # scraper, because it manufactures confidence.
+    # Every parser miss is a silent no-op, so a run where all seven suppliers
+    # changed their markup used to finish green and write a last_scraped stamp
+    # once described in this file as "proof the scraper ran". It proved only
+    # that the job started. Meanwhile 25 of 26 plans went eight weeks unverified
+    # while the dashboard stayed green and the app told users rates were
+    # current. A scraper that silently matches nothing is worse than no scraper,
+    # because it manufactures confidence.
     # ------------------------------------------------------------------
     verified_today = sum(
         1 for t in updated_tariffs
@@ -542,9 +514,10 @@ def main():
     if coverage < MIN_COVERAGE:
         log.error(
             f"Only {verified_today} of {rankable} plans were verified "
-            f"({coverage:.0%}, floor is {MIN_COVERAGE:.0%}). The supplier pages have "
-            f"almost certainly changed shape. Rates are now going stale silently — "
-            f"fix the parsers before trusting anything this job writes."
+            f"({coverage:.0%}, floor is {MIN_COVERAGE:.0%}). Rates are going stale "
+            f"silently. The per-supplier lines above say which half of the job "
+            f"broke: 'NO PAGE REACHED' means discovery needs widening, "
+            f"'nothing recognisable' means the parser does."
         )
         sys.exit(1)
 

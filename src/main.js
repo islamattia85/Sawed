@@ -4047,9 +4047,13 @@ async function refreshTariffs(){
       const unreached = (data.unreachable_suppliers || []).length;
       if (changed > 0){
         showToast(`${confirmed} plans confirmed · ${changed} possible rate change${changed>1?'s':''} detected`, { type:'amber', icon:ic('warn',16), title:'Refreshed with warnings' });
-      } else if (unreached === (data.unreachable_suppliers || []).length && confirmed === 0){
-        // Common reality: every supplier returned 403/blocked the scraper
-        showToast(`All ${unreached} supplier sites blocked the check (403/anti-bot). Bundled rates are unchanged — they're verified manually.`, { type:'blue', icon:'ⓘ', title:'Suppliers blocked scraper' });
+      } else if (unreached > 0 && confirmed === 0){
+        // This used to say the suppliers had blocked us. They had not. The logs
+        // showed eleven 404s and one bad certificate chain across twelve failed
+        // requests — dead links after site reorganisations, and entirely our
+        // problem to fix. Telling users it was anti-bot defence turned a bug
+        // into a fact of life and kept anyone from looking at it for weeks.
+        showToast(`Couldn't read ${unreached} supplier site${unreached>1?'s':''}. Showing the rates we last verified — that's a fault on our side, and it's logged.`, { type:'amber', icon:ic('warn',16), title:'Check incomplete' });
       } else {
         showToast(`Rates up to date · ${confirmed} plan${confirmed!==1?'s':''} confirmed`, { type:'accent', icon:ic('checkC',16), title:'Refreshed' });
       }
@@ -7877,7 +7881,7 @@ function renderRefine(){
           ${state._tariff_refreshing ? 'Checking supplier sites…' : 'Try live refresh'}
         </button>
         <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);text-align:center;margin-top:6px;letter-spacing:.04em;line-height:1.5">
-          Heads up: most supplier sites block automated checks (HTTP 403).<br>If the refresh shows "0 confirmed", that's why — bundled rates are still accurate.
+          Reads each supplier's published price page.<br>If it comes back short, the bundled rates below are what we last verified.
         </div>
       ` : `
         <div style="padding:10px 12px;background:rgba(90,156,255,.04);border:1px solid rgba(90,156,255,.15);border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.6;text-align:center">
