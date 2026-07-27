@@ -24,9 +24,14 @@
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Solar Optimiser · Irish energy advisor">
 <meta name="twitter:description" content="Find the cheapest Irish electricity plan for your home — with or without solar. Free & independent.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- Fonts are served from our own origin. The Google Fonts stylesheet was
+     render-blocking, so when that CDN was slow or unreachable — corporate
+     networks, hotel wifi, several national firewalls — the page painted
+     nothing at all for 13 seconds, against 308ms when it resolved. That is a
+     total outage caused by a decorative dependency we do not control.
+     Two variable woff2 files, latin subset, 76 KB the browser can cache. -->
+<link rel="preload" href="/fonts/InterTight.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/JetBrainsMono.woff2" as="font" type="font/woff2" crossorigin>
 <!-- Vercel Web Analytics -->
 <script>
   window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };

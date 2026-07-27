@@ -1292,7 +1292,12 @@ async function loadTariffs(){
   try {
     const ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
     const timer = ac ? setTimeout(() => ac.abort(), 3000) : null;
-    const res = await fetch('tariffs.json', { cache:'no-cache', signal: ac ? ac.signal : undefined });
+    // Cache-bust on the build id. `cache:no-cache` still revalidates against a
+    // shared cache, and during the audit two browser contexts on the same build
+    // disagreed about the rates — one had the current file, one a stale copy.
+    // A returning user must never be advised from tariffs older than the ones
+    // we shipped.
+    const res = await fetch(`tariffs.json?v=${__BUILD_ID__}`, { cache:'no-cache', signal: ac ? ac.signal : undefined });
     if (timer) clearTimeout(timer);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
@@ -1574,15 +1579,42 @@ function coerceNumericState(){
   }
 }
 
+/**
+ * Depth of the current what-if batch.
+ *
+ * The scenario runners work by mutating state, rebuilding, measuring and
+ * restoring — and every rebuild calls invalidate(), which clears the memo
+ * caches. So computeScenarioRange() ran twelve scenarios and, on its way out,
+ * destroyed the very cache computeSolarPaybackScenarios() had just written.
+ * Nothing was ever reused: the solar screen re-ran the 8,760-hour simulation
+ * from scratch on every single render, which is 57% of a 1.1-second paint.
+ *
+ * While a batch is in flight the memos are left alone; the batch owns them and
+ * writes the final value itself against a checksum of the real inputs.
+ */
+let _scenarioDepth = 0;
+
+/**
+ * Scenario results by checksum. Small and bounded: one render needs at most the
+ * average year plus the two range variants.
+ */
+const scenarioMemo = new Map();
+function rememberScenario(ck, result){
+  scenarioMemo.set(ck, result);
+  while (scenarioMemo.size > 8) scenarioMemo.delete(scenarioMemo.keys().next().value);
+}
+
 function invalidate(){
   coerceNumericState();
   CACHE.dirty = true;
-  CACHE._scenarios = null;
-  CACHE._scenario_ck = null;
-  CACHE._opt = null;
-  CACHE._opt_ck = null;
-  CACHE._range = null;
-  CACHE._range_ck = null;
+  if (_scenarioDepth === 0){
+    CACHE._opt = null;
+    CACHE._opt_ck = null;
+    scenarioMemo.clear();
+    singleScenarioMemo.clear();
+    CACHE._range = null;
+    CACHE._range_ck = null;
+  }
   // _goalSweep survives invalidate deliberately: its checksum (goalSweepCk)
   // covers all inputs that affect it, and the sweep itself is independent of
   // the currently-applied system config.
@@ -1704,7 +1736,7 @@ function runScenario(hasSolar, hasEv){
 function computeScenarioRange(){
   const ck = JSON.stringify(['range', state.region, state.count_A, state.count_B,
     state.battery_kwh, state.install_cost, state.grant_seai, state.heating_type,
-    state.bimonthly_bill_eur, state.ev_active, state.ev_in_bill, state.ev_km_per_year,
+    usageKey(), state.ev_active, state.ev_in_bill, state.ev_km_per_year,
     state.chosen_plan]);
   if (CACHE._range_ck === ck && CACHE._range) return CACHE._range;
 
@@ -1717,17 +1749,61 @@ function computeScenarioRange(){
     return s[state.ev_active ? 'withEv' : 'withoutEv'];
   };
 
-  const realistic  = run(undefined);        // normal regional multiplier
-  const pessimist  = run(0.82);             // ~18% below average — a genuinely bad Irish year
-  const optimist   = run(1.15);             // ~15% above — a good summer
-
-  state._ghi_override = origMult;
-  invalidate();
-  rebuildBase();
+  _scenarioDepth += 1;
+  let realistic, pessimist, optimist;
+  try {
+    realistic  = run(undefined);      // normal regional multiplier
+    pessimist  = run(0.82);           // ~18% below average — a genuinely bad Irish year
+    optimist   = run(1.15);           // ~15% above — a good summer
+    // Restore inside the guard: this invalidate() would otherwise run at depth
+    // zero and clear the three results that were just computed.
+    state._ghi_override = origMult;
+    invalidate();
+    rebuildBase();
+  } finally {
+    _scenarioDepth -= 1;
+  }
 
   const out = { realistic, pessimist, optimist };
   CACHE._range_ck = ck;
   CACHE._range = out;
+  return out;
+}
+
+/**
+ * Digest of the consumption the engine actually reads.
+ *
+ * Every scenario checksum keyed on `bimonthly_bill_eur`, but that field only
+ * feeds `state.bills` through the anchor rebuild — a CSV import or a switch to
+ * the annual-kWh anchor changes the load profile without touching it. Keying on
+ * the profile itself closes the gap.
+ */
+function usageKey(){
+  const b = state.bills || {};
+  return Object.keys(b).sort().map(k => `${k}:${Math.round(b[k] || 0)}`).join(',');
+}
+
+/**
+ * A single scenario, memoised and guarded.
+ *
+ * runScenario() mutates state, rebuilds and restores, and each rebuild
+ * invalidates every memo in the app. Calling it straight from a render meant
+ * the solar screen recomputed 286 full-year simulations on every paint and
+ * wiped the payback memo on the way past.
+ */
+const singleScenarioMemo = new Map();
+function cachedScenario(hasSolar, hasEv){
+  const ck = JSON.stringify([hasSolar, hasEv, state.region, state.count_A, state.count_B,
+    state.tilt_A, state.azimuth_A, state.battery_kwh, state.panel_w, state.heating_type,
+    usageKey(), state.ev_km_per_year, state.baseline, state.chosen_plan,
+    state.hot_water_strategy, state._ghi_override]);
+  const hit = singleScenarioMemo.get(ck);
+  if (hit) return hit;
+  _scenarioDepth += 1;
+  let out;
+  try { out = runScenario(hasSolar, hasEv); } finally { _scenarioDepth -= 1; }
+  singleScenarioMemo.set(ck, out);
+  while (singleScenarioMemo.size > 8) singleScenarioMemo.delete(singleScenarioMemo.keys().next().value);
   return out;
 }
 
@@ -1738,20 +1814,29 @@ function computeSolarPaybackScenarios(){
   // (region, panels, battery, install cost, EV km, heating, bills)
   const ck = JSON.stringify([state.region, state.count_A, state.count_B, state.azimuth_A, state.azimuth_B,
     state.tilt_A, state.tilt_B, state.battery_kwh, state.panel_w, state.install_cost, state.grant_seai,
-    state.heating_type, state.bimonthly_bill_eur, state.ev_km_per_year, state.ev_kwh_per_100km,
+    state.heating_type, usageKey(), state.ev_km_per_year, state.ev_kwh_per_100km,
     state.fuel_price, state.ice_l_per_100km, state.hot_water_strategy, state.region, state.ev_in_bill,
     // The hand-picked plan changes the with-solar side of every scenario.
-    state.chosen_plan]);
-  if (CACHE._scenario_ck === ck && CACHE._scenarios) return CACHE._scenarios;
+    state.chosen_plan,
+    // computeScenarioRange() re-runs this whole set at three different
+    // irradiances. Without the override in the key, the bad-year and good-year
+    // runs would be served the average-year answer.
+    state._ghi_override]);
+  const memo = scenarioMemo.get(ck);
+  if (memo) return memo;
 
-  // Scenario A: no solar + with EV
-  const A = runScenario(false, true);
-  // Scenario B: WITH solar + with EV (the user's setup if they get an EV)
-  const B = runScenario(true, true);
-  // Scenario C: no solar + no EV
-  const C = runScenario(false, false);
-  // Scenario D: WITH solar + no EV
-  const D = runScenario(true, false);
+  // Scenarios A–D. The depth guard keeps each run's internal invalidate() from
+  // clearing the memo this function is about to write.
+  _scenarioDepth += 1;
+  let A, B, C, D;
+  try {
+    A = runScenario(false, true);   // no solar, with EV
+    B = runScenario(true,  true);   // with solar, with EV
+    C = runScenario(false, false);  // no solar, no EV
+    D = runScenario(true,  false);  // with solar, no EV
+  } finally {
+    _scenarioDepth -= 1;
+  }
 
   // Pure solar benefits (electricity only — petrol displacement excluded; it happens regardless of solar)
   const solarBenefitWithEv = A.annualCost - B.annualCost;
@@ -1786,8 +1871,7 @@ function computeSolarPaybackScenarios(){
     baselineCost: baseCost,
     sysCost
   };
-  CACHE._scenario_ck = ck;
-  CACHE._scenarios = result;
+  rememberScenario(ck, result);
   return result;
 }
 
@@ -2141,15 +2225,20 @@ function renderNpvBreakdown(annualBenefit, sysCostNet, batteryKwh, panelDegradat
 function simulateWithOverrides(overrides){
   const snap = {};
   for (const k in overrides) snap[k] = state[k];
-  Object.assign(state, overrides);
-  invalidate();
-  rebuildBase();
-  const best = getBestPlan();
-  const out = { net: best.net, planLabel: best.plan.supplier + ' — ' + best.plan.plan };
-  Object.assign(state, snap);
-  invalidate();
-  rebuildBase();
-  return out;
+  _scenarioDepth += 1;
+  try {
+    Object.assign(state, overrides);
+    invalidate();
+    rebuildBase();
+    const best = getBestPlan();
+    const out = { net: best.net, planLabel: best.plan.supplier + ' — ' + best.plan.plan };
+    Object.assign(state, snap);
+    invalidate();
+    rebuildBase();
+    return out;
+  } finally {
+    _scenarioDepth -= 1;
+  }
 }
 
 const OPTIMISATIONS = {
@@ -2181,7 +2270,7 @@ const OPTIMISATIONS = {
 
 function computeOptimisations(){
   const ck = JSON.stringify([state.strategy_mode, state.charge_from_grid, state.hot_water_strategy,
-    state.export_enabled, state.battery_kwh, state.heating_type, state.bimonthly_bill_eur, state.region,
+    state.export_enabled, state.battery_kwh, state.heating_type, usageKey(), state.region,
     state.count_A, state.count_B, state.has_solar, state.baseline, state.ev_active, state.ev_km_per_year, state.ev_in_bill]);
   if (CACHE._opt_ck === ck && CACHE._opt) return CACHE._opt;
 
@@ -4900,7 +4989,31 @@ function setPlansFilter(cat){
   renderApp();
 }
 
+/**
+ * Transient confirmation.
+ *
+ * Announced through a polite live region: without one, every confirmation the
+ * app gives — plan chosen, report downloaded, settings saved — was invisible to
+ * anyone not looking at the screen.
+ */
+function announce(message){
+  try {
+    let el = document.getElementById('a11y-live');
+    if (!el){
+      el = document.createElement('div');
+      el.id = 'a11y-live';
+      el.className = 'sr-only';
+      el.setAttribute('role', 'status');
+      el.setAttribute('aria-live', 'polite');
+      document.body.appendChild(el);
+    }
+    el.textContent = '';
+    setTimeout(() => { el.textContent = String(message || '').replace(/<[^>]*>/g, ''); }, 60);
+  } catch(e){ /* announcement is additive */ }
+}
+
 function showToast(message, opts){
+  announce(message);
   opts = opts || {};
   const type  = opts.type  || 'accent';
   const icon  = opts.icon  || ic('checkC',16);
@@ -7869,8 +7982,19 @@ function setTheme(t){
   renderApp();
 }
 
+/**
+ * Screen chrome.
+ *
+ * Carries the page's only h1 and the banner landmark. There was no heading
+ * element anywhere in the app and no landmarks at all, so a screen reader had
+ * no structure to navigate by and no way to answer "what page am I on?".
+ * The title is visible when there is one and visually hidden otherwise, since
+ * every screen needs a name even when the design doesn't show it.
+ */
 function topbar(title, accent, showBack){
-  return `<div class="topbar ${accent || 'accent'}">
+  const heading = title || 'Solar Optimiser';
+  return `<header class="topbar ${accent || 'accent'}" role="banner">
+    <h1 class="sr-only">${heading}</h1>
     <div class="stripe"></div>
     ${showBack
       ? `<button class="icb" onclick="goBack()" aria-label="Back">${ic('chevL', 19)}</button>`
@@ -7880,7 +8004,7 @@ function topbar(title, accent, showBack){
       ${renderProfileNavBtn()}
       <button class="icb" onclick="setScreen('refine')" aria-label="Settings">${ic('tune', 18)}</button>
     </div>
-  </div>`;
+  </header>`;
 }
 
 /* ============================================================
@@ -8666,14 +8790,14 @@ function bottomNav(){
     { id:'monitor', icon:'radar',  label:'Monitor' },
     { id:'more',    icon:'grid',   label:'More' }
   ];
-  return `<div class="bottom-nav">
+  return `<nav class="bottom-nav" role="navigation" aria-label="Sections">
     ${items.map(item => `
       <div class="bottom-nav-item ${navActive === item.id ? 'active' : ''}" onclick="setScreen('${item.id}')">
         <span class="nav-ico">${ic(item.icon, 21)}</span>
         <span class="nav-label">${item.label}</span>
       </div>
     `).join('')}
-  </div>`;
+  </nav>`;
 }
 
 /* ============================================================
@@ -9077,8 +9201,16 @@ function renderApp(){
   // A re-render of the SAME screen is a state update, not navigation: keep the
   // user where they were and don't replay the entry animation. A different
   // screen is navigation: animate in and start at the top.
+  // Scroll position is remembered per screen. Returning to a tab used to dump
+  // the reader back at the top, so scrolling four viewports down the plans list
+  // and tapping away to check something meant scrolling all the way back.
   const screenChanged = window.__lastScreen !== state.current_screen;
-  const keepScroll = screenChanged ? 0 : (window.scrollY || window.pageYOffset || 0);
+  const here = window.scrollY || window.pageYOffset || 0;
+  window.__scrollMemory = window.__scrollMemory || {};
+  if (window.__lastScreen) window.__scrollMemory[window.__lastScreen] = screenChanged ? here : 0;
+  const keepScroll = screenChanged
+    ? (window.__scrollMemory[state.current_screen] || 0)
+    : here;
 
   root.setAttribute('data-chrome','app');
   root.innerHTML = html;
@@ -9090,7 +9222,7 @@ function renderApp(){
   if (screenChanged){
     const sc = root.querySelector('.screen');
     if (sc) sc.classList.add('screen-enter');
-    window.scrollTo(0, 0);
+    window.scrollTo(0, keepScroll);
     runCountUps(root);
     window.__lastScreen = state.current_screen;
   } else if (keepScroll){
@@ -9807,8 +9939,10 @@ function renderSolarComparison(){
   const baseSim = baselineSim(state.baseline);
   const baseCost = sumF(baseSim.cost) + baselinePlan.standing;
 
-  // No-solar scenario — run full engine with solar removed, find best plan
-  const noSolarScenario = runScenario(false, state.ev_active);
+  // No-solar scenario — run the full engine with solar removed. Memoised: this
+  // is a full-year simulation of every plan, and it was being re-run on every
+  // paint of the solar screen, unguarded, which also cleared every other memo.
+  const noSolarScenario = cachedScenario(false, state.ev_active);
   const noSolarCost = noSolarScenario.annualCost;
   const solarCost = best.net;
 
