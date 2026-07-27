@@ -24,6 +24,8 @@ import {
 const SUPABASE_URL      = window.SUPABASE_URL      || '';
 const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || '';
 
+
+
 let _sb = null;          // Supabase client
 let _sbUser = null;      // Current user object (null = logged out)
 let _sbProfile = null;   // User profile row from DB
@@ -238,6 +240,7 @@ function renderProfileNavBtn(){
       <div class="profile-nav-avatar">${initials}</div>
     </button>`;
   }
+  if (!sbInitialized()) return '';
   return `<button class="profile-nav-btn" onclick="_introStep=3;state.current_screen='intro';renderApp()" aria-label="Sign in" style="font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;gap:5px">
     ${ic('shield',15)} <span>Sign in</span>
   </button>`;
@@ -246,7 +249,7 @@ function renderProfileNavBtn(){
 // ---- Auth actions (called from onclick) ----
 
 async function doGoogleSignIn(){
-  const btn = document.querySelector('.auth-google-btn');
+  const btn = document.querySelector('.auth-google-btn, .intro-oauth-btn');
   const origHTML = btn ? btn.innerHTML : '';
   if (btn){ btn.disabled = true; btn.innerHTML = '<span style="opacity:.6">Connecting…</span>'; }
   if (!_sb) await sbInit();
@@ -2572,9 +2575,17 @@ Object.assign(state, {
 if (state.onboarding_complete && state.current_screen === 'onboarding'){
   state.current_screen = 'result';
 }
-// First-ever load (no prior state) — start on intro
+// First-ever load (no prior state) — open on the welcome screen.
+//
+// There used to be a three-slide carousel in front of it: a value proposition,
+// a feature list, and a sign-in wall. The welcome screen states the same value
+// proposition and the same three features, better, and offers the actual
+// choice — so the carousel was the pitch delivered twice with a dead-end
+// between the two. Four screens of preamble, then one input screen, then the
+// answer. Now the answer is three taps away instead of five.
 if (!state.onboarding_complete && (state.current_screen === 'onboarding' || !state.current_screen)){
-  state.current_screen = state.seen_intro ? 'welcome' : 'intro';
+  state.current_screen = 'welcome';
+  state.seen_intro = true;
 }
 // Returning user who finished onboarding — never show intro again
 if (state.onboarding_complete) state.seen_intro = true;
@@ -8954,6 +8965,14 @@ function renderApp(){
   const root = document.getElementById('app-root');
   // Intro onboarding — first-time users only
   if (state.current_screen === 'intro'){
+    // The intro exists only to offer an account. With no auth backend its
+    // buttons are inert, so send the user somewhere that works rather than
+    // rendering a screen where nothing responds.
+    if (!sbInitialized()){
+      state.current_screen = state.onboarding_complete ? 'result' : 'welcome';
+      saveState();
+      return renderApp();
+    }
     root.setAttribute('data-chrome','bare');
     root.innerHTML = renderIntro();
     return;
@@ -8976,11 +8995,11 @@ function renderApp(){
     enhanceA11y();
     return;
   }
-  // First-ever load — go to the intro or welcome
+  // First-ever load — the welcome screen is the front door.
   if (!state.onboarding_complete){
-    state.current_screen = state.seen_intro ? 'welcome' : 'intro';
+    state.current_screen = 'welcome';
     root.setAttribute('data-chrome','bare');
-    root.innerHTML = state.seen_intro ? renderWelcome() : renderIntro();
+    root.innerHTML = renderWelcome();
     enhanceA11y();
     return;
   }
@@ -10072,6 +10091,19 @@ window.editPlanRate = editPlanRate;
 window.editPlanField = editPlanField;
 window.resetPlanOverride = resetPlanOverride;
 window.setAsBaseline = setAsBaseline;
+// Auth handlers. These are invoked from inline on* attributes, which evaluate
+// in global scope, so a module-scoped function is simply not in scope there.
+// All seven were missed when the app moved to ES modules, which left every
+// authentication path — sign in, sign up, Google, sign out, password reset,
+// profile save, cloud sync — throwing ReferenceError on click with no visible
+// effect. Nothing in the interface said anything had gone wrong.
+window.doGoogleSignIn   = doGoogleSignIn;
+window.doSignIn         = doSignIn;
+window.doSignUp         = doSignUp;
+window.doSignOut        = doSignOut;
+window.doForgotPassword = doForgotPassword;
+window.doUpdateProfile  = doUpdateProfile;
+window.doSyncState      = doSyncState;
 window.choosePlan = choosePlan;
 window.openPlanPicker = openPlanPicker;
 window.pickPlan = pickPlan;

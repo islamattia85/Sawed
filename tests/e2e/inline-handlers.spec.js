@@ -49,14 +49,35 @@ test('inline handler toggling a boolean state field works (Home disclosure)', as
 
 test('inline handler assigning a module-scoped PRIMITIVE works (intro step)', async ({ page }) => {
   // _introStep is a bare `let` number. Without an accessor bridge, an inline
-  // `_introStep=3` writes a dead global and the intro never advances.
-  const errors = await bootFresh(page);
+  // `_introStep=3` writes a dead global and the screen never changes.
+  //
+  // The intro carousel is no longer the front door — it restated the welcome
+  // screen's own pitch and put a sign-in wall between the two — so this drives
+  // the bridge through the control that still sets it inline: the header
+  // sign-in button, whose handler is the string `_introStep=3;…`.
+  const errors = await boot(page);
 
-  await expect.poll(() => page.evaluate(() => window._introStep)).toBe(1);
-  await page.locator('.intro-cta').first().click();
-  await expect.poll(() => page.evaluate(() => window._introStep)).toBe(2);
-  await page.locator('.intro-cta').first().click();
+  await page.locator('.profile-nav-btn').first().click();
   await expect.poll(() => page.evaluate(() => window._introStep)).toBe(3);
+  await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('intro');
+
+  // And the step-back handler decrements the same binding.
+  await page.evaluate(() => { window.introBack?.(); });
+  await expect.poll(() => page.evaluate(() => window._introStep)).toBe(2);
+  expect(errors).toEqual([]);
+});
+
+test('the first run opens on the welcome screen, not a carousel or a sign-in wall', async ({ page }) => {
+  // Four screens used to precede the first input: a pitch, a feature list, a
+  // sign-in wall, then the welcome screen repeating the pitch and the features.
+  const errors = await bootFresh(page);
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('welcome');
+  await expect(page.getByRole('button', { name: /Get my quick answer/ })).toBeVisible();
+
+  // Two taps to an answer.
+  await page.getByRole('button', { name: /Get my quick answer/ }).click();
+  await page.getByRole('button', { name: /See my savings/ }).click();
+  await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('result');
   expect(errors).toEqual([]);
 });
 
