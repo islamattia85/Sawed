@@ -5137,7 +5137,7 @@ let _searchSeq = 0;
  * the main thread if workers are unavailable, which costs a freeze but is
  * better than no answer.
  */
-function runDesignSearch(onProgress){
+function runDesignSearch(onProgress, options){
   if (CACHE.dirty) rebuildBase();
   const home = {
     genPerKwp: genPerKwpProfile(),
@@ -5153,10 +5153,17 @@ function runDesignSearch(onProgress){
     batteryEff: state.battery_eff,
   };
   const plans = TARIFFS.filter(isRankablePlan);
+  const opts = options || {};
   const limits = {
     panelWatts: state.panel_w || 440,
     minPanels: SEARCH_MIN_PANELS,
-    maxPanels: SEARCH_MAX_PANELS,
+    // How much roof there is. Until V4 asks, this is an assumption — and it is
+    // frequently the binding constraint on the answer, so it must be easy to
+    // override and impossible to forget about.
+    maxPanels: opts.maxPanels || state.roof_capacity_panels || SEARCH_MAX_PANELS,
+    // What "best" means to this reader. See engine/search.ts.
+    goal: opts.goal || state.search_goal || 'max-return',
+    ...(opts.finance !== undefined ? { finance: opts.finance } : {}),
   };
 
   return new Promise((resolve, reject) => {

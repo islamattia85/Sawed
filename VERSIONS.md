@@ -18,7 +18,10 @@ underneath the advice, for the people who want it.
 
 The engine for that landed first, deliberately, with no interface on it:
 `src/engine/search.ts` and `src/search-worker.js`. It is reachable as
-`window.runDesignSearch()`. If the search could not produce a stable answer in
+`window.runDesignSearch(onProgress, { goal, finance, maxPanels })`, and it
+answers four goals from one sweep — `max-return`, `bill-swap`, `independence`
+and `fast-payback` — because "best" is not a technical question and the engine
+has no business deciding it. If the search could not produce a stable answer in
 a couple of seconds on a phone, every screen planned on top of it would have
 been built on sand.
 

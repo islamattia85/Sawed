@@ -14,7 +14,8 @@ import { describe, it, expect } from 'vitest';
 import { HOURS_IN_YEAR, type Tariff } from '../../src/engine/constants.js';
 import {
   searchDesigns, explain, confidence, DEFAULT_BATTERY_OPTIONS,
-  type HomeProfile, type CostModel, type SearchLimits,
+  GOALS, monthlyRepayment, DEFAULT_FINANCE,
+  type HomeProfile, type CostModel, type SearchLimits, type Goal,
 } from '../../src/engine/search.js';
 
 /* ---------------------------------------------------------------- a house */
@@ -246,5 +247,141 @@ describe('the design search', () => {
     // Generous here because CI machines vary; the point is to catch an
     // accidental order of magnitude, not to benchmark. A phone is ~4x slower.
     expect(ms, `search took ${ms}ms`).toBeLessThan(4000);
+  });
+});
+
+/**
+ * "Best" is not a technical question.
+ *
+ * The same house, roof and tariffs give different right answers depending on
+ * what the person is trying to do. Someone treating the roof as a twenty-year
+ * investment, someone borrowing so they can stop paying the utility and start
+ * paying the bank, and someone who wants off the grid are not asking for
+ * different presentations of one answer — they are asking different questions,
+ * two of them with hard constraints attached.
+ *
+ * The engine has no business deciding that for them, and it must not quietly
+ * answer the investment question and relabel it.
+ */
+describe('goals', () => {
+  const search = (goal: Goal, over: Partial<SearchLimits> = {}) =>
+    searchDesigns(HOME, PLANS, COSTS, { ...LIMITS, goal, ...over });
+
+  it('gives every goal an answer, and each one satisfies its own constraint', () => {
+    for (const goal of GOALS) {
+      const r = search(goal);
+      expect(r.best, `no answer for ${goal}`).toBeTruthy();
+      expect(r.goal).toBe(goal);
+      const d = r.best!;
+      if (goal === 'bill-swap') {
+        // The proposition IS the constraint: better off from month one.
+        expect(d.monthlyNetChange, 'recommended a loan that costs more than it saves')
+          .toBeGreaterThan(0);
+        expect(d.monthlyRepayment).toBeGreaterThan(0);
+      }
+      if (goal === 'independence') expect(d.payback).toBeLessThan(20);
+      if (goal === 'fast-payback') expect(d.payback).toBeLessThan(15);
+    }
+  });
+
+  it('answers each goal with the system that actually serves it', () => {
+    const investor = search('max-return').best!;
+    const swap = search('bill-swap').best!;
+    const off = search('independence').best!;
+    const quick = search('fast-payback').best!;
+
+    // Each goal's own metric must be best under that goal — otherwise the
+    // objective function is decoration.
+    expect(investor.npv).toBeGreaterThanOrEqual(swap.npv);
+    expect(investor.npv).toBeGreaterThanOrEqual(off.npv);
+    expect(off.selfSufficiency).toBeGreaterThanOrEqual(investor.selfSufficiency);
+    expect(quick.payback).toBeLessThanOrEqual(investor.payback);
+    expect(swap.monthlyNetChange).toBeGreaterThanOrEqual(investor.monthlyNetChange);
+  });
+
+  it('buys autonomy with a battery, and charges it from the sun rather than the grid', () => {
+    const off = search('independence').best!;
+    expect(off.batteryKwh, 'independence without storage').toBeGreaterThan(0);
+    // Grid-charging is cheaper dependence, not autonomy, and must not be able
+    // to inflate the self-sufficiency figure.
+    expect(off.chargeFromGrid).toBe(false);
+    expect(off.selfSufficiency).toBeGreaterThan(0.3);
+    expect(off.selfSufficiency).toBeLessThanOrEqual(1);
+  });
+
+  it('says what independence costs before the reader commits to it', () => {
+    const r = search('independence');
+    const reasons = explain(r, LIMITS);
+    const price = reasons.find((x) => x.kind === 'independence-costs-return');
+    if (r.best!.npv < r.byGoal['max-return']!.npv) {
+      expect(price, 'independence was sold without naming its price').toBeTruthy();
+      expect(price!.worth).toBeGreaterThan(0);
+      expect(price!.against!.npv).toBeGreaterThan(r.best!.npv);
+    }
+  });
+
+  it('tells the reader when a different goal would buy a different system', () => {
+    const r = search('max-return');
+    const kinds = explain(r, LIMITS).map((x) => x.kind);
+    const differs = GOALS.some((g) => {
+      const d = r.byGoal[g];
+      return d && (d.panels !== r.best!.panels || d.batteryKwh !== r.best!.batteryKwh);
+    });
+    if (differs) expect(kinds).toContain('goal-changes-the-answer');
+  });
+
+  it('answers all four goals from one sweep, as well as searching for each alone', () => {
+    const shared = searchDesigns(HOME, PLANS, COSTS, LIMITS);
+    for (const goal of GOALS) {
+      const alone = searchDesigns(HOME, PLANS, COSTS, { ...LIMITS, goal, goals: [goal] });
+      const a = shared.byGoal[goal];
+      const b = alone.best;
+      expect(Boolean(a)).toBe(Boolean(b));
+      if (a && b) {
+        // The shared sweep refines around every goal's neighbourhood, so it
+        // must not settle for a worse answer than a search dedicated to one.
+        expect({ panels: a.panels, batteryKwh: a.batteryKwh },
+          `the shared sweep lost the ${goal} answer`)
+          .toEqual({ panels: b.panels, batteryKwh: b.batteryKwh });
+      }
+    }
+    // …and doing all four together must cost far less than four searches.
+    const four = GOALS.reduce((t, goal) =>
+      t + searchDesigns(HOME, PLANS, COSTS, { ...LIMITS, goal, goals: [goal] }).evaluated, 0);
+    expect(shared.evaluated).toBeLessThan(four);
+  });
+
+  it('refuses the bill swap when the borrowing makes it impossible', () => {
+    // 30% over three years: no system saves enough to cover that repayment.
+    const r = search('bill-swap', { finance: { annualRate: 0.30, termYears: 3 } });
+    expect(r.best, 'recommended a loan the household cannot cover').toBeNull();
+    // And it must not be confused with "solar is not worth it here" — it is,
+    // just not on those terms.
+    expect(explain(r, LIMITS).map((x) => x.kind)).toEqual(['no-system-meets-this-goal']);
+    expect(confidence(r)).toBe(0);
+  });
+
+  it('separates "not worth it" from "not on these terms"', () => {
+    const ruinous: CostModel = { installCost: (kwp, b) => 40000 + kwp * 5000 + b * 3000, grant: () => 0 };
+    const r = searchDesigns(HOME, PLANS, ruinous, { ...LIMITS, goal: 'bill-swap' });
+    expect(explain(r, LIMITS).map((x) => x.kind)).toEqual(['not-worthwhile']);
+  });
+
+  it('prices the loan the way a bank does', () => {
+    // €10,000 over 10 years at 6.2% is a shade under €112 a month.
+    expect(monthlyRepayment(10000, { annualRate: 0.062, termYears: 10 })).toBeCloseTo(111.9, 0);
+    // Interest-free is just the principal spread over the term.
+    expect(monthlyRepayment(12000, { annualRate: 0, termYears: 10 })).toBeCloseTo(100, 6);
+    // Paying cash has no repayment.
+    expect(monthlyRepayment(12000, null)).toBe(0);
+    expect(monthlyRepayment(0, DEFAULT_FINANCE)).toBe(0);
+  });
+
+  it('scores confidence against the goal that was asked for', () => {
+    for (const goal of GOALS) {
+      const c = confidence(search(goal));
+      expect(c, `confidence out of range for ${goal}`).toBeGreaterThan(0);
+      expect(c).toBeLessThanOrEqual(1);
+    }
   });
 });

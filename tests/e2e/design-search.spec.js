@@ -142,3 +142,72 @@ test('a search does not disturb the system the reader is looking at', async ({ p
   expect(out.after, 'the search changed the system on screen').toBe(out.before);
   expect(out.costAfter).toBeCloseTo(out.costBefore, 6);
 });
+
+/**
+ * Four goals, four answers, one sweep — in a browser, on the real tariffs.
+ *
+ * "Best" is not a technical question. Someone treating the roof as a
+ * twenty-year investment, someone borrowing so they can stop paying the
+ * utility and start paying the bank, and someone who wants off the grid are
+ * asking different questions, two of them with hard constraints attached. The
+ * engine must not quietly answer the investment question and relabel it.
+ */
+test('the goal changes the recommendation, on real data', async ({ page }) => {
+  await boot(page);
+
+  const out = await page.evaluate(async () => {
+    const { result, reasons, confidence } = await window.runDesignSearch(null, { goal: 'independence' });
+    return { byGoal: result.byGoal, best: result.best, goal: result.goal, reasons, confidence };
+  });
+
+  expect(out.goal).toBe('independence');
+  for (const goal of ['max-return', 'bill-swap', 'independence', 'fast-payback']) {
+    expect(Object.keys(out.byGoal)).toContain(goal);
+  }
+
+  const investor = out.byGoal['max-return'];
+  const off = out.byGoal.independence;
+  const swap = out.byGoal['bill-swap'];
+  expect(investor).toBeTruthy();
+  expect(off).toBeTruthy();
+
+  // The answer that was asked for is the one returned.
+  expect(out.best).toEqual(off);
+
+  // Each goal's own metric holds up.
+  expect(off.selfSufficiency).toBeGreaterThanOrEqual(investor.selfSufficiency);
+  expect(investor.npv).toBeGreaterThanOrEqual(off.npv);
+  if (swap) {
+    expect(swap.monthlyNetChange, 'a bill swap that costs more than it saves').toBeGreaterThan(0);
+    expect(swap.monthlyRepayment).toBeGreaterThan(0);
+  }
+
+  // Independence is bought with storage, charged from the roof rather than the
+  // grid — grid-charging is cheaper dependence, not autonomy.
+  expect(off.batteryKwh).toBeGreaterThan(0);
+  expect(off.chargeFromGrid).toBe(false);
+
+  // And its price is stated rather than buried.
+  if (off.npv < investor.npv) {
+    const price = out.reasons.find((r) => r.kind === 'independence-costs-return');
+    expect(price, 'independence was recommended without naming what it costs').toBeTruthy();
+    expect(price.worth).toBeGreaterThan(0);
+  }
+});
+
+test('an impossible goal is refused, not fudged', async ({ page }) => {
+  await boot(page);
+
+  const out = await page.evaluate(async () => {
+    // 30% over three years: nothing saves enough to cover that repayment.
+    const { result, reasons } = await window.runDesignSearch(null,
+      { goal: 'bill-swap', finance: { annualRate: 0.30, termYears: 3 } });
+    return { best: result.best, reasons: reasons.map((r) => r.kind), byGoal: result.byGoal };
+  });
+
+  expect(out.best, 'recommended a loan the household cannot cover').toBeNull();
+  // Distinct from "solar is not worth it here" — it is, just not on those
+  // terms, and the two call for completely different next steps.
+  expect(out.reasons).toEqual(['no-system-meets-this-goal']);
+  expect(out.byGoal['max-return'], 'the other goals lost their answers too').toBeTruthy();
+});
