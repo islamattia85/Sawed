@@ -211,3 +211,100 @@ test('an impossible goal is refused, not fudged', async ({ page }) => {
   expect(out.reasons).toEqual(['no-system-meets-this-goal']);
   expect(out.byGoal['max-return'], 'the other goals lost their answers too').toBeTruthy();
 });
+
+/**
+ * The roof is no longer a constant I invented.
+ *
+ * It was, and it was the single biggest lever on what got recommended: the
+ * search kept returning "as many panels as will fit", so the answer was
+ * decided by my assumption rather than by the economics, and nobody was told.
+ * Onboarding now asks what kind of house it is, which everybody knows, instead
+ * of the roof area, which almost nobody does.
+ */
+test('the kind of house sets the ceiling on the recommendation', async ({ page }) => {
+  await boot(page);
+
+  const capFor = (dwelling, bedrooms) => page.evaluate(([d, b]) => {
+    window.state.dwelling_type = d;
+    window.state.bedrooms = b;
+    window.state.roof_capacity_panels = 0;
+    return { cap: window.roofPanelCap(), est: window.roofEstimate() };
+  }, [dwelling, bedrooms]);
+
+  const semi = await capFor('semi-detached', 3);
+  const bungalow = await capFor('bungalow', 4);
+  const flat = await capFor('apartment', 2);
+
+  expect(semi.cap).toBeGreaterThan(6);
+  expect(semi.cap).toBeLessThan(14);
+  expect(bungalow.cap, 'a bungalow got no more roof than a semi').toBeGreaterThan(semi.cap);
+  expect(flat.cap).toBe(0);
+  expect(semi.est.assumptions.length).toBeGreaterThan(2);
+
+  // And it must actually bind the search.
+  await capFor('terraced', 2);
+  const small = await page.evaluate(async () => (await window.runDesignSearch()).result);
+  expect(small.best).toBeTruthy();
+  expect(small.best.panels).toBeLessThanOrEqual(await page.evaluate(() => window.roofPanelCap()));
+
+  await capFor('bungalow', 5);
+  const big = await page.evaluate(async () => (await window.runDesignSearch()).result);
+  expect(big.best.panels, 'the bigger roof did not change the recommendation')
+    .toBeGreaterThan(small.best.panels);
+});
+
+test('an apartment is told the truth rather than sold panels', async ({ page }) => {
+  await boot(page);
+
+  const out = await page.evaluate(async () => {
+    window.state.dwelling_type = 'apartment';
+    window.state.bedrooms = 2;
+    window.state.roof_capacity_panels = 0;
+    const { result, reasons } = await window.runDesignSearch();
+    return { best: result.best, noRoof: result.noRoof, reasons: reasons.map((r) => r.kind),
+      doNothing: result.doNothing };
+  });
+
+  expect(out.best).toBeNull();
+  expect(out.noRoof).toBe(true);
+  expect(out.reasons).toEqual(['no-usable-roof']);
+  // The tariff comparison still works — that part of the app serves them fine.
+  expect(out.doNothing.annualNet).toBeGreaterThan(0);
+});
+
+test('onboarding asks the house, shows the roof, and remembers both', async ({ page }) => {
+  await boot(page);
+
+  await page.evaluate(() => { window.state.current_screen = 'onboarding'; window._ob.step = 1; window.renderApp(); });
+
+  // The estimate is on screen before anything is touched: the reader is
+  // correcting a figure rather than being asked to supply one.
+  await expect(page.getByText(/would fit/i)).toBeVisible();
+
+  await page.getByRole('button', { name: /^Bungalow/ }).click();
+  await page.getByRole('button', { name: '5', exact: true }).click();
+  const shown = await page.getByText(/would fit/i).innerText();
+  expect(shown).toMatch(/About \d+ panels/);
+
+  await page.getByRole('button', { name: /^Apartment/ }).click();
+  await expect(page.getByText(/no roof of its own/i)).toBeVisible();
+
+  await page.getByRole('button', { name: /^Detached/ }).click();
+  await page.getByRole('button', { name: '4', exact: true }).click();
+
+  // Walk it out, and check the answer survived into the app's own state.
+  for (let i = 0; i < 5; i += 1) {
+    await page.locator('.switch-cta').first().click();
+    await page.waitForTimeout(250);
+  }
+  const kept = await page.evaluate(() => ({
+    screen: window.state.current_screen,
+    dwelling: window.state.dwelling_type,
+    bedrooms: window.state.bedrooms,
+    cap: window.roofPanelCap(),
+  }));
+  expect(kept.screen).toBe('result');
+  expect(kept.dwelling).toBe('detached');
+  expect(kept.bedrooms).toBe(4);
+  expect(kept.cap).toBeGreaterThan(12);
+});

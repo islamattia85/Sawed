@@ -283,6 +283,8 @@ export interface SearchResult {
   shortlist: string[];
   /** Milliseconds spent. */
   elapsedMs: number;
+  /** There is not enough roof to put a worthwhile array on. */
+  noRoof?: boolean;
 }
 
 export interface Progress {
@@ -469,12 +471,24 @@ export function searchDesigns(
   const t0 = Date.now();
   const count = { n: 0 };
   const minPanels = limits.minPanels ?? 4;
+  // A roof too small for the smallest worthwhile array is not a search
+  // problem, it is an answer. Clamping up would put panels on an apartment.
+  const roofTooSmall = limits.maxPanels < minPanels;
   const maxPanels = Math.max(minPanels, limits.maxPanels);
   const batteries = limits.batteryOptions ?? DEFAULT_BATTERY_OPTIONS;
   const shortlistSize = limits.planShortlist ?? 6;
   const budget = limits.maxEvaluations ?? 6000;
 
   const doNothing = priceDoNothing(home, plans, count);
+  if (roofTooSmall) {
+    onProgress?.({ fraction: 1, evaluated: count.n, phase: 'fine' });
+    const empty = {} as Record<Goal, Design | null>;
+    for (const g of GOALS) empty[g] = null;
+    return {
+      best: null, goal, byGoal: empty, ranked: [], doNothing, finance,
+      evaluated: count.n, shortlist: [], elapsedMs: Date.now() - t0, noRoof: true,
+    };
+  }
   onProgress?.({ fraction: 0.05, evaluated: count.n, phase: 'tariffs' });
 
   /* --- 1. shortlist tariffs against a few reference systems ---------------
@@ -614,7 +628,8 @@ export type ReasonKind =
   | 'independence-costs-return'
   | 'goal-changes-the-answer'
   | 'not-worthwhile'
-  | 'no-system-meets-this-goal';
+  | 'no-system-meets-this-goal'
+  | 'no-usable-roof';
 
 export interface Reason {
   kind: ReasonKind;
@@ -642,6 +657,7 @@ export interface Reason {
  */
 export function explain(result: SearchResult, limits: SearchLimits): Reason[] {
   const { best, ranked, byGoal, goal } = result;
+  if (result.noRoof) return [{ kind: 'no-usable-roof' }];
   if (!best) {
     // Distinguish "nothing here is worth buying" from "nothing here meets the
     // constraint you set". They call for completely different next steps: the

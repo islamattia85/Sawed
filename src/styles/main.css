@@ -269,6 +269,15 @@
   .ob-tile-label{font-size:13px;font-weight:600;color:var(--ink);line-height:1.25}
   .ob-tile-sub{font-size:13px;color:var(--ink-soft);margin-top:3px}
   .ob-tile.active .ob-tile-label{color:var(--accent)}
+  /* Five house types at full tile size pushed the bedroom row and the roof
+     estimate below the fold — and the estimate is the whole point of asking:
+     it is the moment the reader sees the app work something out for them. A
+     three-across variant fits the choice and its answer on one screen. */
+  .ob-tiles.ob-tiles-compact{grid-template-columns:repeat(3,1fr);gap:8px}
+  .ob-tiles-compact .ob-tile{padding:12px 6px;border-radius:8px}
+  .ob-tiles-compact .ob-tile-icon{font-size:20px;margin-bottom:4px}
+  .ob-tiles-compact .ob-tile-label{font-size:13px}
+  .ob-tiles-compact .ob-tile-sub{display:none}
   .ob-nav{position:sticky;bottom:0;padding:14px 0 16px;background:linear-gradient(180deg,transparent 0%,var(--glass-top) 30%,var(--bg) 100%);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;gap:10px;margin-top:24px}
   .ob-back-btn{background:transparent;border:1.5px solid var(--line);color:var(--ink-soft);padding:14px 22px;border-radius:12px;font-weight:600;cursor:pointer;flex:0 0 auto;transition:border-color .15s,color .15s,background .15s}
   .ob-back-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-faint)}

@@ -11,6 +11,7 @@ import {
   simulateBaseline as engineSimulateBaseline, annualCost, sumF, WHOLESALE_CAP,
 } from './engine/tariff-rules';
 import { simulateDispatch, batterySpec } from './engine/dispatch';
+import { estimateRoofCapacity, usablePlanesFor } from './engine/roof';
 
 /* Solar Optimiser — application entry.
  * Extracted verbatim from the former single-file index.html.
@@ -615,6 +616,12 @@ function showAuthSuccess(msg){
    ============================================================ */
 const IC = {
   home:    '<path d="M4.2 11.2 12 4.8l7.8 6.4"/><path d="M6.4 9.9V18.6a1.6 1.6 0 0 0 1.6 1.6h8a1.6 1.6 0 0 0 1.6-1.6V9.9"/>',
+  // Onboarding asks what kind of home this is, because the answer sets the
+  // ceiling on every system the engine will consider.
+  semi:    '<path d="M3 11 8 6.6l5 4.4"/><path d="M4.6 10v9.4h6.8V10"/><path d="M13 19.4V9.6l4-3.4 4 3.4v9.8Z"/>',
+  terrace: '<path d="M2.6 19.4V11l3.6-3 3.6 3v8.4"/><path d="M9.8 19.4V11l3.6-3 3.6 3v8.4"/><path d="M17 19.4V11l2.2-1.8 2.2 1.8v8.4"/>',
+  bungalow:'<path d="M2.8 12.4 12 5.6l9.2 6.8"/><path d="M5 11.2v8.2h14v-8.2"/><path d="M10 19.4v-4.6h4v4.6"/>',
+  building:'<path d="M5 20.2V4.8h9.6v15.4Z"/><path d="M14.6 20.2V10h4.6v10.2"/><path d="M7.6 8h1.6M11 8h1.6M7.6 11.6h1.6M11 11.6h1.6M7.6 15.2h1.6M11 15.2h1.6"/>',
   plans:   '<path d="M5.5 19.5V12" stroke-width="2.6"/><path d="M12 19.5V4.8" stroke-width="2.6"/><path d="M18.5 19.5v-4.4" stroke-width="2.6"/>',
   sun:     '<circle cx="12" cy="12" r="3.9"/><path d="M12 2.8v2.1M12 19.1v2.1M21.2 12h-2.1M4.9 12H2.8M18.6 5.4l-1.5 1.5M6.9 17.1l-1.5 1.5M18.6 18.6l-1.5-1.5M6.9 6.9 5.4 5.4"/>',
   radar:   '<path d="M12 4.4a7.6 7.6 0 1 1-7.6 7.6"/><path d="M12 8.2a3.8 3.8 0 1 0 3.8 3.8"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>',
@@ -3322,6 +3329,12 @@ function makeOb(){
     step: 1,
     region: 'east',
     address: '',
+    // The house, which is how the roof is sized. Defaults to the most common
+    // Irish home rather than to nothing, so the estimate is on screen from the
+    // first render and the reader is correcting a figure rather than
+    // supplying one.
+    dwelling: 'semi-detached',
+    bedrooms: 3,
     baseline: 'EI-24',
     baseline_known: false,
     heating: 'gas',
@@ -3575,6 +3588,8 @@ function goLanding(){
 // Re-run the full guided onboarding from Home — pre-filled with current answers
 function reRunOnboarding(){
   _ob.region = state.region || 'east';
+  _ob.dwelling = state.dwelling_type || 'semi-detached';
+  _ob.bedrooms = state.bedrooms || 3;
   _ob.baseline = state.baseline || 'EI-24';
   _ob.baseline_known = !!state.baseline_known;
   _ob.heating = state.heating_type || 'gas';
@@ -3722,13 +3737,79 @@ function obStep5CurrentPlan(){
 function obStep1Home(){
   return `
     <div class="ob-step-num">Step 1 of 5 · Your home</div>
-    <h1 class="ob-title">Where are you, and how do you <em>heat</em> it?</h1>
-    <p class="ob-sub">Sets your solar yield and when you use power.</p>
+    <h1 class="ob-title">What kind of <em>home</em>, and where?</h1>
+    <p class="ob-sub">The house tells us how much roof there is; the county tells us how much sun it gets.</p>
 
-    <div class="ob-field-label">Part of Ireland</div>
+    <div class="ob-field-label">What kind of home</div>
+    <div class="ob-tiles ob-tiles-compact">
+      ${[
+        ['semi-detached', ic('semi',20), 'Semi-detached', 'Most common'],
+        ['terraced', ic('terrace',20), 'Terraced', 'Mid or end'],
+        ['detached', ic('home',20), 'Detached', 'Standalone'],
+        ['bungalow', ic('bungalow',20), 'Bungalow', 'Single storey'],
+        ['apartment', ic('building',20), 'Apartment', 'No own roof'],
+      ].map(([v, i, lbl, sub]) => `
+        <div class="ob-tile ${_ob.dwelling === v ? 'active' : ''}" onclick="pickObDwelling('${v}')">
+          <div class="ob-tile-icon">${i}</div>
+          <div class="ob-tile-label">${lbl}</div>
+          <div class="ob-tile-sub">${sub}</div>
+        </div>`).join('')}
+    </div>
+
+    <div class="ob-field-label" style="margin-top:18px">Bedrooms</div>
+    <div style="display:flex;gap:6px">
+      ${[1,2,3,4,5,6].map(n => `
+        <button onclick="pickObBedrooms(${n})" style="flex:1;padding:10px 0;border-radius:8px;cursor:pointer;font-family:var(--display);font-size:15px;font-weight:700;border:1.5px solid ${_ob.bedrooms === n ? 'var(--accent)' : 'var(--line)'};background:${_ob.bedrooms === n ? 'var(--accent-soft)' : 'var(--well)'};color:${_ob.bedrooms === n ? 'var(--accent)' : 'var(--ink)'}">${n}${n === 6 ? '+' : ''}</button>`).join('')}
+    </div>
+    ${obRoofNote()}
+
+
+    <div class="ob-field-label" style="margin-top:22px">Part of Ireland</div>
     ${renderRegionPicker(_ob.region)}
 
-    <div class="ob-field-label" style="margin-top:22px">Heating</div>
+    <p class="ob-help" style="margin-top:12px">County is accurate enough, and the roof is an estimate you can change.</p>`;
+}
+
+/**
+ * What the two questions above just told us about the roof.
+ *
+ * Roof size is the biggest single lever on what gets recommended — it decides
+ * the ceiling on every design the engine considers — and until now it was a
+ * constant nobody was ever shown. Asking for it in square metres does not
+ * work: almost nobody knows, and the people who think they do are usually
+ * quoting the floor area of the house. Asking what kind of house it is gets
+ * within a panel or two, and showing the working here means anyone who knows
+ * better can see it is wrong before it shapes an answer.
+ */
+function obRoofNote(){
+  if (!_ob.dwelling || !_ob.bedrooms) return '';
+  const est = roofEstimate(_ob.dwelling, _ob.bedrooms);
+  if (!est) return '';
+  if (!est.maxPanels){
+    return `<p class="ob-help" style="margin-top:10px">${ic('info',12)} An apartment usually has no roof of its own — you can still find your cheapest tariff, and model a system later if that changes.</p>`;
+  }
+  return `<p class="ob-help" style="margin-top:10px">${ic('info',12)} About <b>${est.maxPanels} panels</b> (${est.maxKwp} kWp) would fit — roughly ${est.usableM2} m² of usable roof. You can change this later.</p>`;
+}
+
+function pickObDwelling(v){ _ob.dwelling = v; renderApp(); }
+function pickObBedrooms(n){ _ob.bedrooms = n; renderApp(); }
+
+
+function pickObHeating(heating){
+  _ob.heating = heating;
+  // Auto-reset HW strategy to the sensible default for this heating type
+  _ob.hot_water_strategy = DEFAULT_HW_FOR_HEATING[heating] || 'none';
+  renderApp();
+}
+
+function obStep2Usage(){
+  // Heating drives the shape of a year's consumption more than anything else
+  // the app asks about, so it belongs with the usage question rather than with
+  // the address. It moved here when the house itself became step 1: roof size
+  // turned out to be the biggest lever on what gets recommended, and it needed
+  // asking properly rather than squeezing alongside three other things.
+  const heating = `
+    <div class="ob-field-label">Heating</div>
     <div class="ob-tiles">
       ${[
         ['gas', ic('flame',20), 'Gas / Oil Boiler', 'Most Irish homes'],
@@ -3742,18 +3823,8 @@ function obStep1Home(){
           <div class="ob-tile-sub">${sub}</div>
         </div>`).join('')}
     </div>
-    <p class="ob-help" style="margin-top:12px">County is accurate enough.</p>`;
-}
+    <div class="ob-field-label" style="margin-top:22px">How much you use</div>`;
 
-
-function pickObHeating(heating){
-  _ob.heating = heating;
-  // Auto-reset HW strategy to the sensible default for this heating type
-  _ob.hot_water_strategy = DEFAULT_HW_FOR_HEATING[heating] || 'none';
-  renderApp();
-}
-
-function obStep2Usage(){
   const m = _ob.usage_mode || 'bill';
   const pill = (mode, label) => `<button onclick="setObUsageMode('${mode}')" style="padding:8px 14px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${m === mode ? 'var(--accent)' : 'transparent'};color:${m === mode ? '#fff' : 'var(--ink-soft)'}">${label}</button>`;
   const pills = `<div style="display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--well);margin-bottom:14px">${pill('bill','€ Bill')}${pill('kwh','kWh / year')}${pill('csv','Smart meter')}</div>`;
@@ -3762,16 +3833,18 @@ function obStep2Usage(){
   if (state._csv_imported){
     return `
     <div class="ob-step-num">Step 2 of 5 · Your usage</div>
-    <h1 class="ob-title">Usage comes from your <em>smart meter</em></h1>
-    <p class="ob-sub">Using your 30-minute meter readings. Manual entry is off.</p>
+    <h1 class="ob-title">How do you <em>heat</em> it, and how much do you use?</h1>
+    <p class="ob-sub">Heating sets when you use power. Usage comes from your smart meter.</p>
+    ${heating}
     ${csvLockCard()}
     <p class="ob-help" style="margin-top:12px">Continue when you're ready.</p>`;
   }
 
   const head = `
     <div class="ob-step-num">Step 2 of 5 · Your usage</div>
-    <h1 class="ob-title">How much electricity do you <em>use</em>?</h1>
-    <p class="ob-sub">Whichever you have to hand. A bill is enough.</p>
+    <h1 class="ob-title">How do you <em>heat</em> it, and how much do you use?</h1>
+    <p class="ob-sub">Heating sets when you use power. For the amount, whichever you have to hand — a bill is enough.</p>
+    ${heating}
     ${pills}`;
 
   if (m === 'csv'){
@@ -4118,6 +4191,8 @@ function commitOnboarding(){
   state.region = _ob.region || 'east';
   state.address = IRISH_REGIONS[state.region]?.name || '';   // human-readable label
   state.eircode = "";
+  state.dwelling_type = _ob.dwelling || 'semi-detached';
+  state.bedrooms = _ob.bedrooms || 3;
   state.heating_type = _ob.heating;
   state.hot_water_strategy = _ob.hot_water_strategy || DEFAULT_HW_FOR_HEATING[_ob.heating] || 'none';
   state.baseline_discount_pct = _ob.baseline_known ? (+_ob.baseline_discount || 0) : 0;
@@ -5109,7 +5184,42 @@ const SEARCH_COST_PARAMS = {
 
 /** How many panels the search may consider. */
 const SEARCH_MIN_PANELS = 4;
+/** Only a fallback now: the roof is estimated from the house. See roofPanelCap(). */
 const SEARCH_MAX_PANELS = 24;
+
+/**
+ * The roof, from what the reader told us about their house.
+ *
+ * Returns null when we have not been told, so callers can fall back rather
+ * than quietly inventing a roof.
+ */
+function roofEstimate(dwelling, bedrooms){
+  const d = dwelling || state.dwelling_type;
+  const b = bedrooms || state.bedrooms;
+  if (!d || !b) return null;
+  return estimateRoofCapacity({
+    dwelling: d,
+    bedrooms: b,
+    // An east- or west-facing ridge presents two usable faces; a south-facing
+    // one presents a usable face and a north face nobody puts panels on.
+    usablePlanes: usablePlanesFor(state.azimuth_A != null ? state.azimuth_A : 180),
+    pitchDeg: state.tilt_A || undefined,
+  }, state.panel_w || 440);
+}
+
+/**
+ * The ceiling on the design search, in panels.
+ *
+ * A reader who has typed a real number wins over the estimate; the estimate
+ * wins over the constant. The constant is what the recommendation used to be
+ * silently decided by.
+ */
+function roofPanelCap(){
+  if (state.roof_capacity_panels > 0) return state.roof_capacity_panels;
+  const est = roofEstimate();
+  if (est) return est.maxPanels;
+  return SEARCH_MAX_PANELS;
+}
 
 /**
  * Generation for a 1 kWp array on this roof, unclipped.
@@ -5160,7 +5270,7 @@ function runDesignSearch(onProgress, options){
     // How much roof there is. Until V4 asks, this is an assumption — and it is
     // frequently the binding constraint on the answer, so it must be easy to
     // override and impossible to forget about.
-    maxPanels: opts.maxPanels || state.roof_capacity_panels || SEARCH_MAX_PANELS,
+    maxPanels: opts.maxPanels || roofPanelCap(),
     // What "best" means to this reader. See engine/search.ts.
     goal: opts.goal || state.search_goal || 'max-return',
     ...(opts.finance !== undefined ? { finance: opts.finance } : {}),
@@ -11343,6 +11453,10 @@ window.sweepGoalDesigns = sweepGoalDesigns;
 // from the end-to-end suite while the interface that will carry it is built.
 window.runDesignSearch = runDesignSearch;
 window.SEARCH_COST_PARAMS = SEARCH_COST_PARAMS;
+window.roofEstimate = roofEstimate;
+window.roofPanelCap = roofPanelCap;
+window.pickObDwelling = pickObDwelling;
+window.pickObBedrooms = pickObBedrooms;
 // Bridged so the end-to-end suite can hold the worker's rebuilt pricing model
 // to the same numbers the app uses.
 window.estimateInstallCost = estimateInstallCost;
@@ -11410,6 +11524,10 @@ window.sweepGoalDesigns = sweepGoalDesigns;
 // from the end-to-end suite while the interface that will carry it is built.
 window.runDesignSearch = runDesignSearch;
 window.SEARCH_COST_PARAMS = SEARCH_COST_PARAMS;
+window.roofEstimate = roofEstimate;
+window.roofPanelCap = roofPanelCap;
+window.pickObDwelling = pickObDwelling;
+window.pickObBedrooms = pickObBedrooms;
 // Bridged so the end-to-end suite can hold the worker's rebuilt pricing model
 // to the same numbers the app uses.
 window.estimateInstallCost = estimateInstallCost;
