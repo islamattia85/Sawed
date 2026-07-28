@@ -5,9 +5,10 @@ hourly consumption against every live Irish residential tariff and reports the
 cheapest plan, plus solar/battery payback if the user has or is considering a
 system.
 
-**This is V3** (`v3` branch, tag `v3.0.0`) — the shipped, stable line. V4 is
-developed on `main` and is free to break anything. See [VERSIONS.md](VERSIONS.md)
-for which branch to work on and how a fix reaches both.
+**This is V3** (`main` and `v3`, tag `v3.0.0`) — the shipped, stable line, and
+what production serves. V4 is developed on the `v4` branch and is free to break
+anything. See [VERSIONS.md](VERSIONS.md) for which branch to work on and how a
+fix reaches both.
 
 ## Running it
 

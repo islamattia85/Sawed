@@ -269,29 +269,6 @@
   .ob-tile-label{font-size:13px;font-weight:600;color:var(--ink);line-height:1.25}
   .ob-tile-sub{font-size:13px;color:var(--ink-soft);margin-top:3px}
   .ob-tile.active .ob-tile-label{color:var(--accent)}
-  /* Five house types at full tile size pushed the bedroom row and the roof
-     estimate below the fold — and the estimate is the whole point of asking:
-     it is the moment the reader sees the app work something out for them. A
-     three-across variant fits the choice and its answer on one screen. */
-  .ob-tiles.ob-tiles-compact{grid-template-columns:repeat(3,1fr);gap:8px}
-  .ob-tiles-compact .ob-tile{padding:12px 6px;border-radius:8px}
-  .ob-tiles-compact .ob-tile-icon{font-size:20px;margin-bottom:4px}
-  .ob-tiles-compact .ob-tile-label{font-size:13px}
-  .ob-tiles-compact .ob-tile-sub{display:none}
-
-  /* The goal question — the last step of onboarding, and the one the whole
-     engine turns on. Big tappable rows rather than a grid of tiles: these are
-     sentences about what someone wants, not values to compare. */
-  .ob-goals{display:grid;gap:10px;margin-top:6px}
-  .ob-goal{display:grid;grid-template-columns:auto 1fr auto;align-items:start;gap:14px;padding:16px;border-radius:12px;border:1.5px solid var(--line);background:var(--well);cursor:pointer;transition:border-color .15s,background .15s,transform .12s}
-  .ob-goal:hover{border-color:var(--track);transform:translateY(-1px)}
-  .ob-goal.active{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent),0 0 16px -6px var(--accent-glow)}
-  .ob-goal-icon{color:var(--ink-soft);margin-top:1px}
-  .ob-goal.active .ob-goal-icon{color:var(--accent)}
-  .ob-goal-text b{display:block;font-size:15px;font-weight:700;color:var(--ink);line-height:1.35}
-  .ob-goal.active .ob-goal-text b{color:var(--accent)}
-  .ob-goal-text em{display:block;font-style:normal;font-size:13px;color:var(--ink-soft);margin-top:3px;line-height:1.5}
-  .ob-goal-tick{color:var(--accent);min-width:18px}
   .ob-nav{position:sticky;bottom:0;padding:14px 0 16px;background:linear-gradient(180deg,transparent 0%,var(--glass-top) 30%,var(--bg) 100%);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;gap:10px;margin-top:24px}
   .ob-back-btn{background:transparent;border:1.5px solid var(--line);color:var(--ink-soft);padding:14px 22px;border-radius:12px;font-weight:600;cursor:pointer;flex:0 0 auto;transition:border-color .15s,color .15s,background .15s}
   .ob-back-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-faint)}
@@ -337,72 +314,6 @@
   .working-toggle-hint{grid-column:1;font-size:13px;color:var(--ink-soft);line-height:1.5}
   .working-toggle-chev{grid-column:2;grid-row:1 / span 2;color:var(--ink-soft);font-size:17px;transition:transform .2s}
   .working-body{margin-top:12px}
-
-
-  /* ======================================================
-     THE ADVISOR (V4)
-     One screen that answers "what should I install?" — the goal first,
-     because "best" is not a technical question, then the answer, then
-     what it beat.
-     ====================================================== */
-  .adv-lede{font-size:15px;font-weight:700;color:var(--ink);margin:0 0 10px}
-  .goal-strip{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px}
-  .goal-chip{display:block;text-align:left;padding:12px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--well);cursor:pointer;font-family:inherit;transition:border-color .15s,background .15s}
-  .goal-chip.active{border-color:var(--accent);background:var(--accent-soft)}
-  .goal-chip-label{display:block;font-size:15px;font-weight:700;color:var(--ink);line-height:1.3}
-  .goal-chip.active .goal-chip-label{color:var(--accent)}
-  .goal-chip-sub{display:block;font-size:13px;color:var(--ink-soft);margin-top:2px;line-height:1.35}
-
-  .adv-hero{border-color:var(--accent);box-shadow:0 0 24px -12px var(--accent-glow)}
-  .adv-hero-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-  .adv-hero-kicker{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:4px}
-  .adv-hero-title{font-size:25px;font-weight:800;color:var(--ink);line-height:1.15;letter-spacing:-.02em}
-  .adv-conf{text-align:right;flex:0 0 auto}
-  .adv-conf-num{font-family:var(--mono);font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
-  .adv-conf-label{font-size:12px;color:var(--ink-soft);margin-top:2px}
-
-  .adv-figures{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0 4px;padding:14px 0;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair)}
-  .adv-figures div{text-align:center}
-  .adv-fig{display:block;font-family:var(--mono);font-size:20px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.2}
-  .adv-fig em{font-style:normal;font-size:13px;color:var(--ink-soft);margin-left:1px}
-  .adv-fig-l{display:block;font-size:13px;color:var(--ink-soft);margin-top:3px;line-height:1.3}
-
-  .adv-spec{margin-top:14px;display:grid;gap:10px}
-  .adv-spec-row{display:flex;gap:11px;align-items:flex-start}
-  .adv-spec-icon{color:var(--accent);flex:0 0 auto;margin-top:1px}
-  .adv-spec-row b{display:block;font-size:15px;font-weight:600;color:var(--ink);line-height:1.35}
-  .adv-spec-row em{display:block;font-style:normal;font-size:13px;color:var(--ink-soft);margin-top:1px;line-height:1.4}
-
-  .adv-reason{font-size:15px;color:var(--ink-soft);line-height:1.6;margin:0 0 12px}
-  .adv-reason:last-child{margin-bottom:0}
-  .adv-reason b{color:var(--ink);font-weight:700}
-  .adv-assume{font-size:13px;color:var(--ink-soft);line-height:1.6;margin:0 0 6px}
-
-  .adv-alts{display:grid;gap:8px}
-  .adv-alt{display:grid;grid-template-columns:1fr auto;gap:2px 12px;width:100%;text-align:left;padding:12px 14px;border-radius:12px;border:1px solid var(--hair);background:var(--well);cursor:pointer;font-family:inherit}
-  .adv-alt:hover{border-color:var(--accent)}
-  .adv-alt-goal{grid-column:1;font-size:15px;font-weight:700;color:var(--ink)}
-  .adv-alt-num{grid-column:2;grid-row:1;font-family:var(--mono);font-size:15px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;text-align:right}
-  .adv-alt-spec{grid-column:1;font-size:13px;color:var(--ink-soft);line-height:1.4}
-  .adv-alt-sub{grid-column:2;grid-row:2;font-size:13px;color:var(--ink-soft);text-align:right;white-space:nowrap}
-
-  .adv-bar{height:6px;border-radius:999px;background:var(--track);overflow:hidden}
-  .adv-bar span{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .25s}
-  .adv-link{background:none;border:none;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline}
-
-
-  /* The recommendation, summarised on the home screen. The front door answers
-     "which tariff is cheapest" and "what should I build" — the second used to
-     be two taps away behind a tab, which is where an engineering tool puts it. */
-  .home-rec{cursor:pointer;border-color:var(--accent);background:linear-gradient(140deg,var(--panel) 0%,var(--panel-2) 100%);box-shadow:0 0 20px -14px var(--accent-glow)}
-  .home-rec-wait{cursor:default;border-color:var(--hair);background:var(--surface);box-shadow:none}
-  .home-rec-kicker{display:flex;align-items:flex-start;gap:6px;font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px}
-  .home-rec-title{font-size:20px;font-weight:800;color:var(--ink);line-height:1.25;letter-spacing:-.01em}
-  .home-rec-sub{font-size:13px;color:var(--ink-soft);line-height:1.55;margin-top:6px}
-  .home-rec-figs{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:10px;font-size:13px;color:var(--ink-soft)}
-  .home-rec-figs b{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
-  .home-rec-cta{margin-top:12px;font-size:13px;font-weight:700;color:var(--accent);cursor:pointer}
-  .home-rec-wait-line{font-size:13px;color:var(--ink-soft);line-height:1.55}
 
   /* Plan comparison block */
   .plan-compare{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px}

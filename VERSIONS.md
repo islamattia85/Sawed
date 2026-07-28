@@ -5,32 +5,23 @@ one repository and one history, and nothing else.
 
 | Line | Branch | Tag | What it is |
 | --- | --- | --- | --- |
-| **V3** | `v3` | `v3.0.0` | The application as it stands today. Feature-complete and shipped. |
-| **V4** | `main` | `4.0.0-dev` | The next major version. Free to break anything. |
+| **V3** | `main`, `v3` | `v3.0.0` | The application as it stands today. Feature-complete, shipped, and what production serves. |
+| **V4** | `v4` | `4.0.0-dev` | The next major version. Free to break anything. |
 
-### What V4 is
+### Why V3 is on `main`
 
-V3 answers *"what if I install this?"* — the reader configures a system and the
-simulator prices it. That is a laboratory. V4 inverts it: the engine searches
-the space of systems and says *"this is what you should install, and here is
-what it beat"*. Nothing in V3 is deleted; the laboratory becomes the layer
-underneath the advice, for the people who want it.
+Not for a good reason — for a hosting one, and it is worth writing down rather
+than leaving the next person to work it out.
 
-The engine for that landed first, deliberately, with no interface on it:
-`src/engine/search.ts` and `src/search-worker.js`. It is reachable as
-`window.runDesignSearch(onProgress, { goal, finance, maxPanels })`, and it
-answers four goals from one sweep — `max-return`, `bill-swap`, `independence`
-and `fast-payback` — because "best" is not a technical question and the engine
-has no business deciding it. The ceiling on every design comes from
-`src/engine/roof.ts`, which sizes the roof from the kind of house and the
-bedroom count that onboarding now asks for, and the goal is the last thing
-onboarding asks — so someone who has just said what they want solar to do for
-them lands on the answer to exactly that, on the advisor screen, rather than
-on a dashboard. The home screen carries a summary of the recommendation under
-the tariff answer, so "what should I install?" is on the first screen rather
-than two taps away behind a tab. If the search could not produce a stable answer in
-a couple of seconds on a phone, every screen planned on top of it would have
-been built on sand.
+V4 was developed on `main`, which meant every V4 commit went live the moment it
+was pushed. The host's production branch was changed to `v3` to stop that, and
+production kept serving the last build made from `main` regardless. Rather than
+keep fighting a dashboard, `main` was reverted to the V3 tree: whatever the
+host believes its production branch to be, `main` now holds the code that
+should be public.
+
+Nothing was rewritten to do it. The revert is an ordinary commit, so every V4
+commit is still in this repository's history and still on `v4`.
 
 ## Why a branch and not a second repository
 
@@ -46,16 +37,20 @@ tree, a branch, or a deployment.
 
 ## The rules
 
-1. **`v3` does not move except for V3.** Fixes only — no new features, no
+1. **`main` and `v3` hold the same thing** — V3, and only V3. `main` exists
+   because that is what the host deploys; `v3` exists because that is the
+   line's name. Any V3 fix goes to both.
+2. **`v3` does not move except for V3.** Fixes only — no new features, no
    redesigns, no dependency bumps that are not security fixes. Its purpose is to
    stay exactly as reliable as it is now.
-2. **V4 work goes on `main`,** through feature branches as before. It may
+3. **V4 work goes on `v4`,** through feature branches as before. It may
    restructure, rename, delete, and redesign anything. It owes V3 no
    compatibility.
-3. **Fixes flow one way: `v3` → `main`.** Fix on `v3`, then cherry-pick onto
-   `main` if V4 still has the same defect. Never merge `main` into `v3`; that
-   would drag V4 changes into a line that is supposed to be frozen.
-4. **Every V3 release gets a tag** — `v3.0.1`, `v3.1.0` — so any report can be
+4. **Fixes flow one way: V3 → V4.** Fix on `v3` (and `main`), then cherry-pick
+   onto `v4` if V4 still has the same defect. Never merge `v4` into either; that
+   would drag V4 into a line that is supposed to be frozen — and straight into
+   production.
+5. **Every V3 release gets a tag** — `v3.0.1`, `v3.1.0` — so any report can be
    tied to an exact bundle.
 
 ### Fixing something in both lines
@@ -66,15 +61,13 @@ git checkout v3
 npm version patch --no-git-tag-version   # 3.0.0 -> 3.0.1
 git commit -am "…"; git tag v3.0.1; git push origin v3 --tags
 
-git checkout main
-git cherry-pick <sha>      # only if V4 has the same defect
+git checkout main && git cherry-pick <sha> && git push origin main   # goes live
+git checkout v4   && git cherry-pick <sha>                           # if V4 has it too
 ```
 
 ## Which version am I looking at?
 
-The More screen prints it at the bottom: `v3.0.0 · build 1a2b3c4d` on V3, and
-`v4.0.0-dev · build …` on V4. That is the fastest way to tell which line a
-deployment is serving. The version
+The More screen prints it at the bottom: `v3.0.0 · build 1a2b3c4d`. The version
 comes from `package.json` at build time and names the line; the build id is the
 commit. A bug report without both is a bug report about an unknown program.
 

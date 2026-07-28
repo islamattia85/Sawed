@@ -1,6 +1,6 @@
 {
   "name": "solar-optimiser",
-  "version": "4.0.0-dev",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "description": "Independent Irish electricity tariff and solar payback advisor",
