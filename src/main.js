@@ -2931,16 +2931,42 @@ function auditQuote(quotedPrice, numPanels, batteryKwh){
   // Apply SEAI grant using correct 2024 tiered structure
   const grant = calcSeaiGrant(kwp, batteryKwh).total;
   const netQuoted = quotedPrice - grant;
-  // Compute payback against the user's current system simulation
-  const best = getBestPlan();
-  const econ = state.ev_active ? evEconomics(best.plan.id) : null;
-  const totalAnnualBenefit = best.savings + (econ ? econ.petrolCost : 0);
+
+  /*
+   * What the quoted system is worth, per year.
+   *
+   * This used to be `getBestPlan().savings` — the saving from switching
+   * TARIFF on whatever system the reader already had. For the overwhelmingly
+   * common case, someone with no solar collecting quotes, that is the saving
+   * from changing supplier: nothing whatever to do with the panels being
+   * quoted. A €12,000 quote was credited with €517 a year, and the screen
+   * reported a 19.7-year payback and a NEGATIVE twenty-year NPV — it told
+   * people that a perfectly ordinary quote would lose them four thousand
+   * euro. Simulated properly the same system returns €1,362 a year and pays
+   * back in 6.2 years. The sign was wrong, not just the magnitude.
+   *
+   * The benefit is now the difference between two simulations of THIS home:
+   * one with the quoted system on the roof, one with nothing. Both include
+   * the EV if there is one, so the car cancels out instead of being added to
+   * the panels' credit — an EV's petrol saving is not something a solar
+   * installer delivers.
+   */
+  const withSystem = withSimState({
+    has_solar: true, count_A: numPanels, count_B: 0,
+    battery_kwh: batteryKwh, install_cost: quotedPrice, grant_seai: grant,
+  }, () => getBestPlan().net);
+  const withoutSystem = withSimState({
+    has_solar: false, count_A: 0, count_B: 0, battery_kwh: 0,
+  }, () => getBestPlan().net);
+  const totalAnnualBenefit = Math.max(0, withoutSystem - withSystem);
+
   const payback = totalAnnualBenefit > 0 ? netQuoted / totalAnnualBenefit : 999;
   const npv20 = calcNPV20(totalAnnualBenefit, netQuoted, batteryKwh, state.panel_degradation);
   return {
     verdict, color, headline, advice,
     quotedPrice, expLo, expHi, expMid, grant, netQuoted,
     payback, npv20, totalAnnualBenefit, kwp,
+    withSystem, withoutSystem,
     perKwp: kwp > 0 ? quotedPrice / kwp : 0
   };
 }
