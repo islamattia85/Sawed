@@ -288,3 +288,59 @@ test('a stale departure is not reported days later', async ({ page }) => {
   await expect(page.locator('.auth-modal-backdrop')).toHaveCount(0);
 });
 
+
+/**
+ * The return from Google, with the authorisation code in hand.
+ *
+ * This is the failure the reader actually hit. Supabase authenticated them
+ * every time — the auth log records eleven successful Google logins in one
+ * afternoon — and sent the browser back to the app with `?code=…` in the URL.
+ * The client was left on its default flow, the implicit grant, which refuses
+ * to read a code from the query string: it throws "Not a valid implicit grant
+ * flow url" inside its own initialisation, where nothing surfaces it. No
+ * exchange, no session, no error on screen. Sign in, bounce through Google,
+ * arrive back signed out.
+ *
+ * The token endpoint is stubbed so the whole round-trip runs offline; the
+ * assertion that matters is that the exchange is attempted at all.
+ */
+test('a Google return with ?code= is exchanged for a session', async ({ page }) => {
+  const errors = await boot(page);
+
+  let exchanged = null;
+  await page.route('**/*', async (route) => {
+    const url = route.request().url();
+    if (/\/auth\/v1\/token/.test(url)) {
+      exchanged = route.request().postData() || '';
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        access_token: 'a.b.c', token_type: 'bearer', expires_in: 3600,
+        expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: 'r1',
+        user: { id: 'u1', aud: 'authenticated', email: 'signed.in@example.com',
+                app_metadata: {}, user_metadata: {}, created_at: new Date().toISOString() },
+      }) });
+    }
+    // Everything else about the account API stays unreachable, as elsewhere.
+    if (/supabase\.co/.test(url)) return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    return route.continue();
+  });
+
+  // What signInWithOAuth() leaves on this device before handing over to Google.
+  const ref = await page.evaluate(() => (window.SUPABASE_URL || '').match(/https:\/\/([^.]+)/)?.[1]);
+  test.skip(!ref, 'no Supabase project configured in this build');
+  await page.evaluate(([r]) => {
+    localStorage.setItem(`sb-${r}-auth-token-code-verifier`, JSON.stringify('verifier-123'));
+    sessionStorage.setItem('oauth_pending', String(Date.now()));
+  }, [ref]);
+
+  await page.goto('/?code=returned-auth-code');
+  await page.waitForFunction(() => window.__bootSettled === true, null, { timeout: 20_000 });
+  await page.waitForTimeout(500);
+
+  expect(exchanged, 'the authorisation code was never exchanged').toContain('returned-auth-code');
+  expect(await page.evaluate(() => window._sbUser && window._sbUser.email)).toBe('signed.in@example.com');
+
+  // And the app must not then accuse a successful sign-in of having failed.
+  await expect(page.locator('.toast')).toHaveCount(0);
+  expect(page.url(), 'the spent code was left in the address bar').not.toContain('code=');
+  expect(errors).toEqual([]);
+});

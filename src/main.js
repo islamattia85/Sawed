@@ -45,7 +45,24 @@ async function sbInit(){
     // rejected promise this function swallows. Bundling makes signing in
     // depend on the app loading, which it already did.
     const { createClient } = await import('@supabase/supabase-js');
-    _sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // flowType matters, and the default is wrong for us.
+    //
+    // The client defaults to the implicit grant. Supabase sends a browser back
+    // from Google with the authorisation code in the query string — `?code=…` —
+    // and a client in implicit mode refuses to look at it: it throws "Not a
+    // valid implicit grant flow url" inside its own initialisation, where
+    // nothing surfaces it. The code is never exchanged, no session is created,
+    // and the app boots signed out. Server-side the login is a success; the
+    // Supabase auth log records it every time. On screen it is a button that
+    // sends you to Google and brings you back with nothing, which is exactly
+    // what it looked like.
+    //
+    // PKCE is the flow that reads `?code=`, and it is the correct one for a
+    // public browser client regardless: the code is useless without the
+    // verifier this device kept to itself.
+    _sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true, autoRefreshToken: true },
+    });
     const { data: { session } } = await _sb.auth.getSession();
     if (session) {
       _sbUser = session.user;
@@ -550,7 +567,10 @@ async function doSyncState(){
  * So the reason is kept, small and grey, under the sentence. It costs a line
  * and turns an unreproducible report into a specific one.
  */
+let _authMsg = null;   // survives the repaints; see paintAuthModal()
+
 function showAuthMsg(msg, type, detail){
+  _authMsg = msg ? { msg, type, detail } : null;
   const el = document.getElementById('auth-msg');
   if (!el) return;
   el.textContent = '';
@@ -10191,11 +10211,19 @@ function paintAuthModal(){
   const existing = document.getElementById('auth-modal-root');
   if (existing) existing.remove();
   const html = renderAuthModal();
-  if (!html) return;
+  // Closing the sheet retires the message with it, so re-opening it later
+  // never re-states a failure the reader has already dealt with.
+  if (!html){ _authMsg = null; return; }
   const el = document.createElement('div');
   el.id = 'auth-modal-root';
   el.innerHTML = html;
   document.body.appendChild(el);
+  // A repaint must not wipe the reason. The sheet is rebuilt from scratch on
+  // every render, and several land shortly after boot — the session check, the
+  // tariff refresh — so a message written at +60ms was routinely erased at
+  // +300ms by a render that had nothing to do with it. The reader tapped
+  // Google, came back, saw an explanation flash, and was left with a blank box.
+  if (_authMsg) showAuthMsg(_authMsg.msg, _authMsg.type, _authMsg.detail);
 }
 
 /* ============================================================
