@@ -308,3 +308,102 @@ test('onboarding asks the house, shows the roof, and remembers both', async ({ p
   expect(kept.bedrooms).toBe(4);
   expect(kept.cap).toBeGreaterThan(12);
 });
+
+/**
+ * The advisor screen, under every goal.
+ *
+ * This suite already proved the engine. It did not render the engine's output,
+ * and a reason template that only fires under one goal shipped broken because
+ * of it: independence scores its margin in percentage points of
+ * self-sufficiency, and the sentence printed it with a euro sign — "€19 of
+ * self-sufficiency", which is not a quantity of anything. A second one threw a
+ * ReferenceError that no test could see, because no test had ever drawn that
+ * branch.
+ *
+ * So this walks all four goals and reads what is actually on the screen.
+ */
+const GOALS = ['max-return', 'bill-swap', 'independence', 'fast-payback'];
+
+test('the advisor renders every goal without throwing, and says something true', async ({ page }) => {
+  const errors = await boot(page);
+
+  await page.evaluate(() => {
+    window.state.dwelling_type = 'detached';
+    window.state.bedrooms = 4;
+    window.state.roof_capacity_panels = 0;
+    window.setScreen('advisor');
+  });
+  await expect(page.locator('.adv-hero')).toBeVisible({ timeout: 20_000 });
+
+  for (const goal of GOALS) {
+    await page.evaluate((g) => window.setAdvisorGoal(g), goal);
+    await page.waitForTimeout(350);
+
+    const hero = page.locator('.adv-hero');
+    await expect(hero, `no recommendation under ${goal}`).toBeVisible();
+    await expect(hero).toContainText(/\d+ panels/);
+
+    const text = await page.locator('.screen').innerText();
+
+    // A euro sign in front of a percentage, or in front of years, means a
+    // reason template printed one unit in another's clothes.
+    expect(text, `${goal}: a euro figure was labelled as self-sufficiency`)
+      .not.toMatch(/€[\d,.]+\s*(of self-sufficiency|percentage)/i);
+    expect(text, `${goal}: a euro figure was labelled as a duration`)
+      .not.toMatch(/€[\d,.]+\s*years/i);
+    // Nothing half-rendered.
+    expect(text).not.toMatch(/undefined|NaN|\[object/);
+    expect(text).not.toMatch(/€NaN|€undefined/);
+  }
+
+  expect(errors, 'the advisor threw while rendering a goal').toEqual([]);
+});
+
+test('switching goals is instant, and does not re-run the search', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => window.setScreen('advisor'));
+  await expect(page.locator('.adv-hero')).toBeVisible({ timeout: 20_000 });
+
+  // One sweep answered all four goals. A spinner between two answers already
+  // in hand would be theatre, and a re-run would be worse.
+  const before = await page.evaluate(() => window.__searchRuns || 0);
+  const t0 = Date.now();
+  for (const g of GOALS) {
+    await page.evaluate((x) => window.setAdvisorGoal(x), g);
+    await expect(page.locator('.adv-hero')).toBeVisible();
+  }
+  const elapsed = Date.now() - t0;
+  const after = await page.evaluate(() => window.__searchRuns || 0);
+
+  expect(after - before, 'switching goal re-ran the search').toBe(0);
+  expect(elapsed, `four goal switches took ${elapsed}ms`).toBeLessThan(3000);
+});
+
+test('adopting the recommendation makes it the reader’s own system', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => window.setScreen('advisor'));
+  await expect(page.locator('.adv-hero')).toBeVisible({ timeout: 20_000 });
+
+  const rec = await page.evaluate(() => {
+    const r = window.advisorResult();
+    return r ? r.best : null;
+  });
+
+  await page.getByRole('button', { name: /Use this as my system/i }).click();
+  await page.waitForTimeout(400);
+
+  const after = await page.evaluate(() => ({
+    screen: window.state.current_screen,
+    panels: window.state.count_A,
+    battery: window.state.battery_kwh,
+    plan: window.state.chosen_plan,
+    hasSolar: window.state.has_solar,
+  }));
+  expect(after.hasSolar).toBe(true);
+  expect(after.panels).toBeGreaterThan(0);
+  expect(after.plan, 'the recommended tariff was not adopted with the system').toBeTruthy();
+  if (rec) {
+    expect(after.panels).toBe(rec.panels);
+    expect(after.battery).toBe(rec.batteryKwh);
+  }
+});

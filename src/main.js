@@ -5276,6 +5276,10 @@ function runDesignSearch(onProgress, options){
     ...(opts.finance !== undefined ? { finance: opts.finance } : {}),
   };
 
+  // Counted so the end-to-end suite can prove that switching goal does not
+  // start a new search: one sweep already answered all four.
+  try { window.__searchRuns = (window.__searchRuns || 0) + 1; } catch (e) {}
+
   return new Promise((resolve, reject) => {
     const id = (_searchSeq += 1);
     let worker = null;
@@ -5324,6 +5328,334 @@ function runDesignSearch(onProgress, options){
       limits,
     });
   });
+}
+
+
+/* ============================================================
+   V4 — THE ADVISOR SCREEN
+   The recommendation, and what it beat. Opt-in from More while V4 is
+   being built; see VERSIONS.md.
+   ============================================================ */
+
+/**
+ * The last search, and what it was a search for.
+ *
+ * Keyed on everything that changes the answer, so re-entering the screen is
+ * instant and changing the house is not. Switching GOAL is free and must never
+ * re-run anything: one sweep already answered all four, and a spinner between
+ * two answers we are holding would be theatre.
+ */
+let _advisor = { key: null, running: false, progress: null, result: null, reasons: null, confidence: 0, error: null };
+
+function advisorKey(){
+  return JSON.stringify([state.dwelling_type, state.bedrooms, state.roof_capacity_panels,
+    state.panel_w, state.azimuth_A, state.tilt_A, state.inverter_kw, state.region,
+    state.heating_type, state.hot_water_strategy, usageKey(), state.baseline,
+    state.baseline_discount_pct, state.ev_active, state.ev_km_per_year, state.ev_in_bill,
+    state.export_enabled, state.export_limit_kw, state.include_dynamic, TARIFFS.length]);
+}
+
+function advisorGoal(){ return state.search_goal || 'max-return'; }
+
+function setAdvisorGoal(goal){
+  state.search_goal = goal;
+  saveState();
+  // Free: byGoal already holds the answer for every goal.
+  if (_advisor.result){
+    _advisor.result.goal = goal;
+    _advisor.result.best = _advisor.result.byGoal[goal] || null;
+    Promise.all([import('./engine/search')]).then(([m]) => {
+      _advisor.reasons = m.explain(_advisor.result, { maxPanels: roofPanelCap(), panelWatts: state.panel_w || 440 });
+      _advisor.confidence = m.confidence(_advisor.result);
+      renderApp();
+    });
+  }
+  renderApp();
+}
+
+function startAdvisorSearch(force){
+  const key = advisorKey();
+  if (!force && (_advisor.running || _advisor.key === key)) return;
+  _advisor = { key, running: true, progress: { fraction: 0, evaluated: 0, phase: 'tariffs' },
+    result: null, reasons: null, confidence: 0, error: null };
+  renderApp();
+
+  let lastPaint = 0;
+  runDesignSearch((p) => {
+    _advisor.progress = p;
+    // The progress figure is real — simulations actually run — so it is worth
+    // showing, but not at sixty frames a second on a number that moves in
+    // steps of a few dozen.
+    const now = Date.now();
+    if (now - lastPaint > 120 && state.current_screen === 'advisor'){ lastPaint = now; renderApp(); }
+  }, { goal: advisorGoal() }).then(({ result, reasons, confidence }) => {
+    _advisor.running = false;
+    _advisor.result = result;
+    _advisor.reasons = reasons;
+    _advisor.confidence = confidence;
+    if (state.current_screen === 'advisor') renderApp();
+  }).catch((e) => {
+    _advisor.running = false;
+    _advisor.error = String((e && e.message) || e);
+    if (state.current_screen === 'advisor') renderApp();
+  });
+}
+
+const GOAL_LABELS = {
+  'max-return':   ['Best return',    'Most money over 20 years'],
+  'bill-swap':    ['Swap the bill',  'Repayment under the saving'],
+  'independence': ['Independence',   'Least reliance on the grid'],
+  'fast-payback': ['Fastest payback','Money back soonest'],
+};
+
+/**
+ * A reason, as a sentence.
+ *
+ * The engine returns comparisons, not prose — each one is two designs it
+ * actually priced. This is the only place they become words, so the claim on
+ * screen and the number behind it cannot drift apart, and there is no language
+ * model anywhere near a €15,000 decision.
+ */
+function advisorReasonText(r, result){
+  const goal = result.goal;
+  const a = r.against;
+
+  /**
+   * The margin, in the units of the goal being asked about.
+   *
+   * `worth` is scored on whatever the current goal maximises, so it is euro of
+   * NPV under one goal, percentage points of self-sufficiency under another,
+   * and years under a third. Printing all of them with a euro sign produced
+   * "EUR19 of self-sufficiency", which is not a quantity of anything.
+   */
+  const margin = (n) => {
+    const v = Math.abs(n);
+    if (goal === 'independence') return `takes ${Math.round(v)} more percentage points of your electricity off the grid`;
+    if (goal === 'bill-swap') return `leaves you ${fmtCurrency(v)} a year better off`;
+    if (goal === 'fast-payback') return `pays back ${v.toFixed(1)} year${v.toFixed(1) === '1.0' ? '' : 's'} sooner`;
+    return `is worth ${fmtCurrency(v)} more over 20 years`;
+  };
+  const sys = (d) => `${d.panels} panels${d.batteryKwh ? ` and a ${d.batteryKwh} kWh battery` : ' and no storage'} at ${fmtCurrency(d.netCost)}`;
+  switch (r.kind){
+    case 'more-panels-beat-battery':
+      return a ? `<b>Panels beat a battery here.</b> Against the best system with storage — ${sys(a)} — putting the money into panels ${margin(r.worth)}, because your surplus is worth more sold than stored.`
+        : '<b>No battery.</b> Storage does not pay for itself on your usage.';
+    case 'battery-earns-its-keep':
+      return a ? `<b>The battery earns its keep.</b> Against the best system without one — ${sys(a)} — it ${margin(r.worth)}.`
+        : '<b>The battery earns its keep.</b>';
+    case 'arbitrage':
+      return '<b>Charge it overnight.</b> Filling the battery in the cheap window and using it in the expensive one is worth more than sunlight alone.';
+    case 'self-consumption':
+      return '<b>Solar-only charging.</b> Buying cheap-rate electricity to store does not pay on this tariff — the battery runs on your own generation.';
+    case 'covers-its-own-repayment':
+      return `<b>Better off from month one.</b> The saving covers the repayment and leaves you about ${fmtCurrency(r.worth)} a month ahead.`;
+    case 'independence-costs-return':
+      return a ? `<b>This is not the money-maximising choice.</b> It gives up about ${fmtCurrency(Math.abs(r.worth))} over 20 years against the ${a.panels}-panel investment build — that is what the independence costs.` : '';
+    case 'goal-changes-the-answer':
+      return a ? `<b>Wanting something else would change this.</b> Under "${(GOAL_LABELS[r.goal] || [r.goal])[0]}" the answer is ${a.panels} panels${a.batteryKwh ? ` and a ${a.batteryKwh} kWh battery` : ' and no battery'}, at ${fmtCurrency(a.netCost)}.` : '';
+    case 'tariff-switch':
+      return `<b>It depends on switching tariff.</b> On <b>${result.best.planLabel}</b> rather than the cheapest plan for your current usage — the system changes which tariff wins.`;
+    case 'roof-limited':
+      return '<b>Your roof is the limit, not the economics.</b> More panels would still pay; there is nowhere to put them.';
+    default: return '';
+  }
+}
+
+function renderAdvisorGoalPicker(){
+  const cur = advisorGoal();
+  return `<div class="goal-strip" role="tablist" aria-label="What matters most">
+    ${Object.entries(GOAL_LABELS).map(([g, [lbl, sub]]) => `
+      <button class="goal-chip ${g === cur ? 'active' : ''}" role="tab" aria-selected="${g === cur}"
+              onclick="setAdvisorGoal('${g}')">
+        <span class="goal-chip-label">${lbl}</span>
+        <span class="goal-chip-sub">${sub}</span>
+      </button>`).join('')}
+  </div>`;
+}
+
+function renderAdvisor(){
+  // Short: the top bar carries a back control, the title, the account button
+  // and settings on a 390px screen. "Your best solution" ran under the account
+  // button — a longer title is not worth an overlapping one.
+  const head = `${topbar('What to install', 'accent', true)}`;
+  const goal = advisorGoal();
+
+  if (_advisor.error){
+    return `${head}<div class="screen">
+      <div class="card"><div class="card-title">The search could not run</div>
+      <p style="font-size:15px;color:var(--ink-soft);line-height:1.6">${_advisor.error}</p>
+      <button class="switch-cta" style="margin-top:14px" onclick="startAdvisorSearch(true)">Try again</button></div>
+    </div>`;
+  }
+
+  if (!_advisor.result){
+    const p = _advisor.progress || { fraction: 0, evaluated: 0 };
+    const pct = Math.round((p.fraction || 0) * 100);
+    // An honest wait. The count is simulations that have genuinely been run,
+    // not a spinner dressed up as work.
+    return `${head}<div class="screen">
+      <div class="card" style="text-align:center;padding:34px 20px">
+        <div style="font-size:17px;font-weight:800;color:var(--ink);margin-bottom:6px">Working out what you should install</div>
+        <div style="font-size:15px;color:var(--ink-soft);line-height:1.6;margin-bottom:18px">Pricing every sensible system against every tariff.</div>
+        <div class="adv-bar"><span style="width:${pct}%"></span></div>
+        <div style="font-family:var(--mono);font-size:13px;color:var(--ink-soft);margin-top:10px;font-variant-numeric:tabular-nums">
+          ${(p.evaluated || 0).toLocaleString('en-IE')} full-year simulations</div>
+      </div>
+    </div>`;
+  }
+
+  const r = _advisor.result;
+  const best = r.best;
+  const cap = roofPanelCap();
+  const roof = roofEstimate();
+
+  if (r.noRoof){
+    return `${head}<div class="screen">
+      ${renderAdvisorGoalPicker()}
+      <div class="card">
+        <div class="card-title">There is no roof to work with</div>
+        <p style="font-size:15px;color:var(--ink-soft);line-height:1.6">You told us this is an apartment. Solar needs a roof you control, so there is nothing honest for us to recommend — and we would rather say so than sell you a system.</p>
+        <p style="font-size:15px;color:var(--ink-soft);line-height:1.6;margin-top:10px">The tariff comparison still works, and it is where your savings are: <b>${r.doNothing.planLabel}</b> at ${fmtCurrency(r.doNothing.annualNet)} a year.</p>
+        <button class="switch-cta" style="margin-top:14px" onclick="setScreen('plans')">See the cheapest plans →</button>
+        <button class="btn-secondary" style="width:100%;margin-top:8px" onclick="setScreen('refine')">Not an apartment? Change it</button>
+      </div>
+    </div>`;
+  }
+
+  if (!best){
+    const anyGoal = Object.entries(r.byGoal).find(([, d]) => d);
+    return `${head}<div class="screen">
+      ${renderAdvisorGoalPicker()}
+      <div class="card">
+        <div class="card-title">Nothing here meets that</div>
+        <p style="font-size:15px;color:var(--ink-soft);line-height:1.6">
+          ${anyGoal
+            ? `No system on your roof can meet "<b>${GOAL_LABELS[goal][0]}</b>" — but solar does pay for you on other terms. Under "<b>${GOAL_LABELS[anyGoal[0]][0]}</b>" the answer is ${anyGoal[1].panels} panels at ${fmtCurrency(anyGoal[1].netCost)}.`
+            : 'On your usage and roof, no system pays for itself within its working life. That is a real answer, and it is the one that saves you the most money.'}
+        </p>
+        ${anyGoal ? `<button class="switch-cta" style="margin-top:14px" onclick="setAdvisorGoal('${anyGoal[0]}')">Show me that instead →</button>` : ''}
+      </div>
+    </div>`;
+  }
+
+  const conf = _advisor.confidence;
+  const confLabel = conf >= 0.75 ? 'Clear winner' : conf >= 0.5 ? 'Reasonably clear' : 'Close call';
+  const confTone = conf >= 0.75 ? 'var(--accent)' : conf >= 0.5 ? 'var(--ink)' : 'var(--amber, var(--ink-soft))';
+
+  const spec = [
+    [ic('sun',18), `${best.panels} × ${state.panel_w || 440} W panels`, `${best.kwp} kWp`],
+    [ic('battery',18), best.batteryKwh ? `${best.batteryKwh} kWh battery` : 'No battery', best.batteryKwh ? (best.chargeFromGrid ? 'Charged overnight and from the sun' : 'Charged from the sun only') : 'Your money goes further in panels'],
+    [ic('bolt',18), best.planLabel, 'The tariff this system is best on'],
+  ];
+
+  const reasons = (_advisor.reasons || []).map((x) => advisorReasonText(x, r)).filter(Boolean);
+
+  // What the other goals would buy. This is the decision, not the
+  // recommendation: a reader who can see the four side by side is choosing,
+  // where a reader given one number is only being told.
+  const others = Object.entries(r.byGoal).filter(([g, d]) => d && g !== goal);
+
+  return `${head}
+  <div class="screen">
+    <p class="adv-lede">What matters most to you?</p>
+    ${renderAdvisorGoalPicker()}
+
+    <div class="card adv-hero">
+      <div class="adv-hero-head">
+        <div>
+          <div class="adv-hero-kicker">${GOAL_LABELS[goal][0]} · your roof fits ${cap} panels</div>
+          <div class="adv-hero-title">${best.panels} panels${best.batteryKwh ? ` + ${best.batteryKwh} kWh` : ''}</div>
+        </div>
+        <div class="adv-conf" style="color:${confTone}">
+          <div class="adv-conf-num">${Math.round(conf * 100)}%</div>
+          <div class="adv-conf-label">${confLabel}</div>
+        </div>
+      </div>
+
+      <div class="adv-figures">
+        <div><span class="adv-fig">${fmtCurrency(best.annualBenefit)}</span><span class="adv-fig-l">saved a year</span></div>
+        <div><span class="adv-fig">${best.payback}<em>yr</em></span><span class="adv-fig-l">to pay back</span></div>
+        <div><span class="adv-fig">${fmtCurrency(best.netCost)}</span><span class="adv-fig-l">after grant</span></div>
+      </div>
+
+      <div class="adv-spec">
+        ${spec.map(([icon, title, sub]) => `
+          <div class="adv-spec-row">
+            <span class="adv-spec-icon">${icon}</span>
+            <span><b>${title}</b><em>${sub}</em></span>
+          </div>`).join('')}
+      </div>
+
+      <button class="switch-cta" style="margin-top:16px" onclick="adoptAdvisorDesign()">Use this as my system →</button>
+    </div>
+
+    ${reasons.length ? `
+      <div class="card">
+        <div class="card-title">Why this one</div>
+        ${reasons.map((t) => `<p class="adv-reason">${t}</p>`).join('')}
+      </div>` : ''}
+
+    ${others.length ? `
+      <div class="card">
+        <div class="card-title">If you wanted something else</div>
+        <div class="adv-alts">
+          ${others.map(([g, d]) => `
+            <button class="adv-alt" onclick="setAdvisorGoal('${g}')">
+              <span class="adv-alt-goal">${GOAL_LABELS[g][0]}</span>
+              <span class="adv-alt-spec">${d.panels === best.panels && d.batteryKwh === best.batteryKwh
+                ? 'The same system'
+                : `${d.panels} panels${d.batteryKwh ? ` + ${d.batteryKwh} kWh` : ''}`}</span>
+              <span class="adv-alt-num">${fmtCurrency(d.netCost)}</span>
+              <span class="adv-alt-sub">${g === 'independence' ? `${Math.round(d.selfSufficiency * 100)}% off the grid`
+                : g === 'bill-swap' ? `${fmtCurrency(d.monthlyNetChange)}/month ahead`
+                : g === 'fast-payback' ? `${d.payback} years` : `${fmtCurrency(d.npv)} over 20 years`}</span>
+            </button>`).join('')}
+        </div>
+      </div>` : ''}
+
+    <details class="working">
+      <summary class="working-toggle">
+        <span class="working-toggle-label">${ic('flask',17)} Show me the working</span>
+        <span class="working-toggle-hint">${r.evaluated.toLocaleString('en-IE')} full-year simulations · ${r.shortlist.length} tariffs · ${(r.elapsedMs / 1000).toFixed(1)}s</span>
+        <span class="working-toggle-chev">›</span>
+      </summary>
+      <div class="working-body">
+        <div class="card" style="margin-bottom:0">
+          <div class="plan-row"><div><div class="plan-label">Doing nothing</div><div class="plan-value">${r.doNothing.planLabel}</div></div><div class="plan-amount">${fmtCurrency(r.doNothing.annualNet)}/yr</div></div>
+          <div class="plan-row best"><div><div class="plan-label">This system</div><div class="plan-value">${best.planLabel}</div></div><div class="plan-amount">${fmtCurrency(best.annualNet)}/yr</div></div>
+          <div class="plan-row"><div><div class="plan-label">Bought from the grid</div><div class="plan-value">${Math.round(best.selfSufficiency * 100)}% of your demand comes from your own roof</div></div><div class="plan-amount">${fmtKwh(best.importKwh)}</div></div>
+          <div class="plan-row"><div><div class="plan-label">Sold back</div><div class="plan-value">Surplus exported</div></div><div class="plan-amount">${fmtKwh(best.exportKwh)}</div></div>
+          ${best.monthlyRepayment ? `<div class="plan-row"><div><div class="plan-label">If financed</div><div class="plan-value">${fmtCurrency(best.monthlyRepayment)}/month over ${(r.finance && r.finance.termYears) || 10} years</div></div><div class="plan-amount">${fmtCurrency(best.monthlyNetChange)}/mo</div></div>` : ''}
+        </div>
+        ${roof ? `
+          <div class="card" style="margin-bottom:0;margin-top:10px">
+            <div class="card-title">How we sized your roof</div>
+            ${roof.assumptions.map((a) => `<p class="adv-assume">${a}</p>`).join('')}
+            <p class="adv-assume" style="color:var(--ink)">That is about <b>${roof.maxPanels} panels</b>. Know better? <button class="adv-link" onclick="setScreen('refine')">Set it yourself</button>.</p>
+          </div>` : ''}
+      </div>
+    </details>
+  </div>`;
+}
+
+/** Adopt the advisor's recommendation as the reader's own system. */
+function adoptAdvisorDesign(){
+  const d = _advisor.result && _advisor.result.best;
+  if (!d) return;
+  state.solar_view = 'mine';
+  applySystemConfig({ has_solar: true, count_A: d.panels, count_B: 0,
+    azimuth_A: state.azimuth_A || 180, tilt_A: state.tilt_A || 30,
+    battery_kwh: d.batteryKwh, install_cost: d.cost, grant_seai: d.grant,
+    solar_is_estimate: true, solar_planned: true });
+  state.strategy_mode = d.chargeFromGrid ? 'arbitrage' : 'selfconsume';
+  state.charge_from_grid = !!d.chargeFromGrid;
+  state.chosen_plan = d.planId;
+  state.considering_solar = true;
+  snapshotMySystem();
+  saveState();
+  setScreen('solar');
+  showToast(`${d.panels} panels${d.batteryKwh ? ` + ${d.batteryKwh} kWh` : ''} — ${d.payback} year payback`,
+    { type:'accent', icon:ic('checkC',16), title:'Now your system' });
 }
 
 /** Adopt the recommended design as the user's own system. */
@@ -9547,6 +9879,9 @@ function renderMore(){
       [ic('tune',19),'Settings','Usage, heating, solar spec, EV & battery strategy','refine'],
       [ic('csv',19),'Import smart-meter data','ESB Networks CSV — the most accurate result','csv-import'],
     ]],
+    ['New', [
+      [ic('flask',19),'What should I install?','The engine picks the system, not you — early build','advisor'],
+    ]],
     ['Tools', [
       [ic('clip',19),'Audit an installer quote','Objective check against 2026 Irish market prices','auditor'],
       [ic('scales',19),'My saved quotes', nQuotes ? nQuotes + ' quote' + (nQuotes === 1 ? '' : 's') + ' saved — compare side by side' : 'Save installer quotes and compare them side by side','quotes'],
@@ -9884,7 +10219,7 @@ function bottomNav(){
    ============================================================ */
 const APP_SCREENS = ['result','plans','plan-detail','solar','analytics','monitor',
                      'compare','more','independence','quotes','auditor','refine',
-                     'how-to-switch','methodology','csv-import'];
+                     'how-to-switch','methodology','csv-import','advisor'];
 
 // Set while we are reacting to a popstate, so restoring a screen doesn't
 // push a fresh entry and trap the user in a loop.
@@ -9958,6 +10293,10 @@ function setScreen(name){
   pushScreenHistory(name);
   trackPageView(name);
   if (name === 'solar' && maybeAutoPaybackView()) return;
+  // The advisor's whole content is a search result. Kick it off on the way in
+  // rather than on first paint, so the screen never renders empty and then
+  // fills — the search is cached against the inputs, so re-entering is free.
+  if (name === 'advisor'){ startAdvisorSearch(); return; }
   renderApp();
 }
 
@@ -10268,6 +10607,7 @@ function renderApp(){
     case 'how-to-switch':html = renderHowToSwitch(); break;
     case 'methodology':  html = renderMethodology(); break;
     case 'csv-import':   html = renderCsvImport(); break;
+    case 'advisor':      html = renderAdvisor(); break;
     default:
       // Falling through to the home screen made every broken link look like a
       // working one that went somewhere odd — a dead button shipped and
@@ -11455,6 +11795,13 @@ window.runDesignSearch = runDesignSearch;
 window.SEARCH_COST_PARAMS = SEARCH_COST_PARAMS;
 window.roofEstimate = roofEstimate;
 window.roofPanelCap = roofPanelCap;
+window.setAdvisorGoal = setAdvisorGoal;
+window.startAdvisorSearch = startAdvisorSearch;
+window.adoptAdvisorDesign = adoptAdvisorDesign;
+// A function, not an accessor: the bridge block is evaluated more than once in
+// some builds, and a second defineProperty on the same name throws "Cannot
+// redefine property" — which took the whole module down before TARIFFS existed.
+window.advisorResult = () => _advisor.result;
 window.pickObDwelling = pickObDwelling;
 window.pickObBedrooms = pickObBedrooms;
 // Bridged so the end-to-end suite can hold the worker's rebuilt pricing model
@@ -11526,6 +11873,13 @@ window.runDesignSearch = runDesignSearch;
 window.SEARCH_COST_PARAMS = SEARCH_COST_PARAMS;
 window.roofEstimate = roofEstimate;
 window.roofPanelCap = roofPanelCap;
+window.setAdvisorGoal = setAdvisorGoal;
+window.startAdvisorSearch = startAdvisorSearch;
+window.adoptAdvisorDesign = adoptAdvisorDesign;
+// A function, not an accessor: the bridge block is evaluated more than once in
+// some builds, and a second defineProperty on the same name throws "Cannot
+// redefine property" — which took the whole module down before TARIFFS existed.
+window.advisorResult = () => _advisor.result;
 window.pickObDwelling = pickObDwelling;
 window.pickObBedrooms = pickObBedrooms;
 // Bridged so the end-to-end suite can hold the worker's rebuilt pricing model
