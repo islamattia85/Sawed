@@ -407,3 +407,87 @@ test('adopting the recommendation makes it the reader’s own system', async ({ 
     expect(after.battery).toBe(rec.batteryKwh);
   }
 });
+
+/**
+ * The goal question, in onboarding.
+ *
+ * Everything else onboarding asks describes the house. This describes the
+ * person, and it is the only question the engine cannot answer for itself: the
+ * same roof, tariffs and usage produce four different right answers depending
+ * on the reply.
+ *
+ * It is also the question most likely to be asked and then ignored, which is
+ * the failure mode the whole redesign is against. So these tests follow it all
+ * the way through to the screen it decides.
+ */
+test('the goal is asked only when it can change something', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => { window.state.current_screen = 'onboarding'; window._ob.step = 1; window.renderApp(); });
+
+  // Someone with no interest in solar is never asked what they want solar to
+  // do for them — a question that cannot change what they are shown is a
+  // reason to abandon a form.
+  const noSolar = await page.evaluate(() => { window._ob.has_solar = false; window.renderApp(); return window.obTotal(); });
+  expect(noSolar).toBe(5);
+  for (let i = 1; i <= 5; i += 1) {
+    expect(await page.evaluate((n) => window.obStepKey(n), i), `step ${i} is the goal question`)
+      .not.toBe('goal');
+  }
+
+  const withSolar = await page.evaluate(() => { window._ob.has_solar = true; window.renderApp(); return window.obTotal(); });
+  expect(withSolar).toBe(6);
+
+  // The progress dots have to agree with the count, or the progress bar lies.
+  const dots = await page.locator('.ob-progress > span').count();
+  expect(dots).toBe(withSolar);
+});
+
+test('the goal you choose is the question the advisor answers', async ({ page }) => {
+  const errors = await boot(page);
+
+  await page.evaluate(() => {
+    window.state.dwelling_type = 'detached';
+    window.state.bedrooms = 4;
+    window.state.current_screen = 'onboarding';
+    window._ob.has_solar = true;
+    window._ob.step = window.obTotal();
+    window.renderApp();
+  });
+
+  await expect(page.getByText(/What would you like solar to/i)).toBeVisible();
+  await expect(page.locator('.ob-goal')).toHaveCount(4);
+
+  // Written as outcomes, not as objective functions. The engine's own names
+  // for these must never reach a screen.
+  const text = await page.locator('.ob-content').innerText();
+  expect(text).not.toMatch(/max-return|bill-swap|fast-payback|NPV|net present value/i);
+
+  await page.locator('.ob-goal', { hasText: /Rely on the grid/i }).click();
+  await expect(page.locator('.ob-goal.active')).toContainText(/Rely on the grid/i);
+
+  // The closing call to action promises the answer, not another form.
+  await expect(page.locator('.switch-cta')).toContainText(/what to install/i);
+  await page.locator('.switch-cta').click();
+
+  // …and it delivers it, for the goal that was asked for.
+  await expect(page.locator('.adv-hero')).toBeVisible({ timeout: 20_000 });
+  expect(await page.evaluate(() => window.state.search_goal)).toBe('independence');
+  expect(await page.evaluate(() => window.advisorResult().goal)).toBe('independence');
+  await expect(page.locator('.goal-chip.active')).toContainText(/Independence/i);
+  expect(errors).toEqual([]);
+});
+
+test('someone with no interest in solar still lands on their bill', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => {
+    window.state.current_screen = 'onboarding';
+    window._ob.has_solar = false;
+    window._ob.step = window.obTotal();
+    window.renderApp();
+  });
+  await expect(page.locator('.switch-cta')).toContainText(/my best plan/i);
+  await page.locator('.switch-cta').click();
+  await page.waitForTimeout(600);
+  // The advisor has nothing to tell them; the tariff comparison has everything.
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('result');
+});

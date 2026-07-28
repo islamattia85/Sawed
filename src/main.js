@@ -645,6 +645,8 @@ const IC = {
   phone:   '<path d="M8.4 4.2 6 4.6A2 2 0 0 0 4.4 6.8c.7 6.3 5.9 11.5 12.3 12.3a2 2 0 0 0 2.2-1.6l.4-2.4-3.6-1.7-1.6 1.6c-2.3-1-4.1-2.8-5.1-5.1l1.6-1.6-2.2-4.1Z"/>',
   globe:   '<circle cx="12" cy="12" r="8.2"/><path d="M3.8 12h16.4M12 3.8c2.4 2.2 3.6 5 3.6 8.2s-1.2 6-3.6 8.2c-2.4-2.2-3.6-5-3.6-8.2s1.2-6 3.6-8.2Z"/>',
   clock:   '<circle cx="12" cy="12" r="8.2"/><path d="M12 7.4V12l3 2.1"/>',
+  // The goal question: what someone wants the roof to do for them.
+  coin:    '<ellipse cx="12" cy="7" rx="6.8" ry="2.8"/><path d="M5.2 7v10c0 1.55 3.04 2.8 6.8 2.8s6.8-1.25 6.8-2.8V7"/><path d="M5.2 12c0 1.55 3.04 2.8 6.8 2.8s6.8-1.25 6.8-2.8"/>',
   pin:     '<path d="M12 21c-4-4-6.8-7-6.8-10.4a6.8 6.8 0 0 1 13.6 0C18.8 14 16 17 12 21Z"/><circle cx="12" cy="10.5" r="2.3"/>',
   flame:   '<path d="M12.3 3.2c.8 2.9-3.8 4.6-3.8 9.1a5.5 5.5 0 0 0 11 0c0-2-.9-3.6-2-4.6-.2 1.4-.9 2.1-1.8 2.4.7-2.5-.6-5.6-3.4-6.9Z" fill="currentColor" stroke="none" transform="translate(-1.7 1)"/>',
   waves:   '<path d="M4 8.2c2.7-2.3 5.3 2.3 8 0s5.3 2.3 8 0M4 13c2.7-2.3 5.3 2.3 8 0s5.3 2.3 8 0M4 17.8c2.7-2.3 5.3 2.3 8 0s5.3 2.3 8 0"/>',
@@ -3335,6 +3337,7 @@ function makeOb(){
     // supplying one.
     dwelling: 'semi-detached',
     bedrooms: 3,
+    goal: 'max-return',
     baseline: 'EI-24',
     baseline_known: false,
     heating: 'gas',
@@ -3362,7 +3365,24 @@ function makeOb(){
   };
 }
 let _ob = makeOb();
-const OB_TOTAL_STEPS = 5;
+/**
+ * The steps, in order.
+ *
+ * The goal question — what you want solar to DO for you — only appears for
+ * someone who has solar or is thinking about it. Asking a household with no
+ * roof interest whether they would rather maximise return or leave the grid is
+ * asking a question that cannot change anything they are shown, and every one
+ * of those is a reason to abandon a form.
+ */
+const OB_FLOW = ['home', 'usage', 'plan', 'solar', 'ev', 'goal'];
+function obFlow(){ return OB_FLOW.filter(k => k !== 'goal' || _ob.has_solar); }
+function obTotal(){ return obFlow().length; }
+function obStepKey(n){ return obFlow()[n - 1]; }
+/** "Step 4 of 6 · Solar" — computed, because a progress count that lies is worse than none. */
+function obStepNum(key, label){
+  const i = obFlow().indexOf(key);
+  return `<div class="ob-step-num">Step ${i + 1} of ${obTotal()} · ${label}</div>`;
+}
 
 /* ============================================================
    WELCOME SCREEN — in-app landing, first thing users see
@@ -3590,6 +3610,7 @@ function reRunOnboarding(){
   _ob.region = state.region || 'east';
   _ob.dwelling = state.dwelling_type || 'semi-detached';
   _ob.bedrooms = state.bedrooms || 3;
+  _ob.goal = state.search_goal || 'max-return';
   _ob.baseline = state.baseline || 'EI-24';
   _ob.baseline_known = !!state.baseline_known;
   _ob.heating = state.heating_type || 'gas';
@@ -3631,7 +3652,7 @@ function renderOnboarding(){
         <span class="ob-skip" onclick="confirmExitOnboarding()">✕ Exit</span>
       </div>
       <div class="ob-progress">
-        ${Array.from({length:OB_TOTAL_STEPS}).map((_,i) => {
+        ${Array.from({length:obTotal()}).map((_,i) => {
           const n = i + 1;
           return `<span class="${n < _ob.step ? 'done' : n === _ob.step ? 'current' : ''}"></span>`;
         }).join('')}
@@ -3641,7 +3662,7 @@ function renderOnboarding(){
       <div class="ob-nav">
         ${_ob.step > 1 ? `<button class="ob-back-btn" onclick="obBack()">← Back</button>` : ''}
         <button class="switch-cta" style="flex:1;margin-bottom:0" onclick="obNext()">
-          ${_ob.step < OB_TOTAL_STEPS ? 'Continue →' : 'Show me my best plan →'}
+          ${_ob.step < obTotal() ? 'Continue →' : (_ob.has_solar ? 'Show me what to install →' : 'Show me my best plan →')}
         </button>
       </div>
     </div>
@@ -3649,12 +3670,15 @@ function renderOnboarding(){
 }
 
 function renderObStep(n){
-  if (n === 1) return obStep1Home();     // location + heating
-  if (n === 2) return obStep2Usage();    // CSV / bill / kWh - one question
-  if (n === 3) return obStep5CurrentPlan();
-  if (n === 4) return obStep6Solar();
-  if (n === 5) return obStep7EV();
-  return '';
+  switch (obStepKey(n)){
+    case 'home':  return obStep1Home();
+    case 'usage': return obStep2Usage();
+    case 'plan':  return obStep5CurrentPlan();
+    case 'solar': return obStep6Solar();
+    case 'ev':    return obStep7EV();
+    case 'goal':  return obStepGoal();
+    default: return '';
+  }
 }
 
 function setObBaseline(planId){
@@ -3699,7 +3723,7 @@ function obStep5CurrentPlan(){
   `).join('') : '';
 
   return `
-    <div class="ob-step-num">Step 3 of 5 · Current Plan</div>
+    ${obStepNum('plan', 'Current plan')}
     <h1 class="ob-title">What plan are you <em>on now</em>?</h1>
 
     <div class="ob-plan-notsure ${!_ob.baseline_known ? 'active' : ''}" onclick="setObBaseline(null)" style="margin-bottom:10px">
@@ -3736,7 +3760,7 @@ function obStep5CurrentPlan(){
 
 function obStep1Home(){
   return `
-    <div class="ob-step-num">Step 1 of 5 · Your home</div>
+    ${obStepNum('home', 'Your home')}
     <h1 class="ob-title">What kind of <em>home</em>, and where?</h1>
     <p class="ob-sub">The house tells us how much roof there is; the county tells us how much sun it gets.</p>
 
@@ -3832,7 +3856,7 @@ function obStep2Usage(){
   // An imported CSV wins over everything — one source of truth.
   if (state._csv_imported){
     return `
-    <div class="ob-step-num">Step 2 of 5 · Your usage</div>
+    ${obStepNum('usage', 'Your usage')}
     <h1 class="ob-title">How do you <em>heat</em> it, and how much do you use?</h1>
     <p class="ob-sub">Heating sets when you use power. Usage comes from your smart meter.</p>
     ${heating}
@@ -3841,7 +3865,7 @@ function obStep2Usage(){
   }
 
   const head = `
-    <div class="ob-step-num">Step 2 of 5 · Your usage</div>
+    ${obStepNum('usage', 'Your usage')}
     <h1 class="ob-title">How do you <em>heat</em> it, and how much do you use?</h1>
     <p class="ob-sub">Heating sets when you use power. For the amount, whichever you have to hand — a bill is enough.</p>
     ${heating}
@@ -3921,7 +3945,7 @@ function obPills(key, val, options){
 
 function obStep6Solar(){
   return `
-    <div class="ob-step-num">Step 4 of 5 · Solar (optional)</div>
+    ${obStepNum('solar', 'Solar')}
     <h1 class="ob-title">Do you have or plan to add <em>solar</em>?</h1>
     <p class="ob-sub">No solar? Skip this step.</p>
 
@@ -4015,9 +4039,58 @@ function obStep6Solar(){
     ` : ''}`;
 }
 
+/**
+ * What do you want solar to DO for you?
+ *
+ * The last question, and the one the whole engine turns on. Everything before
+ * it describes the house; this describes the person. The same roof, the same
+ * tariffs and the same usage produce four different right answers depending on
+ * the reply, and no amount of simulation can supply it.
+ *
+ * Written as outcomes rather than objective functions. Nobody thinks "I would
+ * like to maximise twenty-year net present value" — they think "I want this to
+ * make me money" or "I want to stop paying the ESB". The engine's names for
+ * these live in engine/search.ts and never appear on screen.
+ */
+const OB_GOALS = [
+  ['max-return', 'coin', 'Make me the most money',
+   'The biggest return over twenty years, even if it costs more up front.'],
+  ['bill-swap', 'swap', 'Swap my bill for a repayment',
+   'Borrow for it, and be better off every month from the first one.'],
+  ['independence', 'shield', 'Rely on the grid as little as possible',
+   'Get as much of your electricity from your own roof as you can.'],
+  ['fast-payback', 'clock', 'Get my money back quickly',
+   'The shortest payback, and the least at risk.'],
+];
+
+function pickObGoal(g){ _ob.goal = g; renderApp(); }
+
+function obStepGoal(){
+  const cur = _ob.goal || 'max-return';
+  return `
+    ${obStepNum('goal', 'What you want')}
+    <h1 class="ob-title">What would you like solar to <em>do</em> for you?</h1>
+    <p class="ob-sub">There is no wrong answer — but there are four different right ones, and this is the only question we cannot work out for you.</p>
+
+    <div class="ob-goals">
+      ${OB_GOALS.map(([g, icon, title, sub]) => `
+        <div class="ob-goal ${cur === g ? 'active' : ''}" role="button" tabindex="0"
+             aria-pressed="${cur === g}" onclick="pickObGoal('${g}')">
+          <span class="ob-goal-icon">${ic(icon, 20)}</span>
+          <span class="ob-goal-text">
+            <b>${title}</b>
+            <em>${sub}</em>
+          </span>
+          <span class="ob-goal-tick">${cur === g ? ic('checkC', 18) : ''}</span>
+        </div>`).join('')}
+    </div>
+
+    <p class="ob-help" style="margin-top:14px">${ic('info',12)} You can change this at any time — and we will always show you what the other three would have bought.</p>`;
+}
+
 function obStep7EV(){
   return `
-    <div class="ob-step-num">Step 5 of 5 · Electric vehicle (optional)</div>
+    ${obStepNum('ev', 'Electric vehicle')}
     <h1 class="ob-title">Do you have or plan to add an <em>EV</em>?</h1>
     <p class="ob-sub">An EV changes which plan wins.</p>
 
@@ -4171,7 +4244,7 @@ function obNext(){
     const bad = effMode === 'kwh' ? (!_ob.annual_kwh || _ob.annual_kwh < 500) : (!_ob.bill || _ob.bill < 30);
     if (bad){ const el = document.getElementById('ob-bill'); if (el) el.focus(); return; }
   }
-  if (_ob.step < OB_TOTAL_STEPS){ _ob.step++; renderApp(); return; }
+  if (_ob.step < obTotal()){ _ob.step++; renderApp(); return; }
   // Final step — commit
   commitOnboarding();
 }
@@ -4193,6 +4266,7 @@ function commitOnboarding(){
   state.eircode = "";
   state.dwelling_type = _ob.dwelling || 'semi-detached';
   state.bedrooms = _ob.bedrooms || 3;
+  state.search_goal = _ob.goal || 'max-return';
   state.heating_type = _ob.heating;
   state.hot_water_strategy = _ob.hot_water_strategy || DEFAULT_HW_FOR_HEATING[_ob.heating] || 'none';
   state.baseline_discount_pct = _ob.baseline_known ? (+_ob.baseline_discount || 0) : 0;
@@ -4278,10 +4352,17 @@ function commitOnboarding(){
     state._solar_payback_intro_done = false;
   }
   state.onboarding_complete = true;
-  state.current_screen = 'result';
   invalidate();
   saveState();
   trackObComplete();
+
+  // A question you ask and then do not act on is worse than one you never
+  // asked. Someone who has just told us what they want solar to do for them
+  // lands on the answer to exactly that; everyone else lands on their bill,
+  // which is what they came for.
+  if (_ob.has_solar){ setScreen('advisor'); return; }
+  state.current_screen = 'result';
+  saveState();
   renderApp();
 }
 
@@ -11804,6 +11885,9 @@ window.adoptAdvisorDesign = adoptAdvisorDesign;
 window.advisorResult = () => _advisor.result;
 window.pickObDwelling = pickObDwelling;
 window.pickObBedrooms = pickObBedrooms;
+window.pickObGoal = pickObGoal;
+window.obTotal = obTotal;
+window.obStepKey = obStepKey;
 // Bridged so the end-to-end suite can hold the worker's rebuilt pricing model
 // to the same numbers the app uses.
 window.estimateInstallCost = estimateInstallCost;
@@ -11882,6 +11966,9 @@ window.adoptAdvisorDesign = adoptAdvisorDesign;
 window.advisorResult = () => _advisor.result;
 window.pickObDwelling = pickObDwelling;
 window.pickObBedrooms = pickObBedrooms;
+window.pickObGoal = pickObGoal;
+window.obTotal = obTotal;
+window.obStepKey = obStepKey;
 // Bridged so the end-to-end suite can hold the worker's rebuilt pricing model
 // to the same numbers the app uses.
 window.estimateInstallCost = estimateInstallCost;

@@ -278,6 +278,20 @@
   .ob-tiles-compact .ob-tile-icon{font-size:20px;margin-bottom:4px}
   .ob-tiles-compact .ob-tile-label{font-size:13px}
   .ob-tiles-compact .ob-tile-sub{display:none}
+
+  /* The goal question — the last step of onboarding, and the one the whole
+     engine turns on. Big tappable rows rather than a grid of tiles: these are
+     sentences about what someone wants, not values to compare. */
+  .ob-goals{display:grid;gap:10px;margin-top:6px}
+  .ob-goal{display:grid;grid-template-columns:auto 1fr auto;align-items:start;gap:14px;padding:16px;border-radius:12px;border:1.5px solid var(--line);background:var(--well);cursor:pointer;transition:border-color .15s,background .15s,transform .12s}
+  .ob-goal:hover{border-color:var(--track);transform:translateY(-1px)}
+  .ob-goal.active{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent),0 0 16px -6px var(--accent-glow)}
+  .ob-goal-icon{color:var(--ink-soft);margin-top:1px}
+  .ob-goal.active .ob-goal-icon{color:var(--accent)}
+  .ob-goal-text b{display:block;font-size:15px;font-weight:700;color:var(--ink);line-height:1.35}
+  .ob-goal.active .ob-goal-text b{color:var(--accent)}
+  .ob-goal-text em{display:block;font-style:normal;font-size:13px;color:var(--ink-soft);margin-top:3px;line-height:1.5}
+  .ob-goal-tick{color:var(--accent);min-width:18px}
   .ob-nav{position:sticky;bottom:0;padding:14px 0 16px;background:linear-gradient(180deg,transparent 0%,var(--glass-top) 30%,var(--bg) 100%);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;gap:10px;margin-top:24px}
   .ob-back-btn{background:transparent;border:1.5px solid var(--line);color:var(--ink-soft);padding:14px 22px;border-radius:12px;font-weight:600;cursor:pointer;flex:0 0 auto;transition:border-color .15s,color .15s,background .15s}
   .ob-back-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-faint)}
