@@ -6,7 +6,7 @@ one repository and one history, and nothing else.
 | Line | Branch | Tag | What it is |
 | --- | --- | --- | --- |
 | **V3** | `v3` | `v3.0.0` | The application as it stands today. Feature-complete and shipped. |
-| **V4** | `main` | — | The next major version. Free to break anything. |
+| **V4** | `main` | `4.0.0-dev` | The next major version. Free to break anything. |
 
 ### What V4 is
 
@@ -72,7 +72,9 @@ git cherry-pick <sha>      # only if V4 has the same defect
 
 ## Which version am I looking at?
 
-The More screen prints it at the bottom: `v3.0.0 · build 1a2b3c4d`. The version
+The More screen prints it at the bottom: `v3.0.0 · build 1a2b3c4d` on V3, and
+`v4.0.0-dev · build …` on V4. That is the fastest way to tell which line a
+deployment is serving. The version
 comes from `package.json` at build time and names the line; the build id is the
 commit. A bug report without both is a bug report about an unknown program.
 

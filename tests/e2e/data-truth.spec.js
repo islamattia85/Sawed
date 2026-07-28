@@ -128,5 +128,19 @@ test('the app names its version, not just its build', async ({ page }) => {
   });
   expect(stamp, 'the More screen no longer prints a build stamp at all').toBeTruthy();
   expect(stamp, 'the build stamp does not say which major version this is')
-    .toMatch(/^v\d+\.\d+\.\d+ · build \S+$/);
+    .toMatch(/^v\d+\.\d+\.\d+(-[\w.]+)? · build \S+$/);
+
+  // And it must be THIS line's version, not a plausible-looking one. The whole
+  // point of the stamp is telling V3 and V4 apart, and for a while it could
+  // not: `main` was still carrying 3.0.0, so both lines printed "v3.0.0" and
+  // the one number meant to identify the build identified nothing.
+  const { version } = await import('../../package.json', { with: { type: 'json' } })
+    .then((m) => m.default ?? m);
+  expect(stamp.startsWith(`v${version} `),
+    `the app says "${stamp}" but package.json says ${version}`).toBe(true);
+  // This line is V4. Claiming 3.0.0 is what actually happened: `main` kept the
+  // version it was tagged with, so both lines printed the same stamp and the
+  // one number meant to identify a build identified nothing. Safe to assert
+  // here because fixes only ever travel v3 -> main, never the other way.
+  expect(version, 'this line is claiming to be V3').not.toMatch(/^3\./);
 });
