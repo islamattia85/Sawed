@@ -1,13 +1,31 @@
 [
   {
     "id": "__meta__",
-    "last_scraped": "2026-07-26",
-    "scraper_version": "1.0",
+    "last_scraped": "2026-07-28",
+    "scraper_version": "2.0",
     "cru_warnings": [
-      "Possible new supplier detected on CRU page: 'Learn More Compare Energy'",
-      "Possible new supplier detected on CRU page: 'Learn More Fixed Energy'",
-      "Possible new supplier detected on CRU page: 'Learn More Energy'"
-    ]
+      "Bonkers.ie lists a supplier we do not carry: 'Energy Energy Business Energy'",
+      "Pinergy is still listed on Switcher.ie but we could not read their own site today — the parser is what needs fixing, not the plan",
+      "Switcher.ie lists a supplier we do not carry: 'Deals Vodafone Deals Energy'",
+      "Switcher.ie lists a supplier we do not carry: 'Guides Energy'",
+      "Switcher.ie lists a supplier we do not carry: 'Year Electricity'",
+      "Yuno Energy is still listed on Switcher.ie but we could not read their own site today — the parser is what needs fixing, not the plan"
+    ],
+    "suppliers": [
+      "Electric Ireland: 0 rate candidate(s), 4 standing",
+      "Bord Gáis Energy: 1140 rate candidate(s), 8 standing",
+      "SSE Airtricity: pages read, nothing recognisable — the parser needs updating",
+      "Energia: 0 rate candidate(s), 1 standing",
+      "Yuno Energy: NO PAGE REACHED (moved)",
+      "Flogas: pages read, nothing recognisable — the parser needs updating",
+      "Pinergy: NO PAGE REACHED (moved)"
+    ],
+    "broken_links": [
+      "https://www.yunoenergy.ie/",
+      "https://www.pinergy.ie/"
+    ],
+    "tls_failures": [],
+    "refused": []
   },
   {
     "id": "EI-DYN",
@@ -53,12 +71,12 @@
     "windows": {
       "ev": null
     },
-    "standing": 331.96,
+    "standing": 250.0,
     "exit": 50,
     "length": 12,
     "green": true,
     "export_rate": 0.185,
-    "verified_date": "2026-06-02",
+    "verified_date": "2026-07-28",
     "notes": "★ NEW (1 June 2026). Single base rate 16.73c + half-hourly wholesale. No discount on base. Day-ahead prices published at bordgaisenergy.ie/day-ahead-market-prices."
   },
   {
@@ -97,10 +115,10 @@
     "plan": "Home Dual+ 24hr",
     "type": "flat",
     "rates": {
-      "day": 0.3114,
-      "night": 0.3114,
-      "peak": 0.3114,
-      "ev": 0.3114
+      "day": 0.3055,
+      "night": 0.3055,
+      "peak": 0.3055,
+      "ev": 0.3055
     },
     "windows": {
       "ev": null
@@ -110,7 +128,7 @@
     "length": 12,
     "green": false,
     "export_rate": 0.195,
-    "verified_date": "2026-06-02",
+    "verified_date": "2026-07-28",
     "notes": "8.5% direct-debit/eBill discount. Prices changing 1 July 2026."
   },
   {
@@ -132,7 +150,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.185,
-    "verified_date": "2026-06-02",
+    "verified_date": "2026-07-28",
     "notes": "30% new-customer discount on 42.65c standard rate. 100% green."
   },
   {
@@ -315,7 +333,7 @@
     "plan": "Home Dual+ SST",
     "type": "tou",
     "rates": {
-      "day": 0.3388,
+      "day": 0.3324,
       "night": 0.178,
       "peak": 0.3614,
       "ev": 0.178
@@ -336,7 +354,7 @@
     "length": 12,
     "green": false,
     "export_rate": 0.195,
-    "verified_date": "2026-06-02",
+    "verified_date": "2026-07-28",
     "notes": "3-band ToU with 8.5% discount (verified electricireland.ie). Day 33.88c, Night 17.80c, Peak 36.14c. Prices changing 1 July 2026."
   },
   {
@@ -524,7 +542,7 @@
     "plan": "Home Dual+ Night Boost",
     "type": "ev",
     "rates": {
-      "day": 0.3325,
+      "day": 0.364,
       "night": 0.164,
       "peak": 0.3325,
       "ev": 0.0962
@@ -545,7 +563,7 @@
     "length": 12,
     "green": false,
     "export_rate": 0.195,
-    "verified_date": "2026-06-02",
+    "verified_date": "2026-07-28",
     "notes": "Shortest EV window (2-4am, 2hr). Verified electricireland.ie. Prices changing 1 July 2026."
   },
   {
@@ -638,7 +656,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.185,
-    "verified_date": "2026-06-02",
+    "verified_date": "2026-07-28",
     "notes": "VERIFIED directly from bordgaisenergy.ie/home/ev-plan-comparison. EV rate 8.98c (2-5am). 15% new customer discount. Standing €364.89 is €120 HIGHER than BG's other plans (€244.76). High peak 49.14c — avoid 5-7pm. CEG 18.5c."
   },
   {
