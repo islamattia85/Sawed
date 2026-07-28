@@ -93,6 +93,26 @@ function clearnessWeights(monthIndex: number, days: number): number[] {
  * across daylight hours in proportion to solar altitude, so the monthly energy
  * matches the location profile exactly while individual days differ.
  */
+/**
+ * The most global horizontal irradiance a day can physically receive, Wh/m².
+ *
+ * Extraterrestrial irradiance on the horizontal, times the highest clearness
+ * index the atmosphere allows. 0.75 is the practical ceiling for a cloudless
+ * day at Irish latitudes; the theoretical limit is a little higher but is not
+ * reached at sea level in a maritime climate.
+ */
+const MAX_CLEARNESS = 0.75;
+
+function clearSkyDailyGhi(doy: number, lat: number, lon: number): number {
+  let total = 0;
+  const e0 = extraterrestrialNormal(doy);
+  for (let h = 0; h < 24; h += 1) {
+    const pos = solarPosition(doy, h + 0.5, lat, lon);
+    total += Math.max(0, Math.sin(pos.altitude)) * e0;
+  }
+  return total * MAX_CLEARNESS;
+}
+
 export function buildHourlyGhi(location: LocationProfile): Float32Array {
   const ghi = new Float32Array(HOURS_IN_YEAR);
   let hourIdx = 0;
@@ -100,9 +120,50 @@ export function buildHourlyGhi(location: LocationProfile): Float32Array {
     const monthlyDailyGhi = (location.ghi_kwh_m2_day[m] ?? 0) * 1000;
     const days = DAYS_IN_MONTH[m] ?? 0;
     const weights = clearnessWeights(m, days);
+
+    /*
+     * Cap each day at clear sky, and give the surplus to the days that still
+     * have room.
+     *
+     * The weights spread a month's energy across its days so that no two days
+     * look alike, which is honest — but nothing checked the result against what
+     * the sky can actually deliver. On a 5.3 kWp array the brightest day came
+     * out at 40.3 kWh, or 7.64 kWh per kWp, when Ireland's very best day is
+     * about 6.5. A reader scrubbing through the day inspector was shown a day
+     * that cannot happen.
+     *
+     * The month's total is preserved exactly: energy removed from a day that
+     * exceeded the ceiling is redistributed in proportion to the headroom left
+     * on the others. A few passes settle it; if every day is at the ceiling
+     * there is nowhere left to put it, and the loop stops rather than
+     * manufacturing irradiance.
+     */
+    const ceilings: number[] = [];
+    const dayGhis: number[] = [];
     for (let d = 0; d < days; d += 1) {
       const doy = dayOfYear(m, d + 1);
-      const dayGhi = monthlyDailyGhi * (weights[d] ?? 1);
+      ceilings.push(clearSkyDailyGhi(doy, location.lat, location.lon));
+      dayGhis.push(monthlyDailyGhi * (weights[d] ?? 1));
+    }
+    for (let pass = 0; pass < 8; pass += 1) {
+      let surplus = 0;
+      for (let d = 0; d < days; d += 1) {
+        const over = (dayGhis[d] ?? 0) - (ceilings[d] ?? 0);
+        if (over > 0) { surplus += over; dayGhis[d] = ceilings[d] ?? 0; }
+      }
+      if (surplus <= 1e-6) break;
+      let headroom = 0;
+      for (let d = 0; d < days; d += 1) headroom += Math.max(0, (ceilings[d] ?? 0) - (dayGhis[d] ?? 0));
+      if (headroom <= 1e-6) break;   // the whole month is at clear sky
+      for (let d = 0; d < days; d += 1) {
+        const room = Math.max(0, (ceilings[d] ?? 0) - (dayGhis[d] ?? 0));
+        dayGhis[d] = (dayGhis[d] ?? 0) + surplus * (room / headroom);
+      }
+    }
+
+    for (let d = 0; d < days; d += 1) {
+      const doy = dayOfYear(m, d + 1);
+      const dayGhi = dayGhis[d] ?? 0;
       const altitudes: number[] = [];
       for (let h = 0; h < 24; h += 1) {
         const pos = solarPosition(doy, h + 0.5, location.lat, location.lon);

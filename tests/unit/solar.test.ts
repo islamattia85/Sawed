@@ -230,3 +230,77 @@ describe('buildPvGeneration', () => {
       .toBeLessThan(sumOf(buildPvGeneration(poa, spec, cool)));
   });
 });
+
+describe('no day receives more sun than the sky can deliver', () => {
+  const ghi = buildHourlyGhi(LOCATION_BASE);
+  const DIM = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const SOLAR_CONSTANT = 1367;
+
+  /** Extraterrestrial energy on the horizontal for one day, Wh/m². */
+  const clearSky = (doy: number) => {
+    const e0 = SOLAR_CONSTANT * (1 + 0.033 * Math.cos((2 * Math.PI * doy) / 365));
+    let t = 0;
+    for (let h = 0; h < 24; h += 1) {
+      const pos = solarPosition(doy, h + 0.5, LOCATION_BASE.lat, LOCATION_BASE.lon);
+      t += Math.max(0, Math.sin(pos.altitude)) * e0;
+    }
+    return t;
+  };
+
+  /**
+   * The clearness index is the share of extraterrestrial irradiance that
+   * reaches the ground. It cannot exceed about 0.75 at Irish latitudes, and a
+   * daily figure above 0.8 is not a sunny day — it is a broken model.
+   *
+   * The per-day clearness weights spread a month's energy across its days, and
+   * nothing checked the answer against that ceiling. On a 5.3 kWp array the
+   * brightest day came out at 40.3 kWh, 7.64 kWh per kWp, when Ireland's best
+   * is about 6.5. Someone scrubbing the day inspector was being shown a day
+   * that cannot happen.
+   */
+  it('daily clearness index never exceeds the physical limit', () => {
+    let day = 0;
+    const offenders: string[] = [];
+    for (let m = 0; m < 12; m += 1) {
+      for (let d = 0; d < (DIM[m] ?? 0); d += 1) {
+        let dayGhi = 0;
+        for (let h = 0; h < 24; h += 1) dayGhi += ghi[day * 24 + h] ?? 0;
+        const cs = clearSky(day + 1);
+        const kt = cs > 0 ? dayGhi / cs : 0;
+        if (kt > 0.78) offenders.push(`day ${day + 1}: kt=${kt.toFixed(3)}`);
+        day += 1;
+      }
+    }
+    expect(offenders, `days above the clear-sky ceiling: ${offenders.slice(0, 5).join(', ')}`)
+      .toEqual([]);
+  });
+
+  it('still matches the location’s monthly totals exactly', () => {
+    // Capping a day has to move its surplus to other days, not delete it.
+    let day = 0;
+    for (let m = 0; m < 12; m += 1) {
+      let monthly = 0;
+      for (let d = 0; d < (DIM[m] ?? 0); d += 1) {
+        for (let h = 0; h < 24; h += 1) monthly += ghi[day * 24 + h] ?? 0;
+        day += 1;
+      }
+      const expected = (LOCATION_BASE.ghi_kwh_m2_day[m] ?? 0) * 1000 * (DIM[m] ?? 0);
+      expect(monthly / expected, `month ${m + 1} total drifted`).toBeCloseTo(1, 2);
+    }
+  });
+
+  it('days still differ from one another', () => {
+    // The cap must not flatten the month into an average, which is the thing
+    // the weights were added to avoid.
+    const june: number[] = [];
+    for (let d = 151; d < 181; d += 1) {
+      let t = 0;
+      for (let h = 0; h < 24; h += 1) t += ghi[d * 24 + h] ?? 0;
+      june.push(t);
+    }
+    const mean = june.reduce((a, b) => a + b, 0) / june.length;
+    expect(Math.min(...june) / mean, 'every June day is the same').toBeLessThan(0.8);
+    expect(Math.max(...june) / mean).toBeGreaterThan(1.2);
+  });
+});
+

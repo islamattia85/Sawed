@@ -17,8 +17,12 @@ test('choosing a plan replaces the recommendation everywhere, and clearing resto
       best: rec.best.plan.id,
       manual: rec.isManualChoice,
       second: rec.ranked[1].plan.id,
-      secondNet: Math.round(rec.ranked[1].net),
-      cheapestNet: Math.round(rec.cheapest.net),
+      // Unrounded: rounding each side and subtracting is not the same as
+      // subtracting and rounding, and the two disagree by €1 whenever the
+      // fractions fall the wrong way. That is a property of the arithmetic,
+      // not of the app.
+      secondNet: rec.ranked[1].net,
+      cheapestNet: rec.cheapest.net,
     };
   });
   expect(before.manual).toBe(false);
@@ -50,7 +54,7 @@ test('choosing a plan replaces the recommendation everywhere, and clearing resto
   expect(after.stored).toBe(before.second);
   // ...while the ranking itself is untouched, and the premium is the real gap.
   expect(after.cheapest).toBe(before.best);
-  expect(after.premium).toBe(before.secondNet - before.cheapestNet);
+  expect(after.premium).toBe(Math.round(before.secondNet - before.cheapestNet));
 
   // It survives a reload and is stated on the result screen, so a figure
   // computed on a non-cheapest plan can never look like our advice.
