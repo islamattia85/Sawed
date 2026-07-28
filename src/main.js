@@ -192,6 +192,38 @@ function captureOAuthReturn(){
   } catch (e) { /* never block boot */ }
 }
 
+/**
+ * We went to Google and came back with nothing to show for it.
+ *
+ * No session, no error in the URL: the far end neither signed us in nor said
+ * why. In practice that is a provider that was never configured, a Supabase
+ * project that is not answering, or a browser that refused to complete the
+ * hand-off — and to the reader it is a button that does nothing, twice.
+ *
+ * Reported only when a sign-in was actually started from this device in the
+ * last few minutes, so it can never fire on an ordinary visit.
+ */
+function reportOAuthSilence(){
+  try {
+    const started = +(sessionStorage.getItem('oauth_pending') || 0);
+    if (!started) return false;
+    sessionStorage.removeItem('oauth_pending');
+    if (_sbUser) return false;                       // it worked
+    if (Date.now() - started > 10 * 60 * 1000) return false;   // stale
+    if (_oauthReturn) return false;                  // an error is being reported instead
+
+    const friendly = 'Google sent you back without signing you in.';
+    showToast(friendly, { type: 'amber', icon: ic('warn', 16), title: 'Sign-in failed' });
+    _authModalOpen = true;
+    window._authEmailOpen = true;
+    renderApp();
+    setTimeout(() => showAuthMsg(friendly, 'err',
+      'no session and no reason given — usually the Google provider is not enabled in Supabase, '
+      + 'or this address is missing from its redirect allow-list'), 60);
+    return true;
+  } catch (e) { return false; }
+}
+
 function reportOAuthReturn(){
   try {
     if (!_oauthReturn) return false;
@@ -383,14 +415,39 @@ async function doGoogleSignIn(){
     if (btn){ btn.disabled = false; btn.innerHTML = origHTML; }
     return;
   }
-  const { error } = await _sb.auth.signInWithOAuth({
+  /*
+   * Get the URL back and navigate deliberately, rather than letting the client
+   * hand the browser away on our behalf.
+   *
+   * By default signInWithOAuth() assigns window.location itself. The page is
+   * unloaded the instant it is called, so anything the app wants to say about
+   * a failure is said to a document that no longer exists — and if the far end
+   * then errors without redirecting back, the reader is left somewhere else
+   * entirely with no way to know what happened. That is "nothing at all".
+   *
+   * Holding the URL means a provider that is not configured is reported here,
+   * on the page, with the button still under the reader's thumb.
+   */
+  const { data, error } = await _sb.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: window.location.origin + window.location.pathname }
+    options: {
+      redirectTo: window.location.origin + window.location.pathname,
+      skipBrowserRedirect: true,
+    },
   });
-  if (error){
-    showAuthMsg(authErrorText(error), 'err', authErrorDetail(error));
+  if (error || !data || !data.url){
+    showAuthMsg(
+      error ? authErrorText(error) : 'Google sign-in is not available for this app yet.',
+      'err',
+      error ? authErrorDetail(error) : 'the sign-in service returned no address to send you to');
     if (btn){ btn.disabled = false; btn.innerHTML = origHTML; }
+    return;
   }
+
+  // Remember that we left, so a return with neither a session nor an error can
+  // still be reported instead of looking like nothing happened.
+  try { sessionStorage.setItem('oauth_pending', String(Date.now())); } catch (e) {}
+  window.location.assign(data.url);
 }
 
 /**
@@ -10238,6 +10295,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // they grabbed a node during the swap. That was the tests seeing the real
     // defect above, and it stays visible — the repaint is measured, not hidden.
     Promise.allSettled(booted).then(() => {
+      // Only once the session has had its chance: a successful sign-in is a
+      // session arriving slightly after first paint, and reporting silence
+      // before that would call every success a failure.
+      reportOAuthSilence();
       setTimeout(() => { window.__bootSettled = true; }, 160);
     });
   }, 50);
@@ -11252,6 +11313,7 @@ window.arbitrageOn = arbitrageOn;
 window.hardRefreshApp = hardRefreshApp;
 window.reportOAuthReturn = reportOAuthReturn;
 window.captureOAuthReturn = captureOAuthReturn;
+window.reportOAuthSilence = reportOAuthSilence;
 window.deliverPdf = deliverPdf;
 window.ensureJsPdf = ensureJsPdf;
 window.STRATEGY_TRACE = STRATEGY_TRACE;

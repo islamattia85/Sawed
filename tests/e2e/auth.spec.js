@@ -237,3 +237,54 @@ test('a failing Google sign-in reports it on the view the button is on', async (
   expect(errors).toEqual([]);
 });
 
+/**
+ * Coming back from Google with nothing at all.
+ *
+ * signInWithOAuth() assigns window.location itself by default, so the page is
+ * unloaded the instant the button is tapped — anything the app then wants to
+ * say is said to a document that no longer exists. And when the far end errors
+ * without redirecting back, the reader ends up somewhere else with no session,
+ * no error in the URL, and no way to know what happened. Tap, bounce, nothing.
+ *
+ * A sign-in that was started on this device and came back empty is now
+ * reported. The URL is fetched rather than followed blindly, and the departure
+ * is recorded so the return can be recognised.
+ */
+test('a Google round-trip that returns nothing is still reported', async ({ page }) => {
+  await boot(page);
+  await blockApi(page);
+
+  // Exactly the state after tapping Google and being sent back empty-handed.
+  await page.evaluate(() => sessionStorage.setItem('oauth_pending', String(Date.now())));
+  await page.reload();
+  await page.waitForFunction(() => window.__bootSettled === true);
+
+  const msg = page.locator('#auth-msg');
+  await expect(msg, 'the empty round-trip was not reported').not.toBeEmpty({ timeout: 10_000 });
+  await expect(msg).toContainText(/without signing you in/i);
+  await expect(msg).toContainText(/provider is not enabled|allow-list/i);
+});
+
+test('an ordinary visit says nothing about sign-in', async ({ page }) => {
+  await boot(page);
+  await blockApi(page);
+  await page.reload();
+  await page.waitForFunction(() => window.__bootSettled === true);
+  await page.waitForTimeout(600);
+
+  // The report must depend on a sign-in actually having been started here, or
+  // it would accuse every normal visit of a failure.
+  await expect(page.locator('.auth-modal-backdrop')).toHaveCount(0);
+});
+
+test('a stale departure is not reported days later', async ({ page }) => {
+  await boot(page);
+  await blockApi(page);
+  await page.evaluate(() => sessionStorage.setItem('oauth_pending', String(Date.now() - 60 * 60 * 1000)));
+  await page.reload();
+  await page.waitForFunction(() => window.__bootSettled === true);
+  await page.waitForTimeout(600);
+
+  await expect(page.locator('.auth-modal-backdrop')).toHaveCount(0);
+});
+
