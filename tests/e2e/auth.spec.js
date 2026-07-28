@@ -156,3 +156,49 @@ test('a broken client still produces a message, and re-enables the button', asyn
   expect(errors, 'the failure escaped as an uncaught error').toEqual([]);
 });
 
+/**
+ * Coming back from Google refused must not look like nothing happened.
+ *
+ * "Continue with Google" hands the browser to Supabase, which hands it to
+ * Google, which sends it back here. When any step declines it returns with the
+ * reason in the URL — in the query string, or in the hash for the implicit
+ * flow. Nothing read either one. The app booted normally, showed the reader
+ * signed out and said nothing: tap, watch a bounce, end up where you started
+ * with no explanation.
+ *
+ * The hash case had a second problem. Screens are routed through the location
+ * hash, so the first renderApp() replaced it with '#result' — the error was
+ * destroyed before anything could read it. It is captured before first paint
+ * now.
+ */
+const OAUTH_FAILURES = [
+  ['the provider is not switched on', '/?error=server_error&error_description=Unsupported+provider%3A+provider+is+not+enabled', /not switched on/i, /provider is not enabled/i],
+  ['this address is not allow-listed', '/?error=invalid_request&error_description=requested+path+is+invalid', /allow-list/i, /requested path is invalid/i],
+  ['the reader cancelled', '/?error=access_denied&error_description=User+denied+access', /cancelled/i, /access_denied/i],
+  ['the implicit flow returns it in the hash', '/#error=server_error&error_description=Unsupported+provider', /not switched on/i, /Unsupported provider/i],
+];
+
+for (const [label, url, friendly, detail] of OAUTH_FAILURES) {
+  test(`a refused Google sign-in says so: ${label}`, async ({ page }) => {
+    await boot(page);            // seeds storage and blocks the network
+    await blockApi(page);
+    // Land somewhere with a different query first. Going straight from "/" to
+    // "/#error=..." is a same-document change: the app never re-boots, so
+    // nothing would read the hash and the test would pass on a technicality.
+    await page.goto('/?nav=1');
+    await page.goto(url);
+    await page.waitForFunction(() => window.__bootSettled === true);
+
+    // The plain reason, where it can be read…
+    const msg = page.locator('#auth-msg');
+    await expect(msg, 'the app said nothing about the refusal').not.toBeEmpty({ timeout: 10_000 });
+    await expect(msg).toContainText(friendly);
+    // …and the exact one, which is the part that identifies the cause.
+    await expect(msg).toContainText(detail);
+
+    // The reason must not be left in the address bar to replay on refresh.
+    const href = await page.evaluate(() => location.search + location.hash);
+    expect(href, 'the error is still in the URL').not.toMatch(/error/);
+  });
+}
+

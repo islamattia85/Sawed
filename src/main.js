@@ -148,6 +148,77 @@ async function sbResetPassword(email){
 
 function sbInitialized(){ return !!(SUPABASE_URL && SUPABASE_ANON_KEY); }
 
+/**
+ * Report an OAuth attempt that came back refused.
+ *
+ * "Continue with Google" hands the browser to Supabase, which hands it to
+ * Google, which sends it back here. When any step declines, it returns to this
+ * app with the reason in the URL — as query parameters, or in the hash for the
+ * implicit flow. Nothing read either. The app booted as normal, showed the
+ * reader signed out, and said nothing at all: tap the button, watch a browser
+ * bounce, end up exactly where you started with no explanation.
+ *
+ * Every common cause lands here and is named precisely — the provider not
+ * being enabled in Supabase, the app's URL missing from the redirect
+ * allow-list, a mismatched client in the Google console, or simply declining
+ * the consent screen. None of that is guessable from the outside, and all of
+ * it arrives in this string.
+ */
+let _oauthReturn = null;
+
+/**
+ * Capture the OAuth result from the URL before anything can overwrite it.
+ *
+ * This has to run before the first render. The app routes screens through the
+ * location hash, so renderApp() replaces it with '#result' — and the implicit
+ * flow returns its error in exactly that hash. Reading it after the first paint
+ * meant reading a hash the router had already thrown away.
+ */
+function captureOAuthReturn(){
+  try {
+    const q = new URLSearchParams(window.location.search);
+    const h = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+    const err = q.get('error') || h.get('error');
+    if (!err) return;
+    _oauthReturn = {
+      err,
+      desc: (q.get('error_description') || h.get('error_description') || '').replace(/\+/g, ' '),
+      code: q.get('error_code') || h.get('error_code') || '',
+    };
+    // Take the reason out of the address bar so a refresh does not replay it.
+    try {
+      window.history.replaceState({}, '', window.location.origin + window.location.pathname);
+    } catch (e) { /* not fatal */ }
+  } catch (e) { /* never block boot */ }
+}
+
+function reportOAuthReturn(){
+  try {
+    if (!_oauthReturn) return false;
+    const { err, desc, code } = _oauthReturn;
+    _oauthReturn = null;
+
+    const friendly = /access_denied/i.test(err)
+      ? 'Google sign-in was cancelled.'
+      : /provider is not enabled|unsupported provider/i.test(desc + err)
+        ? 'Google sign-in is not switched on for this app yet.'
+        : /redirect|requested path is invalid/i.test(desc + err)
+          ? 'This address is not on the sign-in allow-list, so Google sent you back.'
+          : 'Google sign-in did not complete.';
+
+    showToast(friendly, { type: 'amber', icon: ic('warn', 16), title: 'Sign-in failed' });
+    // Open on the email form rather than the provider chooser: it is the only
+    // view with somewhere to print the reason, and it offers the route that
+    // still works while Google is refusing.
+    _authModalOpen = true;
+    window._authEmailOpen = true;
+    renderApp();
+    // Put the exact reason where it can be read and repeated.
+    setTimeout(() => showAuthMsg(friendly, 'err', [code, err, desc].filter(Boolean).join(' · ')), 60);
+    return true;
+  } catch (e) { return false; }
+}
+
 // ---- Auth rendering ----
 
 let _authEmailView = 'login'; // 'login' | 'signup' | 'forgot' — controls inline email form on welcome page
@@ -310,7 +381,7 @@ async function doGoogleSignIn(){
     options: { redirectTo: window.location.origin + window.location.pathname }
   });
   if (error){
-    showAuthMsg(error.message, 'err');
+    showAuthMsg(authErrorText(error), 'err', authErrorDetail(error));
     if (btn){ btn.disabled = false; btn.innerHTML = origHTML; }
   }
 }
@@ -10116,7 +10187,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Installed after the stored state is loaded and sanitised, so the trace
     // shows what changes the setting during use rather than during boot.
     traceStrategy();
+    // Before the first render: the router owns the hash from here on.
+    captureOAuthReturn();
     renderApp();
+    // If we have just come back from Google refused, say so rather than
+    // rendering a signed-out app as though nothing had happened.
+    reportOAuthReturn();
 
     /*
      * Three async boot paths used to call renderApp() the moment they landed,
@@ -11167,6 +11243,8 @@ window.bestDesign = bestDesign;
 window.sweepGoalDesigns = sweepGoalDesigns;
 window.arbitrageOn = arbitrageOn;
 window.hardRefreshApp = hardRefreshApp;
+window.reportOAuthReturn = reportOAuthReturn;
+window.captureOAuthReturn = captureOAuthReturn;
 window.deliverPdf = deliverPdf;
 window.ensureJsPdf = ensureJsPdf;
 window.STRATEGY_TRACE = STRATEGY_TRACE;
