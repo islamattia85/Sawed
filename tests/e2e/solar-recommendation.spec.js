@@ -34,7 +34,7 @@ test('the tab lands on an answer, with nothing to choose or unlock first', async
   await page.evaluate(() => window.setScreen('solar'));
 
   // A number, immediately.
-  await expect(page.locator('.qr-value')).toContainText(/yr payback/);
+  await expect(page.locator('.hero-inset-value')).toContainText(/yr payback/);
 
   const text = await page.evaluate(() => document.body.innerText);
   expect(text, 'the goal chooser is still here').not.toMatch(/Fastest payback|Most 20-yr value|Design my system/i);
@@ -52,7 +52,7 @@ test('the answer is not blocked by the twelve-design sweep', async ({ page }) =>
 
   const started = Date.now();
   await page.evaluate(() => window.setScreen('solar'));
-  await expect(page.locator('.qr-value')).toContainText(/yr payback/);
+  await expect(page.locator('.hero-inset-value')).toContainText(/yr payback/);
   const elapsed = Date.now() - started;
 
   // Simulating twelve designs across a full year takes seconds. It must not
@@ -180,7 +180,7 @@ test('the weather range qualifies the figure instead of standing in front of it'
       const el = document.querySelector(sel);
       return el ? el.getBoundingClientRect().top + window.scrollY : null;
     };
-    return { figure: y('.qr-value'), range: y('.wx-range') };
+    return { figure: y('.hero-inset-value'), range: y('.wx-range') };
   });
   expect(order.range, 'the range control precedes the number it qualifies')
     .toBeGreaterThan(order.figure);

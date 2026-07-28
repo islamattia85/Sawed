@@ -193,7 +193,7 @@ test('picking a costlier plan lengthens payback, never shortens it', async ({ pa
   const errors = await boot(page, { current_screen: 'solar', count_A: 10, battery_kwh: 9 });
 
   const payback = () => page.evaluate(() => {
-    const el = document.querySelector('.qr-value');
+    const el = document.querySelector('.hero-inset-value');
     const m = el && el.textContent.match(/([\d.]+)\s*yr/);
     return m ? parseFloat(m[1]) : null;
   });

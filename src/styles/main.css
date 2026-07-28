@@ -499,6 +499,12 @@
   .plans-sort-toggle{flex-shrink:0;width:40px;height:40px;border-radius:12px;border:1px solid var(--hair);background:var(--panel);color:var(--ink-soft);display:grid;place-items:center;cursor:pointer}
   .plans-sort-toggle.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
 
+  /* Four questions, four tabs — rather than four charts stacked. */
+  .an-tabs{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .an-tabs::-webkit-scrollbar{display:none}
+  .an-tab{flex:1;min-width:74px;padding:9px 12px;border-radius:999px;border:1px solid var(--hair);background:var(--panel);color:var(--ink-soft);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;white-space:nowrap}
+  .an-tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
   /* Plan comparison block */
   .plan-compare{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px}
   .plan-row{display:flex;justify-content:space-between;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}

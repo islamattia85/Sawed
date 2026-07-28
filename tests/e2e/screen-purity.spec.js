@@ -65,7 +65,7 @@ test('the payback on screen is the payback the engine computed', async ({ page }
   await page.waitForTimeout(2200);
 
   const { shown, engine } = await page.evaluate(() => {
-    const el = document.querySelector('.qr-value');
+    const el = document.querySelector('.hero-inset-value');
     const m = el && el.textContent.match(/([\d.]+)\s*yr/);
     const scen = window.computeSolarPaybackScenarios();
     const cur = window.state.ev_active ? scen.withEv : scen.withoutEv;

@@ -6663,36 +6663,42 @@ function renderSolarDashboard(){
   const affiliateUrl = getAffiliateUrl(best.plan.id);
 
   const isEst = !!state.solar_is_estimate;
-  return `${topbar('Solar payback', 'accent', true)}
+  return `
   <div class="screen">
-    <div class="sd-hero" style="position:relative">
-      <button onclick="goRefineSolar()" style="position:absolute;top:14px;right:14px;display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid var(--hair-strong);background:transparent;color:var(--ink-soft)">${ic('tune',13)} Customise</button>
-      <div class="qr-eyebrow" style="margin-bottom:6px;padding-right:110px">${(state.solar_view || 'mine') === 'payback' ? 'Fastest-payback design — preview' : (state.solar_view || 'mine') === 'npv' ? 'Most 20-yr value design — preview' : isEst ? 'With this estimated system' : 'With this solar system'}</div>
-      <div style="display:flex;align-items:flex-start;gap:12px">
-        <div style="flex:1;min-width:0">
-      ${(() => {
-        const view = state._scenario_view || 'realistic';
-        if (view !== 'realistic'){
-          try {
-            const range = computeScenarioRange();
-            const s = range[view];
-            const pb = s && s.payback < 50 ? s.payback.toFixed(1) : '—';
-            const ben = s ? Math.round(s.solarBenefit) : 0;
-            const lbl = view === 'pessimist' ? 'poor year −18% sun' : 'good year +15% sun';
-            return '<div class="qr-value">'+pb+'<span class="qr-value-unit"> yr payback ('+view+')</span></div>'+
-                   '<div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:4px">€'+ben.toLocaleString()+'/yr solar benefit · '+lbl+'</div>';
-          } catch(e){}
-        }
-        return '<div class="qr-value">'+(currentScen.payback < 50 ? currentScen.payback.toFixed(1) : '—')+'<span class="qr-value-unit"> yr payback</span></div>';
-      })()}
-      <div class="qr-headline">${kwp.toFixed(1)} kWp · ${state.battery_kwh > 0 ? state.battery_kwh + ' kWh battery' : 'no battery'} · €${sysCost.toLocaleString()} after grant${isEst ? ' (est.)' : ''}</div>
-        </div>
-        <div style="flex-shrink:0">${sysVisual()}</div>
+    <div class="hero-panel">
+      <div class="hero-brand">
+        <button class="hero-icb" onclick="goBack()" aria-label="Back">${ic('chevL',18)}</button>
+        <div class="hero-brand-name" style="flex:1;justify-content:center">Your solar</div>
+        <button class="hero-icb" onclick="goRefineSolar()" aria-label="Customise">${ic('tune',17)}</button>
       </div>
-      ${configChips()}
-      ${evChip()}
 
-      ${state.ev_active ? `
+      <div class="hero-inset">
+        <div class="hero-inset-top">
+          <div>
+            <div class="hero-inset-label">${(state.solar_view || 'mine') === 'payback' ? 'Fastest-payback design — preview' : (state.solar_view || 'mine') === 'npv' ? 'Most 20-year value — preview' : isEst ? 'With this estimated system' : 'With this system'}</div>
+            <div class="hero-inset-value" style="color:var(--ink)">${currentScen.payback < 50 ? currentScen.payback.toFixed(1) : '—'}<span class="unit">yr payback</span></div>
+            <div class="hero-inset-foot">${kwp.toFixed(1)} kWp · ${state.battery_kwh > 0 ? state.battery_kwh + ' kWh battery' : 'no battery'} · ${fmtCurrency(sysCost)} after grant${isEst ? ' (est.)' : ''}</div>
+          </div>
+          <div style="flex-shrink:0">${sysVisual()}</div>
+        </div>
+      </div>
+
+      <div class="stat-strip" style="border-top:none;padding-top:16px">
+        ${heroStat(fmtCurrency(Math.round(currentScen.solarBenefit || 0)), '/yr', 'Solar saves')}
+        ${heroStat(Math.round(totalGen).toLocaleString(), 'kWh', 'Generated')}
+        ${heroStat(annualCo2Tonnes().toFixed(1), 't', 'CO₂ saved')}
+      </div>
+
+      <button class="hero-cta" onclick="goRefineSolar()">Change the system →</button>
+    </div>
+
+    <div class="sd-extras">
+      ${/* The configuration chips said "6.2 kWp · 5 kWh" directly beneath a
+            panel already saying "6.2 kWp · 5 kWh battery", and the EV chip
+            read "0 km/yr" whenever the mileage had not been set — which is
+            not a fact about anybody's car. Both gone; the spec lives on the
+            panel and the EV detail lives with the EV. */''}
+      ${state.ev_active && (state.ev_km_per_year > 0) ? `
       <div style="margin-top:14px;padding:12px 14px;background:var(--overlay-tile);border:1px solid var(--line);border-radius:8px">
         <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.01em;font-weight:700;margin-bottom:8px">Solar payback isolated (electricity only)</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -6791,6 +6797,12 @@ function renderSolarDashboard(){
       </button>
       ${!state._solar_detail_open ? '' : `<div class="working-body">
 
+    <!-- The caveat belongs with the numbers it qualifies, not as a paragraph
+         at the foot of the page where it was furthest from them. -->
+    <p class="disclaimer" style="margin:0 0 14px">
+      Modelled from typical-year weather and your bill — real generation varies ±5–8%. Always check the figures with your installer.
+    </p>
+
     ${renderSolarComparison()}
 
     ${state.ev_active && econ ? `
@@ -6842,7 +6854,7 @@ function renderSolarDashboard(){
       </div>`}
     </div>
 
-    ${state.ev_active && econ ? `
+    ${state.ev_active && econ && econ.km > 0 ? `
       <div class="ev-banner">
         <div class="ev-banner-icon">${ic('car',20)}</div>
         <div>
@@ -6880,20 +6892,12 @@ function renderSolarDashboard(){
       <div class="secondary-card-arrow">›</div>
     </div>
 
-    ${state.has_solar ? `
-      <div class="secondary-card blue" onclick="setScreen('analytics')">
-        <div class="secondary-card-icon">${ic('chart',19)}</div>
-        <div class="secondary-card-body">
-          <div class="secondary-card-title">See engine details &amp; hourly flows</div>
-          <div class="secondary-card-sub">Day inspector · monthly bars · annual production/use/export</div>
-        </div>
-        <div class="secondary-card-arrow">›</div>
-      </div>
-    ` : ''}
-
-    <p class="disclaimer">
-      Modelled from typical-year weather and your bill — real generation varies ±5-8%. Always check the figures with your installer.
-    </p>
+    ${/* Two things went from the foot of this screen. "See engine details &
+          hourly flows" was a third route to a screen already reachable from
+          the navigation and from the working disclosure above it. And the
+          modelling caveat was a paragraph at the bottom of the page, where a
+          caveat is furthest from the figure it qualifies — it is inside the
+          working now, next to the numbers it is about. */''}
   </div>
   ${bottomNav()}`;
 }
@@ -8036,6 +8040,10 @@ function ensureAnalyticsState(){
 }
 
 function renderAnalytics(){
+  // Which of the four day charts is showing. They answer four different
+  // questions and stacking them cost a screen and a half of scrolling.
+  const dayTab = ((state.battery_kwh || 0) > 0 ? ['flows','battery','rates','cost'] : ['flows','rates','cost'])
+    .includes(state._an_day_tab) ? state._an_day_tab : 'flows';
   ensureAnalyticsState();
   if (CACHE.dirty) rebuildBase();
 
@@ -8182,11 +8190,10 @@ function renderAnalytics(){
       </div>
     </div>
 
-    <div style="font-size:13px;color:var(--ink-soft);line-height:1.7;margin:-6px 0 14px;padding:12px 14px;background:rgba(90,156,255,.04);border:1px solid rgba(90,156,255,.15);border-radius:var(--radius-md)">
-      <b style="color:var(--blue);letter-spacing:.1em;font-size:12px">How to read these</b> · same kWh, two lenses.<br>
-      <span style="color:var(--accent)">${(solarUtilization*100).toFixed(0)}% kept at home</span> = share of <b>generation</b> used on-site (rest exported).
-      <span style="color:var(--blue)">${(demandFromSolar*100).toFixed(0)}% of your needs met by solar</span> = share of <b>demand</b> covered by your own panels.
-    </div>
+    ${/* The "how to read these" panel that used to sit here has moved to the
+          foot of the screen and merged with the disclaimer that said much the
+          same thing 250 pixels further down. Neither was any use before the
+          reader had looked at a chart. */''}
 
     <div class="section-title">Day inspector</div>
 
@@ -8215,15 +8222,27 @@ function renderAnalytics(){
       </div>
     </div>
 
+    <!-- Four full-height charts stacked was 1,270px — one and a half phone
+         screens of scrolling past three things to reach the fourth. They
+         answer four different questions, so they are four tabs: the reader
+         picks the question instead of scrolling through the answers. -->
+    <div class="an-tabs" role="tablist">
+      ${[['flows','Energy'],['battery','Battery'],['rates','Rates'],['cost','Cost']]
+        .filter(([k]) => k !== 'battery' || (state.battery_kwh || 0) > 0)
+        .map(([k,lbl]) => `<button class="an-tab ${dayTab === k ? 'on' : ''}" role="tab"
+          aria-selected="${dayTab === k}" onclick="state._an_day_tab='${k}';saveState();renderApp()">${lbl}</button>`).join('')}
+    </div>
+
+    ${dayTab !== 'flows' ? '' : `
     <div class="an-chart">
       <div class="an-chart-title">Energy flows (kWh per hour)</div>
       ${flowRow('gen')}
       ${flowRow('cons')}
       ${flowRow('imp')}
       ${flowRow('exp')}
-    </div>
+    </div>`}
 
-    ${state.battery_kwh > 0 ? (() => {
+    ${dayTab !== 'battery' ? '' : state.battery_kwh > 0 ? (() => {
       // Battery annual stats
       const annualCharged    = sumF(s.battery_charge);
       const annualDischarged = sumF(s.battery_discharge);
@@ -8356,6 +8375,7 @@ function renderAnalytics(){
       </div>`;
     })() : ''}
 
+    ${dayTab !== 'rates' ? '' : `
     <div class="an-chart">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <div class="an-chart-title" style="margin-bottom:0">Tariff bands &amp; rates</div>
@@ -8389,8 +8409,9 @@ function renderAnalytics(){
           ${plan._is_edited ? '<span style="color:var(--amber)">EDITED</span>' : ''}
         </div>
       `}
-    </div>
+    </div>`}
 
+    ${dayTab !== 'cost' ? '' : `
     <div class="an-chart">
       <div class="an-chart-title">Net cost per hour (€)</div>
       <div class="an-cost-strip">
@@ -8404,7 +8425,7 @@ function renderAnalytics(){
         ${Array.from({length:24},(_,h) => `<div>${h % 6 === 0 || h === 23 ? h + 'h' : ''}</div>`).join('')}
       </div>
       <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;line-height:1.6">Red = paid · Green = credit (export revenue exceeds import cost)</div>
-    </div>
+    </div>`}
 
     <div class="section-title">Monthly breakdown</div>
     <div class="an-flow-tabs">
@@ -8442,6 +8463,10 @@ function renderAnalytics(){
     </div>
 
     <p class="disclaimer">
+      <b>Two lenses on the same kWh.</b>
+      ${(solarUtilization*100).toFixed(0)}% kept at home is the share of <b>generation</b> used on site rather than exported;
+      ${(demandFromSolar*100).toFixed(0)}% of your needs met by solar is the share of <b>demand</b> covered by your own panels.
+      <br><br>
       <b>How to read.</b> Each chart shows what your system would do on the selected day at the selected plan. Per-hour numbers are simulated — actual will vary ±5-8% with weather. The day total uses real tariff bands; for dynamic plans we use the modeled SEMOpx curve.
     </p>
   </div>
