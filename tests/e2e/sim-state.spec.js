@@ -113,8 +113,21 @@ test('the field list actually covers what the engine mutates', async ({ page }) 
     // exactly what it did on the first attempt.
     window.CACHE._goalSweep_ck = null;
     window.CACHE._goalSweep = null;
+    window.CACHE._opt = null;
+    window.CACHE._opt_ck = null;
     window.state = proxied;
-    try { window.sweepGoalDesigns(); window.bestDesign(); } finally { window.state = real; }
+    try {
+      window.sweepGoalDesigns();
+      window.bestDesign();
+      // The optimisation advisor trials its levers by turning each one OFF —
+      // including export payments, which was missing from SIM_FIELDS and so was
+      // never turned back on. Opening the Solar tab deleted 2,448 kWh/yr of
+      // export income from every figure that followed. Watching only the design
+      // sweep did not touch that code path, which is why this test passed while
+      // the bug shipped.
+      window.computeOptimisations();
+      window.computeScenarioRange();
+    } finally { window.state = real; }
     if (!seen.size) throw new Error('the hypothetical wrote nothing — this test is not exercising anything');
     const covered = new Set(window.SIM_FIELDS);
     // Cache and view-only bookkeeping is not a user setting.

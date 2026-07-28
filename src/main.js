@@ -720,6 +720,61 @@ function deepMerge(target, source){
 function saveState(){ try { localStorage.setItem("solarAppState_v2", JSON.stringify(state)); } catch(e){} }
 
 /* ============================================================
+   2b. WATCHING THE BATTERY STRATEGY
+   ============================================================
+
+   A user reports arbitrage switching itself off when they open the Solar tab,
+   and back on when they open it again. Five separate attempts to reproduce it
+   have failed: real clicks with real navigation and a reload; the arbitrage row
+   watched across repeated screen changes and a report; a fuzzer over 230
+   controls on 12 screens; the customise screen's own Solar section toggled five
+   times; and a sweep of 144 different homes. All stable, on the same build the
+   phone is running.
+
+   So stop guessing at the state and record it. Every write to the three fields
+   that decide whether arbitrage is in force is captured with a stack, and the
+   last few are shown at the bottom of More. When it next flips, the app can say
+   what did it instead of me trying to imagine which two taps it was.
+
+   Deliberately small and always on: a bug that only appears on someone else's
+   device is not one you can instrument on demand.
+   ============================================================ */
+
+const STRATEGY_TRACE = [];
+function traceStrategy(){
+  try {
+    const watched = ['strategy_mode', 'charge_from_grid', 'battery_kwh'];
+    let last = {};
+    const record = (key, from, to) => {
+      // Inside a declared hypothetical the engine sets these on purpose and
+      // puts them back; recording that churn fills the buffer with the twelve
+      // designs of the sweep and pushes the one interesting line off the end.
+      if (_scenarioDepth > 0) return;
+      const where = (new Error().stack || '').split('\n').slice(3, 6)
+        .map(l => l.trim().replace(/^at\s+/, '').split(' ')[0])
+        .filter(Boolean).join(' <- ');
+      STRATEGY_TRACE.push({
+        t: new Date().toLocaleTimeString(),
+        screen: state.current_screen,
+        change: `${key}: ${JSON.stringify(from)} -> ${JSON.stringify(to)}`,
+        where: where.slice(0, 120),
+      });
+      while (STRATEGY_TRACE.length > 40) STRATEGY_TRACE.shift();
+    };
+    watched.forEach((k) => {
+      last[k] = state[k];
+      let v = state[k];
+      Object.defineProperty(state, k, {
+        configurable: true,
+        enumerable: true,
+        get(){ return v; },
+        set(nv){ if (nv !== v) record(k, v, nv); v = nv; },
+      });
+    });
+  } catch (e) { /* tracing must never break the app */ }
+}
+
+/* ============================================================
    3. SOLAR PHYSICS — verbatim from main engine, adapted for
    single-roof simplified state. NOAA solar position + Erbs
    diffuse split + isotropic POA + NOCT temperature derate.
@@ -1757,6 +1812,12 @@ const SIM_FIELDS = [
   'ev_active', 'ev_in_bill', 'ev_km_per_year', 'ev_kwh_per_100km',
   'heating_type', 'hot_water_strategy', 'region',
   'baseline', 'baseline_discount_pct', 'chosen_plan', 'include_dynamic',
+  // Registering for export payments is a lever the optimisation advisor trials
+  // by turning it OFF. It was missing here, so opening the Solar tab left it
+  // off: every figure afterwards was computed with the export income deleted —
+  // 2,448 kWh/yr of it — and the payback on a 10-panel, 9 kWh system read 14.4
+  // years instead of 9.3.
+  'export_enabled', 'export_limit_kw',
   'bills', 'annual_kwh', 'usage_input_mode', 'bimonthly_bill_eur',
   // Economic inputs. coerceNumericState() writes every numeric field back on
   // each invalidate, so a hypothetical touches these whether it meant to or
@@ -1789,7 +1850,12 @@ function restoreSim(snap){
  * hypothetical must not leave the user looking at a home they do not own.
  */
 function withSimState(changes, fn){
+  // Snapshot the standing list AND whatever this call is about to overwrite.
+  // The list is maintained by hand and has now been wrong three times; a change
+  // the caller is explicitly making is one the caller cannot forget to declare,
+  // so take it from the argument rather than from anybody's memory.
   const snap = snapshotSim();
+  if (changes) for (const k in changes) if (!(k in snap)) snap[k] = state[k];
   _scenarioDepth += 1;
   try {
     if (changes) Object.assign(state, changes);
@@ -1797,8 +1863,11 @@ function withSimState(changes, fn){
     rebuildBase();
     return fn();
   } finally {
-    _scenarioDepth -= 1;
+    // Restore while still inside the hypothetical: putting state back is part
+    // of the hypothetical, not a change to report. Decrementing first made
+    // every trial log its own tidy-up and buried the real event.
     restoreSim(snap);
+    _scenarioDepth -= 1;
     invalidate();
     rebuildBase();
   }
@@ -9114,6 +9183,17 @@ function renderMore(){
       <span style="display:block;margin-top:6px;font-family:var(--mono);font-size:12px;color:var(--ink-dim)"
             onclick="hardRefreshApp()" title="Tap to force the latest version">build ${__BUILD_ID__}</span>
     </div>
+    ${STRATEGY_TRACE.length ? `
+      <details style="margin-top:10px">
+        <summary style="font-size:13px;color:var(--ink-dim);cursor:pointer;padding:8px 0">
+          Battery strategy — what changed it (${STRATEGY_TRACE.length})
+        </summary>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.7;padding:8px 10px;background:var(--well);border-radius:var(--radius-md);overflow-x:auto">
+          ${STRATEGY_TRACE.slice(-12).reverse().map(e =>
+            `${e.t} · ${e.screen} · ${e.change}<br><span style="color:var(--ink-dim)">&nbsp;&nbsp;${e.where}</span>`
+          ).join('<br>')}
+        </div>
+      </details>` : ''}
   </div>
   ${bottomNav()}`;
 }
@@ -9886,6 +9966,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       invalidate();
     }
+    // Installed after the stored state is loaded and sanitised, so the trace
+    // shows what changes the setting during use rather than during boot.
+    traceStrategy();
     renderApp();
 
     /*
@@ -10936,6 +11019,7 @@ window.bestDesign = bestDesign;
 window.sweepGoalDesigns = sweepGoalDesigns;
 window.arbitrageOn = arbitrageOn;
 window.hardRefreshApp = hardRefreshApp;
+window.STRATEGY_TRACE = STRATEGY_TRACE;
 window.effectiveStrategy = effectiveStrategy;
 window.SIM_FIELDS = SIM_FIELDS;
 window.withSimState = withSimState;
@@ -10979,6 +11063,7 @@ window.setEvMode = setEvMode;
 window.calibrateBillsToBaseline = calibrateBillsToBaseline;
 window.shareSavingsCard = shareSavingsCard;
 window.computeScenarioRange = computeScenarioRange;
+window.computeSolarPaybackScenarios = computeSolarPaybackScenarios;
 window.computeOptimisations = computeOptimisations;
 window.cachedScenario = cachedScenario;
 window.startGoalDesign = startGoalDesign;

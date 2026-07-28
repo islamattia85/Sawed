@@ -9,6 +9,11 @@ export default defineConfig({
   },
   // public/ is copied verbatim to the build output. tariffs.json lives there
   // because the app fetches it at runtime and the scraper rewrites it daily.
+  // Function names survive minification. Without this the strategy trace — and
+  // any production stack — reads "Object.assign <- ha <- Ra", which names
+  // nothing and cannot be acted on. Costs a little bundle size; buys the
+  // ability to diagnose a fault on someone else's phone.
+  esbuild: { keepNames: true },
   publicDir: 'public',
   build: {
     outDir: 'dist',
