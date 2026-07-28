@@ -71,7 +71,17 @@ test('submitting reaches the client and reports failure in plain language', asyn
   const msg = page.locator('#auth-msg');
   await expect(msg).not.toBeEmpty({ timeout: 15_000 });
   await expect(msg).toContainText(/connection|reach|match an account|try again/i);
-  await expect(msg).not.toContainText(/failed to fetch/i);
+
+  // This used to assert the raw error never appeared at all. That position has
+  // changed deliberately: "log in not working" could not be narrowed from the
+  // friendly sentence alone — a paused project, a wrong key, a rejected
+  // password and a blocked network all read the same. The reason is now kept
+  // as a small second line. What must not happen is the raw error appearing
+  // INSTEAD of plain language, so the plain sentence has to come first.
+  const text = (await msg.innerText()).trim();
+  expect(text.split('\n')[0], 'the message leads with a raw error')
+    .toMatch(/connection|reach|match an account|try again/i);
+  expect(text.split('\n')[0]).not.toMatch(/failed to fetch/i);
 
   expect(errors).toEqual([]);
 });

@@ -351,7 +351,7 @@ async function doSignIn(){
   let err;
   try { err = await sbSignIn(email, pw); }
   catch (e) { err = e; }
-  if (err){ showAuthMsg(authErrorText(err), 'err'); if(btn) btn.disabled=false; return; }
+  if (err){ showAuthMsg(authErrorText(err), 'err', authErrorDetail(err)); if(btn) btn.disabled=false; return; }
   _authModalOpen = false;
   renderApp();
 }
@@ -367,7 +367,7 @@ async function doSignUp(){
   let err;
   try { err = await sbSignUp(email, pw, name); }
   catch (e) { err = e; }
-  if (err){ showAuthMsg(authErrorText(err), 'err'); if(btn) btn.disabled=false; return; }
+  if (err){ showAuthMsg(authErrorText(err), 'err', authErrorDetail(err)); if(btn) btn.disabled=false; return; }
   showAuthMsg('Account created! Check your email to confirm, then sign in.', 'ok');
 }
 
@@ -382,7 +382,7 @@ async function doForgotPassword(){
   let err;
   try { err = await sbResetPassword(email); }
   catch (e) { err = e; }
-  if (err){ showAuthMsg(authErrorText(err), 'err'); return; }
+  if (err){ showAuthMsg(authErrorText(err), 'err', authErrorDetail(err)); return; }
   showAuthMsg('Reset link sent — check your inbox.', 'ok');
 }
 
@@ -402,12 +402,45 @@ async function doSyncState(){
 }
 
 /* Inline auth-msg for welcome page panel */
-function showAuthMsg(msg, type){
+/**
+ * The message, plus the reason underneath it when something failed.
+ *
+ * authErrorText() turns a raw error into a sentence a reader can act on, which
+ * is right — but it also throws away the only detail that says WHICH failure
+ * this was. "Log in not working" is not something anyone can act on from the
+ * other side of a support conversation, and the friendly sentence alone does
+ * not narrow it either: a paused project, a wrong key, a rejected password and
+ * a blocked network all read as "could not reach" or "try again".
+ *
+ * So the reason is kept, small and grey, under the sentence. It costs a line
+ * and turns an unreproducible report into a specific one.
+ */
+function showAuthMsg(msg, type, detail){
   const el = document.getElementById('auth-msg');
   if (!el) return;
-  el.textContent = msg;
+  el.textContent = '';
   el.className = 'auth-msg ' + (type || 'err');
   el.style.display = msg ? 'block' : 'none';
+  if (!msg) return;
+  el.appendChild(document.createTextNode(msg));
+  const raw = detail && String(detail).slice(0, 160);
+  if (raw){
+    const small = document.createElement('span');
+    small.style.cssText = 'display:block;margin-top:6px;font-family:var(--mono);font-size:12px;color:var(--ink-dim);word-break:break-word';
+    small.textContent = raw;
+    el.appendChild(small);
+  }
+}
+
+/** The underlying reason, for the small grey line under the message. */
+function authErrorDetail(err){
+  if (!err) return '';
+  const bits = [];
+  if (err.status) bits.push('HTTP ' + err.status);
+  if (err.name && err.name !== 'Error') bits.push(err.name);
+  const m = (err.message || String(err)).trim();
+  if (m) bits.push(m);
+  return bits.join(' · ');
 }
 
 /* Profile modal error/success (legacy modal) */
