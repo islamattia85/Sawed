@@ -8,6 +8,20 @@ one repository and one history, and nothing else.
 | **V3** | `v3` | `v3.0.0` | The application as it stands today. Feature-complete and shipped. |
 | **V4** | `main` | — | The next major version. Free to break anything. |
 
+### What V4 is
+
+V3 answers *"what if I install this?"* — the reader configures a system and the
+simulator prices it. That is a laboratory. V4 inverts it: the engine searches
+the space of systems and says *"this is what you should install, and here is
+what it beat"*. Nothing in V3 is deleted; the laboratory becomes the layer
+underneath the advice, for the people who want it.
+
+The engine for that landed first, deliberately, with no interface on it:
+`src/engine/search.ts` and `src/search-worker.js`. It is reachable as
+`window.runDesignSearch()`. If the search could not produce a stable answer in
+a couple of seconds on a phone, every screen planned on top of it would have
+been built on sand.
+
 ## Why a branch and not a second repository
 
 V3 is finished but not abandoned. If a tariff source changes, a supplier is

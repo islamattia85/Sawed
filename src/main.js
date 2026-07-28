@@ -10,6 +10,7 @@ import {
   isInWindow, bandAt, rateAt as engineRateAt, isFlatPlan,
   simulateBaseline as engineSimulateBaseline, annualCost, sumF, WHOLESALE_CAP,
 } from './engine/tariff-rules';
+import { simulateDispatch, batterySpec } from './engine/dispatch';
 
 /* Solar Optimiser — application entry.
  * Extracted verbatim from the former single-file index.html.
@@ -1670,153 +1671,23 @@ function getPlanById(id){
    7. SIMULATION ENGINE — hour-by-hour battery dispatch + costs
    ============================================================ */
 
+/**
+ * The dispatch simulation for the system currently on screen.
+ *
+ * The loop itself moved to engine/dispatch.ts so a search can run it against
+ * hundreds of hypothetical systems, off the main thread, without a global
+ * `state` to read from. This is the adapter: it reads the eleven values that
+ * used to be read inside the loop and passes them in.
+ */
 function simulate(plan, gen, cons, strategy){
-  const cap = state.battery_kwh || 0;          // usable kWh
-  const minSoc = state.battery_min * cap;
-  const maxSoc = (state.battery_max || 1.0) * cap;
-  const eff = Math.sqrt(state.battery_eff); // applied each way
-  const maxChargeKw = 5.0;                       // typical hybrid inverter limit
-  const maxDischargeKw = 5.0;
-  const isDynamic = plan.type === "dynamic";
-
-  // For dynamic tariffs: pre-compute effective rates for the year
-  let effRates = null;
-  if (isDynamic){
-    effRates = new Float32Array(HOURS_IN_YEAR);
-    for (let i=0; i<HOURS_IN_YEAR; i++){
-      const hour = i % 24;
-      effRates[i] = rateAt(hour, plan, i);
-    }
-  }
-
-  // Hourly outputs
-  const out = {
-    gen: gen,
-    cons: cons,
-    soc: new Float32Array(HOURS_IN_YEAR+1),
-    grid_import: new Float32Array(HOURS_IN_YEAR),
-    grid_export: new Float32Array(HOURS_IN_YEAR),
-    battery_charge: new Float32Array(HOURS_IN_YEAR),  // kWh into battery
-    battery_discharge: new Float32Array(HOURS_IN_YEAR), // kWh out of battery
-    self_use: new Float32Array(HOURS_IN_YEAR),       // solar used directly
-    curtailed: new Float32Array(HOURS_IN_YEAR),      // solar wasted due to export disabled / limit reached
-    cost: new Float32Array(HOURS_IN_YEAR),
-    revenue: new Float32Array(HOURS_IN_YEAR),
-    band: new Array(HOURS_IN_YEAR),
-    eff_rate: effRates,                              // hourly effective rates (dynamic only)
-    plan_id: plan.id
-  };
-
-  let soc = minSoc + 0.3*(cap - minSoc); // start at 30% above min
-  const exportRate = plan.export_rate;
-  const peakRate = plan.rates.peak;
-  const evRate = plan.windows.ev ? plan.rates.ev : null;
-
-  // Export hardware constraints — if disabled, surplus is curtailed (clipped, not earned)
-  const exportEnabled = state.export_enabled !== false;
-  const exportLimit = exportEnabled ? (state.export_limit_kw || 999) : 0;
-
-  for (let i=0; i<HOURS_IN_YEAR; i++){
-    out.soc[i] = soc;
-    const hour = i % 24;
-    const g = gen[i];
-    const c = cons[i];
-    const band = bandAt(hour, plan);
-    out.band[i] = band;
-    const rate = isDynamic ? effRates[i] : (plan.rates[band] ?? plan.rates.day ?? 0);
-
-    // For dynamic, determine if THIS hour is cheap vs the surrounding 24h
-    let isCheapDynamic = false, isExpensiveDynamic = false, dailyAvg = 0;
-    if (isDynamic){
-      let sum = 0, n = 0;
-      for (let k=0; k<24 && i+k<HOURS_IN_YEAR; k++){ sum += effRates[i+k]; n++; }
-      dailyAvg = n > 0 ? sum/n : rate;
-      isCheapDynamic = rate < dailyAvg * 0.65;
-      isExpensiveDynamic = rate > dailyAvg * 1.40;
-    }
-
-    let netSolarAfterLoad = g - c;   // positive = surplus, negative = deficit
-    let directSelfUse = Math.min(g, c);
-    out.self_use[i] = directSelfUse;
-
-    let charge = 0, discharge = 0, imp = 0, exp = 0;
-
-    // === Strategy logic ===
-    let curtailed = 0;
-    if (netSolarAfterLoad > 0){
-      // Solar surplus. Decide: store in battery vs export.
-      const headroom = maxSoc - soc;
-      const canStore = Math.min(headroom / eff, maxChargeKw, netSolarAfterLoad);
-      // If export rate > expected discharge value AND export is enabled, prefer export
-      const expectedDischargeValue = isDynamic ? dailyAvg * 1.5 : peakRate;
-      if (exportEnabled && exportRate * 1.0 > expectedDischargeValue * eff * eff){
-        exp = netSolarAfterLoad;
-      } else {
-        charge = canStore;
-        soc += charge * eff;
-        const leftover = netSolarAfterLoad - charge;
-        exp = Math.max(0, leftover);
-      }
-      // Apply hardware constraint: cap export at limit (excess is curtailed, lost)
-      if (exp > exportLimit){
-        curtailed = exp - exportLimit;
-        exp = exportLimit;
-      }
-      out.curtailed[i] = curtailed;
-    } else if (netSolarAfterLoad < 0){
-      // Deficit — need to import or discharge battery
-      const deficit = -netSolarAfterLoad;
-
-      // Cheap-window determination (when we charge from grid)
-      const isCheapWindow = isDynamic
-        ? isCheapDynamic
-        : ((band === "ev") || (band === "night" && rate <= 0.20));
-
-      // Expensive-window determination (when we want to discharge)
-      const isExpensiveWindow = isDynamic
-        ? isExpensiveDynamic
-        : (band === "peak" || band === "day");
-
-      if (isExpensiveWindow && !isCheapWindow){
-        // Discharge to meet load
-        const usable = Math.max(0, soc - minSoc);
-        const dis = Math.min(usable, deficit / eff, maxDischargeKw);
-        const energyOut = dis * eff;
-        soc -= dis;
-        discharge = dis;
-        imp = Math.max(0, deficit - energyOut);
-      } else if (isCheapWindow){
-        // Cheap — charge battery from grid + meet load from grid
-        if (strategy.charge_from_grid){
-          const headroom = maxSoc - soc;
-          // For dynamic: only charge if room AND we have hours that are noticeably cheap
-          const chargeAmt = Math.min(headroom / eff, maxChargeKw);
-          charge = chargeAmt;
-          soc += chargeAmt * eff;
-          imp = deficit + charge;
-        } else {
-          imp = deficit;
-        }
-      } else {
-        // Neutral hour — meet load with battery if available, else import
-        const usable = Math.max(0, soc - minSoc);
-        const dis = Math.min(usable, deficit / eff, maxDischargeKw * 0.5);
-        const energyOut = dis * eff;
-        soc -= dis;
-        discharge = dis;
-        imp = Math.max(0, deficit - energyOut);
-      }
-    }
-
-    out.grid_import[i] = imp;
-    out.grid_export[i] = exp;
-    out.battery_charge[i] = charge;
-    out.battery_discharge[i] = discharge;
-    out.cost[i] = imp * rate;
-    out.revenue[i] = exp * exportRate;
-  }
-  out.soc[HOURS_IN_YEAR] = soc;
-  return out;
+  return simulateDispatch(plan, gen, cons,
+    batterySpec(state.battery_kwh || 0, state.battery_min, state.battery_max || 1.0, state.battery_eff),
+    {
+      chargeFromGrid: !!strategy.charge_from_grid,
+      exportEnabled: state.export_enabled !== false,
+      exportLimitKw: state.export_limit_kw || 999,
+      wholesale: CACHE.wholesale,
+    });
 }
 
 
@@ -5212,6 +5083,130 @@ function bestDesign(){
   if (!(topNpv > 0)) return null;
   const nearBest = pool.filter(d => d.npv >= topNpv * 0.95);
   return nearBest.reduce((a, b) => (b.net < a.net ? b : a));
+}
+
+/* ============================================================
+   V4 — DESIGN SEARCH
+   Answers "what SHOULD I install?" rather than "what if I install this?".
+   Nothing renders it yet; it is reachable from the console and from tests
+   while the interface that will carry it is built. See VERSIONS.md.
+   ============================================================ */
+
+/**
+ * The parameters of estimateInstallCost() and calcSeaiGrant(), as data.
+ *
+ * The search runs in a worker, and a function cannot cross postMessage. Rather
+ * than keep a second copy of the pricing model over there — two models that
+ * would drift apart on the first price change — the coefficients travel and
+ * the worker rebuilds the same arithmetic. `searchCostModelIsFaithful` in the
+ * unit tests holds the two to the same numbers.
+ */
+const SEARCH_COST_PARAMS = {
+  base: 2900, panelBreakKwp: 3, panelRateLow: 950, panelRateHigh: 750,
+  batteryBase: 800, batteryPerKwh: 380,
+  grantKwpCap: 2, grantPerKwp: 900, grantMax: 1800,
+};
+
+/** How many panels the search may consider. */
+const SEARCH_MIN_PANELS = 4;
+const SEARCH_MAX_PANELS = 24;
+
+/**
+ * Generation for a 1 kWp array on this roof, unclipped.
+ *
+ * The search scales this for every candidate and applies each candidate's own
+ * inverter clipping, so the 8,760-hour irradiance and transposition model —
+ * by far the most expensive thing in the engine — runs once per search rather
+ * than once per candidate.
+ */
+function genPerKwpProfile(){
+  const ghi = buildHourlyGHI();
+  const poa = buildPOA(state.azimuth_A ?? 180, state.tilt_A ?? 30, ghi);
+  // One kWp exactly, and an inverter large enough never to clip: clipping is
+  // the search's business, per design.
+  return buildPVGeneration(poa, 1000 / (state.panel_w || 440), state.panel_w || 440, 0.86, 1e6);
+}
+
+let _searchWorker = null;
+let _searchSeq = 0;
+
+/**
+ * Search the space of systems for the one worth buying.
+ *
+ * Resolves to { result, reasons, confidence }. Runs in a worker; falls back to
+ * the main thread if workers are unavailable, which costs a freeze but is
+ * better than no answer.
+ */
+function runDesignSearch(onProgress){
+  if (CACHE.dirty) rebuildBase();
+  const home = {
+    genPerKwp: genPerKwpProfile(),
+    cons: CACHE.cons,
+    consNoEv: CACHE.consNoEv,
+    wholesale: CACHE.wholesale,
+    evInBill: !!(state.ev_active && state.ev_in_bill),
+    exportLimitKw: state.export_limit_kw || 999,
+    exportAllowed: state.export_enabled !== false,
+    inverterKw: state.inverter_kw || 5.0,
+    batteryMinSoc: state.battery_min,
+    batteryMaxSoc: state.battery_max || 1.0,
+    batteryEff: state.battery_eff,
+  };
+  const plans = TARIFFS.filter(isRankablePlan);
+  const limits = {
+    panelWatts: state.panel_w || 440,
+    minPanels: SEARCH_MIN_PANELS,
+    maxPanels: SEARCH_MAX_PANELS,
+  };
+
+  return new Promise((resolve, reject) => {
+    const id = (_searchSeq += 1);
+    let worker = null;
+    try {
+      if (!_searchWorker){
+        _searchWorker = new Worker(new URL('./search-worker.js', import.meta.url), { type: 'module' });
+      }
+      worker = _searchWorker;
+    } catch (e){ worker = null; }
+
+    if (!worker){
+      // No worker: do it here rather than not at all.
+      import('./engine/search').then(({ searchDesigns, explain, confidence }) => {
+        const result = searchDesigns(home, plans, {
+          installCost: estimateInstallCost,
+          grant: (kwp, batt) => calcSeaiGrant(kwp, batt).total,
+        }, limits, onProgress);
+        resolve({ result, reasons: explain(result, limits), confidence: confidence(result) });
+      }).catch(reject);
+      return;
+    }
+
+    const onMessage = (e) => {
+      const m = e.data || {};
+      if (m.id !== id) return;             // a superseded search still talking
+      if (m.type === 'progress'){ if (onProgress) onProgress(m.progress); return; }
+      worker.removeEventListener('message', onMessage);
+      if (m.type === 'error') reject(new Error(m.message));
+      else resolve({ result: m.result, reasons: m.reasons, confidence: m.confidence });
+    };
+    worker.addEventListener('message', onMessage);
+
+    // Copies, not the live caches: the worker must not see a profile change
+    // underneath it, and the main thread must not lose its own arrays.
+    worker.postMessage({
+      id,
+      home: {
+        ...home,
+        genPerKwp: home.genPerKwp.buffer.slice(0),
+        cons: home.cons.buffer.slice(0),
+        consNoEv: home.consNoEv.buffer.slice(0),
+        wholesale: home.wholesale ? home.wholesale.buffer.slice(0) : null,
+      },
+      plans,
+      costs: SEARCH_COST_PARAMS,
+      limits,
+    });
+  });
 }
 
 /** Adopt the recommended design as the user's own system. */
@@ -11337,6 +11332,14 @@ window.openPlanPicker = openPlanPicker;
 window.applyBestDesign = applyBestDesign;
 window.bestDesign = bestDesign;
 window.sweepGoalDesigns = sweepGoalDesigns;
+// V4's design search. Not on any screen yet — reachable from the console and
+// from the end-to-end suite while the interface that will carry it is built.
+window.runDesignSearch = runDesignSearch;
+window.SEARCH_COST_PARAMS = SEARCH_COST_PARAMS;
+// Bridged so the end-to-end suite can hold the worker's rebuilt pricing model
+// to the same numbers the app uses.
+window.estimateInstallCost = estimateInstallCost;
+window.calcSeaiGrant = calcSeaiGrant;
 window.arbitrageOn = arbitrageOn;
 window.hardRefreshApp = hardRefreshApp;
 window.reportOAuthReturn = reportOAuthReturn;
@@ -11396,6 +11399,14 @@ window.applyGoalDesign = applyGoalDesign;
 window.setSolarView = setSolarView;
 window.commitGoalDesign = commitGoalDesign;
 window.sweepGoalDesigns = sweepGoalDesigns;
+// V4's design search. Not on any screen yet — reachable from the console and
+// from the end-to-end suite while the interface that will carry it is built.
+window.runDesignSearch = runDesignSearch;
+window.SEARCH_COST_PARAMS = SEARCH_COST_PARAMS;
+// Bridged so the end-to-end suite can hold the worker's rebuilt pricing model
+// to the same numbers the app uses.
+window.estimateInstallCost = estimateInstallCost;
+window.calcSeaiGrant = calcSeaiGrant;
 window.copyShareUrl = copyShareUrl;
 window.openHowToSwitch = openHowToSwitch;
 window.openLeadForm = openLeadForm;
