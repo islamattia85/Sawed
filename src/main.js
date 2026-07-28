@@ -9910,8 +9910,13 @@ function renderMonitor(){
     sub: onBest ? `${countLabel} plans simulated against your usage — you're still best off where you are.`
                 : `${best.plan.supplier} ${best.plan.plan} now leads for your home.` });
   events.push({ c:'var(--blue)', when:'Your ranking',
-    title:`Your plan sits #${rank || '–'} of ${countLabel}`,
-    sub:`Top 3 for your profile: ${top3.map(t => getPlanById(t.id).supplier).join(', ')}.` });
+    // countLabel already reads "22 of 25 — 3 dynamic plans excluded". The same
+    // mistake was fixed four lines above this one and left here, which is what
+    // a fix applied to the instance rather than to the pattern looks like.
+    title:`Your plan sits #${rank || '–'} of ${rec.rankedCount}`,
+    // Suppliers alone read as a repeat when two of the top three are the same
+    // company on different tariffs — "Energia, Energia, Bord Gáis".
+    sub:`Top 3 for your profile: ${top3.map(t => { const pl = getPlanById(t.id); return `${pl.supplier} ${pl.plan}`; }).join(' · ')}.` });
   if (state.switched_to){
     const sp = getPlanById(state.switched_to);
     events.push({ c:'var(--accent)', when: state.switched_date ? fmtShortDate(state.switched_date) : 'Earlier',
