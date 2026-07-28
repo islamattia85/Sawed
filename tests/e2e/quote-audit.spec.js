@@ -43,8 +43,8 @@ test.beforeEach(async ({ page }) => {
 test('a quote is judged on what the quoted system saves, not on a tariff switch', async ({ page }) => {
   const text = await audit(page, 12000, 12, 5);
 
-  const benefit = Number((text.match(/€([\d,]+)\/yr benefit/) || [])[1]?.replace(/,/g, ''));
-  const payback = Number((text.match(/PAYBACK[^\n]*\n([\d.]+) yr/) || [])[1]);
+  const benefit = Number((text.match(/€([\d,]+)\/yr benefit/i) || [])[1]?.replace(/,/g, ''));
+  const payback = Number((text.match(/payback[^\n]*\n([\d.]+) yr/i) || [])[1]);
 
   // A 5.3 kWp system with storage on a heat-pump home with an EV saves well
   // over a thousand a year. Anything near €500 is the tariff-switch figure
@@ -54,13 +54,13 @@ test('a quote is judged on what the quoted system saves, not on a tariff switch'
   expect(payback).toBeGreaterThan(3);
 
   // And the twenty-year verdict must not be negative for an ordinary quote.
-  expect(text, 'an ordinary quote is reported as a lifetime loss').not.toMatch(/-€[\d,]+\s*\n\s*Lifetime/);
+  expect(text, 'an ordinary quote is reported as a lifetime loss').not.toMatch(/-€[\d,]+\s*\n\s*Lifetime/i);
 });
 
 test('a bigger system saves more, and a dearer one takes longer to repay', async ({ page }) => {
   const parse = (t) => ({
-    benefit: Number((t.match(/€([\d,]+)\/yr benefit/) || [])[1]?.replace(/,/g, '')),
-    payback: Number((t.match(/PAYBACK[^\n]*\n([\d.]+) yr/) || [])[1]),
+    benefit: Number((t.match(/€([\d,]+)\/yr benefit/i) || [])[1]?.replace(/,/g, '')),
+    payback: Number((t.match(/payback[^\n]*\n([\d.]+) yr/i) || [])[1]),
   });
 
   const small = parse(await audit(page, 8000, 10, 0));
