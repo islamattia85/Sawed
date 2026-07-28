@@ -7423,7 +7423,9 @@ function ensureJsPdf(){
  * Removed during the module migration; doGeneratePdf() below is still
  * live and is invoked from that later modal. */
 
-function doGeneratePdf(email){
+// async because delivering the file can involve the share sheet, which is a
+// promise the reader interacts with. The catch below still owns every failure.
+async function doGeneratePdf(email){
   if (!email) {
     const emailEl = document.getElementById('pdf-email-input');
     email = emailEl ? emailEl.value.trim() : '';
@@ -7434,7 +7436,7 @@ function doGeneratePdf(email){
   if (typeof window.jspdf === 'undefined' && typeof window.jsPDF === 'undefined'){
     showToast('Preparing your report\u2026', { type:'accent', icon:ic('doc',16) });
     ensureJsPdf().then(ok => {
-      if (ok) doGeneratePdf(email);
+      if (ok) doGeneratePdf(email);   // fire and forget: the retry owns its own errors
       else showToast('Couldn\u2019t start the PDF engine \u2014 please reload and try again', { type:'amber', icon:ic('warn',16) });
     });
     return;
@@ -7645,8 +7647,13 @@ function doGeneratePdf(email){
     const { jsPDF } = window.jspdf || window;
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
     renderReport(doc, data);
-    doc.save('solar-optimiser-report-' + new Date().toISOString().slice(0,10) + '.pdf');
-    showToast('Report downloaded', { type:'accent', icon:ic('checkC',16) });
+    const how = await deliverPdf(doc, 'solar-optimiser-report-' + new Date().toISOString().slice(0,10) + '.pdf');
+    if (how === 'cancelled') return;
+    showToast(
+      how === 'shared' ? 'Report ready — choose where to save it'
+        : how === 'opened' ? 'Report opened in a new tab — use Share to save it'
+        : 'Report downloaded',
+      { type:'accent', icon:ic('checkC',16) });
     fireEvent('pdf_generated', { has_solar: !!state.has_solar, ev: !!state.ev_active });
     if (email) submitPdfRequest(email);
   } catch (err){
@@ -7654,6 +7661,74 @@ function doGeneratePdf(email){
     showToast('Couldn\u2019t build the report \u2014 a plain-text summary was downloaded instead',
       { type:'amber', icon:ic('warn',16) });
     try { downloadTextReport(email); } catch(_){}
+  }
+}
+
+/**
+ * Get the finished PDF onto the reader's device.
+ *
+ * jsPDF's own doc.save() builds a blob URL and clicks an <a download>. On iOS
+ * Safari that is not a download: the attribute is ignored for blob URLs, and
+ * inside an installed PWA there is no download UI at all. Nothing happens, and
+ * nothing throws — so the app cheerfully said "Report downloaded" while no file
+ * existed. Which is precisely how this was reported: the download not working,
+ * with no error to go on.
+ *
+ * The share sheet is the supported route to Files on iOS, and it is the native
+ * one, so it is tried first wherever it can carry a file. Everything else keeps
+ * the ordinary download. Opening the blob in a tab is the last resort, because
+ * it at least puts the document somewhere the reader can act on.
+ *
+ * Returns what actually happened, so the confirmation can tell the truth.
+ */
+async function deliverPdf(doc, filename){
+  const blob = doc.output('blob');
+
+  // Only where the ordinary download is genuinely broken. Android and desktop
+  // can both share a file, but a download is the better outcome there — it
+  // lands in Downloads instead of asking which app should receive it.
+  const iOS = /iP(hone|ad|od)/.test(navigator.platform || '')
+    || (/Mac/.test(navigator.platform || '') && navigator.maxTouchPoints > 1)
+    || /iPhone|iPad|iPod/.test(navigator.userAgent || '');
+  const standalone = !!(window.matchMedia && matchMedia('(display-mode: standalone)').matches)
+    || navigator.standalone === true;
+
+  try {
+    if ((iOS || standalone) && typeof File === 'function' && navigator.canShare){
+      const file = new File([blob], filename, { type: 'application/pdf' });
+      if (navigator.canShare({ files: [file] })){
+        try {
+          await navigator.share({ files: [file], title: 'Solar Optimiser report' });
+          return 'shared';
+        } catch (e) {
+          // Dismissing the sheet is a decision, not a failure — do not then
+          // shove a second copy at them through another route.
+          if (e && (e.name === 'AbortError' || e.name === 'NotAllowedError')) return 'cancelled';
+        }
+      }
+    }
+  } catch (e) { /* fall through to the download path */ }
+
+  const url = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement('a');
+    if ('download' in a){
+      a.href = url;
+      a.download = filename;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      return 'downloaded';
+    }
+    const w = window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    if (!w) throw new Error('the browser blocked opening the report');
+    return 'opened';
+  } catch (e) {
+    URL.revokeObjectURL(url);
+    throw e;
   }
 }
 
@@ -11019,6 +11094,8 @@ window.bestDesign = bestDesign;
 window.sweepGoalDesigns = sweepGoalDesigns;
 window.arbitrageOn = arbitrageOn;
 window.hardRefreshApp = hardRefreshApp;
+window.deliverPdf = deliverPdf;
+window.ensureJsPdf = ensureJsPdf;
 window.STRATEGY_TRACE = STRATEGY_TRACE;
 window.effectiveStrategy = effectiveStrategy;
 window.SIM_FIELDS = SIM_FIELDS;
