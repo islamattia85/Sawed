@@ -491,3 +491,73 @@ test('someone with no interest in solar still lands on their bill', async ({ pag
   // The advisor has nothing to tell them; the tariff comparison has everything.
   expect(await page.evaluate(() => window.state.current_screen)).toBe('result');
 });
+
+/**
+ * The front door.
+ *
+ * Home answered one question — which tariff is cheapest — and everything about
+ * what to actually build lived two taps away behind a tab called Solar, which
+ * is where an engineering tool puts it. For someone about to spend fifteen
+ * thousand euro the larger question is what to install, so it is on the first
+ * screen now: under the tariff answer, not instead of it.
+ */
+test('home carries the recommendation, and gets there without freezing', async ({ page }) => {
+  const errors = await boot(page);
+
+  await page.evaluate(() => {
+    window.state.dwelling_type = 'detached';
+    window.state.bedrooms = 4;
+    window.state.considering_solar = true;
+    window.state.search_goal = 'bill-swap';
+    window.setScreen('result');
+  });
+
+  // While it works it says so, and says how far it has got — the number is
+  // simulations genuinely run.
+  const card = page.locator('.home-rec');
+  await expect(card).toBeVisible();
+
+  // …and it must actually finish. The search only repainted the advisor
+  // screen, so this card sat on "pricing every sensible system…" for ever.
+  await expect(page.locator('.home-rec:not(.home-rec-wait)'),
+    'the recommendation never arrived on the home screen').toBeVisible({ timeout: 20_000 });
+  await expect(card).toContainText(/\d+ panels/);
+  await expect(card).toContainText(/payback/i);
+  await expect(card).toContainText(/Swap the bill/i);
+
+  // One tap to the whole thing.
+  await card.click();
+  await expect(page.locator('.adv-hero')).toBeVisible({ timeout: 20_000 });
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('advisor');
+  expect(errors).toEqual([]);
+});
+
+test('home says nothing about installing to someone who is not installing', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => {
+    window.state.has_solar = false;
+    window.state.considering_solar = false;
+    window.setScreen('result');
+  });
+  await page.waitForTimeout(500);
+
+  // A recommendation nobody asked for is the calculator habit: showing every
+  // register because the engine can compute it.
+  await expect(page.locator('.home-rec')).toHaveCount(0);
+  // The tariff answer, which is what they came for, is untouched.
+  await expect(page.locator('.qr-hero')).toBeVisible();
+});
+
+test('an apartment is not sold a system on the home screen either', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => {
+    window.state.dwelling_type = 'apartment';
+    window.state.bedrooms = 2;
+    window.state.roof_capacity_panels = 0;
+    window.state.considering_solar = true;
+    window.setScreen('result');
+  });
+
+  await expect(page.locator('.home-rec')).toContainText(/No roof to work with/i, { timeout: 20_000 });
+  await expect(page.locator('.home-rec')).not.toContainText(/panels/i);
+});

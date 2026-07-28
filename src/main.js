@@ -4892,6 +4892,86 @@ function renderNightRateCard(best, baseCost){
    QUICK RESULT — THE money screen. Single focused conversion.
    Shows: switching savings + giant CTA to switch via affiliate
    ============================================================ */
+
+/**
+ * The recommendation, on the home screen.
+ *
+ * This is the front door changing. Home used to answer one question — which
+ * tariff is cheapest — and everything about what to actually BUILD lived two
+ * taps away behind a tab called Solar, which is where an engineering tool puts
+ * it. For someone about to spend fifteen thousand euro, "what should I
+ * install?" is the larger question, and it now sits on the first screen: under
+ * the tariff answer rather than instead of it, because the bill is what they
+ * came for and the system is what they stay for.
+ *
+ * It is a summary, not a second screen. What to build, what it does, and a
+ * door. Everything else — the goals, the reasons, the working — is one tap
+ * away on the advisor.
+ */
+function renderHomeRecommendation(){
+  if (!(state.has_solar || state.considering_solar)) return '';
+
+  const fresh = _advisor.key === advisorKey();
+  // Start the search, but never from inside a render: startAdvisorSearch()
+  // paints, and painting during a paint is how a render loop begins.
+  if (!fresh && !_advisor.running){
+    setTimeout(() => { if (state.current_screen === 'result') startAdvisorSearch(); }, 0);
+  }
+
+  const goalLabel = (GOAL_LABELS[advisorGoal()] || GOAL_LABELS['max-return'])[0];
+
+  if (_advisor.error && fresh){
+    // A failed search must not leave "working it out…" on screen for ever.
+    return `<div class="card home-rec home-rec-wait">
+      <div class="home-rec-kicker">${ic('warn',13)} What you should install</div>
+      <div class="home-rec-sub">We could not work that out just now.</div>
+      <div class="home-rec-cta" onclick="startAdvisorSearch(true)">Try again →</div>
+    </div>`;
+  }
+
+  if (!fresh || !_advisor.result){
+    const n = (_advisor.progress && _advisor.progress.evaluated) || 0;
+    // Quiet while it works. The home screen already answered a question; this
+    // one arriving late is not worth a spinner over the top of it.
+    return `<div class="card home-rec home-rec-wait" aria-live="polite">
+      <div class="home-rec-kicker">${ic('flask',13)} Working out what you should install</div>
+      <div class="home-rec-wait-line">${n ? `${n.toLocaleString('en-IE')} systems priced so far…` : 'Pricing every sensible system against every tariff…'}</div>
+    </div>`;
+  }
+
+  const r = _advisor.result;
+  const d = r.best;
+
+  if (r.noRoof){
+    return `<div class="card home-rec home-rec-wait">
+      <div class="home-rec-kicker">${ic('home',13)} Your home</div>
+      <div class="home-rec-title">No roof to work with</div>
+      <div class="home-rec-sub">You told us this is an apartment, so there is no system worth recommending. Your savings are all in the tariff above — which is the honest answer, not a smaller one.</div>
+    </div>`;
+  }
+
+  if (!d){
+    return `<div class="card home-rec">
+      <div class="home-rec-kicker">${ic('flask',13)} ${goalLabel}</div>
+      <div class="home-rec-title">Nothing here meets that</div>
+      <div class="home-rec-sub">No system on your roof meets what you asked for — but another goal might.</div>
+      <div class="home-rec-cta" onclick="setScreen('advisor')">See why →</div>
+    </div>`;
+  }
+
+  return `<div class="card home-rec" role="button" tabindex="0" onclick="setScreen('advisor')"
+              aria-label="What you should install: ${d.panels} panels. See the full recommendation.">
+    <div class="home-rec-kicker">${ic('flask',13)} What to install · ${goalLabel}</div>
+    <div class="home-rec-title">${d.panels} panels${d.batteryKwh ? ` + ${d.batteryKwh} kWh battery` : ', no battery'}</div>
+    <div class="home-rec-figs">
+      <span><b>${fmtCurrency(d.annualBenefit)}</b> a year</span>
+      <span><b>${d.payback}</b> yr payback</span>
+      <span><b>${fmtCurrency(d.netCost)}</b> after grant</span>
+    </div>
+    <div class="home-rec-cta">See the full recommendation →</div>
+  </div>`;
+}
+
 function renderResult(){
   if (CACHE.dirty) rebuildBase();
   const rec = getRecommendation();
@@ -4959,6 +5039,8 @@ function renderResult(){
       ${annualSavings > 10 ? `<span class="qr-actions-dot">·</span>
       <a href="#" onclick="event.preventDefault();setScreen('how-to-switch')">How switching works</a>` : ''}
     </div>
+
+    ${renderHomeRecommendation()}
 
     ${freshnessChip()}
     ${renderContractAlert()}
@@ -5428,6 +5510,38 @@ function runDesignSearch(onProgress, options){
  */
 let _advisor = { key: null, running: false, progress: null, result: null, reasons: null, confidence: 0, error: null };
 
+/**
+ * Screens that draw the search result and therefore have to be repainted when
+ * it lands.
+ *
+ * This was 'advisor' alone, which was true right up until the home screen
+ * started carrying the recommendation too: the search ran, finished, and the
+ * card on Home sat on "pricing every sensible system…" for ever, because
+ * nothing told it to paint again.
+ */
+const ADVISOR_SCREENS = ['advisor', 'result'];
+
+/**
+ * May a search result repaint the app right now?
+ *
+ * Only if a screen is showing it — and only if the repaint cannot take
+ * something away from the reader. renderApp() replaces the whole DOM, so a
+ * search landing while someone is halfway through typing their password
+ * deletes what they typed. That is not hypothetical: adding the recommendation
+ * to the home screen made every background search a candidate to wipe the
+ * sign-in sheet, and three auth tests caught it immediately.
+ *
+ * Nothing is lost by waiting. Closing the sheet renders anyway, so the card
+ * updates the moment it can be seen.
+ */
+function advisorRepaintOk(){
+  if (!ADVISOR_SCREENS.includes(state.current_screen)) return false;
+  if (_authModalOpen) return false;
+  const el = document.activeElement;
+  if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return false;
+  return true;
+}
+
 function advisorKey(){
   return JSON.stringify([state.dwelling_type, state.bedrooms, state.roof_capacity_panels,
     state.panel_w, state.azimuth_A, state.tilt_A, state.inverter_kw, state.region,
@@ -5456,7 +5570,14 @@ function setAdvisorGoal(goal){
 
 function startAdvisorSearch(force){
   const key = advisorKey();
-  if (!force && (_advisor.running || _advisor.key === key)) return;
+  if (!force && (_advisor.running || _advisor.key === key)){
+    // Nothing to do — but something still has to paint. setScreen() hands
+    // straight to this function for the advisor, so returning here without a
+    // render meant that arriving with a cached result drew nothing at all:
+    // every second visit to the screen was a dead tap.
+    renderApp();
+    return;
+  }
   _advisor = { key, running: true, progress: { fraction: 0, evaluated: 0, phase: 'tariffs' },
     result: null, reasons: null, confidence: 0, error: null };
   renderApp();
@@ -5468,17 +5589,17 @@ function startAdvisorSearch(force){
     // showing, but not at sixty frames a second on a number that moves in
     // steps of a few dozen.
     const now = Date.now();
-    if (now - lastPaint > 120 && state.current_screen === 'advisor'){ lastPaint = now; renderApp(); }
+    if (now - lastPaint > 120 && advisorRepaintOk()){ lastPaint = now; renderApp(); }
   }, { goal: advisorGoal() }).then(({ result, reasons, confidence }) => {
     _advisor.running = false;
     _advisor.result = result;
     _advisor.reasons = reasons;
     _advisor.confidence = confidence;
-    if (state.current_screen === 'advisor') renderApp();
+    if (advisorRepaintOk()) renderApp();
   }).catch((e) => {
     _advisor.running = false;
     _advisor.error = String((e && e.message) || e);
-    if (state.current_screen === 'advisor') renderApp();
+    if (advisorRepaintOk()) renderApp();
   });
 }
 

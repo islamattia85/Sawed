@@ -26,7 +26,9 @@ has no business deciding it. The ceiling on every design comes from
 bedroom count that onboarding now asks for, and the goal is the last thing
 onboarding asks — so someone who has just said what they want solar to do for
 them lands on the answer to exactly that, on the advisor screen, rather than
-on a dashboard. If the search could not produce a stable answer in
+on a dashboard. The home screen carries a summary of the recommendation under
+the tariff answer, so "what should I install?" is on the first screen rather
+than two taps away behind a tab. If the search could not produce a stable answer in
 a couple of seconds on a phone, every screen planned on top of it would have
 been built on sand.
 
