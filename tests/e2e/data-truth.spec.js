@@ -25,9 +25,12 @@ test('freshness is reported from the oldest plan, never the newest', async ({ pa
   await boot(page, { current_screen: 'plans' });
   const a = await ages(page);
 
+  // Two shapes carry it, and only ever one at a time: the panel states the
+  // verified range when the set is current, and replaces it with the warning
+  // when it is not. Either way the date quoted must be the OLDEST.
   const label = await page.evaluate(() => {
-    const el = [...document.querySelectorAll('.plan-verified')]
-      .find((e) => /Rates verified/i.test(e.textContent));
+    const el = [...document.querySelectorAll('.plan-verified, .hero-note')]
+      .find((e) => /verified/i.test(e.textContent));
     return el ? el.textContent.trim() : null;
   });
   expect(label, 'no freshness label on the plans screen').not.toBeNull();
@@ -46,11 +49,11 @@ test('freshness is reported from the oldest plan, never the newest', async ({ pa
 test('the staleness banner fires when any recommendable plan is over 45 days old', async ({ page }) => {
   await boot(page, { current_screen: 'plans' });
   const a = await ages(page);
-  const banner = await page.locator('.staleness-banner').count();
+  const banner = await page.locator('.hero-note').count();
 
   if (a.oldest > 45) {
     expect(banner, `oldest plan is ${a.oldest} days old but no banner is shown`).toBeGreaterThan(0);
-    await expect(page.locator('.staleness-banner')).toContainText(/not re-checked recently/i);
+    await expect(page.locator('.hero-note')).toContainText(/not re-checked recently/i);
   } else {
     expect(banner, `all plans are fresh (oldest ${a.oldest}d) but a banner is shown`).toBe(0);
   }

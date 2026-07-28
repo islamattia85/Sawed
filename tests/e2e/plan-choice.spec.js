@@ -319,6 +319,9 @@ test('the solar screen puts free advice above the instrument', async ({ page }) 
 test('two plans can be compared side by side', async ({ page }) => {
   const errors = await boot(page, { current_screen: 'plans' });
 
+  // Sorting is behind a control now: it is something a few readers do once,
+  // and as a permanent row it had the same weight as the filter above it.
+  await page.locator('.plans-sort-toggle').click();
   await expect(page.locator('.plans-sort-btn')).toHaveCount(3);
 
   await page.locator('.cmp-btn').nth(0).click();
@@ -354,11 +357,15 @@ test('the comparison never holds more than two plans', async ({ page }) => {
 
 test('sorting reorders the list without changing the ranking', async ({ page }) => {
   const errors = await boot(page, { current_screen: 'plans' });
-  const firstBy = async () => page.locator('.plan-supplier').first().innerText();
 
-  const byCost = await firstBy();
+  // The cheapest plan is on the panel with the button that acts on it; the
+  // list below starts at second place rather than repeating it. So the
+  // headline is where "what won" is read from.
+  const byCost = await page.locator('.hero-inset-value').first().innerText();
+
+  await page.locator('.plans-sort-toggle').click();
   await page.getByRole('button', { name: 'Standing charge' }).click();
-  const byStanding = await firstBy();
+  const byStanding = await page.locator('.plan-supplier').first().innerText();
 
   // The underlying ranking is untouched — only the presentation order moved.
   const cheapest = await page.evaluate(() => window.getRecommendation().cheapest.plan.supplier);

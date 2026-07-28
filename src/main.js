@@ -645,6 +645,7 @@ const IC = {
   phone:   '<path d="M8.4 4.2 6 4.6A2 2 0 0 0 4.4 6.8c.7 6.3 5.9 11.5 12.3 12.3a2 2 0 0 0 2.2-1.6l.4-2.4-3.6-1.7-1.6 1.6c-2.3-1-4.1-2.8-5.1-5.1l1.6-1.6-2.2-4.1Z"/>',
   globe:   '<circle cx="12" cy="12" r="8.2"/><path d="M3.8 12h16.4M12 3.8c2.4 2.2 3.6 5 3.6 8.2s-1.2 6-3.6 8.2c-2.4-2.2-3.6-5-3.6-8.2s1.2-6 3.6-8.2Z"/>',
   clock:   '<circle cx="12" cy="12" r="8.2"/><path d="M12 7.4V12l3 2.1"/>',
+  sort:    '<path d="M4.6 7.2h14.8M7 12h10M9.8 16.8h4.4"/>',
   // The goal question: what someone wants the roof to do for them.
   coin:    '<ellipse cx="12" cy="7" rx="6.8" ry="2.8"/><path d="M5.2 7v10c0 1.55 3.04 2.8 6.8 2.8s6.8-1.25 6.8-2.8V7"/><path d="M5.2 12c0 1.55 3.04 2.8 6.8 2.8s6.8-1.25 6.8-2.8"/>',
   pin:     '<path d="M12 21c-4-4-6.8-7-6.8-10.4a6.8 6.8 0 0 1 13.6 0C18.8 14 16 17 12 21Z"/><circle cx="12" cy="10.5" r="2.3"/>',
@@ -4465,11 +4466,9 @@ function fmtVerifiedDate(isoDate){
 function renderStalenessBanner(){
   const stale = checkTariffStaleness();
   if (!stale) return '';
-  return `<div class="staleness-banner">
-    <span class="staleness-icon">${ic('warn',13)}</span>
-    <div><b>${stale.staleCount} of ${stale.total} plans not re-checked recently</b> — oldest verified ${fmtVerifiedDate(stale.date)}, ${stale.days} days ago. Suppliers can change rates without notice.
-      <a href="#" onclick="event.preventDefault(); setScreen('plans')">See each plan's date →</a>
-    </div>
+  return `<div class="hero-note">
+    <span>${ic('warn',13)}</span>
+    <div><b>${stale.staleCount} of ${stale.total} plans not re-checked recently.</b> Oldest verified ${fmtVerifiedDate(stale.date)}, ${stale.days} days ago — suppliers can change rates without notice. Each plan's own date is on its row.</div>
   </div>`;
 }
 
@@ -5770,26 +5769,35 @@ function advisorReasonText(r, result){
   const sys = (d) => `${d.panels} panels${d.batteryKwh ? ` and a ${d.batteryKwh} kWh battery` : ' and no storage'} at ${fmtCurrency(d.netCost)}`;
   switch (r.kind){
     case 'more-panels-beat-battery':
-      return a ? `<b>Panels beat a battery here.</b> Against the best system with storage — ${sys(a)} — putting the money into panels ${margin(r.worth)}, because your surplus is worth more sold than stored.`
-        : '<b>No battery.</b> Storage does not pay for itself on your usage.';
+      return a ? { claim: 'Panels beat a battery here',
+        detail: `Against the best system with storage — ${sys(a)} — putting the money into panels ${margin(r.worth)}, because your surplus is worth more sold than stored.` }
+        : { claim: 'No battery', detail: 'Storage does not pay for itself on your usage.' };
     case 'battery-earns-its-keep':
-      return a ? `<b>The battery earns its keep.</b> Against the best system without one — ${sys(a)} — it ${margin(r.worth)}.`
-        : '<b>The battery earns its keep.</b>';
+      return a ? { claim: 'The battery earns its keep',
+        detail: `Against the best system without one — ${sys(a)} — it ${margin(r.worth)}.` }
+        : { claim: 'The battery earns its keep', detail: '' };
     case 'arbitrage':
-      return '<b>Charge it overnight.</b> Filling the battery in the cheap window and using it in the expensive one is worth more than sunlight alone.';
+      return { claim: 'Charge it overnight',
+        detail: 'Filling the battery in the cheap window and using it in the expensive one is worth more than sunlight alone.' };
     case 'self-consumption':
-      return '<b>Solar-only charging.</b> Buying cheap-rate electricity to store does not pay on this tariff — the battery runs on your own generation.';
+      return { claim: 'Solar-only charging',
+        detail: 'Buying cheap-rate electricity to store does not pay on this tariff — the battery runs on your own generation.' };
     case 'covers-its-own-repayment':
-      return `<b>Better off from month one.</b> The saving covers the repayment and leaves you about ${fmtCurrency(r.worth)} a month ahead.`;
+      return { claim: 'Better off from month one',
+        detail: `The saving covers the repayment and leaves you about ${fmtCurrency(r.worth)} a month ahead.` };
     case 'independence-costs-return':
-      return a ? `<b>This is not the money-maximising choice.</b> It gives up about ${fmtCurrency(Math.abs(r.worth))} over 20 years against the ${a.panels}-panel investment build — that is what the independence costs.` : '';
+      return a ? { claim: 'This is not the money-maximising choice',
+        detail: `It gives up about ${fmtCurrency(Math.abs(r.worth))} over 20 years against the ${a.panels}-panel investment build — that is what the independence costs.` } : null;
     case 'goal-changes-the-answer':
-      return a ? `<b>Wanting something else would change this.</b> Under "${(GOAL_LABELS[r.goal] || [r.goal])[0]}" the answer is ${a.panels} panels${a.batteryKwh ? ` and a ${a.batteryKwh} kWh battery` : ' and no battery'}, at ${fmtCurrency(a.netCost)}.` : '';
+      return a ? { claim: 'Wanting something else would change this',
+        detail: `Under "${(GOAL_LABELS[r.goal] || [r.goal])[0]}" the answer is ${a.panels} panels${a.batteryKwh ? ` and a ${a.batteryKwh} kWh battery` : ' and no battery'}, at ${fmtCurrency(a.netCost)}.` } : null;
     case 'tariff-switch':
-      return `<b>It depends on switching tariff.</b> On <b>${result.best.planLabel}</b> rather than the cheapest plan for your current usage — the system changes which tariff wins.`;
+      return { claim: 'It depends on switching tariff',
+        detail: `On ${result.best.planLabel} rather than the cheapest plan for your current usage — the system changes which tariff wins.` };
     case 'roof-limited':
-      return '<b>Your roof is the limit, not the economics.</b> More panels would still pay; there is nowhere to put them.';
-    default: return '';
+      return { claim: 'Your roof is the limit, not the economics',
+        detail: 'More panels would still pay; there is nowhere to put them.' };
+    default: return null;
   }
 }
 
@@ -5874,12 +5882,6 @@ function renderAdvisor(){
   const confLabel = conf >= 0.75 ? 'Clear winner' : conf >= 0.5 ? 'Reasonably clear' : 'Close call';
   const confTone = conf >= 0.75 ? 'var(--accent)' : conf >= 0.5 ? 'var(--ink)' : 'var(--amber, var(--ink-soft))';
 
-  const spec = [
-    [ic('sun',18), `${best.panels} × ${state.panel_w || 440} W panels`, `${best.kwp} kWp`],
-    [ic('battery',18), best.batteryKwh ? `${best.batteryKwh} kWh battery` : 'No battery', best.batteryKwh ? (best.chargeFromGrid ? 'Charged overnight and from the sun' : 'Charged from the sun only') : 'Your money goes further in panels'],
-    [ic('bolt',18), best.planLabel, 'The tariff this system is best on'],
-  ];
-
   const reasons = (_advisor.reasons || []).map((x) => advisorReasonText(x, r)).filter(Boolean);
 
   // What the other goals would buy. This is the decision, not the
@@ -5887,44 +5889,54 @@ function renderAdvisor(){
   // where a reader given one number is only being told.
   const others = Object.entries(r.byGoal).filter(([g, d]) => d && g !== goal);
 
-  return `${head}
+  return `
   <div class="screen">
-    <p class="adv-lede">What matters most to you?</p>
-    ${renderAdvisorGoalPicker()}
+    <div class="hero-panel">
+      <div class="hero-brand">
+        <button class="hero-icb" onclick="goBack()" aria-label="Back">${ic('chevL',18)}</button>
+        <div class="hero-brand-name" style="flex:1;justify-content:center">What to install</div>
+        <button class="hero-icb" onclick="setScreen('refine')" aria-label="Settings">${ic('tune',17)}</button>
+      </div>
 
-    <div class="card adv-hero">
-      <div class="adv-hero-head">
-        <div>
-          <div class="adv-hero-kicker">${GOAL_LABELS[goal][0]} · your roof fits ${cap} panels</div>
-          <div class="adv-hero-title">${best.panels} panels${best.batteryKwh ? ` + ${best.batteryKwh} kWh` : ''}</div>
+      <div class="hero-greet-sub" style="margin-bottom:10px">What matters most to you?</div>
+      ${renderAdvisorGoalPicker()}
+
+      <div class="hero-inset" style="margin-top:14px">
+        <div class="hero-inset-top">
+          <div>
+            <div class="hero-inset-label">${GOAL_LABELS[goal][0]} · your roof fits ${cap} panels</div>
+            <div class="hero-inset-value" style="color:var(--ink);font-size:32px">${best.panels} panels${best.batteryKwh ? ` + ${best.batteryKwh} kWh` : ''}</div>
+            <div class="hero-inset-foot">${best.planLabel}${best.batteryKwh ? (best.chargeFromGrid ? ' · battery charged overnight' : ' · battery charged from the sun') : ' · no battery'}</div>
+          </div>
+          <div class="conf-pill ${conf >= 0.75 ? 'high' : conf >= 0.5 ? 'med' : 'low'}"
+               title="How far clear of the runner-up this is">
+            <b>${Math.round(conf * 100)}%</b>${confLabel.toLowerCase()}
+          </div>
         </div>
-        <div class="adv-conf" style="color:${confTone}">
-          <div class="adv-conf-num">${Math.round(conf * 100)}%</div>
-          <div class="adv-conf-label">${confLabel}</div>
-        </div>
       </div>
 
-      <div class="adv-figures">
-        <div><span class="adv-fig">${fmtCurrency(best.annualBenefit)}</span><span class="adv-fig-l">saved a year</span></div>
-        <div><span class="adv-fig">${best.payback}<em>yr</em></span><span class="adv-fig-l">to pay back</span></div>
-        <div><span class="adv-fig">${fmtCurrency(best.netCost)}</span><span class="adv-fig-l">after grant</span></div>
+      <div class="stat-strip" style="border-top:none;padding-top:16px">
+        ${heroStat(fmtCurrency(best.annualBenefit), '/yr', 'You save')}
+        ${heroStat(best.payback, 'yr', 'Payback')}
+        ${heroStat(fmtCurrency(best.netCost), '', 'After grant')}
       </div>
 
-      <div class="adv-spec">
-        ${spec.map(([icon, title, sub]) => `
-          <div class="adv-spec-row">
-            <span class="adv-spec-icon">${icon}</span>
-            <span><b>${title}</b><em>${sub}</em></span>
-          </div>`).join('')}
-      </div>
-
-      <button class="switch-cta" style="margin-top:16px" onclick="adoptAdvisorDesign()">Use this as my system →</button>
+      <button class="hero-cta" onclick="adoptAdvisorDesign()">Use this as my system →</button>
     </div>
 
     ${reasons.length ? `
       <div class="card">
         <div class="card-title">Why this one</div>
-        ${reasons.map((t) => `<p class="adv-reason">${t}</p>`).join('')}
+        <p class="adv-lede" style="font-weight:400;color:var(--ink-soft);font-size:13px;margin:-4px 0 12px">
+          We priced ${r.evaluated.toLocaleString('en-IE')} full years of this house. Here is what decided it.
+        </p>
+        <div class="adv-whys">
+          ${reasons.map(({ claim, detail }) => `
+            <div class="adv-why">
+              <span class="adv-why-tick">${ic('checkC',16)}</span>
+              <span><b>${claim}</b>${detail ? `<em>${detail}</em>` : ''}</span>
+            </div>`).join('')}
+        </div>
       </div>` : ''}
 
     ${others.length ? `
@@ -7141,41 +7153,89 @@ function renderPlans(){
    */
   const SHORTLIST = 5;
   const showingAll = !!state._plans_all || f !== 'all' || sortBy !== 'cost';
-  const visible = showingAll ? filtered : filtered.slice(0, SHORTLIST);
-  const hidden = filtered.length - visible.length;
+  const winner = ranked[0];
+  const winnerSaving = winner ? baseCost - winner.cost : 0;
 
-  return `${topbar('All plans ranked', 'blue', true)}
+  /*
+   * The cheapest plan is on the panel, with the button that acts on it.
+   * Repeating it as the first row of the list below said the same thing twice
+   * and cost a quarter of a screen — the ranking's job is to show what comes
+   * AFTER the answer, and to let anyone who wants to audit it do so.
+   *
+   * Only when the reader has not re-sorted or filtered: any other ordering
+   * makes "the one above" a different plan from "the first below", and the
+   * list has to be complete.
+   */
+  const headlineIsFirst = f === 'all' && sortBy === 'cost';
+  const listed = headlineIsFirst ? filtered.filter((r) => r !== winner) : filtered;
+  const visible = showingAll ? listed : listed.slice(0, SHORTLIST);
+  const hidden = listed.length - visible.length;
+
+  return `
   <div class="screen">
-    <!-- The banner belongs here, not on the home screen. This is where the chip
-         on the answer leads, and where the per-plan dates are: the screen for
-         someone who has asked how current the rates are. Putting the compact
-         chip here instead left a control that linked to the screen it was
-         already on, and dropped the detail the reader came for. -->
-    ${renderStalenessBanner()}
+    <div class="hero-panel">
+      <div class="hero-brand">
+        <button class="hero-icb" onclick="goBack()" aria-label="Back">${ic('chevL',18)}</button>
+        <div class="hero-brand-name" style="flex:1;justify-content:center">Every plan, ranked</div>
+        <button class="hero-icb" onclick="setScreen('refine')" aria-label="Settings">${ic('tune',17)}</button>
+      </div>
+
+      ${winner ? `
+        <div class="hero-inset">
+          <div class="hero-inset-top">
+            <div>
+              <div class="hero-inset-label">Cheapest for your home</div>
+              <div class="hero-inset-value" style="color:var(--ink);font-size:25px">${winner.plan.supplier}</div>
+              <div class="hero-inset-foot">${winner.plan.plan}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-size:20px;font-weight:800;color:var(--gain);font-variant-numeric:tabular-nums">${winnerSaving > 0 ? '−' + fmtCurrency(winnerSaving) : fmtCurrency(winner.cost)}</div>
+              <div style="font-size:12px;color:var(--ink-soft)">${winnerSaving > 0 ? 'a year' : 'per year'}</div>
+            </div>
+          </div>
+        </div>` : ''}
+
+      <!-- What the ranking is priced on. This is context, not the answer, so
+           it gets one line rather than the three-figure strip the answer gets.
+           As a strip it was reading with the same weight as the result. -->
+      <div class="hero-greet-sub" style="margin:12px 0 0;font-size:13px">
+        Priced on ${annualKwh.toLocaleString()} kWh a year · ${region.name} · ${state.heating_type} heating${state.has_solar ? ` · ${totalKwp().toFixed(1)} kWp` : ''}${state.ev_active ? ' · EV' : ''}
+      </div>
+      ${winner && winnerSaving > 10 ? `
+        <button class="hero-cta" onclick="event.stopPropagation();handleSwitchClick('${winner.plan.id}', '${(winner.plan.supplier + ' ' + winner.plan.plan).replace(/'/g,"\\'")}', ${winnerSaving.toFixed(0)})">Switch to ${winner.plan.supplier} →</button>` : ''}
+      ${renderStalenessBanner() || (latestVerifiedLabel()
+        ? `<div class="hero-greet-sub" style="margin:12px 0 0;font-size:13px;text-align:center">Rates verified ${latestVerifiedLabel()} · ${ranked.length} active plans</div>` : '')}
+    </div>
 
     ${renderChoiceStrip()}
 
-    <div class="plans-context">
-      Priced on <b>${annualKwh.toLocaleString()} kWh/yr</b> · <b>${state.heating_type}</b> heating · <b>${region.name}</b>${state.has_solar ? ` · <b>${totalKwp().toFixed(1)} kWp</b>${state.battery_kwh > 0 ? ` + <b>${state.battery_kwh} kWh</b>` : ''}` : ''}${state.ev_active ? ' · <b>EV</b>' : ''}
-      ${latestVerifiedLabel() ? `<div class="plan-verified" style="margin-top:5px">Rates verified ${latestVerifiedLabel()} · ${ranked.length} active plans</div>` : ''}
+    <!-- One row, not two. Sorting is something a handful of readers do once;
+         it had the same weight as the filter it sat above, and between them
+         they took a fifth of the screen before a single plan was visible.
+         Sorting now opens on demand and closes again. -->
+    <div class="plans-controls">
+      <div class="plans-filters">
+        ${['all','flat','tou','ev','dynamic'].map(cat => `
+          <div class="plan-filter-pill ${cat === f ? 'active' : ''}" onclick="setPlansFilter('${cat}')">
+            ${planCategoryLabel(cat)}<span class="count">${counts[cat]}</span>
+          </div>
+        `).join('')}
+      </div>
+      <button class="plans-sort-toggle ${sortBy !== 'cost' ? 'on' : ''}"
+              onclick="state._plans_sort_open=!state._plans_sort_open;renderApp()"
+              aria-label="Sort">${ic('sort',16)}</button>
     </div>
+    ${state._plans_sort_open ? `
+      <div class="plans-sort">
+        <span class="plans-sort-label">Sort by</span>
+        ${[['cost','Annual cost'],['standing','Standing charge'],['export','Export rate']].map(([k,lbl]) => `
+          <button class="plans-sort-btn ${sortBy === k ? 'on' : ''}" onclick="setPlansSort('${k}')">${lbl}</button>
+        `).join('')}
+      </div>` : ''}
 
-    <div class="plans-sort">
-      <span class="plans-sort-label">Sort</span>
-      ${[['cost','Annual cost'],['standing','Standing charge'],['export','Export rate']].map(([k,lbl]) => `
-        <button class="plans-sort-btn ${sortBy === k ? 'on' : ''}" onclick="setPlansSort('${k}')">${lbl}</button>
-      `).join('')}
-    </div>
+    ${headlineIsFirst && visible.length ? `<div class="section-title" style="margin-top:6px">Then, in order</div>` : ''}
 
-    <div class="plans-filters">
-      ${['all','flat','tou','ev','dynamic'].map(cat => `
-        <div class="plan-filter-pill ${cat === f ? 'active' : ''}" onclick="setPlansFilter('${cat}')">
-          ${planCategoryLabel(cat)}<span class="count">${counts[cat]}</span>
-        </div>
-      `).join('')}
-    </div>
-
-    ${filtered.length === 0 ? `
+    ${listed.length === 0 ? `
       <div style="padding:30px 20px;text-align:center;color:var(--ink-soft);font-family:var(--display);font-size:12px;letter-spacing:.02em">
         No plans in this category match. Try a different filter.
       </div>
@@ -7254,11 +7314,9 @@ function renderPlans(){
 function renderChoiceStrip(){
   const rec = getRecommendation();
   if (!rec.best) return '';
-  if (!rec.isManualChoice){
-    return `<div class="choice-strip hint">
-      Tap a plan for detail, or to go with it.
-    </div>`;
-  }
+  // No hint card. "Tap a plan for detail" is an instruction for a control that
+  // announces itself, and it cost a card on the busiest screen in the app.
+  if (!rec.isManualChoice) return '';
   const premium = rec.choicePremium;
   return `<div class="choice-strip">
     <div>

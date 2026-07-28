@@ -333,13 +333,13 @@ test('the advisor renders every goal without throwing, and says something true',
     window.state.roof_capacity_panels = 0;
     window.setScreen('advisor');
   });
-  await expect(page.locator('.adv-hero')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.hero-inset')).toBeVisible({ timeout: 20_000 });
 
   for (const goal of GOALS) {
     await page.evaluate((g) => window.setAdvisorGoal(g), goal);
     await page.waitForTimeout(350);
 
-    const hero = page.locator('.adv-hero');
+    const hero = page.locator('.hero-inset');
     await expect(hero, `no recommendation under ${goal}`).toBeVisible();
     await expect(hero).toContainText(/\d+ panels/);
 
@@ -362,7 +362,7 @@ test('the advisor renders every goal without throwing, and says something true',
 test('switching goals is instant, and does not re-run the search', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => window.setScreen('advisor'));
-  await expect(page.locator('.adv-hero')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.hero-inset')).toBeVisible({ timeout: 20_000 });
 
   // One sweep answered all four goals. A spinner between two answers already
   // in hand would be theatre, and a re-run would be worse.
@@ -370,7 +370,7 @@ test('switching goals is instant, and does not re-run the search', async ({ page
   const t0 = Date.now();
   for (const g of GOALS) {
     await page.evaluate((x) => window.setAdvisorGoal(x), g);
-    await expect(page.locator('.adv-hero')).toBeVisible();
+    await expect(page.locator('.hero-inset')).toBeVisible();
   }
   const elapsed = Date.now() - t0;
   const after = await page.evaluate(() => window.__searchRuns || 0);
@@ -382,7 +382,7 @@ test('switching goals is instant, and does not re-run the search', async ({ page
 test('adopting the recommendation makes it the reader’s own system', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => window.setScreen('advisor'));
-  await expect(page.locator('.adv-hero')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.hero-inset')).toBeVisible({ timeout: 20_000 });
 
   const rec = await page.evaluate(() => {
     const r = window.advisorResult();
@@ -470,7 +470,7 @@ test('the goal you choose is the question the advisor answers', async ({ page })
   await page.locator('.switch-cta').click();
 
   // …and it delivers it, for the goal that was asked for.
-  await expect(page.locator('.adv-hero')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.hero-inset')).toBeVisible({ timeout: 20_000 });
   expect(await page.evaluate(() => window.state.search_goal)).toBe('independence');
   expect(await page.evaluate(() => window.advisorResult().goal)).toBe('independence');
   await expect(page.locator('.goal-chip.active')).toContainText(/Independence/i);
@@ -522,7 +522,7 @@ test('home carries the recommendation, and gets there without freezing', async (
 
   // One tap to the whole thing.
   await page.getByRole('button', { name: /See the full recommendation/i }).click();
-  await expect(page.locator('.adv-hero')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.hero-inset')).toBeVisible({ timeout: 20_000 });
   expect(await page.evaluate(() => window.state.current_screen)).toBe('advisor');
   expect(errors).toEqual([]);
 });
