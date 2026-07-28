@@ -109,3 +109,40 @@ test('no screen in the app renders on a hard-coded black background', async ({ p
 
   expect(errors).toEqual([]);
 });
+
+/**
+ * A form that cannot work must still answer you.
+ *
+ * sbInitialized() only checked that the Supabase URL and key constants exist,
+ * so the sign-in sheet rendered whenever the app had keys — including when
+ * createClient() had never run because the dynamic import failed. Submitting
+ * then read .auth off null inside an un-awaited try-less call: the button
+ * disabled itself, no message appeared, and nothing happened. That is what
+ * "log in not working" looks like from the outside, with nothing to report.
+ */
+test('a broken client still produces a message, and re-enables the button', async ({ page }) => {
+  const errors = await boot(page);
+  await blockApi(page);
+
+  // Simulate the client never having been built, and make rebuilding fail too.
+  await page.evaluate(() => {
+    window._sb = null;
+    window.__sbInitBlocked = true;
+  });
+
+  await page.locator('.profile-nav-btn').first().click();
+  await page.getByRole('button', { name: /Continue with email/i }).first().click();
+  await page.fill('#auth-email', 'someone@example.com');
+  await page.fill('#auth-password', 'hunter2hunter2');
+  await page.locator('#auth-submit-btn').click();
+
+  const msg = page.locator('#auth-msg');
+  await expect(msg, 'submitting said nothing at all').not.toBeEmpty({ timeout: 20_000 });
+  await expect(msg).toContainText(/connection|reach|try again/i);
+
+  // And the reader can try again rather than being left with a dead button.
+  await expect(page.locator('#auth-submit-btn')).toBeEnabled();
+
+  expect(errors, 'the failure escaped as an uncaught error').toEqual([]);
+});
+

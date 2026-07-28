@@ -34,6 +34,7 @@ let _authView = 'login'; // 'login' | 'signup' | 'profile'
 
 async function sbInit(){
   if (_sb || !SUPABASE_URL || !SUPABASE_ANON_KEY) return;
+  if (window.__sbInitBlocked) return;   // tests: simulate an import that will not load
   try {
     // The client is bundled, not fetched from a CDN at click time.
     //
@@ -95,15 +96,38 @@ async function sbSaveProfile(extraFields){
 }
 
 async function sbSignUp(email, password, displayName){
-  const { error } = await _sb.auth.signUp({
+  const sb = await sbClient();
+  if (!sb) return new Error('load failed');
+  const { error } = await sb.auth.signUp({
     email, password,
     options: { data: { display_name: displayName } }
   });
   return error;
 }
 
+/**
+ * The client, built on demand if it is not there yet.
+ *
+ * sbInitialized() only ever checked that the URL and key constants exist. The
+ * sign-in sheet rendered on that basis, so a form appeared whenever the app had
+ * keys — including when createClient() had never run, because the dynamic
+ * import failed on a bad connection. Submitting then read .auth off null, threw
+ * inside an un-caught await, and left the button disabled with no message and
+ * nothing on screen. "Log in not working", exactly.
+ *
+ * Retrying the initialisation here also means a sign-in attempt after the
+ * connection recovers now works, instead of needing a reload.
+ */
+async function sbClient(){
+  if (_sb) return _sb;
+  await sbInit();
+  return _sb;
+}
+
 async function sbSignIn(email, password){
-  const { error } = await _sb.auth.signInWithPassword({ email, password });
+  const sb = await sbClient();
+  if (!sb) return new Error('load failed');   // mapped to a connection message
+  const { error } = await sb.auth.signInWithPassword({ email, password });
   return error;
 }
 
@@ -114,7 +138,9 @@ async function sbSignOut(){
 }
 
 async function sbResetPassword(email){
-  const { error } = await _sb.auth.resetPasswordForEmail(email, {
+  const sb = await sbClient();
+  if (!sb) return new Error('load failed');
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
     redirectTo: window.location.href
   });
   return error;
@@ -322,7 +348,9 @@ async function doSignIn(){
   const btn   = document.getElementById('auth-submit-btn');
   if (!email || !pw){ showAuthMsg('Please enter your email and password.', 'err'); return; }
   if (btn) btn.disabled = true;
-  const err = await sbSignIn(email, pw);
+  let err;
+  try { err = await sbSignIn(email, pw); }
+  catch (e) { err = e; }
   if (err){ showAuthMsg(authErrorText(err), 'err'); if(btn) btn.disabled=false; return; }
   _authModalOpen = false;
   renderApp();
@@ -336,7 +364,9 @@ async function doSignUp(){
   if (!email){ showAuthMsg('Please enter your email.', 'err'); return; }
   if (!pw || pw.length < 8){ showAuthMsg('Password must be at least 8 characters.', 'err'); return; }
   if (btn) btn.disabled = true;
-  const err = await sbSignUp(email, pw, name);
+  let err;
+  try { err = await sbSignUp(email, pw, name); }
+  catch (e) { err = e; }
   if (err){ showAuthMsg(authErrorText(err), 'err'); if(btn) btn.disabled=false; return; }
   showAuthMsg('Account created! Check your email to confirm, then sign in.', 'ok');
 }
@@ -349,7 +379,9 @@ async function doSignOut(){
 async function doForgotPassword(){
   const email = (document.getElementById('auth-email') || {}).value || '';
   if (!email){ showAuthMsg('Enter your email address first.', 'err'); return; }
-  const err = await sbResetPassword(email);
+  let err;
+  try { err = await sbResetPassword(email); }
+  catch (e) { err = e; }
   if (err){ showAuthMsg(authErrorText(err), 'err'); return; }
   showAuthMsg('Reset link sent — check your inbox.', 'ok');
 }
@@ -11201,6 +11233,9 @@ Object.defineProperties(window, {
   state:          { get: () => state,          set: v => { state = v; },          configurable: true },
   _ob:            { get: () => _ob,            set: v => { _ob = v; },            configurable: true },
   _sbUser:        { get: () => _sbUser,        set: v => { _sbUser = v; },        configurable: true },
+  // Bridged so a test can take the client away and prove the sign-in form
+  // still answers. Without this a test that nulls it proves nothing.
+  _sb:            { get: () => _sb,            set: v => { _sb = v; },            configurable: true },
   _introStep:     { get: () => _introStep,     set: v => { _introStep = v; },     configurable: true },
   _authModalOpen: { get: () => _authModalOpen, set: v => { _authModalOpen = v; }, configurable: true },
   _authEmailView: { get: () => _authEmailView, set: v => { _authEmailView = v; }, configurable: true },
