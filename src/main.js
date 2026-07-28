@@ -4919,83 +4919,129 @@ function renderNightRateCard(best, baseCost){
    Shows: switching savings + giant CTA to switch via affiliate
    ============================================================ */
 
-/**
- * The recommendation, on the home screen.
- *
- * This is the front door changing. Home used to answer one question — which
- * tariff is cheapest — and everything about what to actually BUILD lived two
- * taps away behind a tab called Solar, which is where an engineering tool puts
- * it. For someone about to spend fifteen thousand euro, "what should I
- * install?" is the larger question, and it now sits on the first screen: under
- * the tariff answer rather than instead of it, because the bill is what they
- * came for and the system is what they stay for.
- *
- * It is a summary, not a second screen. What to build, what it does, and a
- * door. Everything else — the goals, the reasons, the working — is one tap
- * away on the advisor.
- */
-function renderHomeRecommendation(){
-  if (!(state.has_solar || state.considering_solar)) return '';
+/* ============================================================
+   THE HERO PANEL — shared layout pieces
+   ============================================================ */
 
-  const fresh = _advisor.key === advisorKey();
-  // Start the search, but never from inside a render: startAdvisorSearch()
-  // paints, and painting during a paint is how a render loop begins.
-  if (!fresh && !_advisor.running){
+/** Time-of-day greeting, with a name once we know one. */
+function heroGreeting(){
+  const h = new Date().getHours();
+  const part = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  const name = (_sbProfile && _sbProfile.display_name)
+    || (_sbUser && _sbUser.email ? _sbUser.email.split('@')[0] : '');
+  return name ? `${part}, ${name.charAt(0).toUpperCase()}${name.slice(1)}` : part;
+}
+
+/**
+ * How much to trust the headline figure.
+ *
+ * Not a percentage. The board this design follows shows "92%", and a
+ * percentage beside a four-figure number has to be derived from something or
+ * it is decoration — so this says what it actually knows: whether the usage
+ * came from a meter or from a bill, and whether the current plan was confirmed
+ * or guessed. Those are the two things the whole calculation rests on.
+ */
+function headlineConfidence(){
+  const meter = !!state._csv_imported;
+  const known = !!state.baseline_known;
+  if (meter && known) return { level: 'high', label: 'High', why: 'Your smart-meter data and a confirmed current plan.' };
+  if (meter || known) return { level: 'med', label: 'Good', why: meter
+    ? 'Your smart-meter data, but your current plan is not confirmed.'
+    : 'Your confirmed plan, but usage is estimated from your bill.' };
+  return { level: 'low', label: 'Rough', why: 'Usage estimated from your bill, and your current plan is not confirmed.' };
+}
+
+function explainConfidence(){
+  const c = headlineConfidence();
+  showToast(c.why, { type: c.level === 'high' ? 'accent' : 'amber', icon: ic('info', 16),
+    title: `${c.label} confidence` });
+}
+
+/** One tile in a row of three: an icon, a name, a qualifier. */
+function heroTile(icon, name, sub){
+  return `<div class="tile"><div class="tile-ico">${ic(icon, 20)}</div>
+    <div class="tile-name">${name}</div><div class="tile-sub">${sub}</div></div>`;
+}
+
+/** One figure in the strip under the tiles. */
+function heroStat(value, unit, label){
+  return `<div><div class="stat-num">${value}${unit ? `<span>${unit}</span>` : ''}</div>
+    <div class="stat-lbl">${label}</div></div>`;
+}
+
+/**
+ * Carbon avoided, in tonnes a year.
+ *
+ * Ireland's grid was about 280 g CO2 per kWh in 2025 and falling. Every kWh a
+ * roof supplies to the house, or exports, displaces a kWh that would have come
+ * from that grid. It is a rounded order of magnitude, not a claim to three
+ * decimal places — which is why it is shown to one.
+ */
+const GRID_CO2_KG_PER_KWH = 0.28;
+function annualCo2Tonnes(){
+  if (!state.has_solar) return 0;
+  if (CACHE.dirty) rebuildBase();
+  const gen = sumF(CACHE.solar && CACHE.solar.total);
+  return (gen * GRID_CO2_KG_PER_KWH) / 1000;
+}
+
+/**
+ * The recommendation block inside the hero panel.
+ *
+ * Its own renderer so that a search landing can replace exactly this and
+ * nothing else. renderApp() rebuilds the whole document, which detaches
+ * whatever the reader was reaching for — that was a real, reproducible defect,
+ * not a theoretical one.
+ */
+function renderHeroRecBlock(){
+  const r = getRecommendation();
+  const best = r.best;
+  if (!best || best._noPlan || !best.plan) return '';
+  const annualSavings = r.annualSavings;
+  const interested = state.has_solar || state.considering_solar;
+  // The search result is keyed on the things that change the ANSWER, not on
+  // whether the reader wants one. Someone who turns solar off must stop being
+  // shown a system immediately, not when the cache happens to expire.
+  const fresh = interested && _advisor.result && _advisor.key === advisorKey();
+  const design = fresh ? _advisor.result.best : null;
+  const noRoof = !!(fresh && _advisor.result.noRoof);
+  const co2 = annualCo2Tonnes();
+
+  // Start the search that fills the tiles — never from inside a render, since
+  // startAdvisorSearch() paints and painting during a paint is a render loop.
+  if (interested && _advisor.key !== advisorKey() && !_advisor.running){
     setTimeout(() => { if (state.current_screen === 'result') startAdvisorSearch(); }, 0);
   }
+  const switchAction = `handleSwitchClick('${best.plan.id}', '${(best.plan.supplier + ' ' + best.plan.plan).replace(/'/g, "\\'")}', ${annualSavings.toFixed(0)})`;
 
-  const goalLabel = (GOAL_LABELS[advisorGoal()] || GOAL_LABELS['max-return'])[0];
+  return design ? `
+      <div class="hero-section">What you should install</div>
+      <div class="tile-row">
+        ${heroTile('sun', `${design.panels} panels`, `${design.kwp} kWp`)}
+        ${heroTile('battery', design.batteryKwh ? `${design.batteryKwh} kWh` : 'No battery',
+          design.batteryKwh ? (design.chargeFromGrid ? 'Charged overnight' : 'Solar charged') : 'Panels pay better')}
+        ${heroTile('bolt', design.planLabel.split('—')[0].trim(), 'Best tariff for it')}
+      </div>
+      <div class="stat-strip">
+        ${heroStat(design.payback, 'yr', 'Payback')}
+        ${heroStat(fmtCurrency(design.netCost), '', 'After grant')}
+        ${heroStat(design.kwp, 'kWp', 'System size')}
+      </div>
+      <button class="hero-cta" onclick="setScreen('advisor')">See the full recommendation →</button>
+      <button class="hero-cta ghost" onclick="${switchAction}">Switch to ${best.plan.supplier}</button>`
+    : noRoof ? `
+      <div class="hero-section">Your home</div>
+      <div class="tile-sub" style="font-size:13px;line-height:1.6">You told us this is an apartment, so there is no roof to work with — no system to recommend. Your savings are all in the tariff above, which is the honest answer rather than a smaller one.</div>
+      <button class="hero-cta" onclick="${switchAction}">Switch to ${best.plan.supplier} →</button>`
+    : `
+      <div class="stat-strip" style="border-top:none;padding-top:16px">
+        ${heroStat(best.plan.supplier, '', 'Cheapest plan')}
+        ${heroStat(fmtCurrency(best.net <= 0 ? 0 : best.net), '/yr', 'Your new bill')}
+        ${heroStat(state.has_solar ? co2.toFixed(1) : '—', state.has_solar ? 't' : '', 'CO₂ saved')}
+      </div>
+      <button class="hero-cta" onclick="${switchAction}">Switch to ${best.plan.supplier} →</button>
+      ${interested ? `<button class="hero-cta ghost" onclick="setScreen('advisor')">${_advisor.running ? 'Working out what to install…' : 'What should I install?'}</button>` : ''}`;
 
-  if (_advisor.error && fresh){
-    // A failed search must not leave "working it out…" on screen for ever.
-    return `<div class="card home-rec home-rec-wait">
-      <div class="home-rec-kicker">${ic('warn',13)} What you should install</div>
-      <div class="home-rec-sub">We could not work that out just now.</div>
-      <div class="home-rec-cta" onclick="startAdvisorSearch(true)">Try again →</div>
-    </div>`;
-  }
-
-  if (!fresh || !_advisor.result){
-    const n = (_advisor.progress && _advisor.progress.evaluated) || 0;
-    // Quiet while it works. The home screen already answered a question; this
-    // one arriving late is not worth a spinner over the top of it.
-    return `<div class="card home-rec home-rec-wait" aria-live="polite">
-      <div class="home-rec-kicker">${ic('target',13)} Working out what you should install</div>
-      <div class="home-rec-wait-line">${n ? `${n.toLocaleString('en-IE')} systems priced so far…` : 'Pricing every sensible system against every tariff…'}</div>
-    </div>`;
-  }
-
-  const r = _advisor.result;
-  const d = r.best;
-
-  if (r.noRoof){
-    return `<div class="card home-rec home-rec-wait">
-      <div class="home-rec-kicker">${ic('home',13)} Your home</div>
-      <div class="home-rec-title">No roof to work with</div>
-      <div class="home-rec-sub">You told us this is an apartment, so there is no system worth recommending. Your savings are all in the tariff above — which is the honest answer, not a smaller one.</div>
-    </div>`;
-  }
-
-  if (!d){
-    return `<div class="card home-rec">
-      <div class="home-rec-kicker">${ic('target',13)} ${goalLabel}</div>
-      <div class="home-rec-title">Nothing here meets that</div>
-      <div class="home-rec-sub">No system on your roof meets what you asked for — but another goal might.</div>
-      <div class="home-rec-cta" onclick="setScreen('advisor')">See why →</div>
-    </div>`;
-  }
-
-  return `<div class="card home-rec" role="button" tabindex="0" onclick="setScreen('advisor')"
-              aria-label="What you should install: ${d.panels} panels. See the full recommendation.">
-    <div class="home-rec-kicker">${ic('target',13)} What to install · ${goalLabel}</div>
-    <div class="home-rec-title">${d.panels} panels${d.batteryKwh ? ` + ${d.batteryKwh} kWh battery` : ', no battery'}</div>
-    <div class="home-rec-figs">
-      <span><b>${fmtCurrency(d.annualBenefit)}</b> a year</span>
-      <span><b>${d.payback}</b> yr payback</span>
-      <span><b>${fmtCurrency(d.netCost)}</b> after grant</span>
-    </div>
-    <div class="home-rec-cta">See the full recommendation →</div>
-  </div>`;
 }
 
 function renderResult(){
@@ -5040,33 +5086,66 @@ function renderResult(){
   const chosen = state.chosen_plan === best.plan.id;
   const split = plannedSolarSplit();
 
-  return `${topbar('Solar Optimiser', 'accent')}
+  /*
+   * The answer lives in a different PLACE, not merely at a larger size.
+   *
+   * This screen was a stack of same-weight cards on one background with the
+   * answer as the first of them — a report, read top to bottom. It is now a
+   * deep panel that bleeds to the edges of the phone and carries the whole
+   * decision: who you are, what you would save, how much to trust it, what to
+   * build, and one thing to do next. Everything you might go on to explore
+   * sits below it on paper.
+   *
+   * The pieces — panel, inset, tile row, stat strip — are generic on purpose.
+   * This is the first screen built from them, not the only one.
+   */
+  // The recommendation block owns its own data and its own search kick — see
+  // renderHeroRecBlock(), which is also what gets patched in place when the
+  // search lands. This screen only decides where it goes.
+  const conf = headlineConfidence();
+
+  return `
   <div class="screen">
-    <div class="qr-hero">
-      <div class="qr-eyebrow">${annualSavings > 10 ? 'You could save' : 'Your best plan'}</div>
-      <div class="qr-value" data-countup="${Math.round(annualSavings)}" data-prefix="€"><span data-countup-num>${fmtCurrency(annualSavings)}</span><span class="qr-value-unit">/yr</span></div>
-      <div class="qr-headline">${chosen ? 'on the plan you picked — ' : 'by switching to '}${best.plan.supplier}</div>
-      ${split ? `
-        <!-- Load-bearing, not a caveat: without it the headline credits panels
-             that are not on the roof yet. -->
-        <div class="qr-split">
-          <b>${fmtCurrency(split.switchNow)}/yr</b> today, <b>+${fmtCurrency(split.withPlanned)}/yr</b> once your solar is installed
-        </div>` : ''}
+    <div class="hero-panel">
+      <div class="hero-brand">
+        <div class="hero-brand-name"><span class="hero-brand-mark">${ic('sun',15,'stroke-width:2')}</span>Solar Optimiser</div>
+        <div class="hero-actions">
+          ${renderProfileNavBtn()}
+          <button class="hero-icb" onclick="setScreen('refine')" aria-label="Settings">${ic('tune',17)}</button>
+        </div>
+      </div>
+
+      <div class="hero-greet">${heroGreeting()}</div>
+      <div class="hero-greet-sub">${annualSavings > 10 ? "Here's your savings potential" : "Here's where you stand"}</div>
+
+      <div class="hero-inset">
+        <div class="hero-inset-top">
+          <div>
+            <div class="hero-inset-label">${annualSavings > 10 ? 'Your estimated annual savings' : 'Your best plan'}</div>
+            <div class="hero-inset-value" data-countup="${Math.round(annualSavings)}" data-prefix="€"><span data-countup-num>${fmtCurrency(annualSavings)}</span><span class="unit">/yr</span></div>
+            <div class="hero-inset-foot">${chosen ? `on the plan you picked — ${best.plan.supplier}` : `vs doing nothing · ${best.plan.supplier}`}</div>
+          </div>
+          <div class="conf-pill ${conf.level}" role="button" tabindex="0" onclick="explainConfidence()"
+               aria-label="${conf.label} confidence — tap to find out why">
+            <b>${conf.label}</b>confidence
+          </div>
+        </div>
+        ${split ? `
+          <!-- Load-bearing, not a caveat: without it the headline credits
+               panels that are not on the roof yet. -->
+          <div class="qr-split" style="margin-top:12px">
+            <b>${fmtCurrency(split.switchNow)}/yr</b> today, <b>+${fmtCurrency(split.withPlanned)}/yr</b> once your solar is installed
+          </div>` : ''}
+      </div>
+
+      <div id="hero-rec">${renderHeroRecBlock()}</div>
     </div>
 
-    <button class="switch-cta" onclick="handleSwitchClick('${best.plan.id}', '${(best.plan.supplier + ' ' + best.plan.plan).replace(/'/g,"\\'")}', ${annualSavings.toFixed(0)})">
-      Switch to ${best.plan.supplier} →
-    </button>
-
-    <!-- Two links, not two buttons. A second button of equal weight makes the
-         reader choose between choosing and acting. -->
-    <div class="qr-actions">
+    <div class="qr-actions" style="margin-top:0">
       <a href="#" onclick="event.preventDefault();openPlanPicker()">${state.chosen_plan ? 'Change plan' : 'Pick a different plan'}</a>
       ${annualSavings > 10 ? `<span class="qr-actions-dot">·</span>
       <a href="#" onclick="event.preventDefault();setScreen('how-to-switch')">How switching works</a>` : ''}
     </div>
-
-    ${renderHomeRecommendation()}
 
     ${freshnessChip()}
     ${renderContractAlert()}
@@ -5581,18 +5660,9 @@ function advisorRepaintOk(){
  * So Home gets a surgical update: the card, and nothing else.
  */
 function paintHomeRecommendation(){
-  const existing = document.querySelector('.home-rec');
-  const html = renderHomeRecommendation();
-  if (!existing){
-    // Nothing to patch — it was not on screen to begin with.
-    if (html) renderApp();
-    return;
-  }
-  if (!html){ existing.remove(); return; }
-  const holder = document.createElement('div');
-  holder.innerHTML = html;
-  const next = holder.firstElementChild;
-  if (next) existing.replaceWith(next);
+  const host = document.getElementById('hero-rec');
+  if (!host){ renderApp(); return; }
+  host.innerHTML = renderHeroRecBlock();
 }
 
 /** Repaint whichever surface is showing the result, as cheaply as it allows. */
@@ -12060,9 +12130,14 @@ window.roofPanelCap = roofPanelCap;
 window.setAdvisorGoal = setAdvisorGoal;
 window.startAdvisorSearch = startAdvisorSearch;
 window.adoptAdvisorDesign = adoptAdvisorDesign;
-// A function, not an accessor: the bridge block is evaluated more than once in
-// some builds, and a second defineProperty on the same name throws "Cannot
-// redefine property" — which took the whole module down before TARIFFS existed.
+window.explainConfidence = explainConfidence;
+// A function rather than an accessor. An earlier version used
+// Object.defineProperty here and threw "Cannot redefine property" on load,
+// taking the whole module down before TARIFFS existed. I blamed the module
+// system. The real cause was this block being pasted twice, because the line I
+// anchored it to appears twice — now deduplicated. The lesson stands either
+// way: a bridge that is harmless to define twice fails silently, and one that
+// is not fails loudly and misleadingly.
 window.advisorResult = () => _advisor.result;
 window.pickObDwelling = pickObDwelling;
 window.pickObBedrooms = pickObBedrooms;
@@ -12132,28 +12207,6 @@ window.applyGoalDesign = applyGoalDesign;
 window.setSolarView = setSolarView;
 window.commitGoalDesign = commitGoalDesign;
 window.sweepGoalDesigns = sweepGoalDesigns;
-// V4's design search. Not on any screen yet — reachable from the console and
-// from the end-to-end suite while the interface that will carry it is built.
-window.runDesignSearch = runDesignSearch;
-window.SEARCH_COST_PARAMS = SEARCH_COST_PARAMS;
-window.roofEstimate = roofEstimate;
-window.roofPanelCap = roofPanelCap;
-window.setAdvisorGoal = setAdvisorGoal;
-window.startAdvisorSearch = startAdvisorSearch;
-window.adoptAdvisorDesign = adoptAdvisorDesign;
-// A function, not an accessor: the bridge block is evaluated more than once in
-// some builds, and a second defineProperty on the same name throws "Cannot
-// redefine property" — which took the whole module down before TARIFFS existed.
-window.advisorResult = () => _advisor.result;
-window.pickObDwelling = pickObDwelling;
-window.pickObBedrooms = pickObBedrooms;
-window.pickObGoal = pickObGoal;
-window.obTotal = obTotal;
-window.obStepKey = obStepKey;
-// Bridged so the end-to-end suite can hold the worker's rebuilt pricing model
-// to the same numbers the app uses.
-window.estimateInstallCost = estimateInstallCost;
-window.calcSeaiGrant = calcSeaiGrant;
 window.copyShareUrl = copyShareUrl;
 window.openHowToSwitch = openHowToSwitch;
 window.openLeadForm = openLeadForm;

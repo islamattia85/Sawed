@@ -27,8 +27,8 @@ test('the answer and its action arrive before anything else', async ({ page }) =
       return el ? el.getBoundingClientRect() : null;
     };
     return {
-      value: box('.qr-value')?.top ?? null,
-      ctaBottom: box('.switch-cta')?.bottom ?? null,
+      value: box('.hero-inset-value')?.top ?? null,
+      ctaBottom: box('.hero-cta')?.bottom ?? null,
       viewport: window.innerHeight,
       height: document.body.scrollHeight,
     };
@@ -45,11 +45,18 @@ test('the answer and its action arrive before anything else', async ({ page }) =
 
 test('there is one primary action, not a menu of them', async ({ page }) => {
   await boot(page);
-  // Buttons that read as primary. "Pick a different plan" and "How switching
-  // works" are links precisely so the reader is not asked to choose between
-  // choosing and acting.
-  const primaries = await page.locator('.switch-cta').count();
+  // The hero panel may carry a second action — "Switch to X" beneath "See the
+  // full recommendation" — but only one of them may read as primary. That is
+  // what `.ghost` is for: a clear second place rather than a choice between
+  // two equals. Links ("Pick a different plan") are not in this contest at all.
+  const primaries = await page.locator('.hero-cta:not(.ghost)').count();
   expect(primaries, 'more than one primary call to action').toBe(1);
+
+  // And whatever else is on the panel must be visibly subordinate.
+  const weights = await page.evaluate(() => [...document.querySelectorAll('.hero-cta')]
+    .map((el) => ({ ghost: el.classList.contains('ghost'), bg: getComputedStyle(el).backgroundColor })));
+  const solid = weights.filter((w) => !w.ghost);
+  expect(solid.length).toBe(1);
 });
 
 test('prose is set in the prose face', async ({ page }) => {

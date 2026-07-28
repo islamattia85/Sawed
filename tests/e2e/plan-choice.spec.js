@@ -235,8 +235,8 @@ test('the primary action is above the fold, and the reasoning is below it', asyn
       return el ? el.getBoundingClientRect().top + window.scrollY : null;
     };
     return {
-      hero: y('.qr-hero'),
-      cta: y('.switch-cta'),
+      hero: y('.hero-inset'),
+      cta: y('.hero-cta'),
       working: y('.working'),
       viewport: window.innerHeight,
       page: document.body.scrollHeight,
@@ -247,7 +247,12 @@ test('the primary action is above the fold, and the reasoning is below it', asyn
   expect(geo.cta, 'the action is below the fold').toBeLessThan(geo.viewport);
   expect(geo.cta, 'the action does not follow the headline figure').toBeGreaterThan(geo.hero);
   expect(geo.working, 'the working is above the action, not below it').toBeGreaterThan(geo.cta);
-  expect(geo.cta / geo.page, 'the action sits too deep in the page').toBeLessThan(0.35);
+  // The hero panel carries the greeting, the figure, the confidence, the
+  // recommendation tiles and the qualifying figures before it gets to the
+  // button, so the action sits lower in the page than it did on the old
+  // card-stack — but it must still be on the first screen, which the check
+  // above enforces.
+  expect(geo.cta / geo.page, 'the action sits too deep in the page').toBeLessThan(0.55);
 
   // …and the reasoning is still all there, one tap down. The working is now
   // collapsed by default, so "below the action" has to be checked after

@@ -420,18 +420,66 @@
   .adv-link{background:none;border:none;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline}
 
 
-  /* The recommendation, summarised on the home screen. The front door answers
-     "which tariff is cheapest" and "what should I build" — the second used to
-     be two taps away behind a tab, which is where an engineering tool puts it. */
-  .home-rec{cursor:pointer;border-color:var(--accent-soft);background:var(--panel)}
-  .home-rec-wait{cursor:default;border-color:var(--hair);background:var(--surface);box-shadow:none}
-  .home-rec-kicker{display:flex;align-items:flex-start;gap:6px;font-family:var(--mono);font-size:12px;letter-spacing:.01em;color:var(--ink-soft);margin-bottom:8px}
-  .home-rec-title{font-size:20px;font-weight:800;color:var(--ink);line-height:1.25;letter-spacing:-.01em}
-  .home-rec-sub{font-size:13px;color:var(--ink-soft);line-height:1.55;margin-top:6px}
-  .home-rec-figs{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:10px;font-size:13px;color:var(--ink-soft)}
-  .home-rec-figs b{font-size:15px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
-  .home-rec-cta{margin-top:12px;font-size:13px;font-weight:700;color:var(--accent);cursor:pointer}
-  .home-rec-wait-line{font-size:13px;color:var(--ink-soft);line-height:1.55}
+
+
+  /* ======================================================
+     THE HERO PANEL — the layout language, not a skin
+     ======================================================
+     Every screen used to be the same thing: a stack of same-weight cards on
+     the same background, with the answer as the first card. That is a report.
+     A product puts the answer in a different PLACE, not merely a different
+     size — so the top of a screen is a deep navy panel that bleeds to the
+     edges, carrying a greeting, the number, and the two or three facts that
+     qualify it. Everything you might go on to do sits below it on paper.
+
+     The pieces are deliberately generic: a panel, an inset card, a row of
+     tiles, a strip of statistics. Home is the first screen built from them and
+     the others follow. */
+  .hero-panel{background:linear-gradient(165deg,#16294A 0%,#0E1D38 60%,#0B1830 100%);color:#EAF0F8;margin:-18px -16px 18px;padding:20px 20px 24px;padding-top:calc(20px + env(safe-area-inset-top));border-radius:0 0 24px 24px;position:relative;overflow:hidden}
+  .hero-panel::after{content:"";position:absolute;top:-70px;right:-50px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(91,156,255,.22) 0%,transparent 68%);pointer-events:none}
+  .hero-brand{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;position:relative}
+  .hero-brand-name{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:700;letter-spacing:-.01em;color:#FFFFFF}
+  .hero-brand-mark{width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.14);display:grid;place-items:center;color:#FFFFFF}
+  .hero-actions{display:flex;align-items:center;gap:6px}
+  .hero-icb{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);display:grid;place-items:center;color:#D6E2F5;cursor:pointer;flex-shrink:0}
+  .hero-icb:active{transform:scale(.93)}
+
+  .hero-greet{font-size:20px;font-weight:700;letter-spacing:-.02em;color:#FFFFFF;position:relative}
+  .hero-greet-sub{font-size:15px;color:#A9BDD9;margin-top:2px;margin-bottom:16px;position:relative}
+
+  /* The number, on paper, inside the panel. */
+  .hero-inset{background:#FFFFFF;border-radius:16px;padding:18px;position:relative;box-shadow:0 12px 28px -18px rgba(0,0,0,.6)}
+  .hero-inset-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .hero-inset-label{font-size:13px;color:var(--ink-soft);font-weight:600}
+  .hero-inset-value{font-size:40px;font-weight:800;letter-spacing:-.035em;color:var(--gain);line-height:1.05;margin-top:2px;font-variant-numeric:tabular-nums}
+  .hero-inset-value .unit{font-size:17px;font-weight:600;color:var(--ink-soft);letter-spacing:0;margin-left:2px}
+  .hero-inset-foot{font-size:13px;color:var(--ink-soft);margin-top:4px}
+  .conf-pill{flex-shrink:0;text-align:center;padding:7px 11px;border-radius:12px;background:var(--gain-soft);color:var(--gain);font-size:12px;font-weight:700;line-height:1.25;cursor:pointer}
+  .conf-pill.med{background:var(--amber-soft);color:var(--amber)}
+  .conf-pill.low{background:var(--well);color:var(--ink-soft)}
+  .conf-pill b{display:block;font-size:13px}
+
+  /* Section heading inside or under the panel. */
+  .hero-section{font-size:13px;font-weight:700;color:#A9BDD9;margin:20px 0 10px;position:relative}
+
+  /* A row of what-you-get tiles. Three across is the limit on 390px. */
+  .tile-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;position:relative}
+  .tile{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:12px 8px;text-align:center}
+  .tile-ico{color:#8FB8F5;margin-bottom:6px}
+  .tile-name{font-size:13px;font-weight:700;color:#FFFFFF;line-height:1.25}
+  .tile-sub{font-size:12px;color:#93A9C9;margin-top:2px;line-height:1.3}
+
+  /* A strip of qualifying figures under the tiles. */
+  .stat-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.12);position:relative}
+  .stat-strip > div{text-align:center}
+  .stat-num{font-size:17px;font-weight:800;color:#FFFFFF;font-variant-numeric:tabular-nums;line-height:1.2}
+  .stat-num span{font-size:12px;font-weight:600;color:#93A9C9;margin-left:2px}
+  .stat-lbl{font-size:12px;color:#93A9C9;margin-top:2px;line-height:1.3}
+
+  /* The one action, on the panel. */
+  .hero-cta{display:block;width:100%;margin-top:18px;padding:16px;border-radius:16px;background:#FFFFFF;color:#0F2138;font-size:15px;font-weight:800;text-align:center;border:none;font-family:inherit;cursor:pointer;position:relative;letter-spacing:-.01em}
+  .hero-cta:active{transform:scale(.99)}
+  .hero-cta.ghost{background:rgba(255,255,255,.10);color:#FFFFFF;border:1px solid rgba(255,255,255,.18);margin-top:8px}
 
   /* Plan comparison block */
   .plan-compare{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px}
@@ -1346,6 +1394,11 @@
     font-size:12px;letter-spacing:.01em;font-weight:600;
   }
   .profile-nav-btn:hover{color:var(--ink)}
+  /* On the navy panel the account control has to be legible against it, not
+     against paper. Muted grey on dark navy is invisible. */
+  .hero-panel .profile-nav-btn{color:#D6E2F5;font-size:13px;padding:8px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07)}
+  .hero-panel .profile-nav-btn:hover{color:#fff;background:rgba(255,255,255,.14)}
+  .hero-panel .profile-nav-avatar{background:#fff;color:#0F2138}
   .profile-nav-avatar{
     width:26px;height:26px;border-radius:50%;background:var(--accent);
     color:#000;font-size:12px;font-weight:700;display:flex;

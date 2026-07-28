@@ -512,21 +512,16 @@ test('home carries the recommendation, and gets there without freezing', async (
     window.setScreen('result');
   });
 
-  // While it works it says so, and says how far it has got — the number is
-  // simulations genuinely run.
-  const card = page.locator('.home-rec');
-  await expect(card).toBeVisible();
-
-  // …and it must actually finish. The search only repainted the advisor
-  // screen, so this card sat on "pricing every sensible system…" for ever.
-  await expect(page.locator('.home-rec:not(.home-rec-wait)'),
-    'the recommendation never arrived on the home screen').toBeVisible({ timeout: 20_000 });
-  await expect(card).toContainText(/\d+ panels/);
-  await expect(card).toContainText(/payback/i);
-  await expect(card).toContainText(/Swap the bill/i);
+  // The recommendation is part of the hero panel now — three tiles and a strip
+  // of figures, not a card further down the page.
+  const tiles = page.locator('.tile-row');
+  await expect(tiles, 'the recommendation never arrived on the home screen')
+    .toBeVisible({ timeout: 20_000 });
+  await expect(tiles).toContainText(/\d+ panels/);
+  await expect(page.locator('.stat-strip')).toContainText(/Payback/i);
 
   // One tap to the whole thing.
-  await card.click();
+  await page.getByRole('button', { name: /See the full recommendation/i }).click();
   await expect(page.locator('.adv-hero')).toBeVisible({ timeout: 20_000 });
   expect(await page.evaluate(() => window.state.current_screen)).toBe('advisor');
   expect(errors).toEqual([]);
@@ -543,9 +538,10 @@ test('home says nothing about installing to someone who is not installing', asyn
 
   // A recommendation nobody asked for is the calculator habit: showing every
   // register because the engine can compute it.
-  await expect(page.locator('.home-rec')).toHaveCount(0);
+  await expect(page.locator('.tile-row')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /What should I install/i })).toHaveCount(0);
   // The tariff answer, which is what they came for, is untouched.
-  await expect(page.locator('.qr-hero')).toBeVisible();
+  await expect(page.locator('.hero-inset-value')).toBeVisible();
 });
 
 test('an apartment is not sold a system on the home screen either', async ({ page }) => {
@@ -558,6 +554,6 @@ test('an apartment is not sold a system on the home screen either', async ({ pag
     window.setScreen('result');
   });
 
-  await expect(page.locator('.home-rec')).toContainText(/No roof to work with/i, { timeout: 20_000 });
-  await expect(page.locator('.home-rec')).not.toContainText(/panels/i);
+  await expect(page.locator('#hero-rec')).toContainText(/no roof to work with/i, { timeout: 20_000 });
+  await expect(page.locator('.tile-row')).toHaveCount(0);
 });
