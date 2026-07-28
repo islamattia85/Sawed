@@ -111,3 +111,22 @@ test('nothing promises to send data the app cannot send', async ({ page }) => {
   expect(text, 'promises installer matching that no code performs').not.toMatch(/within 24h|within 48h/i);
   expect(text, 'claims a referral fee that no affiliate link earns').not.toMatch(/earn a (small )?referral fee|may earn a commission/i);
 });
+
+/**
+ * Two major lines ship at once now — V3 on the `v3` branch, V4 on `main` — so
+ * the app has to say which one it is. The build id alone cannot: it is a commit
+ * hash, and nobody reading a bug report or a screenshot can tell from it which
+ * line the bundle came from.
+ */
+test('the app names its version, not just its build', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => window.setScreen('more'));
+
+  const stamp = await page.evaluate(() => {
+    const el = [...document.querySelectorAll('span')].find((s) => /build\s+\S/.test(s.textContent));
+    return el ? el.textContent.trim() : null;
+  });
+  expect(stamp, 'the More screen no longer prints a build stamp at all').toBeTruthy();
+  expect(stamp, 'the build stamp does not say which major version this is')
+    .toMatch(/^v\d+\.\d+\.\d+ · build \S+$/);
+});

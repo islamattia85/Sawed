@@ -1,4 +1,7 @@
 import { defineConfig } from 'vite';
+import { createRequire } from 'node:module';
+
+const { version } = createRequire(import.meta.url)('./package.json');
 
 export default defineConfig({
   // Stamped into the bundle so runtime fetches of public/ assets — which Vite
@@ -6,6 +9,11 @@ export default defineConfig({
   define: {
     __BUILD_ID__: JSON.stringify(
       process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 8) || String(Date.now())),
+    // The major line this bundle belongs to. Two lines are now maintained
+    // simultaneously — see VERSIONS.md — and a screenshot or a bug report has
+    // to say which one it came from. The build id alone cannot: it is a commit
+    // hash, and nobody reading a report can tell which branch it was on.
+    __APP_VERSION__: JSON.stringify(version),
   },
   // public/ is copied verbatim to the build output. tariffs.json lives there
   // because the app fetches it at runtime and the scraper rewrites it daily.

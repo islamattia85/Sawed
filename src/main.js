@@ -9483,7 +9483,7 @@ function renderMore(){
            is no way to tell "the bug is back" from "you are on last week's
            code", and I spent a session unable to distinguish them. -->
       <span style="display:block;margin-top:6px;font-family:var(--mono);font-size:12px;color:var(--ink-dim)"
-            onclick="hardRefreshApp()" title="Tap to force the latest version">build ${__BUILD_ID__}</span>
+            onclick="hardRefreshApp()" title="Tap to force the latest version">v${__APP_VERSION__} · build ${__BUILD_ID__}</span>
     </div>
     ${STRATEGY_TRACE.length ? `
       <details style="margin-top:10px">
