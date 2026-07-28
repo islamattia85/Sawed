@@ -248,9 +248,14 @@ def scrape_supplier(spec: dict, existing: dict,
             break
 
     if not result.reached_a_page and not result.failures:
+        # Distinct from "moved". The site answered fine; discovery just found
+        # nothing on it that looked like a price page. Filing that under broken
+        # links reported two perfectly healthy homepages as dead URLs on the
+        # 28 July run, which sends whoever reads it chasing a 404 that does not
+        # exist instead of widening the discovery keywords.
         result.failures.append(
-            Fetched(spec["root"], kind="moved",
-                    detail="no candidate price pages discovered"))
+            Fetched(spec["root"], kind="nolinks",
+                    detail="site reached, but no page on it looked like prices"))
     return updates, result
 
 
@@ -258,7 +263,23 @@ def scrape_supplier(spec: dict, existing: dict,
 # Apply scraped updates to the tariff list
 # ---------------------------------------------------------------------------
 
-RATE_TOLERANCE = 0.05   # Reject if scraped day rate differs >5c from existing (likely bad parse)
+# A scraped value has to be close to the one it replaces, in RELATIVE terms.
+#
+# The absolute-only guards were far too loose to catch anything. ±5c on a 31c
+# rate is ±16%; ±€100 on a €332 standing charge is ±30%. The 28 July run
+# proposed moving a standing charge from €331.96 to exactly €250.00 and a unit
+# rate up 3.15c — both sailed through. Irish tariffs do move, but a change of
+# that size is a supplier announcement, not something to accept from a regex
+# without a human looking at it.
+RATE_TOLERANCE = 0.05        # absolute: never accept a jump bigger than 5c/kWh
+RATE_TOLERANCE_REL = 0.05    # …and never more than 5% of the current rate
+#
+# 5% because a real Irish tariff move of that size is announced, and worth a
+# person typing in. Below it, a difference is far more likely to be the parser
+# than the supplier. The 28 July run proposed +9.5% on EI-NB, which sat inside
+# a 10% threshold — so 10% would have let through the exact change that
+# prompted writing this.
+STANDING_TOLERANCE_REL = 0.15  # …and 15% for a standing charge
 
 def apply_updates(tariffs: list, all_updates: dict) -> tuple[list, int]:
     """Merge scraped updates into tariffs. Returns (updated_list, change_count)."""
@@ -277,10 +298,13 @@ def apply_updates(tariffs: list, all_updates: dict) -> tuple[list, int]:
 
         if scraped_day is not None:
             existing_day = plan.get("rates", {}).get("day", 0)
-            if abs(scraped_day - existing_day) > RATE_TOLERANCE:
+            delta = abs(scraped_day - existing_day)
+            rel = delta / existing_day if existing_day else 1.0
+            if delta > RATE_TOLERANCE or rel > RATE_TOLERANCE_REL:
                 log.warning(
                     f"{plan_id}: scraped day {scraped_day:.4f} vs existing {existing_day:.4f} "
-                    f"— delta {abs(scraped_day-existing_day):.4f} > tolerance, skipping rate update"
+                    f"— {delta:.4f} ({rel:.0%}) exceeds tolerance, skipping rate update. "
+                    f"If the supplier really did change this, update it by hand."
                 )
             else:
                 # Flat plan: update all bands equally
@@ -294,10 +318,12 @@ def apply_updates(tariffs: list, all_updates: dict) -> tuple[list, int]:
 
         if scraped_standing is not None:
             existing_standing = plan.get("standing", 0)
-            if abs(scraped_standing - existing_standing) > 100:
+            sdelta = abs(scraped_standing - existing_standing)
+            srel = sdelta / existing_standing if existing_standing else 1.0
+            if srel > STANDING_TOLERANCE_REL:
                 log.warning(
                     f"{plan_id}: scraped standing {scraped_standing} vs existing "
-                    f"{existing_standing} — delta too large, skipping"
+                    f"{existing_standing} — {sdelta:.2f} ({srel:.0%}) exceeds tolerance, skipping"
                 )
             else:
                 plan["standing"] = scraped_standing
@@ -441,6 +467,7 @@ def main():
     moved = [f for r in results for f in r.failures if f.kind == "moved"]
     tls = [f for r in results for f in r.failures if f.kind == "tls"]
     refused = [f for r in results for f in r.failures if f.kind == "refused"]
+    nolinks = [f for r in results for f in r.failures if f.kind == "nolinks"]
 
     meta_idx = next((i for i, t in enumerate(updated_tariffs) if t.get("id") == "__meta__"), None)
     meta = {
@@ -450,6 +477,7 @@ def main():
         "cru_warnings": cru_warnings,
         "suppliers": [r.summary() for r in results],
         "broken_links": [f.url for f in moved],
+        "no_price_page_found": [f.url for f in nolinks],
         "tls_failures": [f.url for f in tls],
         "refused": [f.url for f in refused],
     }
@@ -476,6 +504,13 @@ def main():
         print("These are not refusals. Somebody moved the page; discovery should\n"
               "have found the new one, so if this list is long the discovery\n"
               "keywords need widening.\n")
+    if nolinks:
+        print("=== REACHED, BUT NO PRICE PAGE FOUND ===")
+        for f in nolinks:
+            print(f"  {f.url}")
+        print("Not broken links — these sites answered. Discovery could not\n"
+              "recognise a price page on them, so PRICE_WORDS needs widening\n"
+              "or the prices are behind a script-rendered nav.\n")
     if refused:
         print("=== ACTUALLY REFUSED (401/403/429) ===")
         for f in refused:

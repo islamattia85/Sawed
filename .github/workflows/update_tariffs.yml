@@ -29,8 +29,19 @@ jobs:
       - name: Install dependencies
         run: pip install -r scraper/requirements.txt
 
+      # `shell: bash` is load-bearing. GitHub's default for `run` on Linux is
+      # `bash -e {0}` — with -e but WITHOUT pipefail — so `python … | tee` exits
+      # with tee's status and throws the scraper's away. That is not
+      # theoretical: the 28 July run verified 6 of 25 plans (24%, against a 60%
+      # floor), the coverage gate called sys.exit(1), the step was recorded as a
+      # success, and a branch of barely-checked rates was pushed for review. The
+      # one guard written to stop rates going stale silently was disabled by the
+      # pipe added to capture its own log.
       - name: Run tariff scraper
-        run: python scraper/scrape_tariffs.py 2>&1 | tee scrape.log
+        shell: bash
+        run: |
+          set -o pipefail
+          python scraper/scrape_tariffs.py 2>&1 | tee scrape.log
 
       # A scraped rate is a number a stranger's markup handed us, and it lands
       # in a payback figure somebody spends ten thousand euro on. It used to be
@@ -42,7 +53,16 @@ jobs:
       # fails, the run is red and there is nothing worth merging — a PR
       # containing only a fresh timestamp over unverified rates is exactly the
       # false reassurance this whole change exists to remove.
+      # Opening the PR needs "Allow GitHub Actions to create and approve pull
+      # requests" (Settings → Actions → General). Without it the API returns
+      # "GitHub Actions is not permitted to create or approve pull requests" and
+      # the job goes red — after the branch has already been pushed successfully.
+      # The branch is the deliverable, so a blocked PR is a setting to change,
+      # not a failed scrape, and it must not look like one. The link to open it
+      # by hand is written to the run summary below.
       - name: Open a pull request with the new rates
+        id: pr
+        continue-on-error: true
         uses: peter-evans/create-pull-request@v6
         with:
           add-paths: public/tariffs.json
@@ -62,6 +82,26 @@ jobs:
             yielded, and which links are broken — is attached to
             [this run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
             as the `scrape-log` artifact.
+
+      - name: Say where the rates are
+        if: always()
+        shell: bash
+        run: |
+          {
+            if [ "${{ steps.pr.outcome }}" = "success" ]; then
+              echo "### Tariff update ready for review"
+              echo "Pull request: ${{ steps.pr.outputs.pull-request-url }}"
+            else
+              echo "### Tariff update pushed, but the pull request could not be opened"
+              echo ""
+              echo "The rates are on the \`tariffs/auto-update\` branch. Open the PR here:"
+              echo ""
+              echo "https://github.com/${{ github.repository }}/compare/main...tariffs/auto-update?expand=1"
+              echo ""
+              echo "To let the job open it itself, enable **Settings → Actions → General →"
+              echo "Workflow permissions → Allow GitHub Actions to create and approve pull requests**."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload scrape log
         if: always()

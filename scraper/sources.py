@@ -57,7 +57,7 @@ class Fetched:
     status: Optional[int] = None
     text: str = ""
     content: bytes = b""
-    kind: str = "ok"          # ok | moved | refused | unreachable | tls
+    kind: str = "ok"          # ok | moved | refused | unreachable | tls | nolinks
     detail: str = ""
 
     @property

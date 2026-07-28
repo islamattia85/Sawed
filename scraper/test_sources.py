@@ -191,3 +191,55 @@ def test_an_unknown_supplier_is_flagged_and_page_furniture_is_not():
     assert "Kilkenny Power" in got
     assert not any("Learn" in n or "Compare" in n for n in got)
     assert not any("Bord" in n for n in got)
+
+# ---------------------------------------------------------------------------
+# Tolerances — what the 28 July run tried to write
+# ---------------------------------------------------------------------------
+
+from scrape_tariffs import apply_updates
+
+
+def _plan(pid, day, standing):
+    return {"id": pid, "type": "flat", "standing": standing,
+            "rates": {"day": day, "night": day, "peak": day, "ev": day}}
+
+
+def test_a_standing_charge_jumping_a_quarter_is_rejected():
+    # Proposed on 28 July: €331.96 -> €250.00, a 25% fall, accepted by the old
+    # absolute-only guard of ±€100. A change that size is a supplier
+    # announcement, not something to take from a regex unreviewed.
+    plans = [_plan("BG-DYN", 0.30, 331.96)]
+    out, _ = apply_updates(plans, {"BG-DYN": {"_scraped_standing": 250.0}})
+    assert out[0]["standing"] == 331.96
+
+
+def test_a_unit_rate_jumping_a_tenth_is_rejected():
+    # Proposed on 28 July: 33.25c -> 36.40c on EI-NB, +9.5%. Inside the old ±5c
+    # absolute tolerance (±15% on a 33c rate) and inside a 10% relative one too,
+    # which is why the threshold is 5%.
+    plans = [_plan("EI-NB", 0.3325, 300.0)]
+    out, _ = apply_updates(plans, {"EI-NB": {"_scraped_day_rate": 0.3640}})
+    assert out[0]["rates"]["day"] == 0.3325
+
+
+def test_a_small_correction_is_still_accepted():
+    # The guard has to leave room for real movement, or it is just an off switch.
+    plans = [_plan("EI-24", 0.3114, 300.0)]
+    out, changes = apply_updates(plans, {"EI-24": {"_scraped_day_rate": 0.3055}})
+    assert out[0]["rates"]["day"] == 0.3055
+    assert changes == 1
+
+
+def test_a_flat_plan_updates_every_band_together():
+    plans = [_plan("EI-24", 0.3114, 300.0)]
+    out, _ = apply_updates(plans, {"EI-24": {"_scraped_day_rate": 0.3055}})
+    assert set(out[0]["rates"].values()) == {0.3055}
+
+
+def test_reaching_a_site_but_finding_no_prices_is_not_a_broken_link():
+    # Reported yunoenergy.ie and pinergy.ie as broken links on 28 July. Both
+    # homepages were fine; discovery simply recognised nothing on them. Sending
+    # someone to hunt a 404 that does not exist wastes the one signal the report
+    # is for.
+    assert Fetched("u", kind="nolinks").kind != Fetched("u", kind="moved").kind
+    assert Fetched("u", kind="nolinks").ok is False
