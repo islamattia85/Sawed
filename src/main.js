@@ -294,6 +294,13 @@ function renderAuthSection(){
     <div class="auth-divider" style="margin:10px 0">or email</div>
     ${emailOpen ? emailForm : `
       <button onclick="window._authEmailOpen=true;renderApp()" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--line);background:transparent;font-family:var(--display);font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer">Continue with email</button>
+      <!-- The Google button lives on THIS view, and until now this view had
+           nowhere to print a message. showAuthMsg() bails out when the element
+           is missing, so every Google failure — the client not loading, the
+           provider not enabled, a rejected redirect — was reported into
+           nothing. The button flicked back from "Connecting…" and the reader
+           was told absolutely nothing. -->
+      <div id="auth-msg" class="auth-msg"></div>
     `}
   </div>`;
 }

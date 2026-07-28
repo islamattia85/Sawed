@@ -202,3 +202,38 @@ for (const [label, url, friendly, detail] of OAUTH_FAILURES) {
   });
 }
 
+/**
+ * The Google button must be able to say what went wrong.
+ *
+ * showAuthMsg() writes into #auth-msg and returns silently when it is not
+ * there — and the provider chooser, the view the Google button actually lives
+ * on, had no such element. Every Google failure was therefore reported into
+ * nothing: the button flicked from "Connecting…" back to normal and said
+ * nothing at all. From the outside that is a button that does not work.
+ */
+test('a failing Google sign-in reports it on the view the button is on', async ({ page }) => {
+  const errors = await boot(page);
+  await blockApi(page);
+
+  // The client cannot be built, so the attempt fails immediately and locally —
+  // the same shape as the provider being unavailable.
+  await page.evaluate(() => { window._sb = null; window.__sbInitBlocked = true; });
+
+  await page.locator('.profile-nav-btn').first().click();
+  // The chooser is the default view: no tapping through to the email form.
+  await expect(page.locator('.auth-google-btn')).toBeVisible();
+  await expect(page.locator('#auth-msg'), 'the chooser has nowhere to print a message')
+    .toHaveCount(1);
+
+  await page.locator('.auth-google-btn').click();
+
+  const msg = page.locator('#auth-msg');
+  await expect(msg, 'tapping Google said nothing at all').not.toBeEmpty({ timeout: 15_000 });
+  await expect(msg).toContainText(/connection|reach|try again/i);
+  // And the button comes back, so it can be tried again.
+  await expect(page.locator('.auth-google-btn')).toBeEnabled();
+  await expect(page.locator('.auth-google-btn')).toContainText(/Continue with Google/i);
+
+  expect(errors).toEqual([]);
+});
+
