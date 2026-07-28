@@ -5677,7 +5677,7 @@ function renderSolarDashboard(){
         }
         return '<div class="qr-value">'+(currentScen.payback < 50 ? currentScen.payback.toFixed(1) : '—')+'<span class="qr-value-unit"> yr payback</span></div>';
       })()}
-      <div class="qr-headline">${kwp.toFixed(1)} kWp · ${state.battery_kwh > 0 ? state.battery_kwh + ' kWh battery' : 'no battery'} · €${sysCost.toLocaleString()} net${isEst ? ' (est.)' : ''}</div>
+      <div class="qr-headline">${kwp.toFixed(1)} kWp · ${state.battery_kwh > 0 ? state.battery_kwh + ' kWh battery' : 'no battery'} · €${sysCost.toLocaleString()} after grant${isEst ? ' (est.)' : ''}</div>
         </div>
         <div style="flex-shrink:0">${sysVisual()}</div>
       </div>
@@ -5736,7 +5736,13 @@ function renderSolarDashboard(){
     ${renderPlanChoiceBlock(best, annualSavings, { title: 'Best plan WITH this solar' })}
     <div class="solar-note">Same plan whether or not you install solar</div>
 
-    ${renderSeaiGrantCard(kwp, state.battery_kwh)}
+    <!-- The SEAI grant card lived here, permanently. It is a fixed €1,800 for
+         almost every domestic system in the country, it is already deducted
+         from the price beside the payback, and it changes nothing about
+         whether solar is worth it — yet it took a full card of the reader's
+         attention on every visit. It now sits beside the cost and grant fields
+         on the customise screen, where it is genuinely useful: the one moment
+         the number is being decided. -->
 
     <!-- Advice stays on the surface. Everything below this point either costs
          nothing and raises the return, or is money the reader can claim. The
@@ -8206,6 +8212,7 @@ function renderRefine(){
       ${refineRow('Battery storage (kWh)', state.battery_kwh > 30 ? "\u26A0 That is a very large home battery — double-check the size" : 'Enter 0 if no battery. A 9 kWh battery covers a typical family evening.', refineNum('rf-batt', state.battery_kwh, 0, 50, 0.5, 'kWh'))}
       ${refineRow('Install cost (gross)', '', refineNum('rf-cost', state.install_cost, 0, 50000, 100, '€'))}
       ${refineRow('SEAI grant', state.grant_is_manual ? "You've set this manually — clear the field to return to auto" : 'Auto-calculated from your system size — editing locks it to your value', refineNum('rf-grant', state.grant_seai, 0, 5000, 100, '€'))}
+      ${renderSeaiGrantCard(totalKwp(), state.battery_kwh)}
       <div style="margin-top:14px;border-top:1px solid var(--line-soft);padding-top:12px">
         <button onclick="state._expert_open=!state._expert_open;renderApp();" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--mono);border:1px solid var(--line);background:${state._expert_open ? 'var(--well)' : 'transparent'};color:var(--ink-soft);cursor:pointer;letter-spacing:.04em">
           ${ic('tune',12)} Expert mode ${state._expert_open ? '▲' : '▼'}
@@ -10117,8 +10124,9 @@ function renderSeaiGrantCard(kwp, batteryKwh){
     <div class="card-value accent">€${g.total.toLocaleString()}</div>
     <div style="margin-top:6px;font-size:15px;color:var(--ink-soft);line-height:1.6">
       ${capped
-        ? `The maximum for a domestic system — already deducted from the prices above.`
-        : `€900 per kWp on your first 2 kWp — already deducted from the prices above.`}
+        ? `The maximum for a domestic system, at ${kwp.toFixed(1)} kWp.`
+        : `€900 per kWp on your first 2 kWp.`}
+      Already filled into the grant field above, and taken off every price in the app — change it there if your installer quotes differently.
       <a href="https://www.seai.ie/grants/solar-electricity-grant/" target="_blank" style="color:var(--blue);white-space:nowrap">seai.ie ↗</a>
     </div>
   </div>`;

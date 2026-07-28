@@ -190,3 +190,51 @@ test('the weather range qualifies the figure instead of standing in front of it'
   expect(await page.evaluate(() => window.state._scenario_view)).toBe('pessimist');
   expect(errors).toEqual([]);
 });
+
+/**
+ * The SEAI grant is a constant, not a decision.
+ *
+ * It is €1,800 for almost every domestic system in Ireland, it is already
+ * taken off every price the app shows, and it changes nothing about whether
+ * solar is worth doing. It occupied a full card on the solar tab on every
+ * visit, competing with the payback figure for attention it did not need.
+ *
+ * It belongs where the number is actually being decided: beside the cost and
+ * grant fields on the customise screen.
+ */
+test('the grant card is off the solar tab and beside the field it explains', async ({ page }) => {
+  const HAS_SOLAR = { has_solar: true, considering_solar: true, count_A: 12, battery_kwh: 5 };
+  const errors = await boot(page, { ...HAS_SOLAR, current_screen: 'solar' });
+  await page.waitForTimeout(1500);
+
+  const onSolar = await page.evaluate(() => document.body.innerText);
+  expect(onSolar, 'the grant card is still taking a card of the solar tab')
+    .not.toMatch(/SEAI home solar grant/i);
+  // The figure it explained must not vanish with it: the hero carries the net
+  // system cost, so it has to say what "net" means.
+  expect(onSolar, 'the system price no longer says the grant is included')
+    .toMatch(/after grant/i);
+
+  await page.evaluate(() => {
+    window.setScreen('refine');
+    window.state._settings_open = 'solar';
+    window.renderApp();
+  });
+
+  const placed = await page.evaluate(() => {
+    const card = [...document.querySelectorAll('.card')]
+      .find((c) => /SEAI home solar grant/i.test(c.textContent));
+    const field = [...document.querySelectorAll('.refine-row')]
+      .find((r) => /SEAI grant/i.test(r.textContent));
+    return {
+      present: !!card,
+      afterTheField: !!(card && field
+        && card.getBoundingClientRect().top > field.getBoundingClientRect().top),
+    };
+  });
+  expect(placed.present, 'the grant card was deleted rather than moved').toBe(true);
+  expect(placed.afterTheField, 'the card is not beside the grant field').toBe(true);
+
+  expect(errors).toEqual([]);
+});
+
