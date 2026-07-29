@@ -71,20 +71,20 @@
   :root{
     --bg:#F4F6FA; --bg-elev:#FFFFFF; color-scheme:light;
     --panel:#FFFFFF; --panel-2:#F8FAFD;
-    --ink:#0F2138; --ink-soft:#54687F; --ink-dim:#8798AC;
+    --ink:#0F2138; --ink-soft:#54687F; --ink-dim:#5E6F84;
     --line:#E3E9F1; --line-soft:#EEF2F7;
     --hair:rgba(15,33,56,.09); --hair-strong:rgba(15,33,56,.16);
 
     /* Brand and interface. */
-    --accent:#1F6FEB; --accent-glow:rgba(31,111,235,.22); --accent-soft:rgba(31,111,235,.08);
-    --accent-faint:rgba(31,111,235,.05);
+    --accent:#1A5FD0; --accent-glow:rgba(26,95,208,.22); --accent-soft:rgba(26,95,208,.09);
+    --accent-faint:rgba(26,95,208,.05);
     /* Money the reader gains. The only thing allowed to be green. */
-    --gain:#0E9F55; --gain-soft:rgba(14,159,85,.10);
-    --amber:#C2740A; --amber-glow:rgba(194,116,10,.22); --amber-soft:rgba(194,116,10,.10);
-    --amber-faint:rgba(194,116,10,.06);
-    --blue:#1F6FEB; --blue-glow:rgba(31,111,235,.22); --blue-soft:rgba(31,111,235,.08);
-    --red:#D92D20; --red-glow:rgba(217,45,32,.22); --red-soft:rgba(217,45,32,.08);
-    --loss:#D92D20;
+    --gain:#0A7D42; --gain-soft:rgba(10,125,66,.11);
+    --amber:#95590A; --amber-glow:rgba(149,89,10,.22); --amber-soft:rgba(149,89,10,.11);
+    --amber-faint:rgba(149,89,10,.06);
+    --blue:#1A5FD0; --blue-glow:rgba(26,95,208,.22); --blue-soft:rgba(26,95,208,.09);
+    --red:#C42618; --red-glow:rgba(196,38,24,.22); --red-soft:rgba(196,38,24,.09);
+    --loss:#C42618;
 
     /* Flat surfaces. A gradient on a card is a texture nobody asked for. */
     --surface:#FFFFFF;
@@ -92,7 +92,7 @@
     --lift:0 1px 2px rgba(15,33,56,.05), 0 10px 24px -18px rgba(15,33,56,.22);
     --well:#F1F4F9; --track:#DCE3EC; --track-soft:#E8EDF4;
     --on-accent:#FFFFFF; --knock:#FFFFFF;
-    --cta-hi:#2B7BF5; --cta-lo:#1A5FD0;
+    --cta-hi:#2569E0; --cta-lo:#144FB0;
     --hero-a:#FFFFFF; --hero-b:#FFFFFF;
     --hero-shadow:0 2px 4px rgba(15,33,56,.04), 0 20px 40px -28px rgba(15,33,56,.28);
     --glass-top:rgba(244,246,250,.86); --glass-nav:rgba(255,255,255,.88);
@@ -166,6 +166,19 @@
 
   /* Main content area */
   .screen{flex:1;padding:18px 16px 100px}
+  /* A screen arrives rather than appearing. 180ms, compositor-only, and the
+     bottom navigation deliberately does not move — the thing that stays put
+     is what makes the thing that moves read as a new place. */
+  @keyframes screenEnter{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}
+  .screen-enter{animation:screenEnter .18s cubic-bezier(.22,.61,.36,1) both}
+  .bottom-nav-item{transition:color .15s}
+  .nav-ico{transition:transform .18s cubic-bezier(.22,.61,.36,1)}
+  .bottom-nav-item.active .nav-ico{transform:translateY(-1px) scale(1.06)}
+  @media (prefers-reduced-motion:reduce){
+    .screen-enter{animation:none}
+    .nav-ico{transition:none}
+  }
+
   /* Applied by renderApp() only on a real screen change. A full innerHTML
      repaint happens on every micro-interaction (toggles, chips, steppers);
      animating unconditionally replayed fadeUp on all of them. */
@@ -617,7 +630,8 @@
   /* EV banner */
   .ev-banner{background:linear-gradient(135deg,rgba(255,145,0,.08) 0%,rgba(255,145,0,.02) 100%);border:1px solid var(--amber);border-radius:12px;padding:16px;margin:14px 0;font-size:13px;color:var(--ink);line-height:1.55;display:flex;gap:14px;align-items:flex-start}
   .ev-banner-icon{width:40px;height:40px;border-radius:8px;background:var(--amber-soft);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:1px solid rgba(255,145,0,.3)}
-  .ev-banner b{color:var(--amber);font-weight:700}
+  .ev-banner b{color:var(--ink);font-weight:700}
+  .ev-banner a{color:var(--amber)!important;font-weight:700}
 
   /* Quote auditor */
   .aud-input-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}

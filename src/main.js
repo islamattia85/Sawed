@@ -5356,8 +5356,7 @@ function renderResult(){
       Independent and free — we take nothing from suppliers.
       <a onclick="setScreen('methodology')" style="cursor:pointer;padding:12px 6px;margin:-12px -6px;display:inline-block">How we work it out →</a>
     </p>
-  </div>
-  ${bottomNav()}`;
+  </div>`;
 }
 
 /**
@@ -5786,6 +5785,28 @@ function setAdvisorGoal(goal){
   renderApp();
 }
 
+/**
+ * Point the held result at whatever goal is current.
+ *
+ * The search key leaves goal out on purpose: one sweep prices every candidate
+ * and byGoal holds the pick for all four, so re-aiming costs an import and no
+ * simulation. It exists because the goal can change while a sweep is in flight
+ * — Home starts one on first paint, and onboarding's goal question comes after
+ * that — and the newer choice has to win.
+ */
+function retargetAdvisor(){
+  const res = _advisor.result;
+  if (!res) return;
+  res.goal = advisorGoal();
+  res.best = res.byGoal[res.goal] || null;
+  import('./engine/search').then((m) => {
+    _advisor.reasons = m.explain(res, { maxPanels: roofPanelCap(), panelWatts: state.panel_w || 440 });
+    _advisor.confidence = m.confidence(res);
+    paintAdvisorResult();
+  });
+  paintAdvisorResult();
+}
+
 function startAdvisorSearch(force){
   const key = advisorKey();
   if (!force && (_advisor.running || _advisor.key === key)){
@@ -5793,6 +5814,12 @@ function startAdvisorSearch(force){
     // straight to this function for the advisor, so returning here without a
     // render meant that arriving with a cached result drew nothing at all:
     // every second visit to the screen was a dead tap.
+    //
+    // The key deliberately leaves goal out — one sweep answers all four — so a
+    // cached result can be pointed at a goal the reader chose after it ran.
+    // Without this, choosing a goal in onboarding was silently overruled by
+    // whatever the boot-time search had already settled on.
+    if (_advisor.result && _advisor.result.goal !== advisorGoal()){ retargetAdvisor(); return; }
     renderApp();
     return;
   }
@@ -5813,6 +5840,10 @@ function startAdvisorSearch(force){
     _advisor.result = result;
     _advisor.reasons = reasons;
     _advisor.confidence = confidence;
+    // A sweep started before the reader chose a goal — Home kicks one off on
+    // first paint — must not land on top of the choice they made while it ran.
+    // byGoal already holds the answer, so honouring the newer goal is free.
+    if (result && result.goal !== advisorGoal()){ retargetAdvisor(); return; }
     paintAdvisorResult();
   }).catch((e) => {
     _advisor.running = false;
@@ -6695,7 +6726,7 @@ function sysVisual(){
     }
     const w = Math.min(shown, COLS) * (PW + GAP) - GAP;
     const h = rows * (PH + GAP) - GAP;
-    const more = n > CAPN ? `<text x="${w/2}" y="${h + 9}" text-anchor="middle" font-size="10" font-family="var(--mono)" fill="var(--ink-dim)">+${n - CAPN} more</text>` : '';
+    const more = n > CAPN ? `<text x="${w/2}" y="${h + 9}" text-anchor="middle" font-size="10" font-family="var(--mono)" fill="currentColor" opacity=".75">+${n - CAPN} more</text>` : '';
     return { svg: `<g transform="translate(8,${yOff}) skewX(${skew})">${cells}${more}</g>`, h: h + (n > CAPN ? 11 : 0) };
   };
   let y = 3;
@@ -6711,13 +6742,13 @@ function sysVisual(){
     const fill = Math.max(.18, Math.min(1, batt / 15));
     parts.push(`<g transform="translate(9,${y})">` +
       `<rect width="${bw}" height="${bh}" rx="3" fill="none" stroke="var(--ink-soft)" stroke-width="1.1"/>` +
-      `<rect x="${bw + 1}" y="${bh/2 - 3}" width="2.5" height="6" rx="1" fill="var(--ink-soft)"/>` +
+      `<rect x="${bw + 1}" y="${bh/2 - 3}" width="2.5" height="6" rx="1" fill="currentColor" opacity=".8"/>` +
       `<rect x="2" y="2" width="${Math.round((bw - 4) * fill)}" height="${bh - 4}" rx="1.6" fill="var(--ink)" fill-opacity=".20"/>` +
-      `<text x="${bw/2}" y="${bh/2 + 3}" text-anchor="middle" font-size="10" font-family="var(--mono)" font-weight="700" fill="var(--ink-soft)">${batt} kWh</text></g>`);
+      `<text x="${bw/2}" y="${bh/2 + 3}" text-anchor="middle" font-size="10" font-family="var(--mono)" font-weight="700" fill="currentColor">${batt} kWh</text></g>`);
     y += bh;
   }
   y += 13;
-  parts.push(`<text x="38" y="${y - 3}" text-anchor="middle" font-size="10" font-family="var(--mono)" letter-spacing=".05em" fill="var(--ink-dim)">${nA}${nB ? ' + ' + nB : ''} panels</text>`);
+  parts.push(`<text x="38" y="${y - 3}" text-anchor="middle" font-size="10" font-family="var(--mono)" letter-spacing=".05em" fill="currentColor" opacity=".75">${nA}${nB ? ' + ' + nB : ''} panels</text>`);
   return `<svg width="76" height="${y}" viewBox="0 0 76 ${y}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="display:block">${parts.join('')}</svg>`;
 }
 
@@ -6772,7 +6803,7 @@ function renderSolarDashboard(){
             <div class="hero-inset-value" style="color:var(--ink)">${currentScen.payback < 50 ? currentScen.payback.toFixed(1) : '—'}<span class="unit">yr payback</span></div>
             <div class="hero-inset-foot">${kwp.toFixed(1)} kWp · ${state.battery_kwh > 0 ? state.battery_kwh + ' kWh battery' : 'no battery'} · ${fmtCurrency(sysCost)} after grant${isEst ? ' (est.)' : ''}</div>
           </div>
-          <div style="flex-shrink:0">${sysVisual()}</div>
+          <div style="flex-shrink:0;color:var(--ink-soft)">${sysVisual()}</div>
         </div>
       </div>
 
@@ -6960,7 +6991,7 @@ function renderSolarDashboard(){
         <div class="ev-banner-icon">${ic('car',20)}</div>
         <div>
           <b>EV profile active.</b> Petrol displaced: ${fmtCurrency(econ.petrolCost)}/yr for ${econ.km.toLocaleString()} km. Your battery now grid-charges 2-5am to keep the EV on cheap rates.
-          <div style="margin-top:8px"><a href="#" onclick="event.preventDefault(); toggleEv();" style="color:var(--amber);font-size:12px;font-weight:600">Remove EV profile</a></div>
+          <div style="margin-top:8px"><a href="#" onclick="event.preventDefault(); toggleEv();" style="font-size:13px;font-weight:700">Remove EV profile</a></div>
         </div>
       </div>
     ` : `
@@ -6999,8 +7030,7 @@ function renderSolarDashboard(){
           modelling caveat was a paragraph at the bottom of the page, where a
           caveat is furthest from the figure it qualifies — it is inside the
           working now, next to the numbers it is about. */''}
-  </div>
-  ${bottomNav()}`;
+  </div>`;
 }
 
 // Quick what-if toggle on the Solar screen — flips EV modelling without touching
@@ -7413,8 +7443,7 @@ function renderPlans(){
     <p class="disclaimer">
       Every plan simulated hour by hour on your usage — energy, standing charge and export income. Tap any plan for its rates.
     </p>
-  </div>
-  ${bottomNav()}`;
+  </div>`;
 }
 
 /**
@@ -7625,8 +7654,7 @@ function renderPlanDetail(){
     <p class="disclaimer">
       <b>Editing rates:</b> Changes you make here override the supplier's official rate for this analysis only. Useful for "what if my rate goes up 10%?" scenarios or to enter a custom contract rate. Tap "Reset to default" to restore the original verified-2026 rates. All edits persist on this device only.
     </p>
-  </div>
-  ${bottomNav()}`;
+  </div>`;
 }
 
 /**
@@ -8624,8 +8652,7 @@ function renderAnalytics(){
       <br><br>
       <b>How to read.</b> Each chart shows what your system would do on the selected day at the selected plan. Per-hour numbers are simulated — actual will vary ±5-8% with weather. The day total uses real tariff bands; for dynamic plans we use the modeled SEMOpx curve.
     </p>
-  </div>
-  ${bottomNav()}`;
+  </div>`;
 }
 
 function setAnalyticsDay(idx){
@@ -9255,8 +9282,7 @@ function renderAuditor(){
     <p class="disclaimer">
       <b>Note.</b> Benchmarks are estimates. Premium quotes can be justified (complex roofs, EV charger included, high-end inverters). Use this as a negotiation aid, not a final verdict.
     </p>
-  </div>
-  ${bottomNav()}`;
+  </div>`;
 }
 
 function bindAuditor(){
@@ -9585,8 +9611,7 @@ function renderRefine(){
     <p class="disclaimer">
       <b>Disclaimer.</b> Calculations are estimates. Actual generation, degradation, and grid behaviour will vary. We are not regulated financial advisors.
     </p>
-  </div>
-  ${bottomNav()}`;
+  </div>`;
 }
 
 function refineRow(label, help, inputHtml){
@@ -10135,8 +10160,7 @@ function renderMonitor(){
       </div>
       <div class="secondary-card-arrow">›</div>
     </div>
-  </div>
-  ${bottomNav()}`;
+  </div>`;
 }
 
 function toggleMonitoring(){
@@ -10217,8 +10241,7 @@ function renderIndependence(){
       <div><div class="indep-title">${t}</div><div class="indep-body">${b}</div></div>
     </div>`).join('')}
     <p class="disclaimer"><b>Why we show this.</b> Most apps bury "how we make money" in a help page. For an independent advisor, it belongs in the open — so you can judge our advice knowing exactly what's behind it.</p>
-  </div>
-  ${bottomNav()}`;
+  </div>`;
 }
 
 /* ── SOLAR QUOTE COMPARISON ───────────────────────────────── */
@@ -10296,8 +10319,7 @@ function renderQuotes(){
       <div style="font-family:var(--mono);font-size:12px;letter-spacing:.01em;color:var(--blue);font-weight:700;margin-bottom:5px">WHY YOU CAN TRUST THIS</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.5">Installers pay us per introduction — never to rank higher or to soften a verdict. The benchmark is our own model of Irish 2026 prices.</div>
     </div>
-  </div>
-  ${bottomNav()}`;
+  </div>`;
 }
 
 function addQuote(){
@@ -10347,8 +10369,7 @@ function renderCompare(){
         <div style="margin-bottom:8px">${ic('layers',28)}</div>
         <div style="font-size:13px;color:var(--ink-soft);line-height:1.6">No saved scenarios yet.<br>Save your current setup above to get started.</div>
       </div>
-    </div>
-    ${bottomNav()}`;
+    </div>`;
   }
 
   // ── Scenario list (each row: load / compare-toggle / delete) ───────
@@ -10382,8 +10403,7 @@ function renderCompare(){
     ${sel.length >= 2 ? renderCompareTable(sel) : `<div class="card" style="padding:14px 16px;background:var(--blue-soft);border-color:var(--blue);margin-bottom:14px"><div style="font-size:12px;color:var(--ink);line-height:1.55">${ic('info',14,'vertical-align:-2px')} Tick <b>2 or more</b> scenarios below to see them side by side.</div></div>`}
     <div class="section-title" style="margin-top:6px">Saved scenarios · ${scenarios.length}/12</div>
     ${list}
-  </div>
-  ${bottomNav()}`;
+  </div>`;
 }
 
 // Side-by-side comparison table across all meaningful metrics.
@@ -10519,8 +10539,7 @@ function renderMore(){
           ).join('<br>')}
         </div>
       </details>` : ''}
-  </div>
-  ${bottomNav()}`;
+  </div>`;
 }
 
 /* ── FAST-PATH ACTIVATION (the new welcome) ───────────────── */
@@ -11220,7 +11239,27 @@ function renderApp(){
     : here;
 
   root.setAttribute('data-chrome','app');
-  root.innerHTML = html;
+  // One place. See the note on bottomNav().
+  root.innerHTML = html + bottomNav();
+
+  /*
+   * A screen change should look like a movement, not a jump cut.
+   *
+   * Every navigation in this app replaced the document instantly, which gives
+   * no sense of having gone anywhere — the reader is simply somewhere else,
+   * and on a phone that is disorienting enough to make people tap Back to
+   * check they did what they meant to. A short rise-and-fade costs nothing,
+   * runs on the compositor, and is skipped entirely for anyone who has asked
+   * their device for reduced motion.
+   *
+   * Only on an actual screen change. Re-rendering in place — a filter, a
+   * toggle, a search landing — must not animate, or the app twitches every
+   * time it recomputes.
+   */
+  if (screenChanged){
+    const el = root.querySelector('.screen');
+    if (el) el.classList.add('screen-enter');
+  }
   if (state.current_screen === 'auditor')    bindAuditor();
   if (state.current_screen === 'refine')     bindRefine();
   if (state.current_screen === 'csv-import') bindCsvImport();
@@ -11548,8 +11587,7 @@ function renderHowToSwitch(){
           <div class="secondary-card-arrow">›</div>
         </div>`;
       }).filter((v,i,a) => a.indexOf(v) === i).filter(Boolean).join('')}
-    </div>
-    ${bottomNav()}`;
+    </div>`;
   }
 
   const backFn = planId ? `openPlanDetail('${planId}')` : `setScreen('plans')`;
@@ -11602,8 +11640,7 @@ function renderHowToSwitch(){
     </div>
 
     <p class="disclaimer">We are independent and take no payment from any supplier. Switching through our links costs you nothing and earns us nothing — the ranking is calculated purely from your simulated annual cost. If that ever changes, this notice changes with it.</p>
-  </div>
-  ${bottomNav()}`;
+  </div>`;
 }
 
 /* ============================================================
@@ -11667,8 +11704,7 @@ function renderCsvImport(){
 ...</div>
       <div style="font-size:12px;color:var(--ink-dim);margin-top:8px">Supports the current ESB Networks HDF format (5-column, <b>DD-MM-YYYY</b> dates). Log in at <b>myaccount.esbnetworks.ie</b> → My Meter → Download HDF Data → select last 12 months.</div>
     </div>
-  </div>
-  ${bottomNav()}`;
+  </div>`;
 }
 
 function bindCsvImport(){
@@ -12162,8 +12198,7 @@ function renderMethodology(){
     <p class="disclaimer">
       <b>Disclaimer.</b> All figures are estimates. Actual energy bills, solar generation, and payback periods will vary depending on weather, metering, supplier changes, and individual consumption patterns. Solar Optimiser is not a regulated financial or energy advisor.
     </p>
-  </div>
-  ${bottomNav()}`;
+  </div>`;
 }
 
 /* ============================================================
