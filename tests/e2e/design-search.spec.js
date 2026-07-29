@@ -507,6 +507,10 @@ test('home carries the recommendation, and gets there without freezing', async (
   await page.evaluate(() => {
     window.state.dwelling_type = 'detached';
     window.state.bedrooms = 4;
+    // Someone who has not installed yet. The recommendation is only shown to
+    // them: for a household with panels already on the roof, the search's
+    // baseline — a house with no solar — is not their situation.
+    window.state.has_solar = false;
     window.state.considering_solar = true;
     window.state.search_goal = 'bill-swap';
     window.setScreen('result');
@@ -550,6 +554,7 @@ test('an apartment is not sold a system on the home screen either', async ({ pag
     window.state.dwelling_type = 'apartment';
     window.state.bedrooms = 2;
     window.state.roof_capacity_panels = 0;
+    window.state.has_solar = false;
     window.state.considering_solar = true;
     window.setScreen('result');
   });

@@ -358,10 +358,12 @@ test('the comparison never holds more than two plans', async ({ page }) => {
 test('sorting reorders the list without changing the ranking', async ({ page }) => {
   const errors = await boot(page, { current_screen: 'plans' });
 
-  // The cheapest plan is on the panel with the button that acts on it; the
-  // list below starts at second place rather than repeating it. So the
-  // headline is where "what won" is read from.
-  const byCost = await page.locator('.hero-inset-value').first().innerText();
+  // The cheapest plan is called out above the list with the button that acts
+  // on it, and the list starts at second place rather than repeating it. So
+  // that card is where "what won" is read from. It is a card and not a panel:
+  // the deep panel is for screens whose answer IS the screen, and a ranking
+  // is not one.
+  const byCost = await page.locator('.plans-winner-name').first().innerText();
 
   await page.locator('.plans-sort-toggle').click();
   await page.getByRole('button', { name: 'Standing charge' }).click();

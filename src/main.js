@@ -11,6 +11,7 @@ import {
   simulateBaseline as engineSimulateBaseline, annualCost, sumF, WHOLESALE_CAP,
 } from './engine/tariff-rules';
 import { simulateDispatch, batterySpec } from './engine/dispatch';
+import { monthBoundaries, MONTH_NAMES } from './engine/analysis';
 import { estimateRoofCapacity, usablePlanesFor } from './engine/roof';
 
 /* Solar Optimiser — application entry.
@@ -4956,6 +4957,61 @@ function explainConfidence(){
     title: `${c.label} confidence` });
 }
 
+
+/**
+ * The year, as a shape.
+ *
+ * Every visual in this app so far has been type and colour. This is the one
+ * thing a homeowner intuitively wants to see about a roof and cannot get from
+ * a number: that it produces almost nothing in December and more than the
+ * house can use in June. It is drawn from the same 8,760 hours everything else
+ * is computed from — not an illustration of solar, a picture of theirs.
+ */
+function heroYearShape(){
+  if (!state.has_solar) return '';
+  if (CACHE.dirty) rebuildBase();
+  const gen = CACHE.solar && CACHE.solar.total;
+  const cons = CACHE.cons;
+  if (!gen || !cons) return '';
+
+  const bounds = monthBoundaries();
+  const g = [], c = [];
+  for (let m = 0; m < 12; m += 1){
+    let sg = 0, sc = 0;
+    for (let h = bounds[m]; h < bounds[m + 1]; h += 1){ sg += gen[h] || 0; sc += cons[h] || 0; }
+    g.push(sg); c.push(sc);
+  }
+  const max = Math.max(...g, ...c) || 1;
+  const W = 300, H = 64;
+  const x = (i) => (i / 11) * W;
+  const y = (v) => H - (v / max) * (H - 6);
+
+  const area = `M0,${H} ` + g.map((v, i) => `L${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ') + ` L${W},${H} Z`;
+  const line = c.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const peak = g.indexOf(Math.max(...g));
+
+  return `
+    <div class="year-shape">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img"
+           aria-label="Monthly generation against household use across the year">
+        <defs><linearGradient id="ysg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#3DD68C" stop-opacity=".55"/>
+          <stop offset="100%" stop-color="#3DD68C" stop-opacity=".04"/>
+        </linearGradient></defs>
+        <path d="${area}" fill="url(#ysg)"/>
+        <path d="${g.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')}"
+              fill="none" stroke="#3DD68C" stroke-width="2" stroke-linejoin="round"/>
+        <path d="${line}" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="1.5"
+              stroke-dasharray="3 3" stroke-linejoin="round"/>
+      </svg>
+      <div class="year-shape-legend">
+        <span><i class="gen"></i>What your roof makes</span>
+        <span><i class="use"></i>What the house uses</span>
+        <b>Peak: ${MONTH_NAMES[peak]}</b>
+      </div>
+    </div>`;
+}
+
 /** One tile in a row of three: an icon, a name, a qualifier. */
 function heroTile(icon, name, sub){
   return `<div class="tile"><div class="tile-ico">${ic(icon, 20)}</div>
@@ -5013,21 +5069,54 @@ function renderHeroRecBlock(){
   }
   const switchAction = `handleSwitchClick('${best.plan.id}', '${(best.plan.supplier + ' ' + best.plan.plan).replace(/'/g, "\\'")}', ${annualSavings.toFixed(0)})`;
 
-  return design ? `
-      <div class="hero-section">What you should install</div>
+  /*
+   * Two steps, in the order you would take them — not two answers.
+   *
+   * This screen said "€2,330 by switching to Energia" and, four hundred pixels
+   * below, "what you should install … Electric Ireland". Both true: one is the
+   * cheapest tariff for the system you have, the other the cheapest tariff for
+   * the system you should build. On screen it read as the app contradicting
+   * itself about who your supplier should be.
+   *
+   * My first fix called them "alternatives, both against doing nothing" and
+   * that was worse, because it was false. The search measures a system against
+   * the CHEAPEST no-solar plan — it has already assumed you switched — while
+   * the headline measures a switch against the plan you are on now. So the two
+   * are sequential, not exclusive: switch today, and the panels add their bit
+   * on top of that. Said as alternatives they looked like solar losing to a
+   * phone call.
+   *
+   * And it is only shown to someone who has not installed yet. For a household
+   * with panels on the roof already the search's baseline — a house with no
+   * solar — is not their situation, so the comparison means nothing. They get
+   * their own system's figures instead.
+   */
+  const owns = state.has_solar && !state.solar_planned;
+
+  return design && !owns ? `
+      <div class="hero-section">Then, if you install</div>
       <div class="tile-row">
         ${heroTile('sun', `${design.panels} panels`, `${design.kwp} kWp`)}
         ${heroTile('battery', design.batteryKwh ? `${design.batteryKwh} kWh` : 'No battery',
           design.batteryKwh ? (design.chargeFromGrid ? 'Charged overnight' : 'Solar charged') : 'Panels pay better')}
-        ${heroTile('bolt', design.planLabel.split('—')[0].trim(), 'Best tariff for it')}
+        ${heroTile('bolt', design.planLabel.split('—')[0].trim(), 'Tariff to be on')}
       </div>
       <div class="stat-strip">
+        ${heroStat('+' + fmtCurrency(design.annualBenefit), '/yr', 'On top of the switch')}
+        ${heroStat(fmtCurrency(design.netCost), '', 'It costs')}
         ${heroStat(design.payback, 'yr', 'Payback')}
-        ${heroStat(fmtCurrency(design.netCost), '', 'After grant')}
-        ${heroStat(design.kwp, 'kWp', 'System size')}
       </div>
       <button class="hero-cta" onclick="setScreen('advisor')">See the full recommendation →</button>
-      <button class="hero-cta ghost" onclick="${switchAction}">Switch to ${best.plan.supplier}</button>`
+      <button class="hero-cta ghost" onclick="${switchAction}">Just switch tariff for now</button>`
+    : owns ? `
+      <div class="hero-section">Your system</div>
+      <div class="stat-strip" style="border-top:none;padding-top:0">
+        ${heroStat(totalKwp().toFixed(1), 'kWp', `${totalPanels()} panels`)}
+        ${heroStat(state.battery_kwh > 0 ? state.battery_kwh : '—', state.battery_kwh > 0 ? 'kWh' : '', 'Battery')}
+        ${heroStat(co2.toFixed(1), 't', 'CO₂ saved')}
+      </div>
+      <button class="hero-cta" onclick="${switchAction}">Switch to ${best.plan.supplier} →</button>
+      <button class="hero-cta ghost" onclick="setScreen('solar')">How your system is doing</button>`
     : noRoof ? `
       <div class="hero-section">Your home</div>
       <div class="tile-sub" style="font-size:13px;line-height:1.6">You told us this is an apartment, so there is no roof to work with — no system to recommend. Your savings are all in the tariff above, which is the honest answer rather than a smaller one.</div>
@@ -5120,9 +5209,9 @@ function renderResult(){
       <div class="hero-inset">
         <div class="hero-inset-top">
           <div>
-            <div class="hero-inset-label">${annualSavings > 10 ? 'Your estimated annual savings' : 'Your best plan'}</div>
+            <div class="hero-inset-label">${annualSavings > 10 ? 'Switch tariff today · costs nothing' : 'Your best plan'}</div>
             <div class="hero-inset-value" data-countup="${Math.round(annualSavings)}" data-prefix="€"><span data-countup-num>${fmtCurrency(annualSavings)}</span><span class="unit">/yr</span></div>
-            <div class="hero-inset-foot">${chosen ? `on the plan you picked — ${best.plan.supplier}` : `vs doing nothing · ${best.plan.supplier}`}</div>
+            <div class="hero-inset-foot">${chosen ? `on the plan you picked — ${best.plan.supplier}` : `move to ${best.plan.supplier} — ${best.plan.plan}`}</div>
           </div>
           <div class="conf-pill ${conf.level}" role="button" tabindex="0" onclick="explainConfidence()"
                aria-label="${conf.label} confidence — tap to find out why">
@@ -5893,9 +5982,11 @@ function renderAdvisor(){
   <div class="screen">
     <div class="hero-panel">
       <div class="hero-brand">
-        <button class="hero-icb" onclick="goBack()" aria-label="Back">${ic('chevL',18)}</button>
-        <div class="hero-brand-name" style="flex:1;justify-content:center">What to install</div>
-        <button class="hero-icb" onclick="setScreen('refine')" aria-label="Settings">${ic('tune',17)}</button>
+        <div class="hero-brand-name"><span class="hero-brand-mark">${ic('target',15)}</span>What to install</div>
+        <div class="hero-actions">
+          ${renderProfileNavBtn()}
+          <button class="hero-icb" onclick="setScreen('refine')" aria-label="Settings">${ic('tune',17)}</button>
+        </div>
       </div>
 
       <div class="hero-greet-sub" style="margin-bottom:10px">What matters most to you?</div>
@@ -6667,9 +6758,11 @@ function renderSolarDashboard(){
   <div class="screen">
     <div class="hero-panel">
       <div class="hero-brand">
-        <button class="hero-icb" onclick="goBack()" aria-label="Back">${ic('chevL',18)}</button>
-        <div class="hero-brand-name" style="flex:1;justify-content:center">Your solar</div>
-        <button class="hero-icb" onclick="goRefineSolar()" aria-label="Customise">${ic('tune',17)}</button>
+        <div class="hero-brand-name"><span class="hero-brand-mark">${ic('sun',15)}</span>My system</div>
+        <div class="hero-actions">
+          ${renderProfileNavBtn()}
+          <button class="hero-icb" onclick="goRefineSolar()" aria-label="Customise">${ic('tune',17)}</button>
+        </div>
       </div>
 
       <div class="hero-inset">
@@ -6689,7 +6782,15 @@ function renderSolarDashboard(){
         ${heroStat(annualCo2Tonnes().toFixed(1), 't', 'CO₂ saved')}
       </div>
 
+      ${heroYearShape()}
+
       <button class="hero-cta" onclick="goRefineSolar()">Change the system →</button>
+      <!-- Two screens used to answer "what should I install?" from two
+           different engines — a twelve-design sweep here and a six-hundred
+           design search on the advisor. They will disagree, and nothing
+           reconciled them. This one describes the system you have or plan;
+           the question of what to build is one tap away, answered once. -->
+      <button class="hero-cta ghost" onclick="setScreen('advisor')">Is this the right system? →</button>
     </div>
 
     <div class="sd-extras">
@@ -7175,41 +7276,40 @@ function renderPlans(){
   const visible = showingAll ? listed : listed.slice(0, SHORTLIST);
   const hidden = listed.length - visible.length;
 
-  return `
+  /*
+   * No panel here.
+   *
+   * The deep panel is for a screen whose answer IS the screen — Home and the
+   * advisor. Plans is a list, and giving it the same treatment put nine
+   * hundred pixels of navy in front of the first plan. A component applied
+   * everywhere stops being emphasis at all; it becomes the wallpaper.
+   *
+   * The winner is a card, the ranking follows it, and the top is a header.
+   */
+  return `${topbar('Every plan, ranked', 'accent', true)}
   <div class="screen">
-    <div class="hero-panel">
-      <div class="hero-brand">
-        <button class="hero-icb" onclick="goBack()" aria-label="Back">${ic('chevL',18)}</button>
-        <div class="hero-brand-name" style="flex:1;justify-content:center">Every plan, ranked</div>
-        <button class="hero-icb" onclick="setScreen('refine')" aria-label="Settings">${ic('tune',17)}</button>
-      </div>
-
-      ${winner ? `
-        <div class="hero-inset">
-          <div class="hero-inset-top">
-            <div>
-              <div class="hero-inset-label">Cheapest for your home</div>
-              <div class="hero-inset-value" style="color:var(--ink);font-size:25px">${winner.plan.supplier}</div>
-              <div class="hero-inset-foot">${winner.plan.plan}</div>
-            </div>
-            <div style="text-align:right;flex-shrink:0">
-              <div style="font-size:20px;font-weight:800;color:var(--gain);font-variant-numeric:tabular-nums">${winnerSaving > 0 ? '−' + fmtCurrency(winnerSaving) : fmtCurrency(winner.cost)}</div>
-              <div style="font-size:12px;color:var(--ink-soft)">${winnerSaving > 0 ? 'a year' : 'per year'}</div>
-            </div>
+    ${winner ? `
+      <div class="card plans-winner">
+        <div class="plans-winner-top">
+          <div>
+            <div class="hero-inset-label">Cheapest for your home</div>
+            <div class="plans-winner-name">${winner.plan.supplier}</div>
+            <div class="hero-inset-foot">${winner.plan.plan}</div>
           </div>
-        </div>` : ''}
+          <div style="text-align:right;flex-shrink:0">
+            <div class="plans-winner-save">${winnerSaving > 0 ? '−' + fmtCurrency(winnerSaving) : fmtCurrency(winner.cost)}</div>
+            <div style="font-size:12px;color:var(--ink-soft)">${winnerSaving > 0 ? 'a year' : 'per year'}</div>
+          </div>
+        </div>
+        ${winnerSaving > 10 ? `
+          <button class="switch-cta" style="margin:14px 0 0" onclick="handleSwitchClick('${winner.plan.id}', '${(winner.plan.supplier + ' ' + winner.plan.plan).replace(/'/g, "\\'")}', ${winnerSaving.toFixed(0)})">Switch to ${winner.plan.supplier} →</button>` : ''}
+      </div>` : ''}
 
-      <!-- What the ranking is priced on. This is context, not the answer, so
-           it gets one line rather than the three-figure strip the answer gets.
-           As a strip it was reading with the same weight as the result. -->
-      <div class="hero-greet-sub" style="margin:12px 0 0;font-size:13px">
-        Priced on ${annualKwh.toLocaleString()} kWh a year · ${region.name} · ${state.heating_type} heating${state.has_solar ? ` · ${totalKwp().toFixed(1)} kWp` : ''}${state.ev_active ? ' · EV' : ''}
-      </div>
-      ${winner && winnerSaving > 10 ? `
-        <button class="hero-cta" onclick="event.stopPropagation();handleSwitchClick('${winner.plan.id}', '${(winner.plan.supplier + ' ' + winner.plan.plan).replace(/'/g,"\\'")}', ${winnerSaving.toFixed(0)})">Switch to ${winner.plan.supplier} →</button>` : ''}
-      ${renderStalenessBanner() || (latestVerifiedLabel()
-        ? `<div class="hero-greet-sub" style="margin:12px 0 0;font-size:13px;text-align:center">Rates verified ${latestVerifiedLabel()} · ${ranked.length} active plans</div>` : '')}
+    <div class="plans-context">
+      Priced on <b>${annualKwh.toLocaleString()} kWh/yr</b> · <b>${region.name}</b> · <b>${state.heating_type}</b> heating${state.has_solar ? ` · <b>${totalKwp().toFixed(1)} kWp</b>` : ''}${state.ev_active ? ' · <b>EV</b>' : ''}
     </div>
+
+    ${renderStalenessBanner()}
 
     ${renderChoiceStrip()}
 
@@ -10303,6 +10403,7 @@ function renderMore(){
       [ic('target',19),'What should I install?','The engine picks the system, not you — early build','advisor'],
     ]],
     ['Tools', [
+      [ic('radar',19),'Market monitor','We watch every Irish tariff and flag what is worth acting on','monitor'],
       [ic('clip',19),'Audit an installer quote','Objective check against 2026 Irish market prices','auditor'],
       [ic('scales',19),'My saved quotes', nQuotes ? nQuotes + ' quote' + (nQuotes === 1 ? '' : 's') + ' saved — compare side by side' : 'Save installer quotes and compare them side by side','quotes'],
       [ic('chart',19),'Engine details & hourly flows','Day inspector · monthly bars · annual production/use/export','analytics'],
@@ -10613,13 +10714,26 @@ function fastPathGo(){
 function bottomNav(){
   const cur = state.current_screen;
   // map sub-screens to their nav home so the right tab stays lit
-  const moreScreens = ['analytics','quotes','auditor','independence','methodology','how-to-switch','refine','csv-import','compare'];
+  /*
+   * The journey, not the filing system.
+   *
+   * This was Home · Plans · Solar · Monitor · More — five sections named after
+   * the parts of the app rather than the decision anyone is making. "Solar"
+   * and the advisor both answered "what should I install"; "Monitor" is
+   * something the app does for you in the background, not somewhere you go.
+   *
+   * It is the order of the decision now: see where you stand, find out what to
+   * build, compare the tariffs, look after what you own. Monitor moves into
+   * More, where the things that run themselves belong.
+   */
+  const moreScreens = ['analytics','quotes','auditor','independence','methodology',
+                       'how-to-switch','refine','csv-import','compare','monitor'];
   const navActive = moreScreens.includes(cur) ? 'more' : cur;
   const items = [
     { id:'result',  icon:'home',   label:'Home' },
-    { id:'plans',   icon:'plans',  label:'Plans' },
-    { id:'solar',   icon:'sun',    label:'Solar' },
-    { id:'monitor', icon:'radar',  label:'Monitor' },
+    { id:'advisor', icon:'target', label:'Advice' },
+    { id:'plans',   icon:'plans',  label:'Tariffs' },
+    { id:'solar',   icon:'sun',    label:'My system' },
     { id:'more',    icon:'grid',   label:'More' }
   ];
   return `<nav class="bottom-nav" role="navigation" aria-label="Sections">
