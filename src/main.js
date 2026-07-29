@@ -7260,6 +7260,10 @@ function renderPlans(){
   const showingAll = !!state._plans_all || f !== 'all' || sortBy !== 'cost';
   const winner = ranked[0];
   const winnerSaving = winner ? baseCost - winner.cost : 0;
+  // The range the ranking spans, for the bar on each row.
+  const liveCosts = ranked.filter((r) => !r.onHold).map((r) => r.cost);
+  const spreadLo = liveCosts.length ? Math.min(...liveCosts) : null;
+  const spreadHi = liveCosts.length ? Math.max(...liveCosts) : null;
 
   /*
    * The cheapest plan is on the panel, with the button that acts on it.
@@ -7372,6 +7376,10 @@ function renderPlans(){
             ${!isCurrent ? `<div class="plan-saving" style="color:${saving > 0 ? 'var(--gain)' : 'var(--loss)'}">${saving > 0 ? '−' + fmtCurrency(saving) : '+' + fmtCurrency(-saving)}</div>` : ''}
           </div>
         </div>
+        ${spreadLo != null && spreadHi > spreadLo ? `
+          <div class="plan-spread" aria-hidden="true">
+            <span style="width:${Math.max(3, Math.round(((spreadHi - r.cost) / (spreadHi - spreadLo)) * 100))}%"></span>
+          </div>` : ''}
         <div class="plan-card-foot">
           ${r.plan.verified_date ? `<span class="plan-verified">Verified ${fmtVerifiedDate(r.plan.verified_date)}</span>` : '<span></span>'}
           <button class="cmp-btn ${cmpSel.includes(r.plan.id) ? 'on' : ''}"
@@ -7440,6 +7448,51 @@ function showPlanDetail(planId){
   renderApp();
 }
 
+
+/**
+ * A tariff's day, at a glance.
+ *
+ * A plan page that lists four rates in a column tells you what they are and
+ * not what they mean. The thing anyone actually wants from a time-of-use
+ * tariff is WHEN it is cheap, and that is a shape, not a table: twenty-four
+ * cells across a day, coloured by band, with the price under each name.
+ *
+ * Cents, not euro to four decimals. The rate inputs above stay in €/kWh
+ * because they are editable and the engine works in euro, but nobody reads
+ * "0.3388" as a price — they read "33.9c".
+ */
+const DAY_BAND_COLORS = { ev:'#0E9F55', night:'#1F6FEB', day:'#8798AC', peak:'#D92D20', wfh:'#7BC8FF' };
+
+function renderTariffDayStrip(plan){
+  if (!plan || !plan.rates) return '';
+  if (isFlatPlan(plan)){
+    return `<div class="day-strip-card">
+      <div class="day-strip-title">The same all day</div>
+      <div class="day-strip"><span style="background:${DAY_BAND_COLORS.day};flex:24"></span></div>
+      <div class="day-strip-hours"><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>24h</span></div>
+      <div class="day-strip-legend"><span><i style="background:${DAY_BAND_COLORS.day}"></i>Flat · <b>${fmtCent(plan.rates.day)}/kWh</b></span></div>
+    </div>`;
+  }
+  const bands = Array.from({ length: 24 }, (_, h) => bandAt(h, plan));
+  const present = [...new Set(bands)];
+  const label = { ev:'EV window', night:'Night', peak:'Peak', day:'Day', wfh:'Work from home' };
+  const cheapest = present.reduce((a, b) => ((plan.rates[b] ?? 9) < (plan.rates[a] ?? 9) ? b : a), present[0]);
+
+  return `<div class="day-strip-card">
+    <div class="day-strip-title">When this plan is cheap</div>
+    <div class="day-strip">
+      ${bands.map((b, h) => `<span style="background:${DAY_BAND_COLORS[b] || DAY_BAND_COLORS.day}"
+        title="${h}:00 — ${label[b] || b}, ${fmtCent(plan.rates[b] ?? plan.rates.day)}/kWh"></span>`).join('')}
+    </div>
+    <div class="day-strip-hours"><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>24h</span></div>
+    <div class="day-strip-legend">
+      ${present.sort((a, b) => (plan.rates[a] ?? 9) - (plan.rates[b] ?? 9)).map((b) => `
+        <span><i style="background:${DAY_BAND_COLORS[b] || DAY_BAND_COLORS.day}"></i>${label[b] || b} · <b>${fmtCent(plan.rates[b] ?? plan.rates.day)}/kWh</b></span>`).join('')}
+    </div>
+    <div class="day-strip-note">Cheapest window: <b>${label[cheapest] || cheapest}</b>. Shifting the dishwasher, the immersion or an EV into it is where a time-of-use plan pays.</div>
+  </div>`;
+}
+
 function renderPlanDetail(){
   const planId = state._detail_plan_id;
   if (!planId) return renderPlans();
@@ -7480,6 +7533,8 @@ function renderPlanDetail(){
         ${c.export_revenue > 0 ? ` · −${fmtCurrency(c.export_revenue)} export` : ''}
       </div>
     </div>
+
+    ${renderTariffDayStrip(plan)}
 
     <div class="pd-section-title">
       <span>Rates (€/kWh, incl. VAT)</span>

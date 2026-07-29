@@ -489,6 +489,25 @@
   .year-shape-legend i.use{background:rgba(255,255,255,.45)}
   .year-shape-legend b{margin-left:auto;color:#FFFFFF;font-weight:700}
 
+  /* Where a plan sits between the cheapest and the dearest. A column of
+     near-identical euro figures is a table; as a length it is a picture of
+     the market, and the gaps that matter become visible. */
+  .plan-spread{height:4px;border-radius:999px;background:var(--track-soft);margin:12px 0 0;overflow:hidden}
+  .plan-spread span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--gain),#5FD3A0)}
+  .plan-card.best .plan-spread span{background:var(--gain)}
+
+  /* A tariff's day as a shape: twenty-four cells, coloured by band. */
+  .day-strip-card{background:var(--surface);border:1px solid var(--hair);border-radius:16px;padding:18px;box-shadow:var(--lift);margin-bottom:14px}
+  .day-strip-title{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:12px}
+  .day-strip{display:flex;gap:1px;height:34px;border-radius:8px;overflow:hidden}
+  .day-strip span{flex:1;display:block}
+  .day-strip-hours{display:flex;justify-content:space-between;margin-top:6px;font-size:12px;color:var(--ink-dim);font-variant-numeric:tabular-nums}
+  .day-strip-legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:12px;font-size:13px;color:var(--ink-soft)}
+  .day-strip-legend i{display:inline-block;width:10px;height:10px;border-radius:4px;margin-right:6px;vertical-align:0}
+  .day-strip-legend b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+  .day-strip-note{margin-top:12px;font-size:13px;color:var(--ink-soft);line-height:1.6}
+  .day-strip-note b{color:var(--ink)}
+
   /* Section heading inside or under the panel. */
   .hero-section{font-size:13px;font-weight:700;color:#A9BDD9;margin:20px 0 10px;position:relative}
 
