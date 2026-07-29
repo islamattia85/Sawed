@@ -116,7 +116,16 @@ def probe(spec: dict, session: requests.Session) -> None:
             print(f"    {got.detail}")
             continue
         if url.lower().endswith(".pdf") or got.content[:5] == b"%PDF-":
-            print("    (PDF)")
+            # The whole point of the second discovery hop was to reach these.
+            # A price-list PDF is the steadiest source a supplier publishes, so
+            # dumping its text is what tells us how to parse it — the layout is
+            # a fixed table, not marketing prose.
+            from sources import pdf_text
+            txt = pdf_text(got.content)
+            print(f"    (PDF) {len(txt)} chars of text")
+            print("    ----- BEGIN PDF TEXT -----")
+            print(txt[:4000])
+            print("    ----- END PDF TEXT -----")
             continue
         soup = BeautifulSoup(got.text, "lxml")
         title = soup.title.get_text(strip=True) if soup.title else ""
