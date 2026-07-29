@@ -455,7 +455,7 @@
      The pieces are deliberately generic: a panel, an inset card, a row of
      tiles, a strip of statistics. Home is the first screen built from them and
      the others follow. */
-  .hero-panel{background:linear-gradient(165deg,#16294A 0%,#0E1D38 60%,#0B1830 100%);color:#EAF0F8;margin:-18px -16px 18px;padding:20px 20px 24px;padding-top:calc(20px + env(safe-area-inset-top));border-radius:0 0 24px 24px;position:relative;overflow:hidden}
+  .hero-panel{background:linear-gradient(165deg,#16294A 0%,#0E1D38 60%,#0B1830 100%);color:#EAF0F8;margin:-18px -16px 22px;padding:20px 20px 26px;padding-top:calc(20px + env(safe-area-inset-top));border-radius:0 0 28px 28px;position:relative;overflow:hidden;box-shadow:0 20px 44px -26px rgba(11,24,48,.6)}
   .hero-panel::after{content:"";position:absolute;top:-70px;right:-50px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(91,156,255,.22) 0%,transparent 68%);pointer-events:none}
   .hero-brand{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;position:relative}
   .hero-brand-name{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:700;letter-spacing:-.01em;color:#FFFFFF}
@@ -475,7 +475,7 @@
   .hero-inset-value .unit{font-size:17px;font-weight:600;color:var(--ink-soft);letter-spacing:0;margin-left:2px}
   .hero-inset-foot{font-size:13px;color:var(--ink-soft);margin-top:4px}
   .conf-pill{flex-shrink:0;text-align:center;padding:7px 11px;border-radius:12px;background:var(--gain-soft);color:var(--gain);font-size:12px;font-weight:700;line-height:1.25;cursor:pointer}
-  .conf-pill.med{background:var(--amber-soft);color:var(--amber)}
+  .conf-pill.med{background:var(--accent-soft);color:var(--accent)}
   .conf-pill.low{background:var(--well);color:var(--ink-soft)}
   .conf-pill b{display:block;font-size:13px}
 
@@ -541,7 +541,7 @@
   /* The one action, on the panel. */
   .hero-cta{display:block;width:100%;margin-top:18px;padding:16px;border-radius:16px;background:#FFFFFF;color:#0F2138;font-size:15px;font-weight:800;text-align:center;border:none;font-family:inherit;cursor:pointer;position:relative;letter-spacing:-.01em}
   .hero-cta:active{transform:scale(.99)}
-  .hero-cta.ghost{background:rgba(255,255,255,.10);color:#FFFFFF;border:1px solid rgba(255,255,255,.18);margin-top:8px}
+  .hero-cta.ghost{background:rgba(255,255,255,.14);color:#FFFFFF;border:1px solid rgba(255,255,255,.30);margin-top:8px}
 
   .plans-controls{display:flex;align-items:center;gap:8px;margin-bottom:12px}
   .plans-controls .plans-filters{flex:1;min-width:0;margin-bottom:0}
@@ -823,7 +823,7 @@
   /* Welcome screen */
   .welcome-page{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:env(safe-area-inset-top) 24px env(safe-area-inset-bottom);position:relative;background:radial-gradient(circle at 50% 30%,var(--bg-elev) 0%,var(--bg) 60%)}
   .welcome-page::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent 0%,var(--accent) 50%,transparent 100%);opacity:.6}
-  .welcome-content{flex:1;display:flex;flex-direction:column;justify-content:center;max-width:480px;margin:0 auto;width:100%;padding-top:30px}
+  .welcome-content{flex:1;display:flex;flex-direction:column;justify-content:flex-start;max-width:480px;margin:0 auto;width:100%;padding-top:clamp(24px,7vh,64px)}
   .welcome-brand{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.01em;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:8px}
   .welcome-brand::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent),0 0 16px var(--accent-glow);animation:pulse 2.2s ease infinite}
   .welcome-title{font-size:32px;font-weight:800;letter-spacing:-.03em;line-height:1.05;margin-bottom:16px}
@@ -831,11 +831,14 @@
   .welcome-sub{font-size:15px;color:var(--ink-soft);line-height:1.55;margin-bottom:32px;max-width:380px}
   .welcome-features{display:grid;gap:10px;margin-bottom:36px}
   .welcome-feature{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
-  .welcome-feature-icon{font-size:20px;flex-shrink:0;width:36px;height:36px;border-radius:8px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,230,118,.2)}
+  .welcome-feature-icon{font-size:20px;flex-shrink:0;width:36px;height:36px;border-radius:8px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;border:1px solid transparent}
   .welcome-feature-text{font-size:13px;color:var(--ink);line-height:1.5}
   .welcome-feature-text b{color:var(--ink);font-weight:600;display:block;margin-bottom:2px}
   .welcome-feature-text span{color:var(--ink-soft);font-size:12px}
-  .welcome-actions{display:flex;flex-direction:column;gap:10px;padding-bottom:20px}
+  /* margin-top:auto lets the headline and features sit near the top while the
+     actions settle to the bottom of the fold, instead of the old double-centring
+     that left the brand line floating mid-screen on a tall phone. */
+  .welcome-actions{display:flex;flex-direction:column;gap:10px;padding-bottom:20px;margin-top:auto;padding-top:28px}
   .welcome-trust{font-size:13px;color:var(--ink-dim);text-align:center;margin-top:10px;line-height:1.6}
 
   /* ── Intro onboarding flow ── */
