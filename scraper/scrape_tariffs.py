@@ -220,7 +220,14 @@ def scrape_supplier(spec: dict, existing: dict,
     updates: dict = {}
 
     log.info(f"{name}: discovering price pages under {spec['root']}")
-    pages = discover(spec["root"], session=session)
+    pages, discovery_failures = discover(spec["root"], session=session)
+    # Discovery used to swallow these. A homepage that will not load is a
+    # completely different problem from a homepage with no price links on it,
+    # and reporting the first as the second cost four weeks on Yuno, whose site
+    # simply serves an incomplete certificate chain.
+    result.failures.extend(discovery_failures)
+    for f in discovery_failures:
+        log.warning(f"  discovery: {f.url} → {f.kind}: {f.detail}")
     if not pages:
         log.warning(f"{name}: found no candidate price pages from the homepage or sitemap")
 

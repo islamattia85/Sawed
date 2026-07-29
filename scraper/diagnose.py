@@ -65,7 +65,10 @@ def show_structured(html: str, limit: int = 60) -> None:
     print(f"    rate-shaped values: {len(hits)} across {len(shapes)} distinct paths")
     for shape, n in sorted(shapes.items(), key=lambda kv: -kv[1])[:limit]:
         example = next(v for p, v, _ in hits if re.sub(r"\[\d+\]", "[]", p) == shape)
-        print(f"      {n:>5}x  {shape}  e.g. {example!r}")
+        # Truncated hard: a Redux dump carries five-kilobyte terms-and-conditions
+        # paragraphs that match the rate filter, and printing them in full made
+        # the first run of this file unreadable.
+        print(f"      {n:>5}x  {shape}  e.g. {str(example)[:90]!r}")
 
 
 def show_plan_names(text: str, plans: dict) -> None:
@@ -102,7 +105,9 @@ def probe(spec: dict, session: requests.Session) -> None:
     for u in sm[:10]:
         print(f"    {u}")
 
-    pages = discover(spec["root"], session=session)
+    pages, discovery_failures = discover(spec["root"], session=session)
+    for f in discovery_failures:
+        print(f"  discovery failure: {f.url} → {f.kind}: {f.detail[:120]}")
     for url in pages[:MAX_PAGES]:
         got = fetch(url, session=session)
         print(f"\n  --- {url}")

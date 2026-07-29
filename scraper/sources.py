@@ -105,6 +105,21 @@ PRICE_WORDS = re.compile(
 REJECT_WORDS = re.compile(r"\b(business|commercial|sme|gas\s*only|career|blog|news)\b", re.I)
 
 
+def same_site(a: str, b: str) -> bool:
+    """
+    Whether two URLs belong to the same supplier.
+
+    `www.` is the whole point. Pinergy's homepage is served from
+    www.pinergy.ie and every link on it is written bare, as pinergy.ie — so a
+    strict netloc comparison threw away all 194 links and the run reported
+    "site reached, but no page on it looked like prices". The site was fine;
+    the filter was wrong.
+    """
+    ha = urlparse(a).netloc.lower().removeprefix("www.")
+    hb = urlparse(b).netloc.lower().removeprefix("www.")
+    return ha == hb or not ha or not hb
+
+
 def candidate_links(html: str, base_url: str, limit: int = 12) -> list[str]:
     """
     Links on a page that plausibly lead to residential electricity prices.
@@ -114,7 +129,6 @@ def candidate_links(html: str, base_url: str, limit: int = 12) -> list[str]:
     the next time marketing reorganises the site, and it did.
     """
     soup = BeautifulSoup(html, "lxml")
-    host = urlparse(base_url).netloc
     scored: dict[str, int] = {}
 
     for a in soup.find_all("a", href=True):
@@ -122,7 +136,7 @@ def candidate_links(html: str, base_url: str, limit: int = 12) -> list[str]:
         if not href or href.startswith(("#", "mailto:", "tel:", "javascript:")):
             continue
         absolute = urljoin(base_url, href)
-        if urlparse(absolute).netloc not in (host, ""):
+        if not same_site(absolute, base_url):
             continue
 
         label = " ".join(a.get_text(" ", strip=True).split())[:120]
@@ -159,16 +173,53 @@ def sitemap_candidates(root: str, session: Optional[requests.Session] = None,
     return hits[:limit]
 
 
-def discover(root: str, session: Optional[requests.Session] = None) -> list[str]:
-    """Every plausible tariff page for a supplier, best first."""
+def discover(root: str, session: Optional[requests.Session] = None,
+             hops: int = 2) -> tuple[list[str], list[Fetched]]:
+    """
+    Every plausible tariff page for a supplier, best first, plus what failed.
+
+    Two things this used to get wrong.
+
+    It returned only URLs, so a homepage that could not be fetched at all left
+    the caller with an empty list and no reason — Yuno's certificate chain
+    failure was reported for weeks as "no page on it looked like prices", which
+    sends whoever reads it to widen keywords that were never the problem.
+
+    And it looked one hop from the homepage. SSE Airtricity's actual prices are
+    in a "View tariff table (PDF)" linked from their current-offers page, one
+    level further in. That PDF is the regulator-facing document: the steadiest
+    source any of these suppliers publish, and the run never reached it.
+    """
     out: list[str] = []
+    failures: list[Fetched] = []
+
     home = fetch(root, session=session)
     if home.ok:
         out.extend(candidate_links(home.text, root))
+    else:
+        failures.append(home)
+
     for u in sitemap_candidates(root, session=session):
         if u not in out:
             out.append(u)
-    return out
+
+    # Second hop, from the best few pages found so far. PDFs score highest in
+    # candidate_links, so a price list linked from a plans page rises to the top.
+    if hops > 1:
+        for url in list(out)[:3]:
+            if url.lower().endswith(".pdf"):
+                continue
+            got = fetch(url, session=session)
+            if not got.ok:
+                failures.append(got)
+                continue
+            for u in candidate_links(got.text, url, limit=6):
+                if u not in out and u != url:
+                    out.append(u)
+
+    # A PDF price list outranks any marketing page, wherever it was found.
+    out.sort(key=lambda u: 0 if u.lower().endswith(".pdf") else 1)
+    return out, failures
 
 
 # ---------------------------------------------------------------------------
@@ -233,10 +284,17 @@ EXPORT_RANGE = (5.0, 30.0)
 
 def _as_cents(value) -> Optional[float]:
     """A number that could be a cent-per-kWh rate, however it was written."""
+    if isinstance(value, bool):
+        return None                       # bool is an int in Python; True is not 1c
     if isinstance(value, (int, float)):
         v = float(value)
     elif isinstance(value, str):
-        m = re.search(r"(\d{1,3}(?:[.,]\d{1,4})?)", value.replace(",", "."))
+        # The number has to BE the string, give or take a currency mark or a
+        # unit. Searching for the first number anywhere in the text turned a
+        # five-kilobyte terms-and-conditions paragraph into a unit rate, which
+        # is how Bord Gáis produced 1,984 "rate candidates" on one page.
+        s = value.strip().replace(",", ".")
+        m = re.fullmatch(r"[€c]?\s*(\d{1,3}(?:\.\d{1,4})?)\s*(?:c|cent|c/kWh|€)?", s, re.I)
         if not m:
             return None
         v = float(m.group(1))
@@ -259,8 +317,12 @@ def rates_from_json(blobs: list[dict]) -> dict[str, float]:
     out: dict[str, float] = {}
     for blob in blobs:
         for path, value in walk(blob):
-            key = path.lower()
-            if not re.search(r"rate|price|tariff|unit|cent|charge|standing|export|ceg", key):
+            # The LAST segment has to name the value. Matching anywhere in the
+            # path meant one ancestor called `tariffs` qualified every leaf
+            # beneath it — chatbot opening times, IBAN lengths, a routing key
+            # of 'D05' — because they all sat under a rate-ish word somewhere.
+            leaf = path.lower().rsplit(".", 1)[-1]
+            if not re.search(r"rate|price|unitcost|cent|standing|export|ceg", leaf):
                 continue
             cents = _as_cents(value)
             if cents is None:
@@ -279,11 +341,21 @@ def rates_from_text(text: str) -> list[float]:
     return out
 
 
+#: A euro figure has to be introduced as a standing charge, or follow one within
+#: a few words. Any € on the page was far too generous: on Electric Ireland's
+#: plan pages it picked €120 — a cashback offer — and proposed it as a €328.58
+#: standing charge, a 63% move that only the tolerance check stopped.
+STANDING_CONTEXT = re.compile(
+    r"standing\s*charge[^€]{0,80}€\s*(\d{2,3}(?:[.,]\d{2})?)"
+    r"|€\s*(\d{2,3}(?:[.,]\d{2})?)[^€]{0,40}?standing\s*charge", re.I)
+
+
 def standing_from_text(text: str) -> list[float]:
-    """Annual standing charges quoted in a block of prose."""
+    """Annual standing charges quoted in a block of prose, named as such."""
     out = []
-    for m in re.finditer(r"€\s*(\d{2,3}(?:[.,]\d{2})?)", text):
-        v = float(m.group(1).replace(",", "."))
+    for m in STANDING_CONTEXT.finditer(text):
+        raw = m.group(1) or m.group(2)
+        v = float(raw.replace(",", "."))
         if STANDING_RANGE[0] <= v <= STANDING_RANGE[1]:
             out.append(round(v, 2))
     return out

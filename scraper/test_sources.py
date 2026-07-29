@@ -14,6 +14,7 @@ given a page, we find the right link, and given a link, we read the right number
 """
 
 import pytest
+import requests
 
 from sources import (
     Fetched, candidate_links, embedded_json, rates_from_json, rates_from_text,
@@ -243,3 +244,71 @@ def test_reaching_a_site_but_finding_no_prices_is_not_a_broken_link():
     # is for.
     assert Fetched("u", kind="nolinks").kind != Fetched("u", kind="moved").kind
     assert Fetched("u", kind="nolinks").ok is False
+
+
+# ---------------------------------------------------------------------------
+# The 29 July diagnostic run — one probe per defect it found on a live site.
+# ---------------------------------------------------------------------------
+
+def test_a_bare_domain_link_is_the_same_site_as_its_www_host():
+    # Pinergy serves www.pinergy.ie and writes every link as pinergy.ie. A
+    # strict netloc match dropped all 194 of them and the run then reported the
+    # site as having no price page on it, which sent the fix in the wrong
+    # direction entirely.
+    html = '<a href="https://pinergy.ie/electricity-price-plans/">Price plans</a>'
+    assert candidate_links(html, "https://www.pinergy.ie/") == [
+        "https://pinergy.ie/electricity-price-plans/"]
+
+
+def test_a_link_to_another_company_is_still_rejected():
+    # Loosening the host check must not turn discovery loose on the web.
+    html = '<a href="https://switcher.ie/electricity-prices/">Prices</a>'
+    assert candidate_links(html, "https://www.pinergy.ie/") == []
+
+
+def test_prose_is_not_a_unit_rate_however_many_numbers_it_contains():
+    # Bord Gáis ships its entire Redux store. Searching for the first number
+    # anywhere in a value turned five-kilobyte terms-and-conditions paragraphs
+    # into rate candidates: 1,984 of them on one page, none of them a rate.
+    assert _as_cents("An early exit fee of €50 will apply if you leave") is None
+    assert _as_cents("<p>Prices are effective from 1 December 2025.</p>") is None
+    assert _as_cents("30.55") == 30.55
+    assert _as_cents("30.55c") == 30.55
+    assert _as_cents(0.3055) == 30.55
+
+
+def test_a_boolean_is_not_a_price():
+    assert _as_cents(True) is None
+
+
+def test_only_the_leaf_of_a_json_path_decides_what_a_value_is():
+    # Matching a rate word anywhere in the path meant one ancestor named
+    # `tariffs` qualified everything beneath it — chatbot opening hours, IBAN
+    # lengths, a routing key of 'D05'.
+    blob = {"tariffs": {"chatBot": {"openDaysTimes": [{"endTime": "24:00"}]},
+                        "plans": [{"unitRate": 30.55}]}}
+    found = rates_from_json([blob])
+    assert list(found.values()) == [0.3055]
+
+
+def test_a_standing_charge_has_to_be_called_one():
+    # Electric Ireland's plan page carries a €120 cashback offer. It was read as
+    # a standing charge and proposed against €328.58 — a 63% move that only the
+    # tolerance guard stopped, and it stopped the real update alongside it.
+    assert standing_from_text("Get €120 cashback when you switch today") == []
+    assert standing_from_text("Annual standing charge: €328.58") == [328.58]
+    assert standing_from_text("€328.58 is the annual standing charge") == [328.58]
+
+
+def test_discovery_says_why_it_found_nothing():
+    # Yuno's site serves an incomplete certificate chain. Reported for four
+    # weeks as "site reached, but no page on it looked like prices".
+    from sources import discover
+
+    class DeadSession:
+        def get(self, *a, **k):
+            raise requests.exceptions.SSLError("certificate verify failed")
+
+    pages, failures = discover("https://www.yunoenergy.ie/", session=DeadSession())
+    assert pages == []
+    assert [f.kind for f in failures] == ["tls"]
