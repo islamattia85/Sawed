@@ -42,6 +42,7 @@ from bs4 import BeautifulSoup
 from sources import (
     Fetched, SupplierResult, fetch, discover, embedded_json,
     rates_from_json, rates_from_text, standing_from_text, pdf_text,
+    parse_rate_table, parse_standing_table, parse_export_cent,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -94,6 +95,9 @@ SUPPLIERS = [
             "SSE-DNP":   ["day night peak", "day/night/peak", "smart dnp"],
             "SSE-EVMAX": ["ev max", "evmax"],
         },
+        # SSE publishes a fixed-layout price-list PDF per fuel. Read it as a
+        # table, not prose — see sse_pdf_updates().
+        "pdf_tariff": "sse",
     },
     {
         "name": "Energia",
@@ -194,6 +198,66 @@ def attribute(text: str, plans: dict, existing: dict) -> dict:
     return updates
 
 
+def _pick(rows: list, meter_contains: str, kind: str):
+    """The first table row whose meter contains a phrase and whose band matches."""
+    for r in rows:
+        if meter_contains in r["meter"].lower() and r["kind"] == kind:
+            return round(r["cents"] / 100, 4)
+    return None
+
+
+def sse_pdf_updates(text: str, existing: dict) -> dict:
+    """
+    Attribute one SSE price-list PDF to our plan ids.
+
+    Table parsing lives in sources.py and is fuel-agnostic; this is the part
+    that knows an SSE "Smart Meter Peak Rate" is our SSE-DNP peak band, and it
+    stays here because that mapping is a fact about our data, not about a PDF.
+
+    Only the bands a PDF actually contains are filled — a gas-only sheet leaves
+    the electricity plans untouched — so the three fuel PDFs compose. Every
+    value carries `_trusted`, which tells apply_updates it came from a labelled
+    table column rather than a guess near a keyword, and may be applied under a
+    wider drift guard: a real rate move must not be rejected as if it were a
+    parser slip.
+    """
+    rows = parse_rate_table(text)
+    standing = parse_standing_table(text)
+    export = parse_export_cent(text)
+    if not rows:
+        return {}
+
+    def entry(**kw):
+        return {"verified_date": TODAY, "_trusted": True,
+                **({"_scraped_export": export} if export is not None else {}), **kw}
+
+    out: dict = {}
+
+    # SSE-EVDAY — the flat 24-hour smart rate, one number for every band.
+    flat = _pick(rows, "24 hour", "flat")
+    if flat is not None and "SSE-EVDAY" in existing:
+        out["SSE-EVDAY"] = entry(_scraped_day_rate=flat,
+                                 _scraped_standing=standing.get("urban smart"))
+
+    # SSE-DNP — the smart day/night/peak card.
+    day = _pick(rows, "smart meter", "day")
+    night = _pick(rows, "smart meter", "night")
+    peak = _pick(rows, "smart meter", "peak")
+    if day is not None and "SSE-DNP" in existing:
+        out["SSE-DNP"] = entry(_scraped_day_rate=day, _scraped_night_rate=night,
+                               _scraped_peak_rate=peak, _scraped_ev_rate=night,
+                               _scraped_standing=standing.get("urban smart"))
+
+    # SSE-EVMAX — an 18-hour day rate and a 6-hour overnight EV window.
+    r18 = _pick(rows, "smart ev max", "18h")
+    r6 = _pick(rows, "smart ev max", "6h")
+    if r18 is not None and "SSE-EVMAX" in existing:
+        out["SSE-EVMAX"] = entry(_scraped_day_rate=r18, _scraped_night_rate=r18,
+                                 _scraped_peak_rate=r18, _scraped_ev_rate=r6,
+                                 _scraped_standing=standing.get("urban smart ev max"))
+    return out
+
+
 def read_page(got: Fetched) -> tuple[str, dict]:
     """
     Everything readable on one fetched page: (plain text, structured candidates).
@@ -245,6 +309,26 @@ def scrape_supplier(spec: dict, existing: dict,
             result.rates.update(structured)
             log.info(f"  {url}: {len(structured)} structured rate candidate(s)")
 
+        # A supplier with a fixed-layout price-list PDF is read as a table
+        # first. This is far steadier than prose, so its results take
+        # precedence: setdefault below will not overwrite them.
+        is_pdf = url.lower().endswith(".pdf") or got.content[:5] == b"%PDF-"
+        if is_pdf and spec.get("pdf_tariff") == "sse":
+            for plan_id, upd in sse_pdf_updates(text, existing).items():
+                # First price list wins. PDFs sort ahead of HTML in discovery,
+                # so this beats any prose guess; and among the PDFs the
+                # electricity-only card is read before the dual-fuel one, so an
+                # electricity plan keeps its own card's rate rather than the
+                # dual-fuel bundle's slightly different discount.
+                if plan_id in updates:
+                    continue
+                updates[plan_id] = upd
+                if upd.get("_scraped_standing"):
+                    result.standing.append(upd["_scraped_standing"])
+                log.info(f"  {plan_id}: from price list — day={upd.get('_scraped_day_rate')} "
+                         f"standing={upd.get('_scraped_standing')} export={upd.get('_scraped_export')}")
+            continue
+
         found = attribute(text, spec["plans"], existing)
         for plan_id, upd in found.items():
             updates.setdefault(plan_id, upd)
@@ -277,9 +361,11 @@ def scrape_supplier(spec: dict, existing: dict,
 # proposed moving a standing charge from €331.96 to exactly €250.00 and a unit
 # rate up 3.15c — both sailed through. Irish tariffs do move, but a change of
 # that size is a supplier announcement, not something to accept from a regex
-# without a human looking at it.
-RATE_TOLERANCE = 0.05        # absolute: never accept a jump bigger than 5c/kWh
-RATE_TOLERANCE_REL = 0.05    # …and never more than 5% of the current rate
+# without a human looking at it. The guard is relative, not absolute — see
+# _within — because for a unit rate under €1 the percentage is what carries the
+# meaning, and the old absolute threshold only ever bit once the value was
+# already far off in relative terms.
+RATE_TOLERANCE_REL = 0.05    # never accept a jump beyond 5% of the current rate
 #
 # 5% because a real Irish tariff move of that size is announced, and worth a
 # person typing in. Below it, a difference is far more likely to be the parser
@@ -287,6 +373,30 @@ RATE_TOLERANCE_REL = 0.05    # …and never more than 5% of the current rate
 # a 10% threshold — so 10% would have let through the exact change that
 # prompted writing this.
 STANDING_TOLERANCE_REL = 0.15  # …and 15% for a standing charge
+
+# A value read from a labelled price-list table (a PDF column, not a keyword
+# window) earns a far wider drift guard. The tight ±5% exists to catch a prose
+# scrape mistaking one number for another; a table row cannot drift that way, so
+# rejecting a real 8% rate move as if it were a parser slip would be the wrong
+# call — it would keep a stale rate and mark the plan unverified. The wide band
+# is only here to catch a catastrophic structural misread, such as picking the
+# Standard column instead of the discounted one (a ~40% jump) or Ex. VAT for
+# Inc. The column itself is chosen deterministically and pinned by fixture tests.
+TRUSTED_RATE_TOLERANCE_REL = 0.30
+
+
+def _within(scraped, existing, rel_limit):
+    """Whether a scraped value is close enough, relatively, to the one it replaces.
+
+    Relative only: for a unit rate under €1 or a standing charge in the low
+    hundreds, the percentage move is what carries meaning, and an absolute
+    threshold on top of it never bit before the value was already relatively far
+    off. Nothing to compare against (a field that was empty) is accepted.
+    """
+    if not existing:
+        return True
+    return abs(scraped - existing) / existing <= rel_limit
+
 
 def apply_updates(tariffs: list, all_updates: dict) -> tuple[list, int]:
     """Merge scraped updates into tariffs. Returns (updated_list, change_count)."""
@@ -298,23 +408,28 @@ def apply_updates(tariffs: list, all_updates: dict) -> tuple[list, int]:
             log.warning(f"Unknown plan id {plan_id} — skipping")
             continue
         plan = by_id[plan_id]
+        upd = dict(upd)                   # do not mutate the caller's dict
 
-        # Validate day rate against existing if available
+        trusted = upd.pop("_trusted", False)
+        rate_rel = TRUSTED_RATE_TOLERANCE_REL if trusted else RATE_TOLERANCE_REL
+
         scraped_day = upd.pop("_scraped_day_rate", None)
         scraped_standing = upd.pop("_scraped_standing", None)
+        scraped_export = upd.pop("_scraped_export", None)
+        other_bands = {
+            "night": upd.pop("_scraped_night_rate", None),
+            "peak":  upd.pop("_scraped_peak_rate", None),
+            "ev":    upd.pop("_scraped_ev_rate", None),
+        }
 
+        # The day rate is the anchor: if it will not apply, the plan is not
+        # verified today, whatever else we read. Setting verified_date on a plan
+        # whose unit rate we could not confirm is exactly the silent-staleness
+        # the coverage floor exists to prevent.
+        day_confirmed = True
         if scraped_day is not None:
             existing_day = plan.get("rates", {}).get("day", 0)
-            delta = abs(scraped_day - existing_day)
-            rel = delta / existing_day if existing_day else 1.0
-            if delta > RATE_TOLERANCE or rel > RATE_TOLERANCE_REL:
-                log.warning(
-                    f"{plan_id}: scraped day {scraped_day:.4f} vs existing {existing_day:.4f} "
-                    f"— {delta:.4f} ({rel:.0%}) exceeds tolerance, skipping rate update. "
-                    f"If the supplier really did change this, update it by hand."
-                )
-            else:
-                # Flat plan: update all bands equally
+            if _within(scraped_day, existing_day, rate_rel):
                 if plan.get("type") == "flat":
                     for band in plan["rates"]:
                         plan["rates"][band] = scraped_day
@@ -322,19 +437,51 @@ def apply_updates(tariffs: list, all_updates: dict) -> tuple[list, int]:
                     plan["rates"]["day"] = scraped_day
                 log.info(f"{plan_id}: day rate updated to {scraped_day}")
                 changes += 1
+            else:
+                day_confirmed = False
+                rel = abs(scraped_day - existing_day) / existing_day if existing_day else 1.0
+                log.warning(
+                    f"{plan_id}: scraped day {scraped_day:.4f} vs existing {existing_day:.4f} "
+                    f"— {rel:.0%} exceeds tolerance, skipping rate update. "
+                    f"If the supplier really did change this, update it by hand."
+                )
+
+        # Time-of-use bands, only for a non-flat plan whose day rate held: a flat
+        # plan's bands were already set together above, and applying night/peak
+        # to a plan whose day rate we rejected would leave it half-updated.
+        if day_confirmed and plan.get("type") != "flat":
+            for band, value in other_bands.items():
+                if value is None or band not in plan.get("rates", {}):
+                    continue
+                if _within(value, plan["rates"][band], rate_rel):
+                    plan["rates"][band] = value
+                    changes += 1
+                else:
+                    rel = abs(value - plan["rates"][band]) / plan["rates"][band]
+                    log.warning(f"{plan_id}: {band} rate {value:.4f} vs "
+                                f"{plan['rates'][band]:.4f} — {rel:.0%} exceeds tolerance, skipping")
 
         if scraped_standing is not None:
-            existing_standing = plan.get("standing", 0)
-            sdelta = abs(scraped_standing - existing_standing)
-            srel = sdelta / existing_standing if existing_standing else 1.0
-            if srel > STANDING_TOLERANCE_REL:
-                log.warning(
-                    f"{plan_id}: scraped standing {scraped_standing} vs existing "
-                    f"{existing_standing} — {sdelta:.2f} ({srel:.0%}) exceeds tolerance, skipping"
-                )
-            else:
+            if _within(scraped_standing, plan.get("standing", 0), STANDING_TOLERANCE_REL):
                 plan["standing"] = scraped_standing
                 changes += 1
+            else:
+                existing_standing = plan.get("standing", 0)
+                srel = abs(scraped_standing - existing_standing) / existing_standing
+                log.warning(
+                    f"{plan_id}: scraped standing {scraped_standing} vs existing "
+                    f"{existing_standing} — {srel:.0%} exceeds tolerance, skipping")
+
+        if scraped_export is not None and _within(scraped_export, plan.get("export_ceg"),
+                                                  TRUSTED_RATE_TOLERANCE_REL):
+            if plan.get("export_ceg") != scraped_export:
+                plan["export_ceg"] = scraped_export
+                changes += 1
+
+        # A rejected anchor rate means "not verified today" — drop the stamp so
+        # the plan is not counted as fresh while its price is stale.
+        if not day_confirmed:
+            upd.pop("verified_date", None)
 
         # Apply remaining fields (discontinued, verified_date, etc.)
         for k, v in upd.items():

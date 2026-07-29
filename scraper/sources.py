@@ -388,6 +388,112 @@ def pdf_text(data: bytes) -> str:
 
 
 # ---------------------------------------------------------------------------
+# The regulator-facing price list, as a table
+#
+# SSE Airtricity publishes its full price list as a PDF whose layout is a fixed
+# table, not prose. That is exactly why it is worth parsing: a keyword-and-window
+# scrape guesses, but a table has columns that mean the same thing every time.
+#
+# Each unit-rate row is a label, then ten numbers, then a descriptor:
+#
+#     24 Hour Meter Inc. Smart◊
+#     37.73 41.13 26.41 28.79 29.05 31.66 31.32 34.14 33.96 37.02
+#     Rate (cents/kWh)
+#
+# The ten numbers are five discount columns — Standard, DD & eBill, DD & Post,
+# Non DD & eBill, Non DD & Post — each as an (Ex. VAT, Inc. VAT) pair. Which
+# column a supplier's headline number comes from is a real decision, so it is a
+# named constant rather than a magic index. See PRICE_COLUMN below.
+# ---------------------------------------------------------------------------
+
+#: The five discount columns of an SSE price table, in order.
+SSE_COLUMNS = ["Standard", "DD & eBill", "DD & Post", "Non DD & eBill", "Non DD & Post"]
+
+#: Which column, and Ex. or Inc. VAT, the stored unit rate represents.
+#:
+#: This is not arbitrary. The rates already in tariffs.json match "DD & Post,
+#: Inc. VAT" to within ~1% (SSE-EVDAY's 31.52c against the table's 31.66c),
+#: while the headline paperless "DD & eBill" column sits ~8% lower. Matching the
+#: established basis keeps a fresh scrape consistent with the existing numbers
+#: instead of silently re-baselining every SSE plan onto a cheaper tariff. To
+#: switch to the headline rate, change this one line — nothing else moves.
+PRICE_COLUMN = ("DD & Post", "inc")
+
+#: Byte offset of the chosen value within a row's ten numbers.
+_PRICE_INDEX = SSE_COLUMNS.index(PRICE_COLUMN[0]) * 2 + (1 if PRICE_COLUMN[1] == "inc" else 0)
+
+_RATE_ROW = re.compile(r"^(?:\d{1,3}\.\d{2}\s+){9}\d{1,3}\.\d{2}$")
+_STANDING_ROW = re.compile(
+    r"^(.+?)\s+([\d.]+)\s+([\d.]+)\s+€\s*([\d,]+(?:\.\d{2})?)\s+€\s*([\d,]+(?:\.\d{2})?)$")
+
+
+def _rate_kind(descriptor: str) -> str:
+    """Which band a rate row is, from the line beneath its numbers."""
+    d = descriptor.lower()
+    if d.startswith("day rate"):   return "day"
+    if d.startswith("night rate"): return "night"
+    if d.startswith("peak rate"):  return "peak"
+    if d.startswith("18h rate"):   return "18h"
+    if d.startswith("6h rate"):    return "6h"
+    if d.startswith("rate"):       return "flat"
+    return "?"
+
+
+def parse_rate_table(text: str) -> list[dict]:
+    """
+    Every unit-rate row in an SSE price list, as structured records.
+
+    Each is ``{meter, kind, cents}`` where ``cents`` is the value from the
+    configured column (PRICE_COLUMN). The meter is the label line above the
+    numbers ('24 Hour Meter Inc. Smart', 'Smart Meter', 'Smart EV Max'); the
+    kind is the band beneath them. Returns records, never a verdict — attributing
+    them to our plan ids is the caller's job, and stays supplier-specific.
+    """
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    out: list[dict] = []
+    for i, ln in enumerate(lines):
+        if not _RATE_ROW.match(ln):
+            continue
+        nums = [float(x) for x in ln.split()]
+        meter = re.sub(r"[◊♦*]+", "", lines[i - 1]).strip() if i else ""
+        kind = _rate_kind(lines[i + 1]) if i + 1 < len(lines) else "?"
+        cents = nums[_PRICE_INDEX]
+        if RATE_RANGE[0] <= cents <= RATE_RANGE[1]:
+            out.append({"meter": meter, "kind": kind, "cents": cents})
+    return out
+
+
+def parse_standing_table(text: str) -> dict[str, float]:
+    """
+    Annual standing charges from an SSE price list, keyed by meter label.
+
+    The euro-per-year Inc. VAT figure — the last of the four numbers on a row
+    like ``Urban 24 hr 66.32 72.29 € 242.07 € 263.86``. Inc. VAT because that is
+    what the stored figures already are: SSE-EVMAX's 357.23 is the table's Inc.
+    VAT to the cent.
+    """
+    out: dict[str, float] = {}
+    for ln in text.splitlines():
+        m = _STANDING_ROW.match(ln.strip())
+        if not m:
+            continue
+        label = m.group(1).strip().lower()
+        inc_year = float(m.group(5).replace(",", ""))
+        if STANDING_RANGE[0] <= inc_year <= STANDING_RANGE[1]:
+            out[label] = round(inc_year, 2)
+    return out
+
+
+def parse_export_cent(text: str) -> Optional[float]:
+    """The clean-export (CEG) rate a price list quotes, in euro per kWh."""
+    m = re.search(r"clean export tariff of\s+(\d{1,2}(?:\.\d+)?)\s*cent", text, re.I)
+    if not m:
+        return None
+    v = float(m.group(1))
+    return round(v / 100, 4) if EXPORT_RANGE[0] <= v <= EXPORT_RANGE[1] else None
+
+
+# ---------------------------------------------------------------------------
 # Per-supplier result
 # ---------------------------------------------------------------------------
 
