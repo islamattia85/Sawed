@@ -1,0 +1,41 @@
+name: Diagnose Tariff Scraper
+
+# The supplier sites are unreachable from the development container, so this
+# runner is the only place their markup can be read. It prints; it never writes
+# tariffs.json and never opens a pull request.
+#
+# It runs on push to the scraper branches on purpose: workflow_dispatch would
+# require the file to sit on the default branch, and a diagnostic has no
+# business there.
+
+on:
+  push:
+    branches:
+      - 'claude/**'
+      - 'scraper/**'
+    paths:
+      - 'scraper/**'
+      - '.github/workflows/diagnose_scraper.yml'
+  workflow_dispatch:
+    inputs:
+      suppliers:
+        description: 'Space-separated first words, e.g. "yuno pinergy". Empty = all.'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r scraper/requirements.txt
+      - name: Probe supplier sites
+        working-directory: scraper
+        run: python diagnose.py ${{ github.event.inputs.suppliers }}
