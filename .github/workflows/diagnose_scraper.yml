@@ -39,3 +39,15 @@ jobs:
       - name: Probe supplier sites
         working-directory: scraper
         run: python diagnose.py ${{ github.event.inputs.suppliers }}
+
+      # The real scraper, against the real sites, with the result thrown away.
+      # Coverage is the only number that says whether a parser change worked;
+      # the probe above says why. Nothing is committed and nothing is pushed —
+      # the checkout is discarded with the runner.
+      - name: Dry run — what would the real scrape verify today?
+        if: always()
+        working-directory: scraper
+        run: python scrape_tariffs.py || true
+      - name: Show the diff it would have proposed
+        if: always()
+        run: git --no-pager diff --stat public/tariffs.json && git checkout -- public/tariffs.json
