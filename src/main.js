@@ -889,7 +889,7 @@ const DEFAULT_STATE = {
   // Shape: { 'EI-24': { rates: { day: 0.32 }, standing: 220, export_rate: 0.20 } }
   plan_overrides: {},
   // ── Companion layer (product-vision additions) ──
-  theme: 'light',               // 'light' | 'dark' — appearance
+  theme: 'dark',                // 'light' | 'dark' — V5 leads warm-dark
   monitoring_on: true,          // Market Monitor active
   contract_end_date: "",        // ISO date string for renewal reminder
   solar_quotes: [],             // [{id, installer, price, kwp, battery}]
@@ -905,14 +905,11 @@ try {
   const raw = localStorage.getItem("solarAppState_v2");
   state = raw ? JSON.parse(raw) : structuredClone(DEFAULT_STATE);
   state = deepMerge(structuredClone(DEFAULT_STATE), state);
-  // First visit only: honour the device's OS dark/light preference as the
-  // starting theme. Once the user picks a theme themselves it's saved and wins.
+  // V5 leads with the warm-dark experience: dark is the default on a first
+  // visit regardless of OS preference. Light is still a choice, and once the
+  // user picks a theme themselves it's saved and wins.
   if (!raw){
-    try {
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches){
-        state.theme = 'dark';
-      }
-    } catch(e){}
+    state.theme = 'dark';
   }
   // Migration: users who declared an owned EV before ev_in_bill existed — their
   // entered bill includes the car's charging, so carve it out of the base load
@@ -3551,45 +3548,37 @@ function renderIntro(){
   return `<div class="intro-screen">${backBtn}${progressBar}${heroHTML}${footerHTML}</div>`;
 }
 
+// V5 front door — the vision document's "warm dark, honest UI". A question,
+// not a login: one primary answer, two quieter ways in, and the promises the
+// engine can actually keep, stated as facts.
 function renderWelcome(){
-  return `<div class="welcome-page">
-    <div class="welcome-content">
-      <div class="welcome-brand">Solar Optimiser · Ireland</div>
-      <h1 class="welcome-title">Your personal <em>energy advisor</em>.</h1>
-      <p class="welcome-sub">With or without solar. We model your exact home against every Irish tariff to find the real saving — and the right plan to lock it in.</p>
-
-      <div class="welcome-features">
-        <div class="welcome-feature">
-          <div class="welcome-feature-icon">${ic('bolt',20)}</div>
-          <div class="welcome-feature-text">
-            <b>Find your best tariff</b>
-            <span>All ${TARIFFS.length} Irish residential plans modelled against your usage</span>
-          </div>
-        </div>
-        <div class="welcome-feature">
-          <div class="welcome-feature-icon">${ic('sun',20)}</div>
-          <div class="welcome-feature-text">
-            <b>Real solar payback</b>
-            <span>Not generic — your roof, your tariff, your numbers</span>
-          </div>
-        </div>
-        <div class="welcome-feature">
-          <div class="welcome-feature-icon">${ic('clip',20)}</div>
-          <div class="welcome-feature-text">
-            <b>Audit any installer quote</b>
-            <span>Objective benchmark vs 2026 Irish market prices</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="welcome-actions">
-        <button class="switch-cta" style="margin-bottom:0" onclick="goFastPath()">Get my quick answer → <span style="font-weight:400;font-size:13px;opacity:.85">one screen, 30 seconds</span></button>
-        <button onclick="startOnboarding()" style="width:100%;margin-top:10px;padding:16px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);font-family:var(--display);font-size:13px;font-weight:700;color:var(--ink);cursor:pointer">Full setup — guided, with solar &amp; EV →</button>
-        <button class="ob-skip-btn" onclick="navigateAuditor()">Just want to audit an installer quote? →</button>
-      </div>
-      ${state.onboarding_complete ? `<button class="ob-skip-btn" style="margin-top:10px" onclick="setScreen('result')">← Back to my results</button>` : ''}
-      <div class="welcome-trust">Free · Independent · Your data stays on this device</div>
+  const nPlans = TARIFFS.filter(isRankablePlan).length || TARIFFS.length;
+  return `<div class="v5-screen">
+    <div class="v5-brandrow">
+      <span class="v5-logo"></span>
+      <span class="name">Solar Optimiser</span>
+      <span class="v5-chip">IRELAND</span>
     </div>
+
+    <div style="margin-top:44px">
+      <div class="v5-eyebrow">TWO-MINUTE ANSWER</div>
+      <h1 class="v5-h1">Is it worth it —<br><span class="v5-grad">for your home?</span></h1>
+      <p class="v5-lede">With or without solar. We model your exact home against every Irish tariff and every system — then hand back the answer, with the working behind it.</p>
+
+      <div class="v5-checks">
+        <div class="v5-check"><span class="tick">✓</span><span>PVGIS irradiance for your county</span></div>
+        <div class="v5-check"><span class="tick">✓</span><span>${nPlans} live Irish tariffs · re-checked regularly</span></div>
+        <div class="v5-check"><span class="tick">✓</span><span>SEAI grant + CEG export built in</span></div>
+      </div>
+    </div>
+
+    <div class="v5-spacer"></div>
+
+    <button class="v5-cta" onclick="goFastPath()">Show me the answer → <span class="sub">one screen, 30 seconds</span></button>
+    <button class="v5-cta-ghost" onclick="startOnboarding()">Full setup — guided, with solar &amp; EV →</button>
+    <button class="v5-tertiary" onclick="navigateAuditor()">Just want to audit an installer quote? →</button>
+    ${state.onboarding_complete ? `<button class="v5-tertiary" onclick="setScreen('result')">← Back to my results</button>` : ''}
+    <div class="v5-trust">Free · Independent · Your data stays on this device</div>
   </div>`;
 }
 

@@ -107,30 +107,36 @@
     --display:"Inter Tight",system-ui,-apple-system,sans-serif;
     --mono:"Inter Tight",system-ui,-apple-system,sans-serif;
   }
+  /* ── V5 "warm dark, honest UI" ─────────────────────────────────────────
+     The design language from the vision document: a deep warm navy, a solar-
+     amber gradient for the primary action, signal-blue and value-green as the
+     two working accents. This is the DEFAULT experience in V5; light is kept as
+     an alternative (below) but dark leads. Palette values are the doc's own. */
   :root[data-theme="dark"]{
-    --bg:#0B1220; --bg-elev:#111A2B; color-scheme:dark;
-    --panel:#131D30; --panel-2:#17223A;
-    --ink:#EAF0F8; --ink-soft:#94A5BC; --ink-dim:#6B7D96;
-    --line:#22304A; --line-soft:#1A2537;
-    --hair:rgba(255,255,255,.07); --hair-strong:rgba(255,255,255,.13);
-    --accent:#5B9CFF; --accent-glow:rgba(91,156,255,.30); --accent-soft:rgba(91,156,255,.12);
-    --accent-faint:rgba(91,156,255,.07);
-    --gain:#3DD68C; --gain-soft:rgba(61,214,140,.12);
-    --amber:#F0A33C; --amber-glow:rgba(240,163,60,.30); --amber-soft:rgba(240,163,60,.12);
+    --bg:#07101F; --bg-elev:#0F1E36; color-scheme:dark;
+    --panel:#0F1E36; --panel-2:#142743;
+    --ink:#F4F7FC; --ink-soft:#94A5BC; --ink-dim:#7A8AA3;
+    --line:#22304A; --line-soft:#182338;
+    --hair:rgba(255,255,255,.08); --hair-strong:rgba(255,255,255,.14);
+    --accent:#7BB0FF; --accent-glow:rgba(123,176,255,.30); --accent-soft:rgba(123,176,255,.13);
+    --accent-faint:rgba(123,176,255,.07);
+    --gain:#3DD68C; --gain-soft:rgba(61,214,140,.13);
+    --amber:#F0A33C; --amber-glow:rgba(240,163,60,.32); --amber-soft:rgba(240,163,60,.13);
     --amber-faint:rgba(240,163,60,.07);
-    --blue:#5B9CFF; --blue-glow:rgba(91,156,255,.30); --blue-soft:rgba(91,156,255,.12);
-    --red:#FF6B60; --red-glow:rgba(255,107,96,.30); --red-soft:rgba(255,107,96,.12);
-    --loss:#FF6B60;
-    --surface:#131D30;
-    --surface-deep:#111A2B;
-    --lift:inset 0 1px 0 rgba(255,255,255,.04), 0 14px 30px -22px rgba(0,0,0,.8);
-    --well:#0E1728; --track:#2A3A56; --track-soft:#1D2941;
-    --on-accent:#08111F; --knock:#0B1220;
-    --cta-hi:#6BA6FF; --cta-lo:#3D80E8;
-    --hero-a:#131D30; --hero-b:#131D30;
-    --hero-shadow:0 16px 40px -22px rgba(0,0,0,.75);
-    --glass-top:rgba(11,18,32,.84); --glass-nav:rgba(13,21,37,.82);
-    --overlay-tile:rgba(0,0,0,.28); --splash-glow:#111C31; --toast-bg:rgba(19,29,48,.97);
+    --blue:#7BB0FF; --blue-glow:rgba(123,176,255,.30); --blue-soft:rgba(123,176,255,.13);
+    --red:#FF7A6E; --red-glow:rgba(255,122,110,.30); --red-soft:rgba(255,122,110,.13);
+    --loss:#FF7A6E;
+    --surface:#0F1E36;
+    --surface-deep:#0B1830;
+    --lift:inset 0 1px 0 rgba(255,255,255,.04), 0 14px 30px -22px rgba(0,0,0,.85);
+    --well:#0B1728; --track:#2A3A56; --track-soft:#16233B;
+    --on-accent:#0B0800; --knock:#07101F;
+    /* Primary action is the warm solar gradient, dark text on it. */
+    --cta-hi:#F0A33C; --cta-lo:#E27127;
+    --hero-a:#0F1E36; --hero-b:#0B1830;
+    --hero-shadow:0 20px 44px -24px rgba(0,0,0,.85);
+    --glass-top:rgba(7,16,31,.86); --glass-nav:rgba(11,24,48,.84);
+    --overlay-tile:rgba(0,0,0,.30); --splash-glow:#0F1E36; --toast-bg:rgba(15,30,54,.97);
   }
   .ic{flex-shrink:0;display:inline-block;vertical-align:-3px}
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -819,6 +825,43 @@
   .compass-label{margin-top:14px;text-align:center;font-family:var(--mono);font-size:13px;color:var(--ink-soft);font-weight:500;letter-spacing:.01em}
   .compass-label b{color:var(--accent);font-weight:700}
   .compass-degrees{font-size:12px;color:var(--ink-dim);margin-top:2px;letter-spacing:.01em}
+
+  /* ── V5 hero screens — the "warm dark, honest UI" language ──────────────
+     Self-contained building blocks shared by the signature screens. Named
+     v5-* so they can grow into the full redesign without disturbing V4's
+     classes underneath. Colours come from tokens, so the light theme still
+     works; the deep gradients simply read as near-flat there. */
+  .v5-screen{min-height:100vh;display:flex;flex-direction:column;
+    padding:calc(env(safe-area-inset-top) + 60px) 26px calc(env(safe-area-inset-bottom) + 34px);
+    background:linear-gradient(170deg,var(--bg) 0%,var(--bg-elev) 55%,#1A2E52 130%);color:var(--ink)}
+  html[data-theme="light"] .v5-screen{background:linear-gradient(170deg,#F4F6FA 0%,#EAF0FA 60%,#DCE7FB 130%)}
+  .v5-logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--amber),#E27127);box-shadow:0 12px 40px -8px var(--amber-glow)}
+  .v5-eyebrow{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:.14em;color:var(--accent)}
+  .v5-eyebrow.amber{color:var(--amber)}
+  .v5-h1{font-size:44px;font-weight:900;letter-spacing:-.03em;line-height:1.04;margin-top:14px}
+  .v5-grad{background:linear-gradient(120deg,var(--amber) 0%,#FFC178 55%,var(--accent) 100%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+  .v5-lede{font-size:15px;color:var(--ink-soft);line-height:1.55;margin-top:14px;max-width:36ch}
+  .v5-checks{display:flex;flex-direction:column;gap:9px;margin-top:26px}
+  .v5-check{display:flex;gap:10px;align-items:center;font-size:13.5px;color:var(--ink-soft)}
+  .v5-check .tick{color:var(--gain);font-weight:800;flex:none}
+  .v5-spacer{flex:1;min-height:24px}
+  .v5-cta{display:block;width:100%;border:none;font-family:var(--display);cursor:pointer;
+    background:linear-gradient(135deg,var(--cta-hi),var(--cta-lo));color:var(--on-accent);
+    border-radius:15px;padding:17px;text-align:center;font-size:16px;font-weight:800;letter-spacing:-.01em;
+    box-shadow:0 20px 40px -16px var(--amber-glow)}
+  .v5-cta:active{transform:scale(.99)}
+  .v5-cta .sub{font-weight:500;font-size:13px;opacity:.82}
+  .v5-cta-ghost{display:block;width:100%;margin-top:11px;border-radius:14px;padding:15px;text-align:center;
+    font-family:var(--display);font-size:14px;font-weight:700;cursor:pointer;
+    background:var(--panel);border:1px solid var(--hair-strong);color:var(--ink)}
+  .v5-tertiary{display:block;width:100%;margin-top:14px;text-align:center;background:none;border:none;
+    font-family:var(--display);font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer}
+  .v5-trust{text-align:center;font-size:12px;color:var(--ink-dim);margin-top:18px}
+  .v5-brandrow{display:flex;align-items:center;gap:12px}
+  .v5-brandrow .name{font-size:15px;font-weight:800;letter-spacing:-.01em}
+  .v5-chip{font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--amber);
+    border:1px solid var(--amber-glow);border-radius:999px;padding:6px 12px}
 
   /* Welcome screen */
   .welcome-page{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:env(safe-area-inset-top) 24px env(safe-area-inset-bottom);position:relative;background:radial-gradient(circle at 50% 30%,var(--bg-elev) 0%,var(--bg) 60%)}

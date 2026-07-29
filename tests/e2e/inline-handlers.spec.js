@@ -75,10 +75,10 @@ test('the first run opens on the welcome screen, not a carousel or a sign-in wal
   // sign-in wall, then the welcome screen repeating the pitch and the features.
   const errors = await bootFresh(page);
   expect(await page.evaluate(() => window.state.current_screen)).toBe('welcome');
-  await expect(page.getByRole('button', { name: /Get my quick answer/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Show me the answer/ })).toBeVisible();
 
   // Two taps to an answer.
-  await page.getByRole('button', { name: /Get my quick answer/ }).click();
+  await page.getByRole('button', { name: /Show me the answer/ }).click();
   await page.getByRole('button', { name: /See my savings/ }).click();
   await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('result');
   expect(errors).toEqual([]);
