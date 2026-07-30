@@ -2748,7 +2748,7 @@ function renderOptimisations(){
   const opts = computeOptimisations();
   if (!opts.suggest.length && !opts.confirmed.length) return '';
   return `
-    <div class="section-title">Free changes worth making</div>
+    <div class="section-title">FREE CHANGES WORTH MAKING</div>
     ${opts.suggest.map(o => `
       <div class="advisor-card" style="border-color:var(--accent);box-shadow:0 0 24px -10px var(--accent-glow)">
         <div class="advisor-title" style="color:var(--accent)">Worth +${fmtCurrency(o.delta)}/yr · simulated on your home</div>
@@ -6905,7 +6905,7 @@ function renderSolarDashboard(){
     ${renderOptimisations()}
 
     ${(advice.length > 0 || (computeOptimisations().upgrades || []).length > 0) ? `
-      <div class="section-title">Hardware upgrades</div>
+      <div class="section-title">HARDWARE UPGRADES</div>
       ${(computeOptimisations().upgrades || []).map(u => `
         <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:8px">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
@@ -7010,7 +7010,7 @@ function renderSolarDashboard(){
       </div>
     `}
 
-    <div class="section-title">Get this system installed</div>
+    <div class="section-title">GET THIS SYSTEM INSTALLED</div>
     <div class="secondary-card" onclick="openLeadForm()">
       <div class="secondary-card-icon">${ic('home',19)}</div>
       <div class="secondary-card-body">
@@ -7156,7 +7156,7 @@ function pickPlan(planId){
 function renderPlanChoiceBlock(best, annualSavings, opts = {}){
   const isChosen = !!state.chosen_plan && state.chosen_plan === best.plan.id;
   return `
-    <div class="section-title">${opts.title || 'Best plan'}</div>
+    <div class="section-title">${(opts.title || 'Best plan').toUpperCase()}</div>
     ${state.chosen_plan ? renderChoiceStrip() : ''}
     <div class="plan-compare">
       <div class="plan-row best" onclick="openTariffPopup('${best.plan.id}')" style="cursor:pointer">
@@ -7378,7 +7378,7 @@ function renderPlans(){
         `).join('')}
       </div>` : ''}
 
-    ${headlineIsFirst && visible.length ? `<div class="section-title" style="margin-top:6px">Then, in order</div>` : ''}
+    ${headlineIsFirst && visible.length ? `<div class="section-title" style="margin-top:6px">THEN, IN ORDER</div>` : ''}
 
     ${listed.length === 0 ? `
       <div style="padding:30px 20px;text-align:center;color:var(--ink-soft);font-family:var(--display);font-size:12px;letter-spacing:.02em">
@@ -7916,7 +7916,7 @@ function renderDetailsBlock(){
   const maxMonthly = Math.max(...monthlyGen, ...monthlyCons);
 
   return `
-    <div class="section-title">Engine details</div>
+    <div class="section-title">ENGINE DETAILS</div>
 
     <div class="details-section" onclick="this.classList.toggle('open')">
       <div class="details-header">
@@ -8230,7 +8230,7 @@ function renderDayInspector(){
   const arbX1 = xPos(2), arbX2 = xPos(5);
 
   return `
-  <div class="section-title" style="margin-top:20px">Day inspector</div>
+  <div class="section-title" style="margin-top:20px">DAY INSPECTOR</div>
   <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 12px 10px;margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--ink)">${label}</div>
@@ -8496,7 +8496,7 @@ function renderAnalytics(){
           same thing 250 pixels further down. Neither was any use before the
           reader had looked at a chart. */''}
 
-    <div class="section-title">Day inspector</div>
+    <div class="section-title">DAY INSPECTOR</div>
 
     <div class="an-selector">
       <div class="an-selector-label">Day to inspect</div>
@@ -8728,7 +8728,7 @@ function renderAnalytics(){
       <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;line-height:1.6">Red = paid · Green = credit (export revenue exceeds import cost)</div>
     </div>`}
 
-    <div class="section-title">Monthly breakdown</div>
+    <div class="section-title">MONTHLY BREAKDOWN</div>
     <div class="an-flow-tabs">
       <div class="an-flow-tab ${state._an_view === 'flows' ? 'active' : ''}" onclick="setAnalyticsView('flows')">Gen vs Use</div>
       <div class="an-flow-tab ${state._an_view === 'monthly' ? 'active' : ''}" onclick="setAnalyticsView('monthly')">Import vs Export</div>
@@ -10257,10 +10257,10 @@ function renderMonitor(){
         </div>`).join('')}
       <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:8px;letter-spacing:.03em">Projected savings at the moment you started each switch</div>
     </div>` : ''}
-    <div class="section-title">Recent activity</div>
+    <div class="section-title">RECENT ACTIVITY</div>
     <div class="mon-timeline">${timelineHtml}</div>
 
-    <div class="section-title">What we check for you</div>
+    <div class="section-title">WHAT WE CHECK FOR YOU</div>
     <div class="mon-watch">
       <div class="mon-watch-item"><span class="mon-watch-ic">${ic('bolt',14)}</span><div><b>A better plan appeared.</b> A new or repriced tariff now beats your current one for your usage.</div></div>
       <div class="mon-watch-item"><span class="mon-watch-ic">${ic('bell',14)}</span><div><b>Your contract is ending.</b> Before you roll onto a default rate, we flag it here so you can re-check.</div></div>
@@ -10428,7 +10428,7 @@ function renderQuotes(){
       <button class="switch-cta" style="margin:6px 0 0;font-size:13px;padding:13px" onclick="addQuote()">Add &amp; assess quote</button>
     </div>
 
-    ${quotes.length ? `<div class="section-title">Your quotes, assessed</div>${list}` : `
+    ${quotes.length ? `<div class="section-title">YOUR QUOTES, ASSESSED</div>${list}` : `
       <div style="text-align:center;padding:30px 16px;color:var(--ink-soft);font-family:var(--mono);font-size:12px;line-height:1.7">
         No quotes yet.<br>Add one above to see how it stacks up.
       </div>`}
@@ -10519,7 +10519,7 @@ function renderCompare(){
   <div class="screen">
     ${saveBar}
     ${sel.length >= 2 ? renderCompareTable(sel) : `<div class="card" style="padding:14px 16px;background:var(--blue-soft);border-color:var(--blue);margin-bottom:14px"><div style="font-size:12px;color:var(--ink);line-height:1.55">${ic('info',14,'vertical-align:-2px')} Tick <b>2 or more</b> scenarios below to see them side by side.</div></div>`}
-    <div class="section-title" style="margin-top:6px">Saved scenarios · ${scenarios.length}/12</div>
+    <div class="section-title" style="margin-top:6px">SAVED SCENARIOS · ${scenarios.length}/12</div>
     ${list}
   </div>`;
 }
@@ -10625,7 +10625,7 @@ function renderMore(){
       </div>
     </div>
     ${groups.map(([title, items]) => `
-      <div class="section-title" style="margin-top:14px">${title}</div>
+      <div class="section-title" style="margin-top:14px">${title.toUpperCase()}</div>
       ${items.map(([icon,t,s,scr]) => `<div class="secondary-card" onclick="setScreen('${scr}')">
         <div class="secondary-card-icon">${icon}</div>
         <div class="secondary-card-body">
