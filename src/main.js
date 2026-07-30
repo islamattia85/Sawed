@@ -6804,7 +6804,7 @@ function renderSolarDashboard(){
       <div class="hero-inset">
         <div class="hero-inset-top">
           <div>
-            <div class="hero-inset-label">${(state.solar_view || 'mine') === 'payback' ? 'Fastest-payback design — preview' : (state.solar_view || 'mine') === 'npv' ? 'Most 20-year value — preview' : isEst ? 'With this estimated system' : 'With this system'}</div>
+            <div class="hero-eyebrow">${(state.solar_view || 'mine') === 'payback' ? 'FASTEST-PAYBACK DESIGN · PREVIEW' : (state.solar_view || 'mine') === 'npv' ? 'MOST 20-YEAR VALUE · PREVIEW' : isEst ? 'WITH THIS ESTIMATED SYSTEM' : 'WITH THIS SYSTEM'}</div>
             <div class="hero-inset-value" style="color:var(--ink)">${currentScen.payback < 50 ? currentScen.payback.toFixed(1) : '—'}<span class="unit">yr payback</span></div>
             <div class="hero-inset-foot">${kwp.toFixed(1)} kWp · ${state.battery_kwh > 0 ? state.battery_kwh + ' kWh battery' : 'no battery'} · ${fmtCurrency(sysCost)} after grant${isEst ? ' (est.)' : ''}</div>
           </div>
@@ -8456,8 +8456,9 @@ function renderAnalytics(){
   return `${topbar('Analytics', 'blue', true)}
   <div class="screen">
     <div class="an-hero">
-      <div class="an-hero-label">Annual flows · ${plan.supplier} ${plan.plan}${isRecommended ? ' · ★ RECOMMENDED' : ''}</div>
-      <div style="font-family:var(--display);font-size:20px;font-weight:600;color:var(--ink);line-height:1.2;letter-spacing:-.01em">${Math.round(annualCons).toLocaleString()} kWh used / yr</div>
+      <div class="an-hero-label">ANNUAL FLOWS${isRecommended ? ' · ★ RECOMMENDED' : ''}</div>
+      <div style="font-family:var(--display);font-size:30px;font-weight:800;color:var(--ink);line-height:1.05;letter-spacing:-.02em">${Math.round(annualCons).toLocaleString()}<span style="font-size:15px;font-weight:600;color:var(--ink-soft);margin-left:4px">kWh used / yr</span></div>
+      <div style="font-size:13px;color:var(--ink-soft);margin-top:6px">${plan.supplier} — ${plan.plan}</div>
       ${evChip()}
       ${!isRecommended && recommendedId ? `
         <div onclick="state._an_plan='${recommendedId}'; saveState(); renderApp(); showToast('Now viewing your recommended plan.',{type:'accent',icon:'★',title:''});" style="margin-top:8px;padding:8px 12px;background:var(--accent-faint);border:1px dashed var(--accent);border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--accent);cursor:pointer;letter-spacing:.02em">

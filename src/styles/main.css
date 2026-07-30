@@ -483,6 +483,8 @@
   .hero-inset-value{font-size:40px;font-weight:800;letter-spacing:-.035em;color:var(--gain);line-height:1.05;margin-top:2px;font-variant-numeric:tabular-nums}
   .hero-inset-value .unit{font-size:17px;font-weight:600;color:var(--ink-soft);letter-spacing:0;margin-left:2px}
   .hero-inset-foot{font-size:13px;color:var(--ink-soft);margin-top:4px}
+  /* Editorial eyebrow inside a hero inset — the document's section label. */
+  .hero-eyebrow{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.13em;color:var(--ink-dim);margin-bottom:6px}
   /* V5 Answer ring — a dark inset carries it in the warm-dark theme, matching
      the vision document; light keeps the "number on paper" white card. */
   html[data-theme="dark"] .hero-inset{background:var(--panel-2);box-shadow:0 18px 36px -22px rgba(0,0,0,.85);border:1px solid var(--hair)}
@@ -561,9 +563,11 @@
   .stat-lbl{font-size:12px;color:#93A9C9;margin-top:2px;line-height:1.3}
 
   /* The one action, on the panel. */
-  .hero-cta{display:block;width:100%;margin-top:18px;padding:16px;border-radius:16px;background:#FFFFFF;color:#0F2138;font-size:15px;font-weight:800;text-align:center;border:none;font-family:inherit;cursor:pointer;position:relative;letter-spacing:-.01em}
+  /* V5: the primary action carries the document's solar-amber gradient, on the
+     dark hero panel just as everywhere else — one primary colour across the app. */
+  .hero-cta{display:block;width:100%;margin-top:18px;padding:16px;border-radius:16px;background:linear-gradient(135deg,var(--cta-hi),var(--cta-lo));color:var(--on-accent);font-size:15px;font-weight:800;text-align:center;border:none;font-family:inherit;cursor:pointer;position:relative;letter-spacing:-.01em;box-shadow:0 18px 38px -18px var(--amber-glow)}
   .hero-cta:active{transform:scale(.99)}
-  .hero-cta.ghost{background:rgba(255,255,255,.14);color:#FFFFFF;border:1px solid rgba(255,255,255,.30);margin-top:8px}
+  .hero-cta.ghost{background:rgba(255,255,255,.14);color:#FFFFFF;border:1px solid rgba(255,255,255,.30);margin-top:8px;box-shadow:none}
 
   .plans-controls{display:flex;align-items:center;gap:8px;margin-bottom:12px}
   .plans-controls .plans-filters{flex:1;min-width:0;margin-bottom:0}
