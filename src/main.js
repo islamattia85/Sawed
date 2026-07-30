@@ -3800,7 +3800,7 @@ function obStep1Home(){
     <div class="ob-field-label" style="margin-top:18px">Bedrooms</div>
     <div style="display:flex;gap:6px">
       ${[1,2,3,4,5,6].map(n => `
-        <button onclick="pickObBedrooms(${n})" style="flex:1;padding:10px 0;border-radius:8px;cursor:pointer;font-family:var(--display);font-size:15px;font-weight:700;border:1.5px solid ${_ob.bedrooms === n ? 'var(--accent)' : 'var(--line)'};background:${_ob.bedrooms === n ? 'var(--accent-soft)' : 'var(--well)'};color:${_ob.bedrooms === n ? 'var(--accent)' : 'var(--ink)'}">${n}${n === 6 ? '+' : ''}</button>`).join('')}
+        <button onclick="pickObBedrooms(${n})" style="flex:1;padding:10px 0;border-radius:8px;cursor:pointer;font-family:var(--display);font-size:15px;font-weight:700;border:1.5px solid ${_ob.bedrooms === n ? 'var(--amber)' : 'var(--line)'};background:${_ob.bedrooms === n ? 'var(--amber-soft)' : 'var(--well)'};color:${_ob.bedrooms === n ? 'var(--amber)' : 'var(--ink)'}">${n}${n === 6 ? '+' : ''}</button>`).join('')}
     </div>
     ${obRoofNote()}
 

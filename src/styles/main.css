@@ -286,7 +286,8 @@
   /* ======================================================
      ONBOARDING — fullscreen, no chrome, single focus
      ====================================================== */
-  .ob-page{position:fixed;inset:0;background:radial-gradient(circle at 30% 0%,var(--bg-elev) 0%,var(--bg) 60%);z-index:200;overflow-y:auto;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);animation:fadeUp .3s ease}
+  .ob-page{position:fixed;inset:0;background:linear-gradient(170deg,var(--bg) 0%,var(--bg-elev) 58%,#1A2E52 135%);z-index:200;overflow-y:auto;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);animation:fadeUp .3s ease}
+  html[data-theme="light"] .ob-page{background:linear-gradient(170deg,#F4F6FA 0%,#EAF0FA 60%,#DCE7FB 135%)}
   .ob-shell{max-width:520px;margin:0 auto;padding:24px 22px 30px;flex:1;display:flex;flex-direction:column;width:100%}
   .ob-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:30px;padding-top:8px}
   .ob-brand{font-size:13px;font-weight:700;letter-spacing:-.015em;color:var(--ink-soft)}
@@ -295,16 +296,18 @@
   .ob-skip:hover{color:var(--accent)}
   .ob-progress{display:flex;gap:4px;margin-bottom:30px}
   .ob-progress > span{flex:1;height:3px;background:var(--line);border-radius:4px;transition:background .3s,box-shadow .3s}
-  .ob-progress > span.done{background:var(--accent)}
-  .ob-progress > span.current{background:var(--accent);box-shadow:0 0 8px var(--accent-glow)}
-  .ob-step-num{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.01em;margin-bottom:10px;font-weight:600}
+  /* V5: onboarding is where the reader gives us their home — warm-amber, the
+     document's colour for "your input", not the blue used for signals. */
+  .ob-progress > span.done{background:var(--amber)}
+  .ob-progress > span.current{background:var(--amber);box-shadow:0 0 8px var(--amber-glow)}
+  .ob-step-num{font-family:var(--mono);font-size:12px;color:var(--amber);letter-spacing:.06em;margin-bottom:10px;font-weight:700}
   .ob-title{font-family:var(--display);font-size:32px;font-weight:700;line-height:1.1;color:var(--ink);margin-bottom:12px;letter-spacing:-.025em}
   .ob-title em{color:var(--accent)}
   .ob-sub{color:var(--ink-soft);font-size:13px;line-height:1.55;margin-bottom:24px}
   .ob-content{flex:1;animation:fadeUp .3s ease}
   .ob-input{width:100%;padding:16px 18px;font-size:17px;border:1px solid var(--line);border-radius:12px;background:var(--well);color:var(--ink);font-family:var(--display);transition:border-color .15s,box-shadow .15s}
   .ob-input.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:25px;font-weight:600;text-align:center}
-  .ob-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .ob-input:focus{border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-soft)}
   .ob-help{font-size:13px;color:var(--ink-soft);line-height:1.5;margin-top:8px}
   .ob-help.warning{background:var(--amber-soft);border:1px solid rgba(255,145,0,.3);padding:10px 12px;border-radius:8px;color:var(--ink);margin-top:10px;font-family:var(--display);font-size:12px}
   /* Sub-headings inside a step that asks two related questions */
@@ -312,11 +315,11 @@
   .ob-tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:6px}
   .ob-tile{background:var(--well);border:1px solid var(--line);border-radius:12px;padding:18px 12px;text-align:center;cursor:pointer;transition:transform .15s,border-color .15s,background .15s}
   .ob-tile:hover{border-color:var(--track);background:var(--panel-2);transform:translateY(-2px)}
-  .ob-tile.active{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent),0 0 16px -4px var(--accent-glow)}
+  .ob-tile.active{border-color:var(--amber);background:var(--amber-soft);box-shadow:0 0 0 1px var(--amber),0 0 16px -4px var(--amber-glow)}
   .ob-tile-icon{font-size:25px;margin-bottom:6px}
   .ob-tile-label{font-size:13px;font-weight:600;color:var(--ink);line-height:1.25}
   .ob-tile-sub{font-size:13px;color:var(--ink-soft);margin-top:3px}
-  .ob-tile.active .ob-tile-label{color:var(--accent)}
+  .ob-tile.active .ob-tile-label{color:var(--amber)}
   /* Five house types at full tile size pushed the bedroom row and the roof
      estimate below the fold — and the estimate is the whole point of asking:
      it is the moment the reader sees the app work something out for them. A
@@ -333,11 +336,11 @@
   .ob-goals{display:grid;gap:10px;margin-top:6px}
   .ob-goal{display:grid;grid-template-columns:auto 1fr auto;align-items:start;gap:14px;padding:16px;border-radius:12px;border:1.5px solid var(--line);background:var(--well);cursor:pointer;transition:border-color .15s,background .15s,transform .12s}
   .ob-goal:hover{border-color:var(--track);transform:translateY(-1px)}
-  .ob-goal.active{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent),0 0 16px -6px var(--accent-glow)}
+  .ob-goal.active{border-color:var(--amber);background:var(--amber-soft);box-shadow:0 0 0 1px var(--amber),0 0 16px -6px var(--amber-glow)}
   .ob-goal-icon{color:var(--ink-soft);margin-top:1px}
-  .ob-goal.active .ob-goal-icon{color:var(--accent)}
+  .ob-goal.active .ob-goal-icon{color:var(--amber)}
   .ob-goal-text b{display:block;font-size:15px;font-weight:700;color:var(--ink);line-height:1.35}
-  .ob-goal.active .ob-goal-text b{color:var(--accent)}
+  .ob-goal.active .ob-goal-text b{color:var(--amber)}
   .ob-goal-text em{display:block;font-style:normal;font-size:13px;color:var(--ink-soft);margin-top:3px;line-height:1.5}
   .ob-goal-tick{color:var(--accent);min-width:18px}
   .ob-nav{position:sticky;bottom:0;padding:14px 0 16px;background:linear-gradient(180deg,transparent 0%,var(--glass-top) 30%,var(--bg) 100%);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;gap:10px;margin-top:24px}
@@ -723,11 +726,11 @@
   .ob-plan-picker::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
   .ob-plan-option{background:var(--well);border:1px solid var(--line);border-radius:8px;padding:11px 14px;cursor:pointer;transition:border-color .15s,background .15s}
   .ob-plan-option:hover{border-color:var(--track);background:var(--panel)}
-  .ob-plan-option.active{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent)}
+  .ob-plan-option.active{border-color:var(--amber);background:var(--amber-soft);box-shadow:0 0 0 1px var(--amber)}
   .ob-plan-option-supplier{font-size:12px;color:var(--ink-soft);font-family:var(--mono);letter-spacing:.1em;font-weight:700;margin-bottom:2px}
-  .ob-plan-option.active .ob-plan-option-supplier{color:var(--accent)}
+  .ob-plan-option.active .ob-plan-option-supplier{color:var(--amber)}
   .ob-plan-option-name{font-size:13px;font-weight:600;color:var(--ink);line-height:1.3}
-  .ob-plan-option.active .ob-plan-option-name{color:var(--accent)}
+  .ob-plan-option.active .ob-plan-option-name{color:var(--amber)}
   .ob-plan-option-rate{font-size:12px;color:var(--ink-dim);font-family:var(--mono);margin-top:3px;letter-spacing:.02em}
   .ob-plan-type-pill{font-family:var(--mono);font-size:12px;letter-spacing:.01em;padding:2px 7px;border-radius:4px;font-weight:700;display:inline-block;flex-shrink:0}
   .ob-plan-type-pill.flat{background:rgba(130,146,137,.15);color:var(--ink-soft)}
@@ -737,7 +740,7 @@
   .ob-plan-type-pill.dn{background:rgba(130,146,137,.15);color:var(--ink-soft)}
   .ob-plan-notsure{background:var(--panel);border:1px dashed var(--line);border-radius:8px;padding:11px 14px;cursor:pointer;transition:border-color .15s;margin-bottom:4px;font-size:13px;color:var(--ink-soft);display:flex;align-items:center;justify-content:space-between}
   .ob-plan-notsure:hover{border-color:var(--accent);color:var(--ink)}
-  .ob-plan-notsure.active{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+  .ob-plan-notsure.active{border-color:var(--amber);color:var(--amber);background:var(--amber-soft)}
   .disclaimer b{color:var(--ink);font-family:var(--display)}
 
   /* Loading */
@@ -1179,11 +1182,11 @@
   .ob-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .ob-mini-label{font-size:12px;color:var(--ink-soft);margin-bottom:5px;font-family:var(--mono);letter-spacing:.01em}
   .ob-mini-input{width:100%;padding:10px 12px;font-size:15px;background:var(--well);border:1px solid var(--line);border-radius:8px;color:var(--ink);font-family:var(--mono);font-variant-numeric:tabular-nums}
-  .ob-mini-input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 2px var(--accent-soft)}
+  .ob-mini-input:focus{border-color:var(--amber);outline:none;box-shadow:0 0 0 2px var(--amber-soft)}
 
   /* Toggle button (used in onboarding for has_solar/has_ev) */
   .ob-toggle-row{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:12px}
-  .ob-toggle-row.active{border-color:var(--accent);background:var(--accent-soft)}
+  .ob-toggle-row.active{border-color:var(--amber);background:var(--amber-soft)}
   .ob-toggle-row-label{flex:1}
   .ob-toggle-row-label > div:first-child{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:2px}
   .ob-toggle-row-label > div:last-child{font-size:12px;color:var(--ink-soft);line-height:1.4}
@@ -1337,7 +1340,7 @@
   .region-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
   .region-tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .15s,background .15s;position:relative;overflow:hidden}
   .region-tile:hover{border-color:var(--track)}
-  .region-tile.active{border-color:var(--accent);background:linear-gradient(140deg,var(--accent-soft) 0%,var(--panel) 100%);box-shadow:0 0 16px -8px var(--accent-glow)}
+  .region-tile.active{border-color:var(--amber);background:linear-gradient(140deg,var(--amber-soft) 0%,var(--panel) 100%);box-shadow:0 0 16px -8px var(--amber-glow)}
   .region-tile-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
   .region-tile-icon{font-size:17px}
   .region-tile-name{font-size:13px;font-weight:600;color:var(--ink);line-height:1.2;min-width:0}
