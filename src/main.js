@@ -7342,6 +7342,8 @@ function renderPlans(){
         </div>
         ${winnerSaving > 10 ? `
           <button class="switch-cta" style="margin:14px 0 0" onclick="handleSwitchClick('${winner.plan.id}', '${(winner.plan.supplier + ' ' + winner.plan.plan).replace(/'/g, "\\'")}', ${winnerSaving.toFixed(0)})">Switch to ${winner.plan.supplier} →</button>` : ''}
+        ${!isFlatPlan(winner.plan) ? `
+          <button class="pdx-open" onclick="setScreen('paradox')">Why a higher headline rate still wins — see the paradox →</button>` : ''}
       </div>` : ''}
 
     <div class="plans-context">
@@ -7525,6 +7527,117 @@ function renderTariffDayStrip(plan){
     </div>
     <div class="day-strip-note">Cheapest window: <b>${label[cheapest] || cheapest}</b>. Shifting the dishwasher, the immersion or an EV into it is where a time-of-use plan pays.</div>
   </div>`;
+}
+
+/* ══════════════ V5 · THE TARIFF PARADOX ══════════════
+ * The vision document's "why 40c beats 34c". Two plans, two real annual totals,
+ * and — the point — the two days that produce them: average grid import per
+ * hour, from each plan's OWN battery-dispatched simulation, coloured by the
+ * band that hour is billed at. The winner's cheap-night bars are where the
+ * battery charges; its evening bars are short because the battery covers the
+ * peak. Nothing here is drawn by hand; every bar is 8,760 hours bucketed.
+ */
+function paradoxPick(){
+  const ranked = TARIFFS
+    .filter(p => !p.discontinued && !(p.type === 'dynamic' && !state.include_dynamic))
+    .map(plan => { const s = sim(plan.id); return { plan, s, net: annualCost(s, plan).net }; })
+    .sort((a, b) => a.net - b.net);
+  const A = ranked[0];
+  // The foil is the best plan whose price is the same all day — the "flat rate"
+  // the winner is being measured against. Fall back to the runner-up.
+  const B = ranked.find(r => isFlatPlan(r.plan) && r.plan.id !== A.plan.id) || ranked[1];
+  return { A, B, ranked };
+}
+
+function dayImportShape(s){
+  const gi = s.grid_import || [];
+  const days = gi.length / 24 || 1;
+  const buckets = new Array(24).fill(0);
+  for (let i = 0; i < gi.length; i += 1) buckets[i % 24] += gi[i];
+  return buckets.map(v => v / days);              // average kWh imported per hour-of-day
+}
+
+function paradoxBars(entry, peak){
+  const shape = dayImportShape(entry.s);
+  return `<div class="pdx-bars">
+    ${shape.map((v, h) => {
+      const band = isFlatPlan(entry.plan) ? 'day' : bandAt(h, entry.plan);
+      const col = DAY_BAND_COLORS[band] || DAY_BAND_COLORS.day;
+      const ht = Math.max(2, Math.round((v / peak) * 100));
+      return `<span style="height:${ht}%;background:${col}" title="${h}:00 — ${fmtKwh(v)} imported"></span>`;
+    }).join('')}
+  </div>
+  <div class="pdx-hours"><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>23h</span></div>`;
+}
+
+function renderParadox(){
+  if (CACHE.dirty) rebuildBase();
+  const { A, B } = paradoxPick();
+  if (!A || !B){ return `${topbar('Tariffs', 'amber', true)}<div class="screen"><div class="wi-lede">Not enough plans to compare right now.</div></div>`; }
+  const delta = Math.round(B.net - A.net);
+  const winnerFlat = isFlatPlan(A.plan);
+  const peak = Math.max(...dayImportShape(A.s), ...dayImportShape(B.s), 0.01);
+  const hasBatt = (state.battery_kwh || 0) > 0;
+  const hasEv = !!state.ev_active;
+
+  // The honest mechanism, conditioned on what is actually true for this home.
+  const why = winnerFlat
+    ? `For your usage the flat rate simply wins — there is no cheap window your setup can lean into hard enough to beat it. The €/year is the whole story.`
+    : hasBatt
+      ? `${A.plan.supplier}’s cheap ${bandLabelFor(A.plan)} charges your ${state.battery_kwh} kWh battery overnight; that stored energy then covers the expensive evening hours you would otherwise import at peak. A flat rate has no cheap window to store, so it pays full price around the clock.`
+      : hasEv
+        ? `Your EV charges in ${A.plan.supplier}’s cheap ${bandLabelFor(A.plan)}, so a big slice of your demand moves to the lowest rate on the market — something a single flat rate can never do.`
+        : `${A.plan.supplier} shifts enough of your demand into its cheaper hours to win, even though its headline rate looks higher. A flat rate charges the same for every hour, peak included.`;
+
+  return `${topbar('The tariff paradox', 'amber', true)}
+  <div class="screen v5-explore">
+    <div class="v5-eyebrow amber">THE PARADOX</div>
+    <div class="wi-title" style="font-size:26px">Why the higher headline rate<br>can still cost less</div>
+    <div class="wi-lede">Ranked on <b>your</b> home. The €/year is what matters; the rate on the poster is a footnote.</div>
+
+    <div class="pdx-duel">
+      <div class="pdx-card win">
+        <div class="pdx-card-tag" style="color:var(--gain)">WINS FOR YOU</div>
+        <div class="pdx-card-name">${A.plan.supplier}</div>
+        <div class="pdx-card-sub">${A.plan.plan}</div>
+        <div class="pdx-card-cost" style="color:var(--gain)">${fmtCurrency(Math.round(A.net))}<span>/yr</span></div>
+      </div>
+      <div class="pdx-card">
+        <div class="pdx-card-tag">BEST FLAT RATE</div>
+        <div class="pdx-card-name">${B.plan.supplier}</div>
+        <div class="pdx-card-sub">${B.plan.plan}</div>
+        <div class="pdx-card-cost">${fmtCurrency(Math.round(B.net))}<span>/yr</span></div>
+      </div>
+    </div>
+    ${delta > 0 ? `<div class="pdx-delta">${fmtCurrency(delta)}/yr cheaper on ${A.plan.supplier}</div>` : ''}
+
+    <div class="pdx-chart">
+      <div class="pdx-chart-h">${A.plan.supplier} · your average day</div>
+      ${paradoxBars(A, peak)}
+      ${renderTariffDayStrip(A.plan)}
+    </div>
+    <div class="pdx-chart">
+      <div class="pdx-chart-h">${B.plan.supplier} · the same day, flat</div>
+      ${paradoxBars(B, peak)}
+      ${renderTariffDayStrip(B.plan)}
+    </div>
+
+    <div class="pdx-why">
+      <div class="pdx-why-t">WHERE YOUR MONEY ACTUALLY GOES</div>
+      <div class="pdx-why-b">${why}</div>
+    </div>
+
+    <button class="v5-cta" style="margin-top:16px" onclick="handleSwitchClick('${A.plan.id}', '${(A.plan.supplier + ' ' + A.plan.plan).replace(/'/g, "\\'")}', ${Math.round(delta)})">Switch to ${A.plan.supplier} →</button>
+  </div>`;
+}
+
+// The name of a plan's cheapest window, for prose ("cheap night", "cheap EV window").
+function bandLabelFor(plan){
+  if (isFlatPlan(plan)) return 'window';
+  const bands = Array.from({ length: 24 }, (_, h) => bandAt(h, plan));
+  const present = [...new Set(bands)];
+  const cheapest = present.reduce((a, b) => ((plan.rates[b] ?? 9) < (plan.rates[a] ?? 9) ? b : a), present[0]);
+  return ({ ev: 'EV window', night: 'night rate', day: 'day rate', peak: 'peak', wfh: 'daytime window' }[cheapest] || 'cheap window');
 }
 
 function renderPlanDetail(){
@@ -10835,7 +10948,7 @@ function bottomNav(){
    ============================================================ */
 const APP_SCREENS = ['result','plans','plan-detail','solar','analytics','monitor',
                      'compare','more','independence','quotes','auditor','refine',
-                     'how-to-switch','methodology','csv-import','advisor','whatif'];
+                     'how-to-switch','methodology','csv-import','advisor','whatif','paradox'];
 
 // Set while we are reacting to a popstate, so restoring a screen doesn't
 // push a fresh entry and trap the user in a loop.
@@ -11365,6 +11478,7 @@ function renderApp(){
     case 'csv-import':   html = renderCsvImport(); break;
     case 'advisor':      html = renderAdvisor(); break;
     case 'whatif':       html = renderWhatIf(); break;
+    case 'paradox':      html = renderParadox(); break;
     default:
       // Falling through to the home screen made every broken link look like a
       // working one that went somewhere odd — a dead button shipped and
