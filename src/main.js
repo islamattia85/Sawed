@@ -4940,6 +4940,13 @@ function headlineConfidence(){
   return { level: 'low', label: 'Rough', why: 'Usage estimated from your bill, and your current plan is not confirmed.' };
 }
 
+// How full the Answer ring reads for each confidence level. Representative, not
+// a measurement — the label beside it carries the real, categorical claim, so
+// the arc is a mood, never a fake "92%".
+function confRingFrac(level){
+  return level === 'high' ? 0.92 : level === 'med' ? 0.74 : 0.55;
+}
+
 function explainConfidence(){
   const c = headlineConfidence();
   showToast(c.why, { type: c.level === 'high' ? 'accent' : 'amber', icon: ic('info', 16),
@@ -5192,25 +5199,34 @@ function renderResult(){
         </div>
       </div>
 
-      <div class="hero-greet">${heroGreeting()}</div>
-      <div class="hero-greet-sub">${annualSavings > 10 ? "Here's your savings potential" : "Here's where you stand"}</div>
+      <div class="hero-greet" style="margin-bottom:14px">${heroGreeting()}</div>
 
       <div class="hero-inset">
-        <div class="hero-inset-top">
-          <div>
-            <div class="hero-inset-label">${annualSavings > 10 ? 'Switch tariff today · costs nothing' : 'Your best plan'}</div>
-            <div class="hero-inset-value" data-countup="${Math.round(annualSavings)}" data-prefix="€"><span data-countup-num>${fmtCurrency(annualSavings)}</span><span class="unit">/yr</span></div>
-            <div class="hero-inset-foot">${chosen ? `on the plan you picked — ${best.plan.supplier}` : `move to ${best.plan.supplier} — ${best.plan.plan}`}</div>
-          </div>
-          <div class="conf-pill ${conf.level}" role="button" tabindex="0" onclick="explainConfidence()"
-               aria-label="${conf.label} confidence — tap to find out why">
-            <b>${conf.label}</b>confidence
+        <!-- V5 "Answer" ring. The headline figure keeps its class and its
+             countup so the home-screen contract (one figure, near the top)
+             still holds; the arc encodes confidence and is filled from the
+             categorical level, never a fabricated percentage. The ring's own
+             "Yes / saved per year" makes a label line above it redundant. -->
+        <div class="hero-ring-wrap">
+          <svg class="hero-ring" viewBox="0 0 190 190" aria-hidden="true">
+            <defs><linearGradient id="heroRingGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--amber)"/><stop offset="1" stop-color="var(--gain)"/></linearGradient></defs>
+            <circle cx="95" cy="95" r="80" fill="none" stroke="var(--track)" stroke-width="12"></circle>
+            <circle cx="95" cy="95" r="80" fill="none" stroke="url(#heroRingGrad)" stroke-width="12" stroke-linecap="round"
+                    stroke-dasharray="502.7" stroke-dashoffset="${(502.7 * (1 - confRingFrac(conf.level))).toFixed(1)}" class="hero-ring-fg"></circle>
+          </svg>
+          <div class="hero-ring-center">
+            <div class="hero-ring-yn">${annualSavings > 10 ? 'Yes' : 'Where you stand'}</div>
+            <div class="hero-inset-value" data-countup="${Math.round(annualSavings)}" data-prefix="€"><span data-countup-num>${fmtCurrency(annualSavings)}</span></div>
+            <div class="hero-ring-sub">saved per year</div>
           </div>
         </div>
+        <button class="conf-pill ${conf.level} hero-ring-conf" onclick="explainConfidence()"
+                aria-label="${conf.label} confidence — tap to find out why"><b>${conf.label}</b> confidence</button>
+        <div class="hero-inset-foot" style="text-align:center;margin-top:8px">${chosen ? `on the plan you picked — ${best.plan.supplier}` : `move to ${best.plan.supplier} — ${best.plan.plan}`}</div>
         ${split ? `
           <!-- Load-bearing, not a caveat: without it the headline credits
                panels that are not on the roof yet. -->
-          <div class="qr-split" style="margin-top:12px">
+          <div class="qr-split" style="margin-top:12px;text-align:center">
             <b>${fmtCurrency(split.switchNow)}/yr</b> today, <b>+${fmtCurrency(split.withPlanned)}/yr</b> once your solar is installed
           </div>` : ''}
       </div>
@@ -10465,7 +10481,6 @@ function renderMore(){
     ]],
     ['New', [
       [ic('target',19),'What should I install?','The engine picks the system, not you — early build','advisor'],
-      [ic('tune',19),'What-if lab','Slide panels & battery — four numbers move live','whatif'],
     ]],
     ['Tools', [
       [ic('radar',19),'Market monitor','We watch every Irish tariff and flag what is worth acting on','monitor'],
@@ -10793,9 +10808,12 @@ function bottomNav(){
   const moreScreens = ['analytics','quotes','auditor','independence','methodology',
                        'how-to-switch','refine','csv-import','compare','monitor'];
   const navActive = moreScreens.includes(cur) ? 'more' : cur;
+  // V5 gives the What-if lab ("Explore") the second slot — the vision
+  // document's interactive centrepiece. The advisor's "what to install" answer
+  // stays one tap away, from the Home panel and from More.
   const items = [
     { id:'result',  icon:'home',   label:'Home' },
-    { id:'advisor', icon:'target', label:'Advice' },
+    { id:'whatif',  icon:'tune',   label:'Explore' },
     { id:'plans',   icon:'plans',  label:'Tariffs' },
     { id:'solar',   icon:'sun',    label:'My system' },
     { id:'more',    icon:'grid',   label:'More' }
@@ -10817,7 +10835,7 @@ function bottomNav(){
    ============================================================ */
 const APP_SCREENS = ['result','plans','plan-detail','solar','analytics','monitor',
                      'compare','more','independence','quotes','auditor','refine',
-                     'how-to-switch','methodology','csv-import','advisor'];
+                     'how-to-switch','methodology','csv-import','advisor','whatif'];
 
 // Set while we are reacting to a popstate, so restoring a screen doesn't
 // push a fresh entry and trap the user in a loop.
