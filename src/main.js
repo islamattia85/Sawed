@@ -10465,6 +10465,7 @@ function renderMore(){
     ]],
     ['New', [
       [ic('target',19),'What should I install?','The engine picks the system, not you — early build','advisor'],
+      [ic('tune',19),'What-if lab','Slide panels & battery — four numbers move live','whatif'],
     ]],
     ['Tools', [
       [ic('radar',19),'Market monitor','We watch every Irish tariff and flag what is worth acting on','monitor'],
@@ -10870,6 +10871,146 @@ function goBack(){
   setScreen(t || 'result');
 }
 
+/* ══════════════ V5 · WHAT-IF LAB ("Explore") ══════════════
+ * The vision document's centrepiece: two sliders that re-answer four numbers as
+ * you drag. The generation model (the expensive part) is run once on entry and
+ * scaled linearly per panel — exactly how the real search treats candidates —
+ * and cost, grant and 20-year value come from the same engine helpers the rest
+ * of the app uses. Only the self-consumption fraction is a live approximation,
+ * which is why the screen calls itself an estimate and hands off to the full
+ * 8,760-hour simulation on "Use these numbers".
+ */
+let _whatif = { panels: 10, batt: 5, perKwp: 0, usage: 0, ready: false };
+
+function whatIfPrep(){
+  try {
+    if (CACHE.dirty) rebuildBase();
+    _whatif.perKwp = sumF(genPerKwpProfile());
+    _whatif.usage = Math.max(1, Math.round(sumF(CACHE.cons)));
+    // Seed from the user's own system if they have one, clamped to their roof.
+    const cap = roofPanelCap();
+    _whatif.panels = Math.min(Math.max(state.count_A || 10, 6), cap);
+    _whatif.batt = Math.min(state.battery_kwh || 5, 15);
+    _whatif.ready = true;
+  } catch (e) { _whatif.ready = false; }
+}
+
+function whatIfVals(panels, batt){
+  const kwp = panels * (state.panel_w || 440) / 1000;
+  const gen = kwp * _whatif.perKwp;
+  const usage = _whatif.usage;
+  // Self-consumption rises with storage but cannot exceed what the house uses.
+  const selfFrac = Math.min(0.30 + batt * 0.035, 0.82);
+  const selfKwh = Math.min(gen * selfFrac, usage);
+  const exportKwh = Math.max(gen - selfKwh, 0);
+  const DAY = 0.30, CEG = 0.185;                 // headline day rate · export
+  const save = Math.round(selfKwh * DAY + exportKwh * CEG);
+  const gross = estimateInstallCost(kwp, batt);
+  const net = gross - calcSeaiGrant(kwp, batt).total;
+  const pay = save > 0 ? net / save : 20;
+  const npv = Math.round(calcNPV20(save, net, batt));
+
+  // Battery's own marginal case, so the honest "doesn't pay yet" is real.
+  let recTitle = 'A WORKABLE DESIGN', recBody = 'Solid, but not the peak of the curve for your usage.', recDot = 'var(--ink-soft)';
+  if (batt > 0){
+    const save0 = (() => { const v = whatIfSaveOnly(panels, 0); return v; })();
+    const battNet = net - (estimateInstallCost(kwp, 0) - calcSeaiGrant(kwp, 0).total);
+    const battPay = (save - save0) > 0 ? battNet / (save - save0) : 99;
+    if (battPay > 15){ recTitle = 'THE BATTERY DOESN’T PAY YET'; recBody = `At today's prices the ${batt} kWh adds €${(save - save0)}/yr for €${battNet.toLocaleString()} — about ${battPay.toFixed(0)} years on the storage alone. Worth revisiting when prices fall.`; recDot = 'var(--amber)'; }
+  }
+  const cap = roofPanelCap();
+  if (panels >= cap){ recTitle = 'YOUR ROOF IS THE LIMIT'; recBody = `${cap} panels is about all this roof holds — the economics would still add, but there is nowhere to put more.`; recDot = 'var(--accent)'; }
+  else if (pay <= 8 && (recDot === 'var(--ink-soft)')){ recTitle = 'STRONG VALUE'; recBody = `Pays for itself in ${pay.toFixed(1)} years and turns €${npv.toLocaleString()} over twenty. A confident design for your home.`; recDot = 'var(--gain)'; }
+  else if (batt === 0 && panels >= 10 && recDot === 'var(--ink-soft)'){ recTitle = 'MISSING THE TARIFF WIN'; recBody = 'Without storage, a cheap-night tariff can’t work in your favour. A small battery flips which plan wins.'; recDot = 'var(--amber)'; }
+
+  const eur = (n) => '€' + Math.round(n).toLocaleString('en-IE');
+  return { panels, batt, kwp,
+    save: eur(save), pay: pay.toFixed(1) + 'y', net: eur(net),
+    npv: (npv >= 0 ? '+' : '−') + '€' + Math.abs(npv).toLocaleString('en-IE'),
+    recTitle, recBody, recDot };
+}
+
+// Saving-only helper (no recursion into recommendation), for the battery duel.
+function whatIfSaveOnly(panels, batt){
+  const kwp = panels * (state.panel_w || 440) / 1000;
+  const gen = kwp * _whatif.perKwp;
+  const selfFrac = Math.min(0.30 + batt * 0.035, 0.82);
+  const selfKwh = Math.min(gen * selfFrac, _whatif.usage);
+  const exportKwh = Math.max(gen - selfKwh, 0);
+  return Math.round(selfKwh * 0.30 + exportKwh * 0.185);
+}
+
+function whatIfOutHtml(){
+  const v = whatIfVals(_whatif.panels, _whatif.batt);
+  const stat = (label, val, color) => `<div class="wi-stat"><div class="wi-stat-l">${label}</div><div class="wi-stat-v"${color ? ` style="color:${color}"` : ''}>${val}</div></div>`;
+  return `
+    <div class="wi-stats">
+      ${stat('SAVING /YR', v.save, 'var(--gain)')}
+      ${stat('PAYBACK', v.pay)}
+      ${stat('NET COST', v.net)}
+      ${stat('20-YR VALUE', v.npv)}
+    </div>
+    <div class="wi-rec" style="border-left-color:${v.recDot}">
+      <div class="wi-rec-t" style="color:${v.recDot}">${v.recTitle}</div>
+      <div class="wi-rec-b">${v.recBody}</div>
+    </div>`;
+}
+
+function setWhatIf(kind, val){
+  _whatif[kind] = +val;
+  const pl = document.getElementById('wi-plabel');
+  const bl = document.getElementById('wi-blabel');
+  if (pl) pl.textContent = _whatif.panels + ' panels';
+  if (bl) bl.textContent = _whatif.batt + ' kWh';
+  const out = document.getElementById('whatif-out');
+  if (out) out.innerHTML = whatIfOutHtml();
+}
+
+function applyWhatIf(){
+  state.considering_solar = true;
+  state.has_solar = true;
+  state.solar_is_estimate = true;
+  state.count_A = _whatif.panels;
+  state.count_B = 0;
+  state.battery_kwh = _whatif.batt;
+  if (!state.cost_is_manual)  state.install_cost = estimateInstallCost(totalKwp(), state.battery_kwh);
+  if (!state.grant_is_manual) state.grant_seai = calcSeaiGrant(totalKwp(), state.battery_kwh).total;
+  invalidate();
+  showToast('Design applied — see it in full.', { type: 'accent', icon: ic('sun', 16), title: '' });
+  setScreen('solar');
+}
+
+function renderWhatIf(){
+  if (!_whatif.ready) whatIfPrep();
+  const cap = roofPanelCap();
+  const p = _whatif.panels, b = _whatif.batt;
+  return `${topbar('What-if lab', 'amber', true)}
+  <div class="screen v5-explore">
+    <div class="wi-head">
+      <div><div class="v5-eyebrow amber">EXPLORE · LIVE</div><div class="wi-title">Panels or battery — try it</div></div>
+      <span class="v5-chip">LIVE</span>
+    </div>
+    <div class="wi-lede">Two sliders, four numbers that move as you drag. Grounded in your usage; tap <b>Use these</b> to run the full 8,760-hour simulation.</div>
+
+    <div class="wi-slider amber">
+      <div class="wi-slider-top"><span class="wi-slider-k">PANELS</span><span class="wi-slider-v" id="wi-plabel">${p} panels</span></div>
+      <input type="range" min="6" max="${cap}" step="1" value="${p}" oninput="setWhatIf('panels',this.value)" class="wi-range amber">
+      <div class="wi-scale"><span>6</span><span>${Math.round((6+cap)/2)}</span><span>${cap}</span></div>
+    </div>
+
+    <div class="wi-slider blue">
+      <div class="wi-slider-top"><span class="wi-slider-k" style="color:var(--accent)">BATTERY</span><span class="wi-slider-v" id="wi-blabel">${b} kWh</span></div>
+      <input type="range" min="0" max="15" step="5" value="${b}" oninput="setWhatIf('batt',this.value)" class="wi-range blue">
+      <div class="wi-scale"><span>0</span><span>5</span><span>10</span><span>15 kWh</span></div>
+    </div>
+
+    <div id="whatif-out">${whatIfOutHtml()}</div>
+
+    <div class="wi-note">Every drag re-estimates instantly · the full simulation runs on “Use these”.</div>
+    <button class="v5-cta" style="margin-top:14px" onclick="applyWhatIf()">Use these numbers →</button>
+  </div>`;
+}
+
 function setScreen(name){
   if (name !== 'refine') delete state._return_to;
   // Design previews live on the Solar tab only; revert to the user's own
@@ -11205,6 +11346,7 @@ function renderApp(){
     case 'methodology':  html = renderMethodology(); break;
     case 'csv-import':   html = renderCsvImport(); break;
     case 'advisor':      html = renderAdvisor(); break;
+    case 'whatif':       html = renderWhatIf(); break;
     default:
       // Falling through to the home screen made every broken link look like a
       // working one that went somewhere odd — a dead button shipped and
@@ -12410,6 +12552,9 @@ window.roofEstimate = roofEstimate;
 window.roofPanelCap = roofPanelCap;
 window.setAdvisorGoal = setAdvisorGoal;
 window.startAdvisorSearch = startAdvisorSearch;
+window.setWhatIf = setWhatIf;
+window.applyWhatIf = applyWhatIf;
+window.renderWhatIf = renderWhatIf;
 window.adoptAdvisorDesign = adoptAdvisorDesign;
 window.explainConfidence = explainConfidence;
 // A function rather than an accessor. An earlier version used

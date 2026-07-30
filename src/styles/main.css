@@ -863,6 +863,29 @@
   .v5-chip{font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--amber);
     border:1px solid var(--amber-glow);border-radius:999px;padding:6px 12px}
 
+  /* V5 · What-if lab */
+  .wi-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .wi-title{font-size:24px;font-weight:800;letter-spacing:-.015em;margin-top:3px}
+  .wi-lede{font-size:13px;color:var(--ink-soft);line-height:1.5;margin-top:10px}
+  .wi-slider{border-radius:16px;padding:15px 17px;margin-top:14px;border:1px solid var(--hair-strong)}
+  .wi-slider.amber{background:linear-gradient(160deg,var(--amber-soft),transparent);border-color:var(--amber-glow)}
+  .wi-slider.blue{background:linear-gradient(160deg,var(--accent-soft),transparent);border-color:var(--accent-glow)}
+  .wi-slider-top{display:flex;justify-content:space-between;align-items:baseline}
+  .wi-slider-k{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--amber)}
+  .wi-slider-v{font-size:24px;font-weight:900;letter-spacing:-.02em}
+  .wi-range{width:100%;margin-top:8px;height:30px;background:transparent;-webkit-appearance:none;appearance:none}
+  .wi-range.amber{accent-color:var(--amber)}
+  .wi-range.blue{accent-color:var(--accent)}
+  .wi-scale{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-dim);margin-top:-2px}
+  .wi-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+  .wi-stat{background:var(--panel);border:1px solid var(--hair);border-radius:14px;padding:14px 16px}
+  .wi-stat-l{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--ink-dim)}
+  .wi-stat-v{font-size:24px;font-weight:900;letter-spacing:-.02em;margin-top:2px;font-variant-numeric:tabular-nums}
+  .wi-rec{background:var(--panel);border:1px solid var(--hair);border-left:3px solid var(--ink-soft);border-radius:12px;padding:14px 16px;margin-top:14px}
+  .wi-rec-t{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.1em}
+  .wi-rec-b{font-size:13px;color:var(--ink-soft);margin-top:6px;line-height:1.5}
+  .wi-note{text-align:center;font-size:12px;color:var(--ink-dim);margin-top:14px}
+
   /* Welcome screen */
   .welcome-page{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:env(safe-area-inset-top) 24px env(safe-area-inset-bottom);position:relative;background:radial-gradient(circle at 50% 30%,var(--bg-elev) 0%,var(--bg) 60%)}
   .welcome-page::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent 0%,var(--accent) 50%,transparent 100%);opacity:.6}
