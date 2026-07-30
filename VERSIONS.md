@@ -1,64 +1,104 @@
 # Versions
 
-Two major lines of this application are maintained at the same time. They share
-one repository and one history, and nothing else.
+Several major lines of this application share one repository and one history,
+and nothing else. Each lives on its own branch and deploys to its own URL.
 
-| Line | Branch | Tag | What it is |
+| Line | Branch | Version | What it is |
 | --- | --- | --- | --- |
-| **V3** | `v3` | `v3.0.0` | The application as it stands today. Feature-complete and shipped. |
-| **V4** | `main` | `4.0.0-dev` | The next major version. Free to break anything. |
+| **V3** | `v3` (and `main`) | `v3.0.0` | The shipped, stable application. Production. |
+| **V4** | `v4` | `4.0.0-dev` | The decision-engine rework. Superseded by V5, kept for reference. |
+| **V5** | `v5` | `5.0.0-beta.1` | The design overhaul, built on V4's engine. **Parallel beta.** |
 
-### What V4 is
+## What V5 is
+
+V4 changed what the app *does*; V5 changes what it *is to use*. It adopts the
+"warm dark, honest UI" design language from the vision document — a deep warm
+navy, a solar-amber gradient for the one primary action, signal-blue and
+value-green as the two working accents — and rebuilds the journey around the
+questions a homeowner actually arrives with.
+
+The signature screens are built, not mocked:
+
+- **Welcome** — a question, not a login: "Is it worth it, for your home?"
+- **The Answer** — the home screen is a confidence ring; the arc is filled from
+  the real categorical confidence level, never a fabricated percentage.
+- **What-if lab** ("Explore", in the nav) — two sliders that re-answer four
+  numbers as you drag, grounded in the real generation model and the same
+  cost/grant/NPV helpers as the rest of the app; only self-consumption is a live
+  approximation, which is why it hands off to the full simulation on "Use these".
+- **The tariff paradox** — "why a higher headline rate can still cost less",
+  drawn from each plan's own 8,760-hour battery-dispatched import, not an
+  illustration.
+
+Two rules carry the colour grammar: **amber is the input you give and the action
+you take; blue is the signal the app gives back.** Dark leads; light is kept as
+an alternative. Caps are written literally in the markup, never via
+`text-transform`, so a screen reader hears what is written.
+
+## What V4 was
 
 V3 answers *"what if I install this?"* — the reader configures a system and the
-simulator prices it. That is a laboratory. V4 inverts it: the engine searches
+simulator prices it. That is a laboratory. V4 inverted it: the engine searches
 the space of systems and says *"this is what you should install, and here is
-what it beat"*. Nothing in V3 is deleted; the laboratory becomes the layer
-underneath the advice, for the people who want it.
+what it beat"*. The engine landed first, deliberately with no interface —
+`src/engine/search.ts`, `src/search-worker.js`, `src/engine/roof.ts` — reachable
+as `window.runDesignSearch(...)`, answering four goals from one sweep
+(`max-return`, `bill-swap`, `independence`, `fast-payback`). V5 is built on top
+of that engine; nothing in it was thrown away.
 
-The engine for that landed first, deliberately, with no interface on it:
-`src/engine/search.ts` and `src/search-worker.js`. It is reachable as
-`window.runDesignSearch(onProgress, { goal, finance, maxPanels })`, and it
-answers four goals from one sweep — `max-return`, `bill-swap`, `independence`
-and `fast-payback` — because "best" is not a technical question and the engine
-has no business deciding it. The ceiling on every design comes from
-`src/engine/roof.ts`, which sizes the roof from the kind of house and the
-bedroom count that onboarding now asks for, and the goal is the last thing
-onboarding asks — so someone who has just said what they want solar to do for
-them lands on the answer to exactly that, on the advisor screen, rather than
-on a dashboard. The home screen carries a summary of the recommendation under
-the tariff answer, so "what should I install?" is on the first screen rather
-than two taps away behind a tab. If the search could not produce a stable answer in
-a couple of seconds on a phone, every screen planned on top of it would have
-been built on sand.
-
-## Why a branch and not a second repository
+## Why branches and not separate repositories
 
 V3 is finished but not abandoned. If a tariff source changes, a supplier is
-renamed, or a defect turns up in the engine, the fix has to reach the people
-using V3 without waiting for V4 to be ready — and it has to be possible to
-apply the same fix to both lines with one `git cherry-pick`. A separate
-repository makes that a manual re-implementation every time, which in practice
-means the older line stops getting fixed.
-
-Sharing a repository costs nothing here. The two lines never share a working
-tree, a branch, or a deployment.
+renamed, or a defect turns up in the engine, the fix has to reach V3's users
+without waiting for a newer line — and it must be one `git cherry-pick` to carry
+the same fix forward. Separate repositories make that a manual re-implementation
+every time, which in practice means the older line stops getting fixed. Sharing
+a repository costs nothing: the lines never share a working tree, a branch, or a
+deployment.
 
 ## The rules
 
-1. **`v3` does not move except for V3.** Fixes only — no new features, no
-   redesigns, no dependency bumps that are not security fixes. Its purpose is to
-   stay exactly as reliable as it is now.
-2. **V4 work goes on `main`,** through feature branches as before. It may
-   restructure, rename, delete, and redesign anything. It owes V3 no
-   compatibility.
-3. **Fixes flow one way: `v3` → `main`.** Fix on `v3`, then cherry-pick onto
-   `main` if V4 still has the same defect. Never merge `main` into `v3`; that
-   would drag V4 changes into a line that is supposed to be frozen.
-4. **Every V3 release gets a tag** — `v3.0.1`, `v3.1.0` — so any report can be
-   tied to an exact bundle.
+1. **`v3` does not move except for V3.** Fixes only — no features, no redesigns,
+   no dependency bumps that are not security fixes. It stays exactly as reliable
+   as it is now.
+2. **New work goes on the newest line (`v5`),** through feature branches. It may
+   restructure, rename, delete and redesign anything, and owes the older lines
+   no compatibility.
+3. **Fixes flow forward only: `v3` → newer.** Fix on `v3`, then cherry-pick onto
+   `v5` if the same defect is there. Never merge a newer line back into `v3`.
+4. **Every promoted release gets a tag** — `v3.0.1`, `v5.0.0` — so any report
+   can be tied to an exact bundle.
 
-### Fixing something in both lines
+## Which version am I looking at?
+
+The More screen prints it at the bottom: `v3.0.0 · build 1a2b3c4d` on V3,
+`v5.0.0-beta.1 · build …` on the V5 beta. The version comes from `package.json`
+at build time and names the line; the build id is the commit. A bug report
+without both is a bug report about an unknown program.
+
+## Deployments
+
+All lines can be live at once, each on its own URL, set in the Vercel dashboard
+(Settings → Git), not in this repository.
+
+- **Production stays on V3.** `main` holds the V3 tree and serves the main
+  address; real users are unaffected by V5.
+- **V5 is a parallel beta.** Pushing `v5` produces a Vercel preview deployment
+  at a branch URL (`sawed-git-v5-<scope>.vercel.app`) — the link to share for
+  testing.
+
+### Promoting V5 to production, later
+
+When V5 is ready to become the live app, it is a two-step cutover, both in the
+Vercel dashboard and both reversible:
+
+1. Point the Production Branch at `v5` (Settings → Git → Production Branch), or
+   fast-forward `main` to `v5` if production should keep tracking `main`.
+2. Tag the promoted commit `v5.0.0` and drop the `-beta` from `package.json`.
+
+Until then, nothing about production changes.
+
+## Carrying a fix into both lines
 
 ```sh
 git checkout v3
@@ -66,25 +106,6 @@ git checkout v3
 npm version patch --no-git-tag-version   # 3.0.0 -> 3.0.1
 git commit -am "…"; git tag v3.0.1; git push origin v3 --tags
 
-git checkout main
-git cherry-pick <sha>      # only if V4 has the same defect
+git checkout v5
+git cherry-pick <sha>      # only if V5 has the same defect
 ```
-
-## Which version am I looking at?
-
-The More screen prints it at the bottom: `v3.0.0 · build 1a2b3c4d` on V3, and
-`v4.0.0-dev · build …` on V4. That is the fastest way to tell which line a
-deployment is serving. The version
-comes from `package.json` at build time and names the line; the build id is the
-commit. A bug report without both is a bug report about an unknown program.
-
-## Deployments
-
-Both lines can be live simultaneously. In the Vercel project, `main` is the
-production deployment and `v3` is added as a deployed branch, which gives it a
-permanent URL of its own (`sawed-zeta-git-v3-<scope>.vercel.app`). Until V4 is
-worth showing to anyone, the two should be swapped: point production at `v3` so
-the stable app keeps the main address, and let `main` deploy to a preview URL.
-
-That swap is a setting in the Vercel dashboard — Settings → Git → Production
-Branch — not something in this repository.

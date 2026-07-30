@@ -7592,7 +7592,7 @@ function renderParadox(){
   return `${topbar('The tariff paradox', 'amber', true)}
   <div class="screen v5-explore">
     <div class="v5-eyebrow amber">THE PARADOX</div>
-    <div class="wi-title" style="font-size:26px">Why the higher headline rate<br>can still cost less</div>
+    <div class="wi-title" style="font-size:25px">Why the higher headline rate<br>can still cost less</div>
     <div class="wi-lede">Ranked on <b>your</b> home. The €/year is what matters; the rate on the poster is a footnote.</div>
 
     <div class="pdx-duel">
@@ -8457,7 +8457,7 @@ function renderAnalytics(){
   <div class="screen">
     <div class="an-hero">
       <div class="an-hero-label">ANNUAL FLOWS${isRecommended ? ' · ★ RECOMMENDED' : ''}</div>
-      <div style="font-family:var(--display);font-size:30px;font-weight:800;color:var(--ink);line-height:1.05;letter-spacing:-.02em">${Math.round(annualCons).toLocaleString()}<span style="font-size:15px;font-weight:600;color:var(--ink-soft);margin-left:4px">kWh used / yr</span></div>
+      <div style="font-family:var(--display);font-size:32px;font-weight:800;color:var(--ink);line-height:1.05;letter-spacing:-.02em">${Math.round(annualCons).toLocaleString()}<span style="font-size:15px;font-weight:600;color:var(--ink-soft);margin-left:4px">kWh used / yr</span></div>
       <div style="font-size:13px;color:var(--ink-soft);margin-top:6px">${plan.supplier} — ${plan.plan}</div>
       ${evChip()}
       ${!isRecommended && recommendedId ? `
