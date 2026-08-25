@@ -90,6 +90,37 @@ catch breakage there — those tests fail if the bridge is removed. Both the
 bridge and the tests' reason to exist go away when handlers become delegated
 listeners.
 
+## Tariff data, and what its words mean
+
+Every rate in `public/tariffs.json` carries a `verified_date` and a `notes`
+field, and two words in the notes are load-bearing rather than decorative:
+
+* **UNVERIFIED** — nobody has re-checked this plan against the supplier's own
+  price list. The rate may be right; we have not confirmed it.
+* **DISPUTED** — somebody did check, and a published source gave a different
+  number. In August 2026 Yuno's standard unit rate was 6c/kWh apart across two
+  sources, which is more than enough to put a plan at the top of a ranking it
+  should not win.
+
+Both are enforced. `tests/unit/tariff-freshness.test.ts` refuses a plan that
+lags its own supplier's newest check without carrying one of those words, and
+refuses a note that promises a price change on a date that has already passed —
+which is exactly how four Electric Ireland plans sat on pre-July rates for seven
+weeks with "Prices changing 1 July 2026" written on them. Both words also reach
+the reader: when the recommended plan carries either, the freshness chip on the
+answer screen says so instead of quoting a date.
+
+The registry lives in two places and they must agree: `EMBEDDED_TARIFFS` in
+`src/main.js` is the fallback shipped in the bundle, and `public/tariffs.json`
+overrides it at runtime. A rate corrected in only one of them is a defect no
+screen can show you — Bord Gáis's day rate was 2.3c apart between them for a
+month — so the same test asserts they are identical.
+
+**A scraped number is not a verified number.** The daily job opens a pull
+request; the rates in it are candidates until a human has read the diff. When
+the scrape cannot verify enough plans it fails, opens an issue, and leaves the
+old numbers alone rather than writing a fresh timestamp over them.
+
 ## Deployment
 
 Vercel builds with `npm run build` and serves `dist/` (see `vercel.json`).
