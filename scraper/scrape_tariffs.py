@@ -51,26 +51,45 @@ TARIFFS_PATH = Path(__file__).parent.parent / "public" / "tariffs.json"
 MIN_COVERAGE = 0.60   # fail the run below this share of plans re-verified
 TODAY = date.today().isoformat()
 
-#: How many discovered pages to read per supplier before giving up. Discovery is
-#: ranked, so the price page is normally first or second; the tail is there for
-#: sites that bury it a level down.
-MAX_PAGES = 4
+#: How many candidate pages to read per supplier before giving up. Seeds occupy
+#: the first two or three slots now, so this has to leave room for discovery
+#: behind them — otherwise adding a seed would silently switch discovery off,
+#: which is the opposite of the point.
+MAX_PAGES = 6
 
 
 # ---------------------------------------------------------------------------
 # Who we scrape
 #
-# A root and a set of plan keywords, nothing more. No deep links: that is the
-# bug this rewrite exists to remove. Keywords match plan names as the supplier
-# writes them, and are used to attribute a rate to one of our plan ids.
+# A root, a set of plan keywords, and a short list of seed pages.
+#
+# The seeds are not the old hardcoded deep links returning. Those were the ONLY
+# route to a price, so when a site was reorganised the scraper had nowhere else
+# to look. These are tried first and discovery still runs behind them, because
+# on 25 August 2026 all seven supplier homepages parsed to zero candidate links
+# — their navigation is rendered by script, and a static parse of a JavaScript
+# shell contains no anchors to rank. Discovery alone cannot reach a page that is
+# not linked in the HTML it can see.
+#
+# Every seed below was confirmed by hand to serve prices on 25 August 2026. When
+# one rots it 404s and is reported as `moved`, which is a broken link somebody
+# has to fix — not a silent fallback to yesterday's numbers.
+#
+# Keywords match plan names as the supplier writes them, and are used to
+# attribute a rate to one of our plan ids.
 # ---------------------------------------------------------------------------
 
 SUPPLIERS = [
     {
         "name": "Electric Ireland",
+        "seeds": [
+            "/residential/products/smart-meters/plans",
+            "/residential/electricity-and-gas/ev-night-boost",
+            "/residential/price-changes",
+        ],
         "root": "https://www.electricireland.ie/",
         "plans": {
-            "EI-24":  ["24hr", "24 hr", "home dual+ 24", "flat rate"],
+            "EI-24":  ["24hr", "24 hour", "home electric+ 24", "flat rate"],
             "EI-SST": ["smart standard", "day night peak", "time of use", "sst"],
             "EI-NB":  ["night boost"],
             "EI-DYN": ["dynamic"],
@@ -78,6 +97,11 @@ SUPPLIERS = [
     },
     {
         "name": "Bord Gáis Energy",
+        "seeds": [
+            "/home/ev-plan-comparison",
+            "/home/our-tariffs",
+            "/home/compare-electricity-price-plans",
+        ],
         "root": "https://www.bordgaisenergy.ie/",
         "plans": {
             "BG-24":  ["all day", "smart all day", "flat rate"],
@@ -88,6 +112,10 @@ SUPPLIERS = [
     },
     {
         "name": "SSE Airtricity",
+        "seeds": [
+            "/ie/home/our-tariffs/",
+            "/ie/home/help-and-advice/price-changes/",
+        ],
         "root": "https://www.sseairtricity.com/ie/home/",
         "plans": {
             "SSE-EVDAY": ["24hr smart", "24 hour smart", "flat"],
@@ -97,6 +125,10 @@ SUPPLIERS = [
     },
     {
         "name": "Energia",
+        "seeds": [
+            "/about-energia/our-tariffs",
+            "/home-energy/electricity",
+        ],
         "root": "https://www.energia.ie/",
         "plans": {
             "EN-24":      ["standard", "24hr", "flat"],
@@ -108,6 +140,10 @@ SUPPLIERS = [
     },
     {
         "name": "Yuno Energy",
+        "seeds": [
+            "/our-tariffs",
+            "/plans",
+        ],
         "root": "https://www.yunoenergy.ie/",
         "plans": {
             "YN-24":  ["standard smart", "flat", "24hr"],
@@ -117,6 +153,10 @@ SUPPLIERS = [
     },
     {
         "name": "Flogas",
+        "seeds": [
+            "/home/electricity/tariffs",
+            "/home/our-price-plans",
+        ],
         "root": "https://www.flogas.ie/",
         "plans": {
             "FL-24":  ["smart 24", "flat", "24 hour"],
@@ -125,6 +165,10 @@ SUPPLIERS = [
     },
     {
         "name": "Pinergy",
+        "seeds": [
+            "/lifestyle-plans/",
+            "/standard-unit-rates/",
+        ],
         "root": "https://www.pinergy.ie/",
         "plans": {
             "PIN-LF":  ["lifestyle standard", "standard smart"],
@@ -220,9 +264,9 @@ def scrape_supplier(spec: dict, existing: dict,
     updates: dict = {}
 
     log.info(f"{name}: discovering price pages under {spec['root']}")
-    pages = discover(spec["root"], session=session)
+    pages = discover(spec["root"], session=session, seeds=spec.get("seeds"))
     if not pages:
-        log.warning(f"{name}: found no candidate price pages from the homepage or sitemap")
+        log.warning(f"{name}: found no candidate price pages from seeds, the homepage or the sitemap")
 
     for url in pages[:MAX_PAGES]:
         got = fetch(url, session=session)

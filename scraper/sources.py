@@ -99,7 +99,12 @@ def fetch(url: str, timeout: int = 20, session: Optional[requests.Session] = Non
 #: Words that mark a link as likely to lead to prices.
 PRICE_WORDS = re.compile(
     r"\b(price|prices|pricing|tariff|tariffs|rate|rates|plan|plans|"
-    r"unit\s*rate|standing\s*charge|price\s*list|our\s*plans)\b", re.I)
+    r"unit\s*rate|standing\s*charge|price\s*list|our\s*plans|"
+    # Path shapes the Irish suppliers actually ship. Hyphens are word
+    # boundaries to \b, so "ev-plan-comparison" already matches on "plan" —
+    # these are here for the ones that do not mention a price word at all.
+    r"smart\s*meters?|our\s*tariffs|price\s*plans|ev\s*plan\s*comparison)\b",
+    re.I)
 
 #: Words that mark a link as business, gas-only or otherwise off-target.
 REJECT_WORDS = re.compile(r"\b(business|commercial|sme|gas\s*only|career|blog|news)\b", re.I)
@@ -159,12 +164,35 @@ def sitemap_candidates(root: str, session: Optional[requests.Session] = None,
     return hits[:limit]
 
 
-def discover(root: str, session: Optional[requests.Session] = None) -> list[str]:
-    """Every plausible tariff page for a supplier, best first."""
+def discover(root: str, session: Optional[requests.Session] = None,
+             seeds: Optional[Iterable[str]] = None) -> list[str]:
+    """
+    Every plausible tariff page for a supplier, best first.
+
+    Seeds come first, and they exist because pure discovery has a blind spot
+    that cost this scraper a month. On 25 August 2026 every one of the seven
+    supplier homepages answered 200 and yielded no candidate links at all —
+    seven `nolinks` in a row. The sites are not blocking anything; their
+    navigation is rendered by script, so a static parse sees a shell with no
+    anchors in it. Discovery cannot find a link that is not in the HTML.
+
+    A seed is a URL confirmed by hand to serve prices today. It is deliberately
+    NOT the old hardcoded deep link in a new coat: discovery still runs, seeds
+    are only tried first, and a seed that 404s is reported as `moved` like any
+    other broken link, so rot is loud instead of silent. The failure mode this
+    guards against is the one that actually happened, not the one that was
+    feared.
+    """
     out: list[str] = []
+    for u in (seeds or []):
+        absolute = urljoin(root, u)
+        if absolute not in out:
+            out.append(absolute)
     home = fetch(root, session=session)
     if home.ok:
-        out.extend(candidate_links(home.text, root))
+        for u in candidate_links(home.text, root):
+            if u not in out:
+                out.append(u)
     for u in sitemap_candidates(root, session=session):
         if u not in out:
             out.append(u)

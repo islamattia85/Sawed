@@ -9,6 +9,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   scrape:
@@ -102,6 +103,82 @@ jobs:
               echo "Workflow permissions → Allow GitHub Actions to create and approve pull requests**."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # A red tab is not a notification.
+      #
+      # The coverage gate has been doing its job since late July 2026 — it
+      # failed every run, refused to open a pull request over unverified rates,
+      # and stopped a fresh timestamp being written across stale numbers. It
+      # worked perfectly and nobody found out for a month, because the only
+      # place it said so was a workflow list nobody opens on a repository with
+      # no failing checks anywhere else.
+      #
+      # An issue is the cheapest thing that actually reaches a person: GitHub
+      # emails the owner when one is opened, it stays open until the scrape
+      # works again, and re-runs comment on the existing issue instead of
+      # opening a new one every morning.
+      - name: Raise an issue when the scrape could not verify the rates
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Tariff scrape is failing \u2014 rates are going stale';
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              'The daily tariff scrape did not verify enough plans to be trusted, so no',
+              'pull request was opened and `public/tariffs.json` still holds the previous',
+              'rates.',
+              '',
+              'Every day this stays open, the app presents older numbers as current. The',
+              'per-supplier lines in the run log say which half broke: `NO PAGE REACHED`',
+              'means discovery needs a new seed URL, `nothing recognisable` means the',
+              'parser needs updating.',
+              '',
+              `Run: ${run}`,
+            ].join('\n');
+
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'tariffs',
+            });
+            const existing = open.find(i => i.title === title);
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `Still failing. Run: ${run}`,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body, labels: ['tariffs'],
+              });
+            }
+
+      # The counterpart: when a scrape succeeds again, say so and close the
+      # issue, so an open one always means "the rates are not being checked".
+      - name: Close the staleness issue once the scrape works again
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Tariff scrape is failing \u2014 rates are going stale';
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'tariffs',
+            });
+            const existing = open.find(i => i.title === title);
+            if (!existing) return;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: existing.number,
+              body: 'The scrape verified enough plans again \u2014 closing.',
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: existing.number, state: 'closed',
+            });
 
       - name: Upload scrape log
         if: always()
