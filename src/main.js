@@ -1326,7 +1326,7 @@ const EMBEDDED_TARIFFS = [
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:328.58, exit:50, length:12, green:false, export_rate:0.195,
     verified_date:"2026-06-02",
-    notes:"★ NEW (19 May 2026). Base ToU + half-hourly SEMOpx wholesale (capped 50c). Requires CTF-4 smart meter. Sign up via 1800 30 50 90."
+    notes:"\u2605 NEW (19 May 2026). Base ToU + half-hourly SEMOpx wholesale (capped 50c). Requires CTF-4 smart meter. UNVERIFIED SINCE THE 1 JULY 2026 PRICE CHANGE \u2014 the base rates below predate it and may be up to 9.5% low. Re-check before relying on this plan."
   },
   {
     id:"BG-DYN",
@@ -1336,8 +1336,8 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.1673, night:0.1673, peak:0.1673, ev:0.1673},
     windows:{ ev:null },
     standing:331.96, exit:50, length:12, green:true, export_rate:0.185,
-    verified_date:"2026-06-02",
-    notes:"★ NEW (1 June 2026). Single base rate 16.73c + half-hourly wholesale. No discount on base. Day-ahead prices published at bordgaisenergy.ie/day-ahead-market-prices."
+    verified_date:"2026-06-01",
+    notes:"\u2605 NEW (1 June 2026). Single base rate 16.73c + half-hourly wholesale. No discount on base. Day-ahead prices at bordgaisenergy.ie/day-ahead-market-prices. UNVERIFIED since launch \u2014 the base rate is not published on the plan-comparison page and was not re-checked on 25 Aug 2026."
   },
   {
     id:"EN-DYN",
@@ -1348,20 +1348,20 @@ const EMBEDDED_TARIFFS = [
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:299.75, exit:50, length:12, green:true, export_rate:0.185,
     verified_date:"2026-06-02",
-    notes:"★ NEW (2 June 2026). 3-band base ToU + half-hourly wholesale. 100% green. Day 21.97c / Night 12.51c / Peak 22.92c base."
+    notes:"\u2605 NEW (2 June 2026). 3-band base ToU + half-hourly wholesale. 100% green. Day 21.97c / Night 12.51c / Peak 22.92c base. UNVERIFIED since launch \u2014 the base rates are not on Energia's published tariff page and were not re-checked on 25 Aug 2026."
   },
 
   // === STANDARD 24-HOUR PLANS (smart meter, flat rate, new-customer discount applied) ===
   {
     id:"EI-24",
     supplier:"Electric Ireland",
-    plan:"Home Dual+ 24hr",
+    plan:"Home Electric+ 24hr",
     type:"flat",
-    rates:{day:0.3114, night:0.3114, peak:0.3114, ev:0.3114},
+    rates:{day:0.2981, night:0.2981, peak:0.2981, ev:0.2981},
     windows:{ ev:null },
-    standing:328.58, exit:50, length:12, green:false, export_rate:0.195,
-    verified_date:"2026-06-02",
-    notes:"8.5% direct-debit/eBill discount. Prices changing 1 July 2026."
+    standing:250.77, exit:50, length:12, green:false, export_rate:0.195,
+    verified_date:"2026-08-25",
+    notes:"Rates from 1 July 2026 (Electric Ireland raised unit rates 9.5%). Flat 29.81c incl VAT with the 20% Saver new-customer discount. Urban standing charge \u20ac250.77 (rural \u20ac314.98). CEG 19.5c. Cross-checked against two independent published rate tables."
   },
   {
     id:"EN-24",
@@ -1371,8 +1371,8 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.2986, night:0.2986, peak:0.2986, ev:0.2986},
     windows:{ ev:null },
     standing:265.01, exit:50, length:12, green:true, export_rate:0.185,
-    verified_date:"2026-06-02",
-    notes:"30% new-customer discount on 42.65c standard rate. 100% green."
+    verified_date:"2026-08-25",
+    notes:"VERIFIED 25 Aug 2026 \u2014 energia.ie/about-energia/our-tariffs (price list effective 1 May 2026) and one independent rate table agree: 42.65c undiscounted, 29.86c with the 30% new-customer discount. Standing \u20ac265.01 urban (\u20ac337.02 rural). CEG 18.5c."
   },
   {
     id:"BG-24",
@@ -1382,8 +1382,8 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.3078, night:0.3078, peak:0.3078, ev:0.3078},
     windows:{ ev:null },
     standing:244.76, exit:50, length:12, green:true, export_rate:0.185,
-    verified_date:"2026-06-02",
-    notes:"VERIFIED bordgaisenergy.ie/home/ev-plan-comparison. Flat 30.78c with 26% new-customer discount. Standing €244.76. CEG 18.5c."
+    verified_date:"2026-08-25",
+    notes:"VERIFIED 25 Aug 2026 direct from bordgaisenergy.ie/home/ev-plan-comparison. Flat 30.78c with the 26% new-customer discount. Standing \u20ac244.76. CEG 18.5c."
   },
   {
     id:"SSE-EVDAY",
@@ -1394,7 +1394,7 @@ const EMBEDDED_TARIFFS = [
     windows:{ ev:null },
     standing:240.97, exit:50, length:12, green:true, export_rate:0.195,
     verified_date:"2026-06-02",
-    notes:"VERIFIED from SSE PDF 1YR-ELEC-FIXED-V5 (DD & eBill column). Flat 31.52c. Standing €240.97. 12-month price fix. CEG 19.5c."
+    notes:"Rates below are from the SSE PDF 1YR-ELEC-FIXED-V5 (DD & eBill column), checked 2 June 2026. DISPUTED as of 25 Aug 2026: a published rate table gives SSE's 1 Year Home Electricity 25% as 30.85c with a \u20ac264 standing charge, against 31.52c / \u20ac240.97 here. Re-verify against SSE's own price list before relying on this plan."
   },
   {
     id:"YN-24",
@@ -1405,7 +1405,7 @@ const EMBEDDED_TARIFFS = [
     windows:{ ev:null },
     standing:219.22, exit:50, length:12, green:false, export_rate:0.1589,
     verified_date:"2026-06-02",
-    notes:"Cheapest flat smart rate. Low standing charge. CEG rises to 17.16c on 1 July 2026."
+    notes:"Low standing charge. Checked 2 June 2026. DISPUTED as of 25 Aug 2026: a published table gives Yuno's Standard 24hr as 31.33c with a 20c CEG, against 25.24c and 15.89c here \u2014 a 6c gap on the unit rate, large enough to change the ranking. Re-verify against yunoenergy.ie before this plan is recommended."
   },
   {
     id:"FL-24",
@@ -1416,7 +1416,7 @@ const EMBEDDED_TARIFFS = [
     windows:{ ev:null },
     standing:234.50, exit:50, length:12, green:false, export_rate:0.185,
     verified_date:"2026-06-02",
-    notes:"Mid-pack flat smart plan."
+    notes:"Checked 2 June 2026. DISPUTED as of 25 Aug 2026: Flogas appears to have repriced in July 2026. A published table gives Smart 24hr 20% as 29.76c with a \u20ac270 standing charge, against 30.24c / \u20ac234.50 here. Re-verify against flogas.ie."
   },
   {
     id:"PIN-LF",
@@ -1426,8 +1426,8 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.4177, night:0.3177, peak:0.4472, ev:0.3177},
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:283.47, exit:50, length:12, green:true, export_rate:0.250,
-    verified_date:"2026-06-02",
-    notes:"3-band ToU (verified pinergy.ie 22 May 2026). Day 8-23h, Night 23-8h, Peak 17-19h. Best export rate (25c)."
+    verified_date:"2026-08-25",
+    notes:"VERIFIED 25 Aug 2026 \u2014 Day 41.77c (08-23), Night 31.77c (23-08), Peak 44.72c (17-19). Standing \u20ac283.47 urban. CEG 25c \u2014 the highest export rate in the market, which is why this plan can win for a big array despite expensive import."
   },
   {
     id:"PIN-WFH",
@@ -1441,7 +1441,7 @@ const EMBEDDED_TARIFFS = [
     windows:{ peak:null, night:null, ev:null, wfh:[9,17] },
     standing:283.47, exit:50, length:12, green:true, export_rate:0.250,
     verified_date:"2026-06-02",
-    notes:"29.24c Mon-Fri 9-5, 41.77c otherwise. Best for daytime-occupied homes."
+    notes:"Flat 41.77c outside the window, 29.24c between 09:00 and 17:00. Standing \u20ac283.47. CEG 25c. UNVERIFIED as of 25 Aug 2026 \u2014 only Pinergy's Standard Smart Tariff appears on published rate tables; re-check this one against pinergy.ie."
   },
   {
     id:"PIN-FAM",
@@ -1452,20 +1452,20 @@ const EMBEDDED_TARIFFS = [
     windows:{ peak:null, night:[19,24], ev:null },
     standing:283.47, exit:50, length:12, green:true, export_rate:0.250,
     verified_date:"2026-06-02",
-    notes:"25.06c every day 7pm-midnight, 41.77c otherwise."
+    notes:"Flat 41.77c outside the window, 25.06c between 19:00 and midnight. Standing \u20ac283.47. CEG 25c. UNVERIFIED as of 25 Aug 2026 \u2014 only Pinergy's Standard Smart Tariff appears on published rate tables; re-check this one against pinergy.ie."
   },
 
   // === SMART DAY/NIGHT/PEAK PLANS (3-band ToU) ===
   {
     id:"EI-SST",
     supplier:"Electric Ireland",
-    plan:"Home Dual+ SST",
+    plan:"Home Electric+ SST",
     type:"tou",
-    rates:{day:0.3388, night:0.1780, peak:0.3614, ev:0.1780},
+    rates:{day:0.3243, night:0.1704, peak:0.3460, ev:0.1704},
     windows:{ peak:[17,19], night:[23,8], ev:null },
-    standing:328.58, exit:50, length:12, green:false, export_rate:0.195,
-    verified_date:"2026-06-02",
-    notes:"3-band ToU with 8.5% discount (verified electricireland.ie). Day 33.88c, Night 17.80c, Peak 36.14c. Prices changing 1 July 2026."
+    standing:250.77, exit:50, length:12, green:false, export_rate:0.195,
+    verified_date:"2026-08-25",
+    notes:"Rates from 1 July 2026. Undiscounted 40.54c day / 21.30c night / 43.25c peak incl VAT; shown here with the 20% Saver new-customer discount. Day 08-17 & 19-23, Peak 17-19, Night 23-08. Urban standing \u20ac250.77. CEG 19.5c. Cross-checked against two independent published rate tables."
   },
   {
     id:"EN-SMART",
@@ -1475,8 +1475,8 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.3075, night:0.1691, peak:0.3454, ev:0.1691},
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:265.01, exit:50, length:12, green:true, export_rate:0.185,
-    verified_date:"2026-06-02",
-    notes:"27% new-customer discount (verified energia.ie 29 May 2026). 100% green. Day 30.75 / Night 16.91 / Peak 34.54."
+    verified_date:"2026-08-25",
+    notes:"VERIFIED 25 Aug 2026 \u2014 the \"Smart Data 27%\" tier: Day 30.75c, Night 16.91c (23-08), Peak 34.54c (17-19), all incl VAT. Standing \u20ac265.01 urban. CEG 18.5c. Energia's published list is still the 1 May 2026 one."
   },
   {
     id:"BG-TOU",
@@ -1486,8 +1486,8 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.3289, night:0.2428, peak:0.4004, ev:0.2428},
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:244.76, exit:50, length:12, green:true, export_rate:0.185,
-    verified_date:"2026-06-02",
-    notes:"VERIFIED bordgaisenergy.ie/home/ev-plan-comparison. 26% new-customer discount (NOT 32% — earlier 3rd-party sources were wrong). Standing €244.76. CEG 18.5c."
+    verified_date:"2026-08-25",
+    notes:"VERIFIED 25 Aug 2026 direct from bordgaisenergy.ie/home/ev-plan-comparison. Day 32.89c (08-23 excl peak), Peak 40.04c (17-19), Night 24.28c (23-08), all with the 26% new-customer discount. Standing \u20ac244.76. CEG 18.5c. NOTE: the 26 July automated scrape wrote the EV plan's 35.23c day rate onto this plan \u2014 32.89c is the published figure."
   },
   {
     id:"SSE-DNP",
@@ -1498,7 +1498,7 @@ const EMBEDDED_TARIFFS = [
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:302.48, exit:50, length:12, green:true, export_rate:0.195,
     verified_date:"2026-06-02",
-    notes:"VERIFIED from SSE PDF 1YR-ELEC-FIXED-V5 (DD & eBill column). Day 33.20c / Night 20.96c / Peak 40.10c. Standing €302.48. 12-month price fix. CEG 19.5c."
+    notes:"Checked 2 June 2026. DISPUTED as of 25 Aug 2026: a published rate table gives SSE's 1 Year Smart 25% as 32.65c day / 20.98c night / 36.56c peak with a \u20ac264 standing charge, against 33.20 / 20.96 / 40.10 and \u20ac302.48 here \u2014 the peak rate differs by 3.5c. Re-verify against SSE's own price list."
   },
   {
     id:"YN-DNP",
@@ -1509,7 +1509,7 @@ const EMBEDDED_TARIFFS = [
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:219.22, exit:50, length:12, green:false, export_rate:0.1589,
     verified_date:"2026-06-02",
-    notes:"Low standing charge. CEG rises to 17.16c on 1 July 2026."
+    notes:"Low standing charge. Checked 2 June 2026. CEG was due to rise to 17.16c on 1 July 2026 and the 15.89c below predates that. UNVERIFIED since Yuno's 24hr plan was disputed on 25 Aug 2026 \u2014 re-verify the whole Yuno range."
   },
   {
     id:"FL-DNP",
@@ -1520,7 +1520,7 @@ const EMBEDDED_TARIFFS = [
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:234.50, exit:50, length:12, green:false, export_rate:0.185,
     verified_date:"2026-06-02",
-    notes:"Mid-pack 3-band ToU."
+    notes:"Checked 2 June 2026. DISPUTED as of 25 Aug 2026: a published table gives Flogas Smart Electricity 20% as 32.42c day / 20.76c night / 38.36c peak with a \u20ac270 standing charge, against 31.45 / 18.44 / 36.99 and \u20ac234.50 here. Flogas appears to have repriced in July 2026. Re-verify against flogas.ie."
   },
 
   // === EV / NIGHT BOOST PLANS (key arbitrage candidates) ===
@@ -1535,18 +1535,18 @@ const EMBEDDED_TARIFFS = [
     discontinued: true,
     discontinued_date: "2026-05-21",
     verified_date:"2026-06-02",
-    notes:"NO LONGER ON SALE since 21 May 2026 (existing customers retain). Cheapest EV window was 5.99c (2-5am). Source: pinergy.ie."
+    notes:"Flat 41.77c outside the window, 5.99c between 02:00 and 05:00 \u2014 the cheapest EV window in the market. Standing \u20ac283.47. CEG 25c. UNVERIFIED as of 25 Aug 2026 \u2014 only Pinergy's Standard Smart Tariff appears on published rate tables; re-check this one against pinergy.ie."
   },
   {
     id:"EI-NB",
     supplier:"Electric Ireland",
-    plan:"Home Dual+ Night Boost",
+    plan:"Home Electric+ Night Boost",
     type:"ev",
-    rates:{day:0.3325, night:0.1640, peak:0.3325, ev:0.0962},
+    rates:{day:0.3760, night:0.1854, peak:0.3760, ev:0.1088},
     windows:{ ev:[2,4], night:[23,8], peak:null },
-    standing:328.58, exit:50, length:12, green:false, export_rate:0.195,
-    verified_date:"2026-06-02",
-    notes:"Shortest EV window (2-4am, 2hr). Verified electricireland.ie. Prices changing 1 July 2026."
+    standing:250.77, exit:50, length:12, green:false, export_rate:0.195,
+    verified_date:"2026-08-25",
+    notes:"VERIFIED from electricireland.ie/residential/electricity-and-gas/ev-night-boost. Day (08-23) 37.60c, Night (23-08) 18.54c, Boost (02-04) 10.88c \u2014 all incl VAT and the 5.5% discount. Urban standing \u20ac250.77. CEG 19.5c."
   },
   {
     id:"EN-EV",
@@ -1556,8 +1556,8 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.4016, night:0.4016, peak:0.4016, ev:0.0942},
     windows:{ ev:[2,6], peak:null, night:null },
     standing:265.01, exit:50, length:12, green:true, export_rate:0.185,
-    verified_date:"2026-06-02",
-    notes:"Simplified EV plan (10% off): single day rate + EV window 2-6am. Verified energia.ie 1 May 2026."
+    verified_date:"2026-08-25",
+    notes:"VERIFIED 25 Aug 2026 \u2014 the \"EV Smart Drive 10%\" tier: Day 40.16c, EV 9.42c (02-06). Standing \u20ac265.01 urban. CEG 18.5c."
   },
   {
     id:"EN-EV-PLUS",
@@ -1568,7 +1568,7 @@ const EMBEDDED_TARIFFS = [
     windows:{ ev:[2,6], peak:[17,19], night:[23,8] },
     standing:265.01, exit:50, length:12, green:true, export_rate:0.185,
     verified_date:"2026-06-02",
-    notes:"4-band EV plan (10% off). Higher EV rate but adds night & peak structure. Verified energia.ie."
+    notes:"Checked 2 June 2026. DISPUTED as of 25 Aug 2026: a published table gives the peak rate as 45.41c against 51.08c here \u2014 day, night and EV rates agree. Re-verify the peak band against energia.ie."
   },
   {
     id:"BG-EV",
@@ -1578,8 +1578,8 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.3523, night:0.2657, peak:0.4914, ev:0.0898},
     windows:{ ev:[2,5], peak:[17,19], night:[23,8] },
     standing:364.89, exit:50, length:12, green:true, export_rate:0.185,
-    verified_date:"2026-06-02",
-    notes:"VERIFIED directly from bordgaisenergy.ie/home/ev-plan-comparison. EV rate 8.98c (2-5am). 15% new customer discount. Standing €364.89 is €120 HIGHER than BG's other plans (€244.76). High peak 49.14c — avoid 5-7pm. CEG 18.5c."
+    verified_date:"2026-08-25",
+    notes:"VERIFIED 25 Aug 2026 direct from bordgaisenergy.ie/home/ev-plan-comparison. Day 35.23c (08-23 excl peak), Peak 49.14c (17-19), Night 26.57c (23-08), EV 8.98c (02-05), with the 15% new-customer discount. Standing \u20ac364.89 \u2014 \u20ac120 higher than BG's other plans. CEG 18.5c."
   },
   {
     id:"SSE-EVMAX",
@@ -1590,7 +1590,7 @@ const EMBEDDED_TARIFFS = [
     windows:{ ev:[23,5], peak:null, night:null },
     standing:357.23, exit:50, length:12, green:true, export_rate:0.195,
     verified_date:"2026-06-02",
-    notes:"2-band only: 18h rate 33.76c (5am-11pm) + 6h EV rate 12.13c (11pm-5am). 30% new customer discount, valid from 31 Oct 2025. Standing €357.23 (higher than other SSE plans). CEG 19.5c. Verified directly from sseairtricity.com/assets/Tariffs/ROI/Current/1YR-ELEC-30-EVMax.pdf."
+    notes:"2-band only: 18h rate 33.76c (5am-11pm) + 6h EV rate 12.13c (11pm-5am). 30% new customer discount, valid from 31 Oct 2025. Standing \u20ac357.23 (higher than other SSE plans). CEG 19.5c. Verified 2 June 2026 from sseairtricity.com/assets/Tariffs/ROI/Current/1YR-ELEC-30-EVMax.pdf. UNVERIFIED since SSE's other plans were disputed on 25 Aug 2026 \u2014 re-check the PDF."
   },
   {
     id:"YN-EV",
@@ -1601,20 +1601,20 @@ const EMBEDDED_TARIFFS = [
     windows:{ ev:[2,6], peak:[17,19], night:[23,8] },
     standing:219.22, exit:50, length:12, green:false, export_rate:0.1589,
     verified_date:"2026-06-02",
-    notes:"4hr EV window. Low standing charge. CEG rises 15.89c → 17.16c on 1 July 2026."
+    notes:"Checked 2 June 2026. UNVERIFIED since Yuno's 24hr plan was disputed on 25 Aug 2026 \u2014 re-verify the whole Yuno range, including the CEG rate."
   },
 
   // === LEGACY NIGHTSAVER (no smart meter; for reference only) ===
   {
     id:"EI-NS",
     supplier:"Electric Ireland",
-    plan:"Nightsaver (legacy D/N)",
+    plan:"Energysaver Nightsaver",
     type:"dn",
-    rates:{day:0.3645, night:0.1659, peak:0.3645, ev:0.1659},
+    rates:{day:0.3412, night:0.1683, peak:0.3412, ev:0.1683},
     windows:{ peak:null, night:[23,8], ev:null },
-    standing:298.46, exit:50, length:12, green:false, export_rate:0.195,
-    verified_date:"2026-06-02",
-    notes:"Legacy Day/Night meter only. Once on smart, can't go back. For reference only."
+    standing:328.58, exit:50, length:12, green:false, export_rate:0.195,
+    verified_date:"2026-08-25",
+    notes:"Legacy Day/Night meter only \u2014 once on smart, you cannot go back. For reference only. Rates from 1 July 2026: 34.12c day / 16.83c night incl VAT with the 16% discount. Standing \u20ac328.58."
   }
 ];
 
@@ -4453,6 +4453,36 @@ function fmtVerifiedDate(isoDate){
   return d.toLocaleDateString('en-IE', { day:'numeric', month:'short', year:'numeric' });
 }
 
+/**
+ * The freshness chip, when the plan we are recommending is one we do not trust.
+ *
+ * The staleness banner answers "how old is this data?" for the registry as a
+ * whole. It cannot answer the more dangerous question, which is whether the
+ * plan we just told someone to switch to is one of the ones in doubt.
+ *
+ * Two states earn the warning, and they are not the same thing. UNVERIFIED
+ * means nobody has re-checked the plan against the supplier's own price list.
+ * DISPUTED means somebody did, and a published source gave a different number
+ * — Yuno's standard unit rate was 6c/kWh apart across two sources in August
+ * 2026, which is more than enough to move a plan to the top of a ranking it
+ * should not win.
+ *
+ * These plans stay in the comparison. Dropping them would quietly shrink the
+ * market the reader thinks they are being shown, which is a worse lie than
+ * "we are not certain about this one". The rule is disclose, not hide.
+ *
+ * It replaces the freshness chip rather than sitting beside it, for two
+ * reasons. It is the same question, answered more precisely — two chips would
+ * be two answers to one thing. And the home screen has a height budget of two
+ * viewports, pinned by test; an extra block spent it and the test said so.
+ */
+function planDataFlag(plan){
+  const notes = (plan && plan.notes) || '';
+  if (/\bDISPUTED\b/.test(notes))   return 'disputed';
+  if (/\bUNVERIFIED\b/.test(notes)) return 'unverified';
+  return null;
+}
+
 function renderStalenessBanner(){
   const stale = checkTariffStaleness();
   if (!stale) return '';
@@ -5240,7 +5270,7 @@ function renderResult(){
       <a href="#" onclick="event.preventDefault();setScreen('how-to-switch')">How switching works</a>` : ''}
     </div>
 
-    ${freshnessChip()}
+    ${freshnessChip(best.plan)}
     ${renderContractAlert()}
     ${state.chosen_plan ? renderChoiceStrip() : ''}
 
@@ -5373,13 +5403,23 @@ function renderResult(){
  * words carry it, and they carry it *after* the answer instead of in front of
  * it. Tapping still opens the per-plan dates.
  */
-function freshnessChip(){
+function freshnessChip(plan){
+  const flag = planDataFlag(plan);
+  if (flag){
+    const supplier = (plan && plan.supplier) || 'the supplier';
+    const label = flag === 'disputed'
+      ? `Confirm this plan's rates with ${supplier} \u2014 sources disagree`
+      : `Confirm this plan's rates with ${supplier} \u2014 not re-checked`;
+    return `<button class="fresh-chip is-stale" onclick="setScreen('plans')">
+      <span class="fresh-dot" aria-hidden="true"></span>${label}<span class="fresh-chev">\u203a</span>
+    </button>`;
+  }
   const stale = checkTariffStaleness();
   const label = stale
     ? `Rates last checked ${stale.days} days ago`
     : `Rates verified ${fmtVerifiedDate(latestVerifiedDate())}`;
   return `<button class="fresh-chip ${stale ? 'is-stale' : ''}" onclick="setScreen('plans')">
-    <span class="fresh-dot" aria-hidden="true"></span>${label}<span class="fresh-chev">›</span>
+    <span class="fresh-dot" aria-hidden="true"></span>${label}<span class="fresh-chev">\u203a</span>
   </button>`;
 }
 
