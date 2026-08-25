@@ -15,6 +15,7 @@ given a page, we find the right link, and given a link, we read the right number
 
 import pytest
 
+import sources
 from sources import (
     Fetched, candidate_links, embedded_json, rates_from_json, rates_from_text,
     standing_from_text, walk, _as_cents,
@@ -243,3 +244,105 @@ def test_reaching_a_site_but_finding_no_prices_is_not_a_broken_link():
     # is for.
     assert Fetched("u", kind="nolinks").kind != Fetched("u", kind="moved").kind
     assert Fetched("u", kind="nolinks").ok is False
+
+
+# ---------------------------------------------------------------------------
+# Seeded discovery
+#
+# These exist because of the 25 August 2026 run. All seven supplier homepages
+# answered 200 and produced zero candidate links, so the scraper reported seven
+# `nolinks` and verified nothing, for a month, while the app went on presenting
+# June rates as current. The cause was not blocking and not rot: the suppliers
+# render their navigation with script, and there are no anchors in the HTML a
+# static parse can see.
+# ---------------------------------------------------------------------------
+
+class _StubSession:
+    """A session that answers every request with an empty JavaScript shell."""
+
+    SHELL = "<html><head></head><body><div id='app'></div></body></html>"
+
+    def __init__(self):
+        self.requested = []
+
+    def get(self, url, **kwargs):
+        self.requested.append(url)
+
+        class R:
+            status_code = 200
+            text = _StubSession.SHELL
+            content = _StubSession.SHELL.encode()
+            url = ""
+        return R()
+
+
+def test_seeds_survive_a_homepage_with_no_links_in_it():
+    """The exact failure: a script-rendered shell yields nothing to rank."""
+    session = _StubSession()
+    assert sources.candidate_links(_StubSession.SHELL, "https://example.ie/") == []
+
+    pages = sources.discover(
+        "https://example.ie/",
+        session=session,
+        seeds=["/home/our-tariffs", "/home/ev-plan-comparison"],
+    )
+    assert pages == [
+        "https://example.ie/home/our-tariffs",
+        "https://example.ie/home/ev-plan-comparison",
+    ]
+
+
+def test_seeds_are_tried_before_discovery_but_do_not_replace_it():
+    """
+    A seed is a head start, not a substitute. If discovery ever finds the page
+    again, it must still be in the list — otherwise a seed that quietly rots
+    takes the whole supplier down with it.
+    """
+    html = """
+      <html><body>
+        <a href="/home/price-plans">Our price plans</a>
+        <a href="/business/prices">Business prices</a>
+      </body></html>
+    """
+
+    class Session(_StubSession):
+        def get(self, url, **kwargs):
+            r = super().get(url, **kwargs)
+            if url.rstrip("/") == "https://example.ie":
+                r.text = html
+                r.content = html.encode()
+            return r
+
+    pages = sources.discover(
+        "https://example.ie/", session=Session(), seeds=["/home/our-tariffs"]
+    )
+    assert pages[0] == "https://example.ie/home/our-tariffs"
+    assert "https://example.ie/home/price-plans" in pages
+    assert not any("business" in p for p in pages)
+
+
+def test_a_seed_is_not_duplicated_when_discovery_finds_it_too():
+    html = '<html><body><a href="/home/our-tariffs">Our tariffs</a></body></html>'
+
+    class Session(_StubSession):
+        def get(self, url, **kwargs):
+            r = super().get(url, **kwargs)
+            if url.rstrip("/") == "https://example.ie":
+                r.text = html
+                r.content = html.encode()
+            return r
+
+    pages = sources.discover(
+        "https://example.ie/", session=Session(), seeds=["/home/our-tariffs"]
+    )
+    assert pages.count("https://example.ie/home/our-tariffs") == 1
+
+
+def test_price_words_recognise_the_paths_suppliers_actually_use():
+    for path in (
+        "/home/ev-plan-comparison",
+        "/about-energia/our-tariffs",
+        "/residential/products/smart-meters/plans",
+        "/home/compare-electricity-price-plans",
+    ):
+        assert sources.PRICE_WORDS.search(path), path
