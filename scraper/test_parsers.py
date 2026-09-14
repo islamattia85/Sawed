@@ -112,6 +112,17 @@ def test_electric_ireland_refuses_a_page_that_has_a_peak_window(monkeypatch):
     assert out == {}
 
 
+def test_electric_ireland_skips_the_smart_block_to_reach_the_nightsaver_one(monkeypatch):
+    # The real page lists both plans. Starting at the smart standard Day, the
+    # Peak window between its Day and Night blocks the match, so the parser
+    # advances to the Nightsaver block and reads its day/night rates — it must
+    # not read the smart plan's 33.00c into EI-NS.
+    _stub_fetch(monkeypatch, EI_SMART_TEXT + " day night meter " + EI_DN_TEXT)
+    out = parse_electric_ireland(session=None)
+    assert out["EI-NS"]["rates"]["day"] == 0.3250
+    assert out["EI-NS"]["rates"]["night"] == 0.1603
+
+
 # ---------------------------------------------------------------------------
 # Bord Gáis — pick the public New-customer offer out of the catalogue
 # ---------------------------------------------------------------------------
