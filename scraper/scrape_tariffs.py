@@ -594,6 +594,10 @@ def main():
         "no_price_page_found": [f.url for f in nolinks],
         "tls_failures": [f.url for f in tls],
         "refused": [f.url for f in refused],
+        "dynamic_not_rate_verifiable": sorted(
+            t["id"] for t in updated_tariffs
+            if t.get("id") != "__meta__" and not t.get("discontinued")
+            and t.get("type") == "dynamic"),
     }
     if meta_idx is not None:
         updated_tariffs[meta_idx] = meta
@@ -649,35 +653,43 @@ def main():
     # current. A scraper that silently matches nothing is worse than no scraper,
     # because it manufactures confidence.
     # ------------------------------------------------------------------
-    verified_today = sum(
-        1 for t in updated_tariffs
-        if t.get("id") != "__meta__"
-        and not t.get("discontinued")
-        and t.get("verified_date") == TODAY
-    )
-    rankable = sum(
-        1 for t in updated_tariffs
-        if t.get("id") != "__meta__" and not t.get("discontinued")
-    )
+    # A dynamic (wholesale-indexed) tariff has no fixed unit rate to re-verify:
+    # its price is a formula that tracks the day-ahead market, published nowhere
+    # as a single number to scrape. Counting it against a coverage floor the
+    # scraper meets by reading numbers would make the floor impossible to hold
+    # honestly — the job would have to either fail every day or fake a stamp on a
+    # rate it cannot see. So the floor measures fixed-rate plans, which is what
+    # scraping actually governs; dynamic plans are recorded separately.
+    def _fixed_rate(t: dict) -> bool:
+        return (t.get("id") != "__meta__" and not t.get("discontinued")
+                and t.get("type") != "dynamic")
+
+    verified_today = sum(1 for t in updated_tariffs
+                         if _fixed_rate(t) and t.get("verified_date") == TODAY)
+    rankable = sum(1 for t in updated_tariffs if _fixed_rate(t))
+    dynamic_ids = sorted(t["id"] for t in updated_tariffs
+                         if t.get("id") != "__meta__" and not t.get("discontinued")
+                         and t.get("type") == "dynamic")
     coverage = verified_today / rankable if rankable else 0.0
-    log.info(f"Coverage: {verified_today}/{rankable} plans verified today ({coverage:.0%})")
+    log.info(f"Coverage: {verified_today}/{rankable} fixed-rate plans verified today "
+             f"({coverage:.0%}); {len(dynamic_ids)} dynamic plans not rate-verifiable")
 
     if dry_run:
         verified_ids = sorted(t["id"] for t in updated_tariffs
                               if t.get("id") != "__meta__"
                               and t.get("verified_date") == TODAY)
         unverified_ids = sorted(t["id"] for t in updated_tariffs
-                                if t.get("id") != "__meta__"
-                                and not t.get("discontinued")
+                                if _fixed_rate(t)
                                 and t.get("verified_date") != TODAY)
         print(f"\n[dry-run] verified today ({len(verified_ids)}): {verified_ids}")
-        print(f"[dry-run] NOT verified ({len(unverified_ids)}): {unverified_ids}")
-        print(f"[dry-run] coverage {coverage:.0%} (floor {MIN_COVERAGE:.0%})")
+        print(f"[dry-run] fixed-rate NOT verified ({len(unverified_ids)}): {unverified_ids}")
+        print(f"[dry-run] dynamic (not rate-verifiable): {dynamic_ids}")
+        print(f"[dry-run] coverage {coverage:.0%} of fixed-rate plans (floor {MIN_COVERAGE:.0%})")
         return
 
     if coverage < MIN_COVERAGE:
         log.error(
-            f"Only {verified_today} of {rankable} plans were verified "
+            f"Only {verified_today} of {rankable} fixed-rate plans were verified "
             f"({coverage:.0%}, floor is {MIN_COVERAGE:.0%}). Rates are going stale "
             f"silently. The per-supplier lines above say which half of the job "
             f"broke: 'NO PAGE REACHED' means discovery needs widening, "
