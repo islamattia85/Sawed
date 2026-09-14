@@ -43,6 +43,7 @@ from sources import (
     Fetched, SupplierResult, fetch, discover, embedded_json,
     rates_from_json, rates_from_text, standing_from_text, pdf_text,
 )
+from parsers import SUPPLIER_PARSERS
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -226,7 +227,10 @@ def attribute(text: str, plans: dict, existing: dict) -> dict:
             standing = standing_from_text(chunk)
             if not rates and not standing:
                 continue
-            upd = {"verified_date": TODAY}
+            # No verified_date here: apply_updates stamps it only if a value
+            # actually lands within tolerance, so a number the net merely found
+            # near a plan name does not by itself certify the plan as current.
+            upd = {}
             if rates:
                 upd["_scraped_day_rate"] = rates[0]
             if standing:
@@ -262,6 +266,35 @@ def scrape_supplier(spec: dict, existing: dict,
     name = spec["name"]
     result = SupplierResult(supplier=name)
     updates: dict = {}
+
+    # A hand-written parser, where we understand the markup, runs first and is
+    # trusted over the keyword net. It reads named plans directly — the right
+    # band into the right field — so a TOU plan is not mispriced by reading its
+    # rates left to right. The generic pass still runs behind it for anything
+    # the parser did not fill.
+    parser = SUPPLIER_PARSERS.get(name)
+    if parser:
+        try:
+            parsed = parser(session=session)
+        except Exception as e:
+            parsed = {}
+            log.warning(f"{name}: parser raised {type(e).__name__}: {e}")
+        for plan_id, got in parsed.items():
+            if plan_id not in existing:
+                continue
+            upd: dict = {}
+            if got.get("rates"):
+                upd["_scraped_rates"] = got["rates"]
+            if got.get("standing") is not None:
+                upd["_scraped_standing"] = got["standing"]
+                result.standing.append(got["standing"])
+            if upd:
+                updates[plan_id] = upd
+                result.reached_a_page = True
+                result.rates[plan_id] = 1.0
+        if parsed:
+            log.info(f"{name}: parser read {len(updates)} plan(s): "
+                     f"{', '.join(sorted(updates))}")
 
     log.info(f"{name}: discovering price pages under {spec['root']}")
     pages = discover(spec["root"], session=session, seeds=spec.get("seeds"))
@@ -325,8 +358,26 @@ RATE_TOLERANCE_REL = 0.05    # …and never more than 5% of the current rate
 # prompted writing this.
 STANDING_TOLERANCE_REL = 0.15  # …and 15% for a standing charge
 
+def _rate_ok(scraped: float, existing: float) -> bool:
+    """A scraped unit rate is close enough to the one it would replace."""
+    if not existing:
+        return False
+    delta = abs(scraped - existing)
+    return delta <= RATE_TOLERANCE and delta / existing <= RATE_TOLERANCE_REL
+
+
 def apply_updates(tariffs: list, all_updates: dict) -> tuple[list, int]:
-    """Merge scraped updates into tariffs. Returns (updated_list, change_count)."""
+    """
+    Merge scraped updates into tariffs. Returns (updated_list, change_count).
+
+    A plan is stamped ``verified_date = TODAY`` only when the scrape actually
+    re-confirmed one of its live values — a rate or the standing charge landed
+    within tolerance of what we already hold. A number that fails the tolerance
+    check changes nothing and does NOT verify the plan: it is flagged for a human
+    instead. That is the difference between "the scraper proved this is current"
+    and "the scraper ran", and conflating the two is how 25 of 26 plans sat eight
+    weeks stale behind a green tick.
+    """
     by_id = {t["id"]: t for t in tariffs}
     changes = 0
 
@@ -335,49 +386,67 @@ def apply_updates(tariffs: list, all_updates: dict) -> tuple[list, int]:
             log.warning(f"Unknown plan id {plan_id} — skipping")
             continue
         plan = by_id[plan_id]
+        verified = False
 
-        # Validate day rate against existing if available
+        # Per-band rates from a supplier-specific parser.
+        scraped_rates = upd.pop("_scraped_rates", None)
+        # A single day rate from the generic keyword net.
         scraped_day = upd.pop("_scraped_day_rate", None)
         scraped_standing = upd.pop("_scraped_standing", None)
 
+        if scraped_rates:
+            for band, val in scraped_rates.items():
+                existing_band = plan.get("rates", {}).get(band)
+                if existing_band is None:
+                    continue
+                if _rate_ok(val, existing_band):
+                    if plan["rates"][band] != val:
+                        plan["rates"][band] = val
+                        changes += 1
+                    verified = True
+                else:
+                    log.warning(
+                        f"{plan_id}.{band}: scraped {val:.4f} vs existing "
+                        f"{existing_band:.4f} exceeds tolerance, skipping band")
+
         if scraped_day is not None:
             existing_day = plan.get("rates", {}).get("day", 0)
-            delta = abs(scraped_day - existing_day)
-            rel = delta / existing_day if existing_day else 1.0
-            if delta > RATE_TOLERANCE or rel > RATE_TOLERANCE_REL:
-                log.warning(
-                    f"{plan_id}: scraped day {scraped_day:.4f} vs existing {existing_day:.4f} "
-                    f"— {delta:.4f} ({rel:.0%}) exceeds tolerance, skipping rate update. "
-                    f"If the supplier really did change this, update it by hand."
-                )
-            else:
-                # Flat plan: update all bands equally
+            if _rate_ok(scraped_day, existing_day):
                 if plan.get("type") == "flat":
                     for band in plan["rates"]:
                         plan["rates"][band] = scraped_day
                 else:
                     plan["rates"]["day"] = scraped_day
-                log.info(f"{plan_id}: day rate updated to {scraped_day}")
                 changes += 1
+                verified = True
+            else:
+                log.warning(
+                    f"{plan_id}: scraped day {scraped_day:.4f} vs existing "
+                    f"{existing_day:.4f} exceeds tolerance, skipping rate update. "
+                    f"If the supplier really did change this, update it by hand.")
 
         if scraped_standing is not None:
             existing_standing = plan.get("standing", 0)
-            sdelta = abs(scraped_standing - existing_standing)
-            srel = sdelta / existing_standing if existing_standing else 1.0
-            if srel > STANDING_TOLERANCE_REL:
+            srel = abs(scraped_standing - existing_standing) / existing_standing \
+                if existing_standing else 1.0
+            if srel <= STANDING_TOLERANCE_REL:
+                if plan.get("standing") != scraped_standing:
+                    plan["standing"] = scraped_standing
+                    changes += 1
+                verified = True
+            else:
                 log.warning(
                     f"{plan_id}: scraped standing {scraped_standing} vs existing "
-                    f"{existing_standing} — {sdelta:.2f} ({srel:.0%}) exceeds tolerance, skipping"
-                )
-            else:
-                plan["standing"] = scraped_standing
-                changes += 1
+                    f"{existing_standing} — {srel:.0%} exceeds tolerance, skipping")
 
-        # Apply remaining fields (discontinued, verified_date, etc.)
+        # discontinued and friends carry their own verified_date already.
         for k, v in upd.items():
             plan[k] = v
             if k not in ("verified_date",):
                 changes += 1
+
+        if verified:
+            plan["verified_date"] = TODAY
 
     return list(by_id.values()), changes
 
@@ -473,6 +542,7 @@ def cross_check(missing_suppliers: set[str],
 # ---------------------------------------------------------------------------
 
 def main():
+    dry_run = "--dry-run" in sys.argv
     if not TARIFFS_PATH.exists():
         log.error(f"tariffs.json not found at {TARIFFS_PATH}")
         sys.exit(1)
@@ -530,10 +600,12 @@ def main():
     else:
         updated_tariffs.insert(0, meta)
 
-    with open(TARIFFS_PATH, "w") as f:
-        json.dump(updated_tariffs, f, indent=2, ensure_ascii=False)
-
-    log.info(f"Done. {n_changes} field(s) updated. tariffs.json written.")
+    if dry_run:
+        log.info(f"[dry-run] {n_changes} field(s) would change; tariffs.json NOT written.")
+    else:
+        with open(TARIFFS_PATH, "w") as f:
+            json.dump(updated_tariffs, f, indent=2, ensure_ascii=False)
+        log.info(f"Done. {n_changes} field(s) updated. tariffs.json written.")
 
     if cru_warnings:
         print("\n=== ACTION REQUIRED: comparison-site cross-check ===")
@@ -589,6 +661,19 @@ def main():
     )
     coverage = verified_today / rankable if rankable else 0.0
     log.info(f"Coverage: {verified_today}/{rankable} plans verified today ({coverage:.0%})")
+
+    if dry_run:
+        verified_ids = sorted(t["id"] for t in updated_tariffs
+                              if t.get("id") != "__meta__"
+                              and t.get("verified_date") == TODAY)
+        unverified_ids = sorted(t["id"] for t in updated_tariffs
+                                if t.get("id") != "__meta__"
+                                and not t.get("discontinued")
+                                and t.get("verified_date") != TODAY)
+        print(f"\n[dry-run] verified today ({len(verified_ids)}): {verified_ids}")
+        print(f"[dry-run] NOT verified ({len(unverified_ids)}): {unverified_ids}")
+        print(f"[dry-run] coverage {coverage:.0%} (floor {MIN_COVERAGE:.0%})")
+        return
 
     if coverage < MIN_COVERAGE:
         log.error(
