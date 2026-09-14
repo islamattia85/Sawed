@@ -138,16 +138,20 @@ def flogas():
         print(f"    {len(pdfs)} PDF links on homepage:")
         for p in list(dict.fromkeys(pdfs))[:15]:
             print(f"      {p}")
-    for path in ["/home/electricity/", "/residential/electricity/",
-                 "/price-plans/", "/our-plans/", "/tariffs",
-                 "/globalassets/documents/", "/media/"]:
-        g = fetch(urljoin(root, path), session=S)
-        note = ""
-        if g.ok:
-            t = BeautifulSoup(g.text, "lxml").get_text(" ", strip=True)
-            has_cent = "YES" if re.search(r"\d{1,2}\.\d{1,2}\s*c", t) else "?"
-            note = f"{len(t)}c cent={has_cent}"
-        print(f"    {g.kind:8} {g.status}  {path}  {note}")
+    # read the actual per-plan pages and dump the rate region
+    for url in ["https://www.flogas.ie/price-plan/single-smart-elec-26-discount/",
+                "https://www.flogas.ie/price-plan/smart-nhh-standard-variable-electricity/",
+                "https://www.flogas.ie/price-plan/smart-ev-night-16-electricity/"]:
+        g = fetch(url, session=S)
+        print(f"  --- {g.kind} {g.status}  {url}")
+        if not g.ok:
+            continue
+        t = BeautifulSoup(g.text, "lxml").get_text(" ", strip=True)
+        m = re.search(r"\d{1,2}\.\d{1,2}\s*c", t)
+        if m:
+            print("      " + t[max(0, m.start()-160):m.start()+500])
+        else:
+            print(f"      no cent figure; {len(t)}c")
 
 
 # ---------------------------------------------------------------------------

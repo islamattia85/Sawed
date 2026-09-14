@@ -179,6 +179,9 @@ def _bg_rates(entry: dict) -> Optional[dict]:
     return None
 
 
+BG_EV_URL = "https://www.bordgaisenergy.ie/home/ev-plan-comparison"
+
+
 def parse_bord_gais(session: requests.Session) -> dict:
     out: dict = {}
     for url in (BG_SMART_URL, BG_FLAT_URL):
@@ -195,6 +198,18 @@ def parse_bord_gais(session: requests.Session) -> dict:
             rates = _bg_rates(entry)
             if rates:
                 out[plan_id] = {"rates": rates, "standing": None}
+
+    # BG-EV's signature overnight rate is not in the plan feed but is quoted on
+    # the EV comparison page: "8.98 cent per kWh during 'Urban EV Units'". That
+    # one band is enough to re-confirm the plan; the others stay as held.
+    got = fetch(BG_EV_URL, session=session)
+    if got.ok:
+        text = _text_of(got.text)
+        m = re.search(r"(\d{1,2}\.\d{2})\s*cent per kWh during\s*[\"'“’]?Urban EV",
+                      text, re.I)
+        if m:
+            out["BG-EV"] = {"rates": {"ev": _eur_kwh(float(m.group(1)))},
+                            "standing": None}
     return out
 
 
@@ -345,10 +360,44 @@ def parse_electric_ireland(session: requests.Session) -> dict:
     return out
 
 
+# ---------------------------------------------------------------------------
+# Yuno — reachable again once the TLS chain is completed (see sources.fetch)
+#
+# The homepage carries the standard price list: a 24hr unit rate and an urban
+# standing charge, each quoted ex and inc VAT. The standing charge is shared
+# across Yuno's plans, so reading it re-confirms all three.
+# ---------------------------------------------------------------------------
+
+YUNO_URL = "https://www.yunoenergy.ie/"
+
+
+def parse_yuno(session: requests.Session) -> dict:
+    got = fetch(YUNO_URL, session=session)
+    if not got.ok:
+        return {}
+    text = _text_of(got.text)
+    out: dict = {}
+    # "Urban Standing Charge* €201.12 Annually €219.22 Annually" — inc VAT second.
+    sc = re.search(r"Urban Standing Charge\D*€\s*[\d,.]+\s*Annually\s*"
+                   r"€\s*([\d,.]+)", text, re.I)
+    standing = round(float(sc.group(1).replace(",", "")), 2) if sc else None
+    if standing:
+        for pid in ("YN-24", "YN-DNP", "YN-EV"):
+            out[pid] = {"rates": None, "standing": standing}
+        # "24Hr Unit Rate* 31.97 cent/kWh 34.85 cent/kWh" — inc VAT second.
+        ur = re.search(r"24Hr Unit Rate\D*[\d.]+\s*cent/kWh\s*([\d.]+)\s*cent/kWh",
+                       text, re.I)
+        if ur:
+            r = _eur_kwh(float(ur.group(1)))
+            out["YN-24"]["rates"] = {"day": r, "night": r, "peak": r, "ev": r}
+    return out
+
+
 SUPPLIER_PARSERS = {
     "Bord Gáis Energy": parse_bord_gais,
     "Energia": parse_energia,
     "SSE Airtricity": parse_sse,
     "Pinergy": parse_pinergy,
     "Electric Ireland": parse_electric_ireland,
+    "Yuno Energy": parse_yuno,
 }
