@@ -307,13 +307,15 @@ def parse_pinergy(session: requests.Session) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Electric Ireland — labelled prose on the smart-meter price plans
+# Electric Ireland — labelled prose on the day/night price plan
 #
 #   Day: 08.00 - 23.00 32.50c per kWh  Night: 23.00 - 08.00 16.03c per kWh
 #
-# Best-effort: the day/night figures are clearly labelled, so we read those for
-# the smart standard plan. Everything else EI wraps in discount language the net
-# handles.
+# Two clock windows and no peak band: this is the Nightsaver (day/night meter)
+# plan, EI-NS — not the smart standard plan, which carries a third peak rate
+# between 5 and 7pm. The generic net reads the smart standard plan by keyword;
+# this reads the one with the cleanly labelled clock windows, which the net's
+# left-to-right rate scan gets wrong.
 # ---------------------------------------------------------------------------
 
 EI_SMART_URL = ("https://www.electricireland.ie/residential/"
@@ -328,10 +330,12 @@ def parse_electric_ireland(session: requests.Session) -> dict:
     out: dict = {}
     day = re.search(r"Day:[^\d]*[\d.]+\s*-\s*[\d.]+\s*(\d{2}\.\d{2})\s*c", text, re.I)
     night = re.search(r"Night:[^\d]*[\d.]+\s*-\s*[\d.]+\s*(\d{2}\.\d{2})\s*c", text, re.I)
-    if day and night:
+    # Only claim it when there is genuinely no peak window on the page — a peak
+    # rate would mean this is the smart standard plan and the mapping is wrong.
+    if day and night and not re.search(r"Peak:\s*[\d.]+\s*-\s*[\d.]+", text, re.I):
         d, n = _eur_kwh(float(day.group(1))), _eur_kwh(float(night.group(1)))
-        out["EI-SST"] = {"rates": {"day": d, "night": n, "peak": d, "ev": n},
-                         "standing": None}
+        out["EI-NS"] = {"rates": {"day": d, "night": n, "peak": d, "ev": n},
+                        "standing": None}
     return out
 
 
