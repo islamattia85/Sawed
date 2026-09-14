@@ -85,14 +85,16 @@ def sse():
             pdfs.append(urljoin(url, h))
     pdfs = list(dict.fromkeys(pdfs))
     print(f"  {len(pdfs)} PDF links:")
-    for p in pdfs[:12]:
+    for p in pdfs[:14]:
         print(f"    {p}")
-    if pdfs:
-        got2 = fetch(pdfs[0], session=S)
+    # dump the rate sheets (/Tariffs/…ELEC…), not the terms PDFs
+    rate_pdfs = [p for p in pdfs if "/tariffs/" in p.lower() and "elec" in p.lower()]
+    for rp in rate_pdfs[:2]:
+        got2 = fetch(rp, session=S)
         if got2.ok:
             txt = pdf_text(got2.content)
-            print(f"  ----- {pdfs[0]} ({len(txt)} chars) -----")
-            print(txt[:2500])
+            print(f"  ----- {rp} ({len(txt)} chars) -----")
+            print(txt[:2800])
             print("  ----- END -----")
 
 
