@@ -196,3 +196,67 @@ def test_sse_takes_the_dd_ebill_inc_vat_figure():
 
 def test_sse_reads_the_urban_standing_charge_in_euro_per_year():
     assert _sse_standing(SSE_PDF_TEXT, "Urban Smart") == 263.86
+
+
+# ---------------------------------------------------------------------------
+# Embedded-registry sync — keep main.js in step with tariffs.json
+# ---------------------------------------------------------------------------
+
+from pathlib import Path
+from scrape_tariffs import sync_embedded_tariffs
+
+MAIN_JS_FIXTURE = '''const EMBEDDED_TARIFFS = [
+  {
+    id:"EI-24",
+    supplier:"Electric Ireland",
+    plan:"Home Electric+ 24hr",
+    type:"flat",
+    rates:{day:0.2981, night:0.2981, peak:0.2981, ev:0.2981},
+    windows:{ ev:null },
+    standing:250.77, exit:50, length:12, green:false, export_rate:0.195,
+    verified_date:"2026-08-25",
+    notes:"whatever"
+  },
+  {
+    id:"EN-SMART",
+    supplier:"Energia",
+    plan:"Smart Data",
+    type:"tou",
+    rates:{day:0.3075, night:0.1691, peak:0.3454, ev:0.1691},
+    windows:{ peak:[17,19], night:[23,8], ev:null },
+    standing:265.01, exit:50, length:12, green:true, export_rate:0.185,
+    verified_date:"2026-08-25",
+    notes:"whatever"
+  }
+];'''
+
+
+def test_sync_rewrites_rates_standing_and_verified_date(tmp_path):
+    p = tmp_path / "main.js"
+    p.write_text(MAIN_JS_FIXTURE)
+    tariffs = [
+        {"id": "__meta__"},
+        {"id": "EI-24", "rates": {"day": 0.3055, "night": 0.3055, "peak": 0.3055,
+                                  "ev": 0.3055}, "standing": 250.77,
+         "verified_date": "2026-09-14"},
+        {"id": "EN-SMART", "rates": {"day": 0.3075, "night": 0.1691, "peak": 0.3454,
+                                     "ev": 0.1691}, "standing": 255.29,
+         "verified_date": "2026-09-14"},
+    ]
+    n = sync_embedded_tariffs(p, tariffs)
+    out = p.read_text()
+    assert n == 2
+    assert "rates:{day:0.3055, night:0.3055, peak:0.3055, ev:0.3055}" in out
+    assert "standing:255.29" in out
+    assert out.count('verified_date:"2026-09-14"') == 2
+    # windows block must be untouched
+    assert "windows:{ peak:[17,19], night:[23,8], ev:null }" in out
+
+
+def test_sync_skips_plans_the_bundle_does_not_carry(tmp_path):
+    p = tmp_path / "main.js"
+    p.write_text(MAIN_JS_FIXTURE)
+    n = sync_embedded_tariffs(p, [{"id": "YN-24", "rates": {"day": 0.25},
+                                   "standing": 219.22, "verified_date": "2026-09-14"}])
+    assert n == 0
+    assert p.read_text() == MAIN_JS_FIXTURE

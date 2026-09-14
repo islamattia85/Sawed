@@ -639,7 +639,7 @@
     "green": true,
     "export_rate": 0.185,
     "verified_date": "2026-08-25",
-    "notes": "VERIFIED 25 Aug 2026 direct from bordgaisenergy.ie/home/ev-plan-comparison. Day 35.23c (08-23 excl peak), Peak 49.14c (17-19), Night 26.57c (23-08), EV 8.98c (02-05), with the 15% new-customer discount. Standing €364.89 — €120 higher than BG's other plans. CEG 18.5c."
+    "notes": "Rates last checked 25 Aug 2026 from bordgaisenergy.ie/home/ev-plan-comparison. Day 35.23c (08-23 excl peak), Peak 49.14c (17-19), Night 26.57c (23-08), EV 8.98c (02-05), with the 15% new-customer discount. Standing €364.89 — €120 higher than BG's other plans. CEG 18.5c. UNVERIFIED as of 14 Sep 2026 — the scraper cannot read this plan’s overnight EV rate from Bord Gáis’s plan feed, so it is not re-checked when its siblings are; re-verify by hand."
   },
   {
     "id": "SSE-EVMAX",
