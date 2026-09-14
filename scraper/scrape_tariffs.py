@@ -49,6 +49,12 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
 TARIFFS_PATH = Path(__file__).parent.parent / "public" / "tariffs.json"
+#: The bundle's fallback copy of the registry. It ships inside the app and is
+#: overridden by tariffs.json at runtime, but the two must agree band-for-band:
+#: a rate corrected in only one of them is a defect no screen can show, and
+#: tests/unit/tariff-freshness.test.ts fails CI when they diverge. So every write
+#: to tariffs.json is mirrored into it.
+MAIN_JS_PATH = Path(__file__).parent.parent / "src" / "main.js"
 MIN_COVERAGE = 0.60   # fail the run below this share of plans re-verified
 TODAY = date.today().isoformat()
 
@@ -452,6 +458,64 @@ def apply_updates(tariffs: list, all_updates: dict) -> tuple[list, int]:
 
 
 # ---------------------------------------------------------------------------
+# Keep the in-bundle fallback registry in step with tariffs.json
+# ---------------------------------------------------------------------------
+
+def _js_num(v) -> str:
+    """A number as main.js writes it — shortest round-tripping decimal."""
+    if isinstance(v, float):
+        return repr(v)          # Python's repr is the shortest exact decimal
+    return str(v)
+
+
+def sync_embedded_tariffs(main_js_path: Path, tariffs: list) -> int:
+    """
+    Mirror each plan's rates, standing and verified_date into EMBEDDED_TARIFFS.
+
+    The embedded literal is hand-formatted and carries comments, so it is edited
+    in place per plan — only the three fields the freshness test compares across
+    the two stores — rather than regenerated. A plan the bundle does not carry is
+    skipped; nothing else in the file is touched.
+
+    Returns the number of plans whose block was rewritten.
+    """
+    if not main_js_path.exists():
+        log.warning(f"{main_js_path} not found; cannot sync embedded registry")
+        return 0
+    text = main_js_path.read_text()
+    touched = 0
+
+    for plan in tariffs:
+        pid = plan.get("id")
+        if pid == "__meta__":
+            continue
+        m = re.search(r'id:"' + re.escape(pid) + r'"', text)
+        if not m:
+            continue
+        nxt = re.search(r'\n\s*id:"', text[m.end():])
+        start, end = m.start(), (m.end() + nxt.start() if nxt else len(text))
+        block = original = text[start:end]
+
+        if plan.get("rates"):
+            rates = "rates:{" + ", ".join(
+                f"{k}:{_js_num(v)}" for k, v in plan["rates"].items()) + "}"
+            block = re.sub(r"rates:\{[^}]*\}", rates, block, count=1)
+        if plan.get("standing") is not None:
+            block = re.sub(r"standing:\s*[\d.]+",
+                           f"standing:{_js_num(plan['standing'])}", block, count=1)
+        if plan.get("verified_date"):
+            block = re.sub(r'verified_date:"[^"]*"',
+                           f'verified_date:"{plan["verified_date"]}"', block, count=1)
+
+        if block != original:
+            text = text[:start] + block + text[end:]
+            touched += 1
+
+    main_js_path.write_text(text)
+    return touched
+
+
+# ---------------------------------------------------------------------------
 # Cross-check against the CRU's accredited comparison sites
 #
 # The regulator accredits a handful of price-comparison services, and they list
@@ -609,7 +673,9 @@ def main():
     else:
         with open(TARIFFS_PATH, "w") as f:
             json.dump(updated_tariffs, f, indent=2, ensure_ascii=False)
-        log.info(f"Done. {n_changes} field(s) updated. tariffs.json written.")
+        synced = sync_embedded_tariffs(MAIN_JS_PATH, updated_tariffs)
+        log.info(f"Done. {n_changes} field(s) updated. tariffs.json written; "
+                 f"EMBEDDED_TARIFFS synced across {synced} plan(s).")
 
     if cru_warnings:
         print("\n=== ACTION REQUIRED: comparison-site cross-check ===")
