@@ -44,7 +44,7 @@ jobs:
         run: pip install -r scraper/requirements.txt pytest
 
       - name: Scraper tests
-        run: python -m pytest scraper/test_sources.py -q
+        run: python -m pytest scraper/test_sources.py scraper/test_parsers.py -q
 
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
