@@ -17,6 +17,10 @@ on:
         description: 'Space-separated first words, e.g. "bord sse". Empty = all.'
         required: false
         default: ''
+      deep:
+        description: 'Deep-probe keys, e.g. "bg sse". Empty = all.'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -34,3 +38,6 @@ jobs:
       - name: Probe supplier sites
         working-directory: scraper
         run: python diagnose.py ${{ github.event.inputs.suppliers }}
+      - name: Deep probe (targeted parser design)
+        working-directory: scraper
+        run: python diagnose_deep.py ${{ github.event.inputs.deep }}
