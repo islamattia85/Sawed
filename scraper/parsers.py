@@ -68,12 +68,6 @@ def _text_of(html: str) -> str:
 ENERGIA_URL = "https://www.energia.ie/energy-plans/electricity"
 
 
-def _cent_before(text: str, label: str) -> Optional[float]:
-    """The cent figure immediately preceding a band word, e.g. '30.75c day'."""
-    m = re.search(r"(\d{1,2}\.\d{1,2})\s*c(?:/kWh)?\s*" + label, text, re.I)
-    return float(m.group(1)) if m else None
-
-
 def parse_energia(session: requests.Session) -> dict:
     got = fetch(ENERGIA_URL, session=session)
     if not got.ok:
@@ -81,48 +75,32 @@ def parse_energia(session: requests.Session) -> dict:
     text = _text_of(got.text)
     out: dict = {}
 
-    # Standard Electricity — a single 24hr rate.
-    m = re.search(r"Standard Electricity.*?(\d{1,2}\.\d{1,2})\s*c", text, re.I)
+    # The table quotes each rate next to its band, in a fixed order per row.
+    # Anchoring on the rate SHAPE — "16.91c night, 30.75c day, 34.54c peak" —
+    # rather than the plan name avoids the nav menu, which repeats every plan
+    # name as a link before the table and defeated a name-anchored search. EN-24
+    # (a single flat rate) is left to the generic net, which reads it correctly;
+    # the parser only claims the time-of-use rows the net gets wrong.
+    m = re.search(r"(\d{1,2}\.\d{1,2})\s*c\s*night,\s*"
+                  r"(\d{1,2}\.\d{1,2})\s*c\s*day,\s*"
+                  r"(\d{1,2}\.\d{1,2})\s*c\s*peak", text, re.I)
     if m:
-        r = _eur_kwh(float(m.group(1)))
-        out["EN-24"] = {"rates": {"day": r, "night": r, "peak": r, "ev": r},
+        night, day, peak = (float(m.group(i)) for i in (1, 2, 3))
+        out["EN-SMART"] = {"rates": {"day": _eur_kwh(day),
+                                     "night": _eur_kwh(night),
+                                     "peak": _eur_kwh(peak),
+                                     "ev": _eur_kwh(night)},
+                           "standing": None}
+
+    m = re.search(r"(\d{1,2}\.\d{1,2})\s*c\s*EV rate,\s*"
+                  r"(\d{1,2}\.\d{1,2})\s*c\s*all other", text, re.I)
+    if m:
+        ev, other = float(m.group(1)), float(m.group(2))
+        o = _eur_kwh(other)
+        out["EN-EV"] = {"rates": {"day": o, "night": o, "peak": o,
+                                  "ev": _eur_kwh(ev)},
                         "standing": None}
-
-    # Smart Data — night / day / peak each labelled.
-    seg = _segment(text, "Smart Data", "Smart Day/Night", "EV Smart Drive",
-                   "Standard Electricity")
-    if seg:
-        night = _cent_before(seg, "night")
-        day = _cent_before(seg, "day")
-        peak = _cent_before(seg, "peak")
-        if night and day and peak:
-            out["EN-SMART"] = {"rates": {"day": _eur_kwh(day),
-                                         "night": _eur_kwh(night),
-                                         "peak": _eur_kwh(peak),
-                                         "ev": _eur_kwh(night)},
-                               "standing": None}
-
-    # EV Smart Drive — an EV rate and a flat "all other time" rate.
-    seg = _segment(text, "EV Smart Drive", "Standard Electricity", "Smart Day/Night")
-    if seg:
-        ev = _cent_before(seg, "EV")
-        other = re.search(r"(\d{1,2}\.\d{1,2})\s*c\s*all other", seg, re.I)
-        if ev and other:
-            o = _eur_kwh(float(other.group(1)))
-            out["EN-EV"] = {"rates": {"day": o, "night": o, "peak": o,
-                                      "ev": _eur_kwh(ev)},
-                            "standing": None}
     return out
-
-
-def _segment(text: str, start: str, *stops: str) -> Optional[str]:
-    """The slice of text from `start` up to the nearest following stop label."""
-    i = text.find(start)
-    if i == -1:
-        return None
-    ends = [text.find(s, i + len(start)) for s in stops]
-    ends = [e for e in ends if e != -1]
-    return text[i:min(ends)] if ends else text[i:i + 400]
 
 
 # ---------------------------------------------------------------------------
@@ -143,11 +121,13 @@ BG_FLAT_URL = ("https://www.bordgaisenergy.ie/home/our-plans"
 
 #: exact public plan name → our id. Affinity/staff variants (Arcadian, EMC,
 #: Fieldsales Employee, …) are excluded by not being in this map.
+#: BG-EV is deliberately absent: the catalogue's EV plan carries only the
+#: standard smartRates bands, not the deep overnight EV rate the plan is bought
+#: for, so reading it here would price the EV band at the ordinary night rate.
+#: It stays a manual entry until the feed exposes the EV window.
 BG_NAMES = {
     "Electricity Discount": "BG-24",
     "Smart Standard Electricity Discount": "BG-TOU",
-    "EV Smart Electricity Discount": "BG-EV",
-    "Smart EV Electricity Discount": "BG-EV",
 }
 
 
@@ -311,15 +291,18 @@ def parse_pinergy(session: requests.Session) -> dict:
         return {}
     text = _text_of(got.text)
     out: dict = {}
-    sc = re.search(r"Standing Charge[^€]*€\s*([\d,]+\.\d{2})", text)
-    standing = round(float(sc.group(1).replace(",", "")), 2) if sc else None
-    ur = re.search(r"Unit Rate[^\d]*(\d{2}\.\d{2})", text)
+    # The table sits "Standing Charge for Year" next to an "Estimated Annual
+    # Bill", so a €-figure right after the label is the €1,700 bill, not the
+    # charge. Pick the euro amount in the range an annual standing charge can
+    # actually take (a bill and a unit rate both fall outside it), which is the
+    # one value on the page that can only be the standing charge.
+    euros = [float(x.replace(",", "")) for x in re.findall(r"€\s*([\d,]+\.\d{2})", text)]
+    standing = next((round(v, 2) for v in euros if 150.0 <= v <= 450.0), None)
     if standing:
-        # Shared standing charge across the lifestyle plans.
+        # One standing charge, shared across the lifestyle plans — reading it
+        # re-confirms all four at once.
         for pid in ("PIN-LF", "PIN-WFH", "PIN-FAM", "PIN-EV"):
             out[pid] = {"rates": None, "standing": standing}
-        if ur:
-            out["PIN-LF"]["rates"] = {"day": _eur_kwh(float(ur.group(1)))}
     return out
 
 
