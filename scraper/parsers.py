@@ -328,12 +328,18 @@ def parse_electric_ireland(session: requests.Session) -> dict:
         return {}
     text = _text_of(got.text)
     out: dict = {}
-    day = re.search(r"Day:[^\d]*[\d.]+\s*-\s*[\d.]+\s*(\d{2}\.\d{2})\s*c", text, re.I)
-    night = re.search(r"Night:[^\d]*[\d.]+\s*-\s*[\d.]+\s*(\d{2}\.\d{2})\s*c", text, re.I)
-    # Only claim it when there is genuinely no peak window on the page — a peak
-    # rate would mean this is the smart standard plan and the mapping is wrong.
-    if day and night and not re.search(r"Peak:\s*[\d.]+\s*-\s*[\d.]+", text, re.I):
-        d, n = _eur_kwh(float(day.group(1))), _eur_kwh(float(night.group(1)))
+    # The page lists several plans, so the guard has to be local: match a Day
+    # rate followed by a Night rate with NO Peak window between them. That is
+    # the Nightsaver (day/night meter) plan. The smart standard plan puts a Peak
+    # window between its Day and Night, so this pattern skips past it to the
+    # nightsaver block rather than mislabelling smart standard as Nightsaver.
+    m = re.search(
+        r"Day:[^\d]*[\d.]+\s*-\s*[\d.]+\s*(\d{2}\.\d{2})\s*c"
+        r"(?:(?!Peak:).)*?"
+        r"Night:[^\d]*[\d.]+\s*-\s*[\d.]+\s*(\d{2}\.\d{2})\s*c",
+        text, re.I | re.S)
+    if m:
+        d, n = _eur_kwh(float(m.group(1))), _eur_kwh(float(m.group(2)))
         out["EI-NS"] = {"rates": {"day": d, "night": n, "peak": d, "ev": n},
                         "standing": None}
     return out
