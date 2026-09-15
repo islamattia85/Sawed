@@ -36,7 +36,9 @@ def _eur(cent: float) -> float:
 
 def _type_of(rates: dict) -> str:
     day, night, peak, ev = (rates.get(b) for b in ("day", "night", "peak", "ev"))
-    if ev and day and ev < day * 0.7:
+    # An EV plan has a distinct deep-overnight rate BELOW its own night rate.
+    # A plain TOU plan sets ev == night, so it must not read as EV.
+    if ev and night and ev < night * 0.9:
         return "ev"
     bands = {v for v in (day, night, peak) if v is not None}
     return "flat" if len(bands) <= 1 else "tou"
