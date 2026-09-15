@@ -138,20 +138,27 @@ def flogas():
         print(f"    {len(pdfs)} PDF links on homepage:")
         for p in list(dict.fromkeys(pdfs))[:15]:
             print(f"      {p}")
-    # read the actual per-plan pages and dump the rate region
+    # the plan pages are JS shells; look inside their embedded JSON for rates,
+    # and hunt any price PDF the page or its scripts reference.
     for url in ["https://www.flogas.ie/price-plan/single-smart-elec-26-discount/",
-                "https://www.flogas.ie/price-plan/smart-nhh-standard-variable-electricity/",
                 "https://www.flogas.ie/price-plan/smart-ev-night-16-electricity/"]:
         g = fetch(url, session=S)
         print(f"  --- {g.kind} {g.status}  {url}")
         if not g.ok:
             continue
-        t = BeautifulSoup(g.text, "lxml").get_text(" ", strip=True)
-        m = re.search(r"\d{1,2}\.\d{1,2}\s*c", t)
-        if m:
-            print("      " + t[max(0, m.start()-160):m.start()+500])
-        else:
-            print(f"      no cent figure; {len(t)}c")
+        blobs = embedded_json(g.text)
+        hits = {}
+        for b in blobs:
+            for path, val in walk(b):
+                if re.search(r"rate|price|unit|standing|charge|cent|tariff", path, re.I) \
+                        and isinstance(val, (int, float)) and 5 <= float(val) <= 700:
+                    hits[path] = val
+        print(f"      embedded JSON blobs: {len(blobs)}, rate-ish leaves: {len(hits)}")
+        for p, v in list(hits.items())[:25]:
+            print(f"        {p} = {v}")
+        # any pdf / api url in the raw html?
+        for m in re.findall(r'https?://[^\s"\'<>]+\.(?:pdf|json)', g.text)[:10]:
+            print(f"      asset: {m}")
 
 
 # ---------------------------------------------------------------------------
@@ -200,25 +207,64 @@ def energia_extra():
 
 
 def dynamic():
-    print(f"\n{RULE}\nDYNAMIC BASE RATES · BG / EI / EN\n{RULE}")
+    print(f"\n{RULE}\nDYNAMIC STANDING CHARGES · BG / EI / EN\n{RULE}")
+    # BG dynamic entries are in the same catalogue — dump their standing.
+    bg = fetch("https://www.bordgaisenergy.ie/home/our-plans?fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES", session=S)
+    if bg.ok:
+        for blob in embedded_json(bg.text):
+            def rec(node, path=""):
+                if isinstance(node, dict):
+                    if path.endswith(".entries"):
+                        for sfid, e in node.items():
+                            if isinstance(e, dict) and "dynamic" in str(e.get("name", "")).lower():
+                                est = ((e.get("electricityDetail") or {}).get("estimated") or {})
+                                print(f"    BG dynamic entry {e.get('name')!r}: "
+                                      f"standing={est.get('standingCharge') or est.get('oStandingCharge')} "
+                                      f"rates={est.get('smartRates') or est.get('flatRate') or est.get('unitRate')}")
+                    for k, v in node.items():
+                        rec(v, f"{path}.{k}" if path else k)
+                elif isinstance(node, list):
+                    for i, v in enumerate(node):
+                        rec(v, f"{path}[{i}]")
+            rec(blob)
     for name, url in [
-        ("EI-DYN", "https://www.electricireland.ie/residential/electricity-and-gas/dynamic"),
-        ("BG-DYN", "https://www.bordgaisenergy.ie/home/our-plans?fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES"),
-        ("EN-DYN", "https://www.energia.ie/energy-plans/electricity"),
+        ("EI dynamic", "https://www.electricireland.ie/residential/electricity-and-gas/dynamic-price-plan"),
+        ("EN Smart Track", "https://www.energia.ie/energy-plans/smart-track"),
     ]:
         g = fetch(url, session=S)
         print(f"  {name}: {g.kind} {g.status}  {url}")
         if g.ok:
-            text = BeautifulSoup(g.text, "lxml").get_text(" ", strip=True)
-            i = text.lower().find("dynamic")
-            if i != -1:
-                print(f"    ...{text[i:i+260]}...")
+            t = BeautifulSoup(g.text, "lxml").get_text(" ", strip=True)
+            for m in re.finditer(r"(?:Standing Charge|standing charge)\D{0,40}€\s*([\d,.]+)", t):
+                print(f"    standing: €{m.group(1)}")
+            m2 = re.search(r"\d{1,2}\.\d{1,2}\s*c", t)
+            if m2:
+                print(f"    cent region: ...{t[max(0,m2.start()-80):m2.start()+180]}...")
+
+
+def enevplus():
+    print(f"\n{RULE}\nENERGIA EV SMART DRIVE PLUS · does it still exist?\n{RULE}")
+    sm = fetch("https://www.energia.ie/sitemap.xml", session=S)
+    print(f"  sitemap: {sm.kind} {sm.status}")
+    if sm.ok:
+        locs = re.findall(r"<loc>\s*([^<\s]+)\s*</loc>", sm.text)
+        ev = [u for u in locs if re.search(r"ev|drive|plus|smart", u, re.I)]
+        for u in ev[:20]:
+            print(f"    {u}")
+    for url in ["https://www.energia.ie/energy-plans/ev-smart-drive-plus",
+                "https://www.energia.ie/energy-plans/electricity"]:
+        g = fetch(url, session=S)
+        note = ""
+        if g.ok:
+            t = BeautifulSoup(g.text, "lxml").get_text(" ", strip=True)
+            note = "HAS 'Drive Plus'" if "Drive Plus" in t else "no 'Drive Plus'"
+        print(f"  {g.kind} {g.status} {url}  {note}")
 
 
 if __name__ == "__main__":
-    which = sys.argv[1:] or ["yuno", "flogas", "bg_ev", "energia_extra", "dynamic"]
+    which = sys.argv[1:] or ["flogas", "dynamic", "enevplus"]
     fns = {"yuno": yuno, "flogas": flogas, "bg_ev": bg_ev,
-           "energia_extra": energia_extra, "dynamic": dynamic}
+           "energia_extra": energia_extra, "dynamic": dynamic, "enevplus": enevplus}
     for k in which:
         try:
             fns[k]()
