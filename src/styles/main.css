@@ -66,6 +66,12 @@
     --amber:#FF9100; --amber-glow:rgba(255,145,0,.40); --amber-soft:rgba(255,145,0,.10);
     --blue:#29B6F6; --blue-glow:rgba(41,182,246,.40); --blue-soft:rgba(41,182,246,.10);
     --red:#FF1744; --red-glow:rgba(255,23,68,.40); --red-soft:rgba(255,23,68,.10);
+    /* Tariff bands, used as the ground behind the V6 day profile. Cheap windows
+       read cool, the peak reads hot, ordinary day stays neutral — so a
+       time-of-use shape is legible before a single figure is read. */
+    --band-day:rgba(255,255,255,.04); --band-night:rgba(41,182,246,.16);
+    --band-peak:rgba(255,23,68,.16); --band-ev:rgba(0,230,118,.16);
+    --band-wfh:rgba(255,145,0,.14);
     --surface:linear-gradient(168deg,#151C17 0%,#0F1511 72%);
     --surface-deep:linear-gradient(172deg,#121915 0%,#0C110E 75%);
     --lift:inset 0 1px 0 rgba(255,255,255,.045), 0 16px 32px -24px rgba(0,0,0,.9);
@@ -91,6 +97,9 @@
     --amber:#D97706; --amber-glow:rgba(217,119,6,.26); --amber-soft:rgba(217,119,6,.10);
     --blue:#0277BD; --blue-glow:rgba(2,119,189,.24); --blue-soft:rgba(2,119,189,.09);
     --red:#D32F2F; --red-glow:rgba(211,47,47,.25); --red-soft:rgba(211,47,47,.09);
+    --band-day:rgba(12,30,18,.045); --band-night:rgba(2,119,189,.14);
+    --band-peak:rgba(211,47,47,.14); --band-ev:rgba(0,163,90,.16);
+    --band-wfh:rgba(217,119,6,.14);
     --surface:linear-gradient(168deg,#FFFFFF 0%,#F8FBF8 78%);
     --surface-deep:linear-gradient(172deg,#FDFEFD 0%,#F3F7F4 80%);
     --lift:inset 0 1px 0 rgba(255,255,255,.9), 0 12px 26px -20px rgba(18,46,30,.30);
