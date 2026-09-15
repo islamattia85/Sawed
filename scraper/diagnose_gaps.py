@@ -161,6 +161,25 @@ def flogas():
             print(f"      asset: {m}")
 
 
+def flogas_render():
+    print(f"\n{RULE}\nFLOGAS · headless-rendered rate text\n{RULE}")
+    from render import render_html
+    for url in ["https://www.flogas.ie/price-plan/single-smart-elec-26-discount/",
+                "https://www.flogas.ie/price-plan/smart-nhh-standard-variable-electricity/",
+                "https://www.flogas.ie/price-plan/smart-ev-night-16-electricity/"]:
+        html = render_html(url)
+        print(f"  --- {url}  rendered {len(html)}c")
+        if not html:
+            continue
+        t = BeautifulSoup(html, "lxml").get_text(" ", strip=True)
+        # dump every cent figure with a little context, and any standing charge
+        for m in list(re.finditer(r"\d{1,2}\.\d{1,2}\s*c", t))[:8]:
+            print(f"      cent: ...{t[max(0,m.start()-70):m.start()+90]}...")
+        sc = re.search(r"[Ss]tanding [Cc]harge\D{0,40}€\s*[\d,.]+", t)
+        if sc:
+            print(f"      standing: {sc.group(0)}")
+
+
 # ---------------------------------------------------------------------------
 # Bord Gáis EV — the comparison page's own rates
 # ---------------------------------------------------------------------------
@@ -262,9 +281,10 @@ def enevplus():
 
 
 if __name__ == "__main__":
-    which = sys.argv[1:] or ["flogas", "dynamic", "enevplus"]
+    which = sys.argv[1:] or ["flogas_render"]
     fns = {"yuno": yuno, "flogas": flogas, "bg_ev": bg_ev,
-           "energia_extra": energia_extra, "dynamic": dynamic, "enevplus": enevplus}
+           "energia_extra": energia_extra, "dynamic": dynamic,
+           "enevplus": enevplus, "flogas_render": flogas_render}
     for k in which:
         try:
             fns[k]()
