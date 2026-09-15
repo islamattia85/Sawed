@@ -9,7 +9,8 @@ hand-picked subset. It prints a catalogue and writes catalogue.json; it does not
 touch tariffs.json.
 
 Runs from a CI runner (supplier sites are unreachable from the dev container).
-Flogas is absent on purpose: it publishes no rates anywhere machine-readable.
+Flogas is absent on purpose: it publishes no rates anywhere machine-readable
+(not in HTML, JSON, PDF, or the rendered DOM — only behind a quote flow).
 """
 from __future__ import annotations
 
@@ -17,11 +18,13 @@ import json
 import re
 import sys
 from pathlib import Path
+from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
 
 from sources import fetch, embedded_json, pdf_text
+from parsers import _sse_row, _sse_standing, SSE_OFFERS_URL, PINERGY_URL, YUNO_URL
 
 S = requests.Session()
 RULE = "=" * 72
@@ -32,18 +35,22 @@ def _eur(cent: float) -> float:
 
 
 def _type_of(rates: dict) -> str:
-    vals = {rates.get(b) for b in ("day", "night", "peak") if rates.get(b) is not None}
-    if rates.get("ev") and rates["ev"] < min(v for v in vals if v) * 0.7:
+    day, night, peak, ev = (rates.get(b) for b in ("day", "night", "peak", "ev"))
+    if ev and day and ev < day * 0.7:
         return "ev"
-    return "flat" if len(vals) <= 1 else "tou"
+    bands = {v for v in (day, night, peak) if v is not None}
+    return "flat" if len(bands) <= 1 else "tou"
+
+
+def _plan(supplier, name, rates, standing=None, source=""):
+    return {"supplier": supplier, "name": name, "type": _type_of(rates),
+            "rates": rates, "standing": standing, "source": source}
 
 
 # ---------------------------------------------------------------------------
 # Bord Gáis — the full Salesforce catalogue, deduped to public plans
 # ---------------------------------------------------------------------------
 
-#: name prefixes that mark an affinity, partner or staff variant, not a plan a
-#: member of the public can walk up and buy.
 BG_PRIVATE = re.compile(r"\b(Fieldsales|Employee|Arcadian|EMC|Renewal|Winback|"
                         r"Retention|Partner|Affinity|Staff)\b", re.I)
 
@@ -97,60 +104,177 @@ def harvest_bord_gais():
             rates = _bg_rates(e)
             if not rates:
                 continue
-            # keep the newest New-customer offer per plan name
-            key = name
             start = str(e.get("startDate", ""))
             is_new = "new" in str(e.get("offerCode", "")).lower()
-            prev = plans.get(key)
             score = (1 if is_new else 0, start)
-            if not prev or score > prev["_score"]:
-                plans[key] = {"supplier": "Bord Gáis", "name": name,
-                              "type": _type_of(rates), "rates": rates,
-                              "_score": score}
-    for p in plans.values():
-        p.pop("_score", None)
-    return list(plans.values())
+            prev = plans.get(name)
+            if not prev or score > prev[0]:
+                std = ((e.get("electricityDetail") or {}).get("estimated") or {}).get("standingCharge")
+                plans[name] = (score, _plan("Bord Gáis", re.sub(r"\s+", " ", name).strip(),
+                                            rates, round(std, 2) if std else None,
+                                            "bordgaisenergy.ie/home/our-plans"))
+    return [v[1] for v in plans.values()]
 
 
 # ---------------------------------------------------------------------------
-# Energia — every row of the plans table
+# Energia — every row of the plans table, name-anchored
 # ---------------------------------------------------------------------------
 
 def harvest_energia():
     got = fetch("https://www.energia.ie/energy-plans/electricity", session=S)
     if not got.ok:
         return []
-    text = BeautifulSoup(got.text, "lxml").get_text(" ", strip=True)
+    t = BeautifulSoup(got.text, "lxml").get_text(" ", strip=True)
     out = []
-    # time-of-use rows: "<name> ... Ac night, Bc day, Cc peak"
-    for m in re.finditer(r"(\d{1,2}\.\d{1,2})\s*c\s*night,\s*(\d{1,2}\.\d{1,2})\s*c\s*day,\s*"
-                         r"(\d{1,2}\.\d{1,2})\s*c\s*peak", text, re.I):
-        night, day, peak = (float(m.group(i)) for i in (1, 2, 3))
-        out.append({"supplier": "Energia", "name": _label_before(text, m.start()),
-                    "type": "tou", "rates": {"day": _eur(day), "night": _eur(night),
-                                             "peak": _eur(peak), "ev": _eur(night)}})
-    # EV rows: "Ac EV rate, Bc all other"
-    for m in re.finditer(r"(\d{1,2}\.\d{1,2})\s*c\s*EV rate,\s*(\d{1,2}\.\d{1,2})\s*c\s*all other",
-                         text, re.I):
-        ev, other = float(m.group(1)), float(m.group(2))
-        o = _eur(other)
-        out.append({"supplier": "Energia", "name": _label_before(text, m.start()),
-                    "type": "ev", "rates": {"day": o, "night": o, "peak": o, "ev": _eur(ev)}})
-    # flat rows: "<name> ... Xc/kWh ... 24hr" or "day, night and peak"
-    for m in re.finditer(r"(\d{1,2}\.\d{1,2})\s*c/kWh\s*(?:24hr|day, night and peak)", text, re.I):
+    src = "energia.ie/energy-plans/electricity"
+
+    m = re.search(r"Smart Data.{0,120}?(\d{1,2}\.\d{1,2})\s*c\s*night,\s*"
+                  r"(\d{1,2}\.\d{1,2})\s*c\s*day,\s*(\d{1,2}\.\d{1,2})\s*c\s*peak", t, re.I)
+    if m:
+        n, d, p = (float(m.group(i)) for i in (1, 2, 3))
+        out.append(_plan("Energia", "Smart Data",
+                         {"day": _eur(d), "night": _eur(n), "peak": _eur(p), "ev": _eur(n)},
+                         source=src))
+    m = re.search(r"Smart Day/Night.{0,120}?(\d{1,2}\.\d{1,2})\s*c\s*night,\s*"
+                  r"(\d{1,2}\.\d{1,2})\s*c\s*day and peak", t, re.I)
+    if m:
+        n, d = float(m.group(1)), float(m.group(2))
+        out.append(_plan("Energia", "Smart Day/Night",
+                         {"day": _eur(d), "night": _eur(n), "peak": _eur(d), "ev": _eur(n)},
+                         source=src))
+    m = re.search(r"EV Smart Drive.{0,120}?(\d{1,2}\.\d{1,2})\s*c\s*EV rate,\s*"
+                  r"(\d{1,2}\.\d{1,2})\s*c\s*all other", t, re.I)
+    if m:
+        ev, o = float(m.group(1)), float(m.group(2))
+        out.append(_plan("Energia", "EV Smart Drive",
+                         {"day": _eur(o), "night": _eur(o), "peak": _eur(o), "ev": _eur(ev)},
+                         source=src))
+    m = re.search(r"Smart 24 Hour.{0,120}?(\d{1,2}\.\d{1,2})\s*c/kWh\s*day, night and peak", t, re.I)
+    if m:
         r = _eur(float(m.group(1)))
-        out.append({"supplier": "Energia", "name": _label_before(text, m.start()),
-                    "type": "flat", "rates": {"day": r, "night": r, "peak": r, "ev": r}})
+        out.append(_plan("Energia", "Smart 24 Hour",
+                         {"day": r, "night": r, "peak": r, "ev": r}, source=src))
+    m = re.search(r"Standard Electricity.{0,120}?(\d{1,2}\.\d{1,2})\s*c/kWh\s*24hr", t, re.I)
+    if m:
+        r = _eur(float(m.group(1)))
+        out.append(_plan("Energia", "Standard Electricity",
+                         {"day": r, "night": r, "peak": r, "ev": r}, source=src))
     return out
 
 
-def _label_before(text: str, pos: int) -> str:
-    """A short plan-name guess: the last two capitalised words before `pos`."""
-    words = re.findall(r"[A-Z][A-Za-z/]+(?:\s+[A-Z][A-Za-z/]+){0,3}", text[max(0, pos-80):pos])
-    return words[-1] if words else "?"
+# ---------------------------------------------------------------------------
+# SSE — one plan per electricity tariff PDF
+# ---------------------------------------------------------------------------
+
+def harvest_sse():
+    got = fetch(SSE_OFFERS_URL, session=S)
+    if not got.ok:
+        return []
+    soup = BeautifulSoup(got.text, "lxml")
+    pdfs = [urljoin(SSE_OFFERS_URL, a["href"]) for a in soup.find_all("a", href=True)
+            if ".pdf" in a["href"].lower() and "/tariffs/" in a["href"].lower()
+            and "elec" in a["href"].lower()]
+    out = []
+    for url in dict.fromkeys(pdfs):
+        got2 = fetch(url, session=S)
+        if not got2.ok:
+            continue
+        txt = pdf_text(got2.content)
+        title = txt.split("\n")[1].strip() if "\n" in txt else url.rsplit("/", 1)[-1]
+        std = _sse_standing(txt, "Urban Smart") or _sse_standing(txt, "Urban Smart EV Max") \
+            or _sse_standing(txt, "Urban 24 hr")
+        if "evmax" in url.lower():
+            r18, r6 = _sse_row(txt, "18h Rate"), _sse_row(txt, "6h Rate")
+            if r18 and r6:
+                out.append(_plan("SSE Airtricity", title,
+                                 {"day": _eur(r18), "night": _eur(r18),
+                                  "peak": _eur(r18), "ev": _eur(r6)}, std, url.rsplit("/", 1)[-1]))
+            continue
+        flat = _sse_row(txt, "Rate (cents/kWh)")
+        day = _sse_row(txt, "Day Rate (cents/kWh)♦♦")
+        night = _sse_row(txt, "Night Rate (cents/kWh)♦♦")
+        peak = _sse_row(txt, "Peak Rate")
+        if day and night and peak:
+            out.append(_plan("SSE Airtricity", f"{title} (Smart DNP)",
+                             {"day": _eur(day), "night": _eur(night),
+                              "peak": _eur(peak), "ev": _eur(night)}, std, url.rsplit("/", 1)[-1]))
+        if flat:
+            out.append(_plan("SSE Airtricity", f"{title} (24hr)",
+                             {"day": _eur(flat), "night": _eur(flat),
+                              "peak": _eur(flat), "ev": _eur(flat)}, std, url.rsplit("/", 1)[-1]))
+    return out
 
 
-HARVESTERS = {"bord_gais": harvest_bord_gais, "energia": harvest_energia}
+# ---------------------------------------------------------------------------
+# Yuno — the homepage price list (standing shared across its plans)
+# ---------------------------------------------------------------------------
+
+def harvest_yuno():
+    got = fetch(YUNO_URL, session=S)
+    if not got.ok:
+        return []
+    t = BeautifulSoup(got.text, "lxml").get_text(" ", strip=True)
+    sc = re.search(r"Urban Standing Charge\D*€\s*[\d,.]+\s*Annually\s*€\s*([\d,.]+)", t, re.I)
+    standing = round(float(sc.group(1).replace(",", "")), 2) if sc else None
+    ur = re.search(r"24Hr Unit Rate\D*[\d.]+\s*cent/kWh\s*([\d.]+)\s*cent/kWh", t, re.I)
+    out = []
+    if ur:
+        r = _eur(float(ur.group(1)))
+        out.append(_plan("Yuno Energy", "Standard Smart 24hr",
+                         {"day": r, "night": r, "peak": r, "ev": r}, standing, "yunoenergy.ie"))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Pinergy — the standard price list
+# ---------------------------------------------------------------------------
+
+def harvest_pinergy():
+    got = fetch(PINERGY_URL, session=S)
+    if not got.ok:
+        return []
+    t = BeautifulSoup(got.text, "lxml").get_text(" ", strip=True)
+    euros = [float(x.replace(",", "")) for x in re.findall(r"€\s*([\d,]+\.\d{2})", t)]
+    standing = next((round(v, 2) for v in euros if 150.0 <= v <= 450.0), None)
+    ur = re.search(r"Unit Rate\D*(\d{2}\.\d{2})", t)
+    out = []
+    if standing and ur:
+        r = _eur(float(ur.group(1)))
+        out.append(_plan("Pinergy", "Standard Smart",
+                         {"day": r, "night": r, "peak": r, "ev": r}, standing,
+                         "pinergy.ie/terms-conditions/tariffs"))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Electric Ireland — the labelled day/night page
+# ---------------------------------------------------------------------------
+
+def harvest_electric_ireland():
+    got = fetch("https://www.electricireland.ie/residential/electricity-and-gas/"
+                "smart-meter-price-plans", session=S)
+    if not got.ok:
+        return []
+    t = BeautifulSoup(got.text, "lxml").get_text(" ", strip=True)
+    out = []
+    m = re.search(r"Day:[^\d]*[\d.]+\s*-\s*[\d.]+\s*(\d{2}\.\d{2})\s*c(?:(?!Peak:).)*?"
+                  r"Night:[^\d]*[\d.]+\s*-\s*[\d.]+\s*(\d{2}\.\d{2})\s*c", t, re.I | re.S)
+    if m:
+        d, n = _eur(float(m.group(1))), _eur(float(m.group(2)))
+        out.append(_plan("Electric Ireland", "Smart Day & Night",
+                         {"day": d, "night": n, "peak": d, "ev": n},
+                         source="electricireland.ie/.../smart-meter-price-plans"))
+    return out
+
+
+HARVESTERS = {
+    "bord_gais": harvest_bord_gais,
+    "energia": harvest_energia,
+    "sse": harvest_sse,
+    "yuno": harvest_yuno,
+    "pinergy": harvest_pinergy,
+    "electric_ireland": harvest_electric_ireland,
+}
 
 
 def main():
@@ -164,10 +288,12 @@ def main():
             continue
         print(f"\n{RULE}\n{k}: {len(plans)} public plans\n{RULE}")
         for p in plans:
-            print(f"  {p['supplier']:12} {p['type']:8} {p['name']!r:45} {p['rates']}")
+            print(f"  {p['supplier']:16} {p['type']:5} {p['name'][:42]:42} "
+                  f"{p['rates']} standing={p['standing']}")
         catalogue.extend(plans)
     Path("catalogue.json").write_text(json.dumps(catalogue, indent=2, ensure_ascii=False))
-    print(f"\nwrote catalogue.json ({len(catalogue)} plans)")
+    print(f"\nwrote catalogue.json ({len(catalogue)} plans across "
+          f"{len({p['supplier'] for p in catalogue})} suppliers)")
 
 
 if __name__ == "__main__":
