@@ -10231,13 +10231,20 @@ function renderApp(){
     enhanceA11y();
     return;
   }
-  // First-ever load — the welcome screen is the front door.
+  // First-ever load — the quick answer is the front door.
+  //
+  // V6 leads with the answer instead of asking for it. The five-step guided
+  // setup gated the one thing the reader came for behind location, usage,
+  // current plan, solar and EV — five screens before a single figure. The quick
+  // answer needs one number, states every assumption it made as a chip the
+  // reader can tap, and produces the real ranking from the same engine. The
+  // guided setup is still there, one link down, for anyone who wants to build
+  // solar and EV up front; it is no longer the toll gate.
   if (!state.onboarding_complete){
-    state.current_screen = 'welcome';
+    state.current_screen = 'fastpath';
     root.setAttribute('data-chrome','bare');
-    root.innerHTML = renderWelcome();
+    root.innerHTML = renderFastPath();
     enhanceA11y();
-    paintAuthModal();
     return;
   }
   // Post-onboarding screens

@@ -70,15 +70,21 @@ test('inline handlers assigning module-scoped PRIMITIVES work', async ({ page })
   expect(errors).toEqual([]);
 });
 
-test('the first run opens on the welcome screen, not a carousel or a sign-in wall', async ({ page }) => {
+test('the first run opens on the question, not a carousel or a sign-in wall', async ({ page }) => {
   // Four screens used to precede the first input: a pitch, a feature list, a
-  // sign-in wall, then the welcome screen repeating the pitch and the features.
+  // sign-in wall, then a welcome screen repeating the pitch and the features.
+  // V6 goes further and opens ON the quick answer: the reader is asked for one
+  // number, with every assumption shown as a chip they can change, so the
+  // answer costs a single tap instead of two screens or a five-step setup.
   const errors = await bootFresh(page);
-  expect(await page.evaluate(() => window.state.current_screen)).toBe('welcome');
-  await expect(page.getByRole('button', { name: /Get my quick answer/ })).toBeVisible();
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('fastpath');
 
-  // Two taps to an answer.
-  await page.getByRole('button', { name: /Get my quick answer/ }).click();
+  // The one question is on screen immediately, and the assumptions are stated
+  // rather than hidden — that is what earns the right to skip the setup.
+  await expect(page.locator('#fp-bill')).toBeVisible();
+  await expect(page.locator('.fp-assume-label')).toBeVisible();
+
+  // One tap to an answer.
   await page.getByRole('button', { name: /See my savings/ }).click();
   await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('result');
   expect(errors).toEqual([]);
