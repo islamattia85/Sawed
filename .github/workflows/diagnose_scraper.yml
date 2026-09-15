@@ -53,6 +53,9 @@ jobs:
       - name: Harvest the full public catalogue (writes nothing tracked)
         working-directory: scraper
         run: python harvest.py
+      - name: Build the registry from the catalogue
+        working-directory: scraper
+        run: python build_registry.py
       - name: Dry-run the real scraper (coverage, writes nothing)
         working-directory: scraper
         run: python scrape_tariffs.py --dry-run
