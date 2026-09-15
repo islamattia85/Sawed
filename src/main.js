@@ -1456,7 +1456,7 @@ const EMBEDDED_TARIFFS = [
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:250.77, exit:50, length:12, green:false, export_rate:0.195,
     verified_date:"2026-08-25",
-    notes:"Rates from 1 July 2026. Undiscounted 40.54c day / 21.30c night / 43.25c peak incl VAT; shown here with the 20% Saver new-customer discount. Day 08-17 & 19-23, Peak 17-19, Night 23-08. Urban standing \u20ac250.77. CEG 19.5c. Cross-checked against two independent published rate tables."
+    notes:"Rates from 1 July 2026. Undiscounted 40.54c day / 21.30c night / 43.25c peak incl VAT; shown here with the 20% Saver new-customer discount. Day 08-17 & 19-23, Peak 17-19, Night 23-08. Urban standing \u20ac250.77. CEG 19.5c. Cross-checked against two independent published rate tables. UNVERIFIED as of 15 Sep 2026 — not re-read in today’s scrape while its Electric Ireland siblings were; re-verify against electricireland.ie."
   },
   {
     id:"EN-SMART",
