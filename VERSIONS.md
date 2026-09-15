@@ -5,8 +5,19 @@ one repository and one history, and nothing else.
 
 | Line | Branch | Tag | What it is |
 | --- | --- | --- | --- |
-| **V3** | `main`, `v3` | `v3.0.0` | The application as it stands today. Feature-complete, shipped, and what production serves. |
-| **V4** | `v4` | `4.0.0-dev` | The next major version. Free to break anything. |
+| **V3** | `main`, `v3` | `v3.1.0` | The shipped, stable line, and the rollback target. What the published URL serves unless Vercel's Production Branch is pointed elsewhere. |
+| **V4** | `v4` | `4.0.0-dev` | An earlier next-major experiment. Free to break anything. |
+| **V5** | `v5` | `5.0.0-beta.1` | Warm-dark redesign + full-catalogue data (every plan a supplier lists). Parallel beta, own preview URL. |
+| **V6** | `v6` | `6.0.0-beta.1` | A refreshed design, forked from V3. Deployed to its own preview URL; promote to the published URL via Vercel's Production Branch setting, roll back to `main` at any time. |
+
+### Publishing a line to the main URL, and rolling back
+
+Which branch serves the published production URL is a Vercel dashboard setting
+(**Settings → Git → Production Branch**), not anything in this repository. To put
+V6 live, point Production Branch at `v6`; to roll back, point it at `main` (V3)
+or use Vercel's Instant Rollback to any previous deployment. Every branch also
+gets its own permanent preview URL automatically, so a line can be reviewed live
+before it is promoted. V3 stays intact on `main`/`v3` and is always redeployable.
 
 ### Why V3 is on `main`
 
