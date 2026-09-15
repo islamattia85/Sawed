@@ -166,6 +166,14 @@ def test_bord_gais_reads_the_smart_bands_into_the_right_fields():
                                 "peak": 0.4004, "ev": 0.2428}
 
 
+def test_bord_gais_reads_a_dynamic_plans_fixed_base_rate():
+    entry = {"name": "Smart Dynamic Electricity", "fuelType": "Single Fuel",
+             "offerCode": "Jun26DynNewElec", "startDate": "2026-06-01T00:00:00Z",
+             "electricityDetail": {"estimated": {"base": 16.73, "oBase": 16.73}}}
+    assert _bg_rates(entry) == {"day": 0.1673, "night": 0.1673,
+                                "peak": 0.1673, "ev": 0.1673}
+
+
 def test_bord_gais_ignores_an_affinity_or_staff_variant():
     # A name we do not allow-list must not resolve, however its rates look.
     entries = _bg_entries([BG_CATALOGUE])

@@ -17,9 +17,14 @@ over prose, and treat "moved" as a loud failure rather than a warning.
 
 from __future__ import annotations
 
+import atexit
 import io
 import json
+import os
 import re
+import socket
+import ssl
+import tempfile
 import logging
 from dataclasses import dataclass, field
 from typing import Iterable, Optional
@@ -65,17 +70,85 @@ class Fetched:
         return self.kind == "ok"
 
 
+#: Per-host CA bundles we have completed by fetching a missing intermediate.
+_COMPLETED_BUNDLES: dict[str, str] = {}
+
+
+def _complete_chain_bundle(host: str, port: int = 443) -> Optional[str]:
+    """
+    A CA bundle with `host`'s missing intermediate appended, or None.
+
+    Some Irish supplier sites (Yuno) serve only their leaf certificate and omit
+    the intermediate that chains it to a trusted root. A browser recovers by
+    following the leaf's Authority Information Access (AIA) extension to fetch
+    that intermediate; Python's requests does not, so the handshake fails with
+    CERTIFICATE_VERIFY_FAILED. This does exactly what the browser does — reads
+    the leaf, downloads the intermediate the leaf itself names, and hands back a
+    bundle that completes the chain. It never disables verification: the fetched
+    intermediate still has to chain to a root already trusted by certifi.
+    """
+    if host in _COMPLETED_BUNDLES:
+        return _COMPLETED_BUNDLES[host]
+    try:
+        import certifi
+        from cryptography import x509
+        from cryptography.x509.oid import (
+            ExtensionOID, AuthorityInformationAccessOID)
+        from cryptography.hazmat.primitives.serialization import Encoding
+
+        ctx = ssl._create_unverified_context()
+        with socket.create_connection((host, port), timeout=15) as sock:
+            with ctx.wrap_socket(sock, server_hostname=host) as ss:
+                leaf_der = ss.getpeercert(binary_form=True)
+        leaf = x509.load_der_x509_certificate(leaf_der)
+        aia = leaf.extensions.get_extension_for_oid(
+            ExtensionOID.AUTHORITY_INFORMATION_ACCESS).value
+        issuers = [d.access_location.value for d in aia
+                   if d.access_method == AuthorityInformationAccessOID.CA_ISSUERS]
+        if not issuers:
+            return None
+        raw = requests.get(issuers[0], timeout=15).content
+        try:
+            inter = x509.load_der_x509_certificate(raw)
+        except ValueError:
+            inter = x509.load_pem_x509_certificate(raw)
+
+        fd, path = tempfile.mkstemp(suffix=".pem", prefix="ca-completed-")
+        with os.fdopen(fd, "wb") as f:
+            with open(certifi.where(), "rb") as base:
+                f.write(base.read())
+            f.write(b"\n")
+            f.write(inter.public_bytes(Encoding.PEM))
+        _COMPLETED_BUNDLES[host] = path
+        atexit.register(lambda p=path: os.path.exists(p) and os.unlink(p))
+        log.info(f"completed TLS chain for {host} via AIA intermediate")
+        return path
+    except Exception as e:
+        log.warning(f"could not complete TLS chain for {host}: "
+                    f"{type(e).__name__}: {e}")
+        return None
+
+
 def fetch(url: str, timeout: int = 20, session: Optional[requests.Session] = None) -> Fetched:
     """Fetch a URL, classifying the failure rather than flattening it."""
     s = session or requests
     try:
         r = s.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
     except requests.exceptions.SSLError as e:
-        # Some Irish supplier sites serve an incomplete certificate chain.
-        # Browsers recover by fetching the missing intermediate; Python does
-        # not. This is a server misconfiguration, not a refusal, and it should
-        # be reported as its own thing so nobody reads it as blocking.
-        return Fetched(url, kind="tls", detail=str(e)[:200])
+        # An incomplete certificate chain is a server misconfiguration, not a
+        # refusal. Try once more with the missing intermediate fetched from the
+        # leaf's AIA extension — the same recovery a browser makes — and only
+        # report `tls` if that too fails.
+        bundle = _complete_chain_bundle(urlparse(url).netloc)
+        if bundle is None:
+            return Fetched(url, kind="tls", detail=str(e)[:200])
+        try:
+            r = s.get(url, headers=HEADERS, timeout=timeout,
+                      allow_redirects=True, verify=bundle)
+        except requests.exceptions.SSLError:
+            return Fetched(url, kind="tls", detail=str(e)[:200])
+        except requests.RequestException as e2:
+            return Fetched(url, kind="unreachable", detail=str(e2)[:200])
     except requests.RequestException as e:
         return Fetched(url, kind="unreachable", detail=str(e)[:200])
 

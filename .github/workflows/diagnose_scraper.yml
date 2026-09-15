@@ -21,6 +21,10 @@ on:
         description: 'Deep-probe keys, e.g. "bg sse". Empty = all.'
         required: false
         default: ''
+      gaps:
+        description: 'Gap-probe keys, e.g. "yuno flogas". Empty = all.'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -41,6 +45,9 @@ jobs:
       - name: Deep probe (targeted parser design)
         working-directory: scraper
         run: python diagnose_deep.py ${{ github.event.inputs.deep }}
+      - name: Probe the remaining unverifiable plans
+        working-directory: scraper
+        run: python diagnose_gaps.py ${{ github.event.inputs.gaps }}
       - name: Dry-run the real scraper (coverage, writes nothing)
         working-directory: scraper
         run: python scrape_tariffs.py --dry-run
