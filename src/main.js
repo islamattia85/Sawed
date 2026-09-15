@@ -10,7 +10,7 @@ import {
   isInWindow, bandAt, rateAt as engineRateAt, isFlatPlan,
   simulateBaseline as engineSimulateBaseline, annualCost, sumF, WHOLESALE_CAP,
 } from './engine/tariff-rules';
-import { moneyBar, dayProfile } from './ui/charts.js';
+import { moneyBar, dayProfile, paybackCurve, yearRibbon, bandDonut } from './ui/charts.js';
 
 /* Solar Optimiser — application entry.
  * Extracted verbatim from the former single-file index.html.
@@ -2515,6 +2515,67 @@ function renderDayShape(best){
   </div>`;
 }
 
+/**
+ * The whole year as one ribbon — a cell a day, darker where the day cost more.
+ *
+ * "Winter costs more" is a sentence the reader has to take on faith. This is
+ * the same claim as 365 figures they can point at, read from the same
+ * simulation the annual totals come from.
+ */
+function renderYearShape(s, plan){
+  if (!s || !s.cost) return '';
+  const days = [];
+  for (let d = 0; d < 365; d++){
+    let c = 0;
+    for (let h = 0; h < 24; h++){
+      const i = d * 24 + h;
+      if (i >= s.cost.length) break;
+      c += s.cost[i] - (s.revenue ? s.revenue[i] : 0);
+    }
+    days.push(c);
+  }
+  const chart = yearRibbon({ days });
+  if (!chart) return '';
+  const max = days.indexOf(Math.max(...days));
+  const min = days.indexOf(Math.min(...days));
+  return `<div class="v6-object">
+    <div class="v6-object-title">Your year, a day at a time — ${plan.supplier}</div>
+    ${chart}
+    <div class="v6-key">
+      <div class="v6-key-item"><span class="v6-key-label">Dearest day</span><span class="v6-key-value">${analyticsDayLabel(max)} · ${fmtCurrency(days[max])}</span></div>
+      <div class="v6-key-item"><span class="v6-key-label">Cheapest day</span><span class="v6-key-value">${analyticsDayLabel(min)} · ${fmtCurrency(days[min])}</span></div>
+    </div>
+    <div class="v6-object-note">Darker is a dearer day. Import cost less export credit, on this plan.</div>
+  </div>`;
+}
+
+/** Where the imported kilowatt-hours actually landed, by rate band. */
+function renderBandMix(s, plan){
+  if (!s || !s.grid_import) return '';
+  const byBand = {};
+  for (let i = 0; i < s.grid_import.length; i++){
+    const b = (s.band && s.band[i]) || bandAt(i % 24, plan);
+    byBand[b] = (byBand[b] || 0) + s.grid_import[i];
+  }
+  const slices = Object.keys(byBand)
+    .sort((a, b) => byBand[b] - byBand[a])
+    .map(b => ({ label: BAND_LABEL[b] || b, value: byBand[b], token: `--band-${b}` }));
+  const chart = bandDonut({ slices });
+  if (!chart) return '';
+  const total = slices.reduce((a, x) => a + x.value, 0);
+  const keys = slices.map(x => `
+    <div class="v6-key-item">
+      <span class="v6-key-dot" style="background:var(${x.token})"></span>
+      <span class="v6-key-label">${x.label}</span>
+      <span class="v6-key-value">${Math.round(x.value).toLocaleString()} kWh · ${Math.round(x.value / total * 100)}%</span>
+    </div>`).join('');
+  return `<div class="v6-object">
+    <div class="v6-object-title">Which band you actually buy in</div>
+    <div class="v6-object-split">${chart}<div class="v6-key v6-key-stack">${keys}</div></div>
+    <div class="v6-object-note">A time-of-use plan only pays if the kilowatt-hours land in the cheap band. This is where yours land.</div>
+  </div>`;
+}
+
 function renderSavingsBreakdown(best, baseCost){
   const b = savingsBreakdown(best);
   if (b.total <= 5) return '';
@@ -2771,25 +2832,12 @@ function renderNpvBreakdown(annualBenefit, sysCostNet, batteryKwh, panelDegradat
 
     <div style="margin-top:14px">
       <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.1em;text-transform:uppercase;font-weight:600;margin-bottom:8px">Cumulative cash position (€, discounted)</div>
-      <div style="display:grid;grid-template-columns:repeat(20,1fr);gap:2px;height:64px;background:var(--well);padding:3px;border-radius:4px;position:relative">
-        ${(() => {
-          const maxAbs = Math.max(...rows.map(r => Math.abs(r.cumulative)), 1);
-          return rows.map(row => {
-            const pct = Math.min(48, Math.abs(row.cumulative) / maxAbs * 48);
-            const pos = row.cumulative >= 0;
-            return `<div style="position:relative;height:100%" title="Y${row.y}: ${fmtCurrency(row.cumulative)}">
-              <div style="position:absolute;left:0;right:0;${pos
-                ? `bottom:50%;height:${pct}%;background:var(--accent);border-radius:4px 2px 0 0`
-                : `top:50%;height:${pct}%;background:var(--loss);border-radius:0 0 2px 2px`}"></div>
-            </div>`;
-          }).join('');
-        })()}
-        <div style="position:absolute;left:3px;right:3px;top:50%;height:1px;background:var(--line);z-index:1"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:4px;letter-spacing:.04em">
-        <span>Y1</span><span>Y5</span><span>Y10</span><span>Y15</span><span>Y20</span>
-      </div>
-      <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:6px;letter-spacing:.03em">Red = still paying off the install · green = in profit · crosses zero at break-even</div>
+      <!-- The line starts at year 0 in the hole for the install and climbs.
+           Where it crosses the dashed zero is break-even — the same year the
+           row above names, drawn rather than asserted. The depth of the dip is
+           what is actually at risk; the final height is what it is worth. -->
+      ${paybackCurve({ cumulative: [-sysCostNet, ...rows.map(r => r.cumulative)] })}
+      <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-top:6px;letter-spacing:.03em">Below the dashed line = still paying off the install · above it = in profit${breakevenYear < 0 ? ' · this system does not cross it inside 20 years' : ' · the dot is break-even, year ' + (breakevenYear + 1)}</div>
     </div>
   </div>`;
 }
@@ -7556,6 +7604,9 @@ function renderAnalytics(){
       <span style="color:var(--accent)">${(solarUtilization*100).toFixed(0)}% kept at home</span> = share of <b>generation</b> used on-site (rest exported).
       <span style="color:var(--blue)">${(demandFromSolar*100).toFixed(0)}% of your needs met by solar</span> = share of <b>demand</b> covered by your own panels.
     </div>
+
+    ${renderYearShape(s, plan)}
+    ${renderBandMix(s, plan)}
 
     <div class="section-title">Day inspector</div>
 

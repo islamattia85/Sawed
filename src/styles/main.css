@@ -324,6 +324,8 @@
   .v6-object-title{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--accent);margin-bottom:10px}
   .v6-object svg{display:block}
   .v6-object-note{margin-top:8px;font-size:12px;line-height:1.5;color:var(--ink-dim)}
+  .v6-object-split{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .v6-key-stack{flex-direction:column;gap:6px;margin-top:0;flex:1 1 150px}
   .v6-key{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:10px}
   .v6-key-item{display:flex;align-items:baseline;gap:6px;font-size:12px;min-width:0}
   .v6-key-dot{flex:none;width:8px;height:8px;border-radius:999px;align-self:center}
