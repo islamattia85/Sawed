@@ -128,6 +128,7 @@ BG_FLAT_URL = ("https://www.bordgaisenergy.ie/home/our-plans"
 BG_NAMES = {
     "Electricity Discount": "BG-24",
     "Smart Standard Electricity Discount": "BG-TOU",
+    "Smart Dynamic Electricity": "BG-DYN",
 }
 
 
@@ -172,7 +173,9 @@ def _bg_rates(entry: dict) -> Optional[dict]:
     if sr.get("day") and sr.get("night") and sr.get("peak"):
         return {"day": _eur_kwh(sr["day"]), "night": _eur_kwh(sr["night"]),
                 "peak": _eur_kwh(sr["peak"]), "ev": _eur_kwh(sr["night"])}
-    flat = est.get("flatRate") or est.get("unitRate")
+    # A dynamic plan publishes its fixed BASE rate (the wholesale adder rides on
+    # top and cannot be scraped); re-confirming the base is what we can do.
+    flat = est.get("flatRate") or est.get("unitRate") or est.get("base") or est.get("oBase")
     if flat:
         r = _eur_kwh(flat)
         return {"day": r, "night": r, "peak": r, "ev": r}
