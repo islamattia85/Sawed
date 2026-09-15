@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  isInWindow, bandAt, rateAt, isFlatPlan, simulateBaseline, annualCost, sumF, WHOLESALE_CAP,
+  isInWindow, bandAt, rateAt, isFlatPlan, simulateBaseline, annualCost, sumF, WHOLESALE_CAP, pendingWeight,
 } from '../../src/engine/tariff-rules.js';
 import { HOURS_IN_YEAR, type Tariff } from '../../src/engine/constants.js';
 
@@ -156,5 +156,41 @@ describe('annualCost', () => {
       { cost: new Float32Array([10]), revenue: new Float32Array([500]) }, flat,
     );
     expect(c.net).toBeLessThan(0);
+  });
+});
+
+describe('pending price change (announced but not yet effective)', () => {
+  const cons = new Float32Array(HOURS_IN_YEAR).fill(0.5);           // ~4380 kWh/yr
+  const withRise: Tariff = {
+    ...flat,
+    price_change: { effective_date: '2026-10-01', pct: 0.10, direction: 'increase' },
+  };
+
+  it('weighs a rise by the fraction of the year after its effective date', () => {
+    // 46 days from 15 Aug to 1 Oct -> ~319/365 of the year is on the new price.
+    const w = pendingWeight(withRise, new Date('2026-08-16T00:00:00Z'));
+    expect(w).toBeGreaterThan(0.85);
+    expect(w).toBeLessThan(0.9);
+  });
+
+  it('ignores a change already in effect or more than a year away', () => {
+    expect(pendingWeight(withRise, new Date('2026-10-02T00:00:00Z'))).toBe(0);
+    expect(pendingWeight(withRise, new Date('2025-01-01T00:00:00Z'))).toBe(0);
+  });
+
+  it('adds the outlook cost to net but leaves today\'s energy cost alone', () => {
+    const sim = simulateBaseline(flat, cons);
+    const base = annualCost(sim, flat, new Date('2026-08-16T00:00:00Z'));
+    const rise = annualCost(sim, withRise, new Date('2026-08-16T00:00:00Z'));
+    expect(rise.energy_cost).toBeCloseTo(base.energy_cost, 5);        // today's rate unchanged
+    expect(rise.outlook_extra).toBeGreaterThan(0);
+    expect(rise.net).toBeCloseTo(base.net + rise.outlook_extra, 5);
+    // +10% for ~87% of the year ≈ +8.7% on energy
+    expect(rise.outlook_extra).toBeCloseTo(base.energy_cost * pendingWeight(withRise, new Date('2026-08-16T00:00:00Z')) * 0.10, 4);
+  });
+
+  it('a plan with no pending change carries no outlook', () => {
+    const sim = simulateBaseline(flat, cons);
+    expect(annualCost(sim, flat).outlook_extra).toBe(0);
   });
 });

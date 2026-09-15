@@ -50,6 +50,27 @@ export type Band = 'day' | 'night' | 'peak' | 'ev' | 'wfh';
 /** An inclusive-start, exclusive-end hour window. May wrap past midnight. */
 export type HourWindow = readonly [number, number];
 
+/**
+ * An announced-but-not-yet-effective price change.
+ *
+ * Irish suppliers must give notice before a price move, so an increase is
+ * public weeks before it takes effect. The rates on the plan are still today's
+ * real rates; this records what is coming so the app can both warn the reader
+ * and cost the plan over the year they would actually hold it, rather than on a
+ * price about to disappear.
+ */
+export interface PriceChange {
+  /** ISO date the new rates take effect. */
+  effective_date: string;
+  /** Fractional change to unit rates, e.g. 0.07 for +7%. Signed. */
+  pct: number;
+  /** Fractional change to the standing charge, if separately announced. */
+  standing_pct?: number;
+  direction?: 'increase' | 'decrease';
+  source?: string;
+  note?: string;
+}
+
 export interface Tariff {
   id: string;
   supplier: string;
@@ -59,6 +80,7 @@ export interface Tariff {
   export_rate?: number;
   discontinued?: boolean;
   verified_date?: string;
+  price_change?: PriceChange;
   rates: Partial<Record<Band, number>>;
   windows: Partial<Record<Exclude<Band, 'day'>, HourWindow>>;
 }

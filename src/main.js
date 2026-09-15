@@ -4990,6 +4990,7 @@ function renderResult(){
     </div>
 
     ${freshnessChip(best.plan)}
+    ${priceChangeChip(best.plan)}
     ${renderContractAlert()}
     ${state.chosen_plan ? renderChoiceStrip() : ''}
 
@@ -5146,6 +5147,29 @@ function freshnessChip(plan){
 function latestVerifiedDate(){
   const dates = (TARIFFS || []).map(t => t.verified_date).filter(Boolean).sort();
   return dates.length ? dates[dates.length - 1] : null;
+}
+
+/**
+ * A plan whose supplier has ANNOUNCED a price change that has not taken effect
+ * yet. The rates shown are still today's; this warns the reader what is coming
+ * and confirms it is already in the yearly figure (annualCost weights an
+ * announced rise across the part of the contract it will apply to). Nothing is
+ * shown once the date has passed — by then the rates themselves are updated.
+ */
+function priceChangeChip(plan){
+  const pc = plan && plan.price_change;
+  if (!pc || !pc.effective_date) return '';
+  const eff = new Date(`${pc.effective_date}T00:00:00Z`);
+  if (isNaN(eff.getTime()) || eff.getTime() <= Date.now()) return '';
+  const pct = Math.round(Math.abs(pc.pct || 0) * 100);
+  const rising = (pc.pct || 0) >= 0;
+  const when = eff.toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
+  const verb = rising ? 'rise' : 'fall';
+  return `<div class="price-change-note ${rising ? 'is-rise' : 'is-fall'}">
+    <span class="fresh-dot" aria-hidden="true"></span>
+    <span>${(plan.supplier || 'The supplier')} ${verb}s this plan's rates ${pct}% on ${when}
+    — already counted in the yearly figure above.</span>
+  </div>`;
 }
 
 /** The inputs behind the figure — moved off the hero, kept in full. */
