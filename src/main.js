@@ -10,6 +10,7 @@ import {
   isInWindow, bandAt, rateAt as engineRateAt, isFlatPlan,
   simulateBaseline as engineSimulateBaseline, annualCost, sumF, WHOLESALE_CAP,
 } from './engine/tariff-rules';
+import { moneyBar, dayProfile } from './ui/charts.js';
 
 /* Solar Optimiser — application entry.
  * Extracted verbatim from the former single-file index.html.
@@ -2414,6 +2415,104 @@ function dataVerifiedDate(){
 function dataAgeDays(){
   const d = dataVerifiedDate();
   return d ? Math.round((Date.now() - new Date(d)) / 86400000) : 999;
+}
+
+/* ============================================================
+   V6 DATA OBJECTS — the same figures, drawn
+   ------------------------------------------------------------
+   These adapters take what the engine already computed and shape it for the
+   pure encoders in ui/charts.js. They add no arithmetic of their own: every
+   euro and kilowatt-hour here is read straight off a simulation the app was
+   already running, so a chart can never disagree with the text beside it.
+   ============================================================ */
+
+const BAND_LABEL = { day: 'Day', night: 'Night', peak: 'Peak', ev: 'EV window', wfh: 'Work-from-home' };
+
+/** The recommended plan's year, as the slices that make it up. */
+function billSegments(best){
+  const cost = best.sim && best.sim.cost;
+  if (!cost) return [];
+  const bands = best.sim.band;
+  const byBand = {};
+  for (let i = 0; i < cost.length; i++){
+    const b = (bands && bands[i]) || 'day';
+    byBand[b] = (byBand[b] || 0) + cost[i];
+  }
+  const segs = Object.keys(byBand)
+    .sort((a, b) => byBand[b] - byBand[a])
+    .map(b => ({ label: `${BAND_LABEL[b] || b} electricity`, value: byBand[b], token: `--band-${b}` }));
+  segs.push({ label: 'Standing charge', value: best.standing, token: '--ink-dim' });
+  const exported = best.export_revenue || 0;
+  if (exported > 0) segs.push({ label: 'Export credit', value: exported, token: '--accent' });
+  return segs;
+}
+
+/**
+ * An average day, hour by hour.
+ *
+ * Averaging across the 365 days rather than picking one avoids the trap of a
+ * cherry-picked sunny Tuesday: the shape a reader sees is the shape they are
+ * actually billed on. The band is a property of the hour, not the date, so it
+ * carries over from the simulation unchanged.
+ */
+function averageDayHours(best){
+  const cons = CACHE.cons;
+  if (!cons || !best.sim) return [];
+  const gen = CACHE.solar && CACHE.solar.total;
+  const imp = best.sim.grid_import;
+  const bands = best.sim.band;
+  const out = [];
+  for (let h = 0; h < 24; h++){
+    let c = 0, g = 0, m = 0, days = 0;
+    for (let i = h; i < cons.length; i += 24){
+      c += cons[i];
+      g += gen ? gen[i] : 0;
+      m += imp ? imp[i] : 0;
+      days++;
+    }
+    if (!days) break;
+    out.push({ cons: c / days, gen: g / days, imp: m / days, band: (bands && bands[h]) || 'day' });
+  }
+  return out;
+}
+
+/** The stacked bill bar with its figures named beside it. */
+function renderBillShape(best){
+  const segs = billSegments(best);
+  const bar = moneyBar({ segments: segs });
+  if (!bar) return '';
+  const keys = segs.map(s => `
+    <div class="v6-key-item">
+      <span class="v6-key-dot" style="background:var(${s.token})"></span>
+      <span class="v6-key-label">${s.label}</span>
+      <span class="v6-key-value">${s.label === 'Export credit' ? '−' : ''}${fmtCurrency(Math.round(s.value))}</span>
+    </div>`).join('');
+  return `<div class="v6-object">
+    <div class="v6-object-title">Where the year's money goes — ${best.plan.supplier}</div>
+    ${bar}
+    <div class="v6-key">${keys}</div>
+  </div>`;
+}
+
+/** One day against the plan's bands, so a time-of-use shape is visible. */
+function renderDayShape(best){
+  const hours = averageDayHours(best);
+  const chart = dayProfile({ hours });
+  if (!chart) return '';
+  const used = hours.map(h => h.band);
+  const shown = [...new Set(used)];
+  const keys = shown.map(b => `
+    <div class="v6-key-item">
+      <span class="v6-key-dot" style="background:var(--band-${b})"></span>
+      <span class="v6-key-label">${BAND_LABEL[b] || b}</span>
+      <span class="v6-key-value">${fmtCent(best.plan.rates[b])}/kWh</span>
+    </div>`).join('');
+  return `<div class="v6-object">
+    <div class="v6-object-title">Your average day on ${best.plan.supplier}</div>
+    ${chart}
+    <div class="v6-key">${keys}</div>
+    <div class="v6-object-note">Bars are what the home uses each hour${state.has_solar ? ', green is what the panels make' : ''}. The background is the rate band that hour falls in.</div>
+  </div>`;
 }
 
 function renderSavingsBreakdown(best, baseCost){
@@ -5036,6 +5135,8 @@ function renderResult(){
             return '';
           })()}
         </div>
+        ${renderBillShape(best)}
+        ${renderDayShape(best)}
         ${renderSavingsBreakdown(best, baseCost)}
         ${renderAssumptions(setupLabel)}
         ${renderTrustPanel()}
