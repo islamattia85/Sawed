@@ -172,12 +172,13 @@ def flogas_render():
         if not html:
             continue
         t = BeautifulSoup(html, "lxml").get_text(" ", strip=True)
-        # dump every cent figure with a little context, and any standing charge
-        for m in list(re.finditer(r"\d{1,2}\.\d{1,2}\s*c", t))[:8]:
-            print(f"      cent: ...{t[max(0,m.start()-70):m.start()+90]}...")
-        sc = re.search(r"[Ss]tanding [Cc]harge\D{0,40}€\s*[\d,.]+", t)
-        if sc:
-            print(f"      standing: {sc.group(0)}")
+        for kw in ["Unit Rate", "unit rate", "cent", "c/kWh", "kWh",
+                   "Standing", "Day Rate", "Night Rate", "EAB", "Estimated Annual"]:
+            i = t.find(kw)
+            if i != -1:
+                print(f"      [{kw}] ...{t[i:i+150]}...")
+        for m in list(re.finditer(r"\d{1,2}\.\d{1,2}", t))[:8]:
+            print(f"      num: ...{t[max(0,m.start()-45):m.start()+35]}...")
 
 
 # ---------------------------------------------------------------------------
