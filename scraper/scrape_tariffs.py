@@ -288,13 +288,13 @@ def scrape_supplier(spec: dict, existing: dict,
         for plan_id, got in parsed.items():
             if plan_id not in existing:
                 continue
-            upd: dict = {}
+            upd: dict = {"_parsed": True}
             if got.get("rates"):
                 upd["_scraped_rates"] = got["rates"]
             if got.get("standing") is not None:
                 upd["_scraped_standing"] = got["standing"]
                 result.standing.append(got["standing"])
-            if upd:
+            if len(upd) > 1:
                 updates[plan_id] = upd
                 result.reached_a_page = True
                 result.rates[plan_id] = 1.0
@@ -372,19 +372,30 @@ def _rate_ok(scraped: float, existing: float) -> bool:
     return delta <= RATE_TOLERANCE and delta / existing <= RATE_TOLERANCE_REL
 
 
-def apply_updates(tariffs: list, all_updates: dict) -> tuple[list, int]:
+def apply_updates(tariffs: list, all_updates: dict) -> tuple[list, list, int]:
     """
-    Merge scraped updates into tariffs. Returns (updated_list, change_count).
+    Merge scraped updates into tariffs. Returns (updated_list, review_flags, count).
 
-    A plan is stamped ``verified_date = TODAY`` only when the scrape actually
-    re-confirmed one of its live values — a rate or the standing charge landed
-    within tolerance of what we already hold. A number that fails the tolerance
-    check changes nothing and does NOT verify the plan: it is flagged for a human
-    instead. That is the difference between "the scraper proved this is current"
-    and "the scraper ran", and conflating the two is how 25 of 26 plans sat eight
-    weeks stale behind a green tick.
+    Two sources feed this, and they are trusted differently:
+
+    * A **supplier-specific parser** reads a named plan's rate straight out of
+      the supplier's own markup. It is reliable, so its value is WRITTEN even
+      when it moves more than the auto-threshold — a real Irish price change is
+      exactly such a move, and silently skipping it (as the old guard did) is
+      how a plan that genuinely went up kept showing last month's number. A move
+      past the threshold is not dropped; it is written and added to
+      ``review_flags`` so the human reading the daily pull request looks hard at
+      that one line before merging.
+    * The **generic keyword net** guesses a number near a plan name. That is
+      guess-prone, so the tolerance guard still gates it: a big move from the
+      net changes nothing and is flagged, because it is far more likely to be a
+      misparse than a real change.
+
+    Either way the pull request is reviewed before it reaches anyone, which is
+    where a wrong number is meant to be caught.
     """
     by_id = {t["id"]: t for t in tariffs}
+    review_flags: list[str] = []
     changes = 0
 
     for plan_id, upd in all_updates.items():
@@ -393,6 +404,7 @@ def apply_updates(tariffs: list, all_updates: dict) -> tuple[list, int]:
             continue
         plan = by_id[plan_id]
         verified = False
+        parsed = upd.pop("_parsed", False)
 
         # Per-band rates from a supplier-specific parser.
         scraped_rates = upd.pop("_scraped_rates", None)
@@ -409,6 +421,15 @@ def apply_updates(tariffs: list, all_updates: dict) -> tuple[list, int]:
                     if plan["rates"][band] != val:
                         plan["rates"][band] = val
                         changes += 1
+                    verified = True
+                elif parsed:
+                    # Reliable read that moved a lot — write it, flag it.
+                    pct = (val - existing_band) / existing_band if existing_band else 0
+                    review_flags.append(
+                        f"{plan_id}.{band}: {existing_band:.4f} -> {val:.4f} "
+                        f"({pct:+.0%}) — parser read, review")
+                    plan["rates"][band] = val
+                    changes += 1
                     verified = True
                 else:
                     log.warning(
@@ -440,6 +461,13 @@ def apply_updates(tariffs: list, all_updates: dict) -> tuple[list, int]:
                     plan["standing"] = scraped_standing
                     changes += 1
                 verified = True
+            elif parsed:
+                review_flags.append(
+                    f"{plan_id}.standing: {existing_standing} -> {scraped_standing} "
+                    f"({srel:+.0%}) — parser read, review")
+                plan["standing"] = scraped_standing
+                changes += 1
+                verified = True
             else:
                 log.warning(
                     f"{plan_id}: scraped standing {scraped_standing} vs existing "
@@ -454,7 +482,7 @@ def apply_updates(tariffs: list, all_updates: dict) -> tuple[list, int]:
         if verified:
             plan["verified_date"] = TODAY
 
-    return list(by_id.values()), changes
+    return list(by_id.values()), review_flags, changes
 
 
 # ---------------------------------------------------------------------------
@@ -631,7 +659,9 @@ def main():
             log.error(f"{spec['name']} crashed: {e}")
             results.append(SupplierResult(supplier=spec["name"]))
 
-    updated_tariffs, n_changes = apply_updates(tariffs, all_updates)
+    updated_tariffs, review_flags, n_changes = apply_updates(tariffs, all_updates)
+    for f in review_flags:
+        log.warning(f"REVIEW: {f}")
 
     # Suppliers whose own site told us nothing today — the set the comparison
     # sites are most useful for.
@@ -662,6 +692,7 @@ def main():
             t["id"] for t in updated_tariffs
             if t.get("id") != "__meta__" and not t.get("discontinued")
             and t.get("type") == "dynamic"),
+        "rate_changes_to_review": review_flags,
     }
     if meta_idx is not None:
         updated_tariffs[meta_idx] = meta
@@ -676,6 +707,14 @@ def main():
         synced = sync_embedded_tariffs(MAIN_JS_PATH, updated_tariffs)
         log.info(f"Done. {n_changes} field(s) updated. tariffs.json written; "
                  f"EMBEDDED_TARIFFS synced across {synced} plan(s).")
+
+    if review_flags:
+        print("\n=== RATE CHANGES TO REVIEW (parser read a big move) ===")
+        for f in review_flags:
+            print(f"  {f}")
+        print("These are real reads from the supplier's own markup that moved more\n"
+              "than the auto-threshold — a price change, or a parser slip. Check each\n"
+              "against the supplier before merging.\n")
 
     if cru_warnings:
         print("\n=== ACTION REQUIRED: comparison-site cross-check ===")
