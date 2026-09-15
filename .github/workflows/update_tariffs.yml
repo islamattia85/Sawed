@@ -38,11 +38,19 @@ jobs:
       # success, and a branch of barely-checked rates was pushed for review. The
       # one guard written to stop rates going stale silently was disabled by the
       # pipe added to capture its own log.
-      - name: Run tariff scraper
+      # V5 harvests the FULL public catalogue rather than re-verifying a fixed
+      # list: enumerate every plan each supplier lists, then build the app
+      # registry (rates from the harvest; band windows / export / green
+      # inherited from the curated templates). --write updates tariffs.json and
+      # regenerates EMBEDDED_TARIFFS. The result is a pull request a human reads
+      # before it ships, same as before.
+      - name: Harvest and build the catalogue
         shell: bash
+        working-directory: scraper
         run: |
           set -o pipefail
-          python scraper/scrape_tariffs.py 2>&1 | tee scrape.log
+          python harvest.py 2>&1 | tee ../scrape.log
+          python build_registry.py --write 2>&1 | tee -a ../scrape.log
 
       # A scraped rate is a number a stranger's markup handed us, and it lands
       # in a payback figure somebody spends ten thousand euro on. It used to be
@@ -70,16 +78,18 @@ jobs:
             public/tariffs.json
             src/main.js
           branch: tariffs/auto-update
-          commit-message: "chore: update electricity tariffs"
-          title: "Tariff update — review the numbers before merging"
+          commit-message: "chore: rebuild the tariff catalogue"
+          title: "Catalogue update — review before merging"
           labels: tariffs
           delete-branch: true
           body: |
-            Automated scrape from the supplier sites.
+            The full public catalogue, harvested from the supplier sites and
+            rebuilt into the app registry.
 
-            **Check before merging:** every changed rate against the diff. A
-            wrong number here reaches a recommendation, and the app presents it
-            as verified.
+            **Check before merging:** the diff shows every plan added, removed
+            or repriced. Rates come straight from each supplier's markup; band
+            windows, export and green flags are inherited from the curated
+            templates — sanity-check any brand-new plan's windows.
 
             The full run log — which pages were discovered, what each supplier
             yielded, and which links are broken — is attached to

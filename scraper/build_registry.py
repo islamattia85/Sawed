@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 import unicodedata
 from collections import Counter, defaultdict
 from datetime import date
@@ -31,6 +32,7 @@ from pathlib import Path
 HERE = Path(__file__).parent
 CATALOGUE = HERE / "catalogue.json"
 TARIFFS = HERE.parent / "public" / "tariffs.json"
+MAIN_JS = HERE.parent / "src" / "main.js"
 OUT = HERE / "catalogue_registry.json"
 TODAY = date.today().isoformat()
 
@@ -143,7 +145,43 @@ def build() -> list:
     return registry
 
 
+def write_app_data(registry: list) -> None:
+    """Replace tariffs.json and regenerate EMBEDDED_TARIFFS from the registry.
+
+    The plan set now changes with the market, so the bundle fallback is
+    regenerated wholesale (a machine-written JSON literal) rather than edited in
+    place — the hand-formatted, hand-commented literal only made sense for a
+    fixed list. tariffs.json keeps a __meta__ header; EMBEDDED_TARIFFS is the
+    plans alone. The two hold the same plan data, which the freshness test still
+    checks.
+    """
+    existing = json.loads(TARIFFS.read_text())
+    meta = next((t for t in existing if t.get("id") == "__meta__"), {"id": "__meta__"})
+    meta["last_built"] = TODAY
+    meta["plan_count"] = len(registry)
+    TARIFFS.write_text(json.dumps([meta] + registry, indent=2, ensure_ascii=False))
+
+    main = MAIN_JS.read_text()
+    start = main.index("const EMBEDDED_TARIFFS = [")
+    open_ = main.index("[", start)
+    depth, end = 0, open_
+    for i in range(open_, len(main)):
+        if main[i] == "[":
+            depth += 1
+        elif main[i] == "]":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    literal = json.dumps(registry, indent=2, ensure_ascii=False)
+    MAIN_JS.write_text(main[:open_] + literal + main[end + 1:])
+    print(f"wrote tariffs.json and EMBEDDED_TARIFFS ({len(registry)} plans)")
+
+
 if __name__ == "__main__":
     reg = build()
-    OUT.write_text(json.dumps(reg, indent=2, ensure_ascii=False))
-    print(f"\nwrote {OUT.name} ({len(reg)} plans)")
+    if "--write" in sys.argv:
+        write_app_data(reg)
+    else:
+        OUT.write_text(json.dumps(reg, indent=2, ensure_ascii=False))
+        print(f"\nwrote {OUT.name} ({len(reg)} plans)")
