@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - 'fix/scraper-**'
+      - 'fix/v5-**'
     paths:
       - 'scraper/**'
       - '.github/workflows/diagnose_scraper.yml'
