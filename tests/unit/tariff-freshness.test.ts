@@ -106,6 +106,24 @@ describe.each([
   });
 
   /**
+   * A structured price_change is a promise the same way a note is: once its
+   * effective date passes, either the rates were raised and the field removed,
+   * or the app is quietly costing a change that already happened as if it were
+   * still ahead. Any price_change dated in the past is a defect to resolve.
+   */
+  it('carries no announced price change whose date has already passed', () => {
+    const stale = plans
+      .filter((t) => {
+        const pc = (t as { price_change?: { effective_date?: string } }).price_change;
+        if (!pc?.effective_date) return false;
+        const when = parseDay(pc.effective_date);
+        return Number.isFinite(when) && when < Date.now();
+      })
+      .map((t) => `${t.id} (effective ${(t as { price_change: { effective_date: string } }).price_change.effective_date})`);
+    expect(stale).toEqual([]);
+  });
+
+  /**
    * A supplier changes all of its prices on one day. So when the plans of a
    * single supplier carry different verification dates, somebody went through
    * that supplier's price list and missed one — which is exactly what happened

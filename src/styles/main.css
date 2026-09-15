@@ -306,6 +306,8 @@
   .fresh-chip.is-stale .fresh-dot{background:var(--amber)}
   .fresh-chip.is-stale{color:var(--ink)}
   .fresh-chev{margin-left:auto;color:var(--ink-dim);font-size:17px}
+  .price-change-note{display:flex;align-items:flex-start;gap:8px;width:100%;padding:11px 14px;margin-bottom:14px;background:var(--surface);border:1px solid var(--amber);border-radius:var(--radius-lg);font-size:13px;line-height:1.5;color:var(--ink)}
+  .price-change-note .fresh-dot{background:var(--amber);margin-top:5px}
 
   /* One door for everything that answers "how did you work that out?" */
   .working{margin-bottom:14px}
