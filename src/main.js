@@ -3160,16 +3160,16 @@ Object.assign(state, {
 if (state.onboarding_complete && state.current_screen === 'onboarding'){
   state.current_screen = 'result';
 }
-// First-ever load (no prior state) — open on the welcome screen.
+// First-ever load (no prior state) — open ON the answer, not in front of it.
 //
-// There used to be a three-slide carousel in front of it: a value proposition,
-// a feature list, and a sign-in wall. The welcome screen states the same value
-// proposition and the same three features, better, and offers the actual
-// choice — so the carousel was the pitch delivered twice with a dead-end
-// between the two. Four screens of preamble, then one input screen, then the
-// answer. Now the answer is three taps away instead of five.
+// There used to be a three-slide carousel here, then a welcome screen that
+// repeated the same pitch and offered a five-step setup. That was four screens
+// of preamble before the reader gave us a single number. The quick path asks
+// for the one number that matters and states every assumption as a chip on the
+// result, so the answer costs one tap. Full setup is still one tap away from
+// the welcome screen for anyone who wants to tune all of it.
 if (!state.onboarding_complete && (state.current_screen === 'onboarding' || !state.current_screen)){
-  state.current_screen = 'welcome';
+  state.current_screen = 'fastpath';
   state.seen_intro = true;
 }
 // Returning user who finished onboarding — never show intro again
