@@ -49,6 +49,9 @@ jobs:
       - name: Probe the remaining unverifiable plans
         working-directory: scraper
         run: python diagnose_gaps.py ${{ github.event.inputs.gaps }}
+      - name: Harvest the full public catalogue (writes nothing tracked)
+        working-directory: scraper
+        run: python harvest.py
       - name: Dry-run the real scraper (coverage, writes nothing)
         working-directory: scraper
         run: python scrape_tariffs.py --dry-run
