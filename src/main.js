@@ -1362,6 +1362,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.2986, night:0.2986, peak:0.2986, ev:0.2986},
     windows:{ ev:null },
     standing:255.29, exit:50, length:12, green:true, export_rate:0.185,
+    price_change:{"effective_date": "2026-10-12", "pct": 0.02, "standing_pct": 0.05, "direction": "increase", "source": "energia.ie price notice, announced Sep 2026", "note": "Energia 24hr unit rate +2%, standing +5% from 12 Oct 2026."},
     verified_date:"2026-09-15",
     notes:"VERIFIED 25 Aug 2026 \u2014 energia.ie/about-energia/our-tariffs (price list effective 1 May 2026) and one independent rate table agree: 42.65c undiscounted, 29.86c with the 30% new-customer discount. Standing \u20ac265.01 urban (\u20ac337.02 rural). CEG 18.5c."
   },
@@ -1373,6 +1374,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.3078, night:0.3078, peak:0.3078, ev:0.3078},
     windows:{ ev:null },
     standing:244.76, exit:50, length:12, green:true, export_rate:0.185,
+    price_change:{"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "Bord Gais price announcement, 9 Sep 2026", "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."},
     verified_date:"2026-09-15",
     notes:"VERIFIED 25 Aug 2026 direct from bordgaisenergy.ie/home/ev-plan-comparison. Flat 30.78c with the 26% new-customer discount. Standing \u20ac244.76. CEG 18.5c."
   },
@@ -1466,6 +1468,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.3075, night:0.1691, peak:0.3454, ev:0.1691},
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:265.01, exit:50, length:12, green:true, export_rate:0.185,
+    price_change:{"effective_date": "2026-10-12", "pct": 0.03, "pct_bands": {"day": 0.03, "night": 0.28, "peak": 0.05, "ev": 0.28}, "standing_pct": 0.05, "direction": "increase", "source": "energia.ie price notice, announced Sep 2026", "note": "Energia rates rise 12 Oct 2026: night ~+28%, day ~+3%, peak ~+5%, standing +5%."},
     verified_date:"2026-09-15",
     notes:"VERIFIED 25 Aug 2026 \u2014 the \"Smart Data 27%\" tier: Day 30.75c, Night 16.91c (23-08), Peak 34.54c (17-19), all incl VAT. Standing \u20ac265.01 urban. CEG 18.5c. Energia's published list is still the 1 May 2026 one."
   },
@@ -1477,6 +1480,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.3289, night:0.2428, peak:0.4004, ev:0.2428},
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:244.76, exit:50, length:12, green:true, export_rate:0.185,
+    price_change:{"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "Bord Gais price announcement, 9 Sep 2026", "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."},
     verified_date:"2026-09-15",
     notes:"VERIFIED 25 Aug 2026 direct from bordgaisenergy.ie/home/ev-plan-comparison. Day 32.89c (08-23 excl peak), Peak 40.04c (17-19), Night 24.28c (23-08), all with the 26% new-customer discount. Standing \u20ac244.76. CEG 18.5c. NOTE: the 26 July automated scrape wrote the EV plan's 35.23c day rate onto this plan \u2014 32.89c is the published figure."
   },
@@ -1547,6 +1551,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.4016, night:0.4016, peak:0.4016, ev:0.0942},
     windows:{ ev:[2,6], peak:null, night:null },
     standing:265.01, exit:50, length:12, green:true, export_rate:0.185,
+    price_change:{"effective_date": "2026-10-12", "pct": 0.05, "standing_pct": 0.28, "direction": "increase", "source": "energia.ie price notice, announced Sep 2026", "note": "Energia raises rates from 12 Oct 2026; EV-tariff standing charge +28%. Unit rate change estimated — confirm with Energia."},
     verified_date:"2026-09-15",
     notes:"VERIFIED 25 Aug 2026 \u2014 the \"EV Smart Drive 10%\" tier: Day 40.16c, EV 9.42c (02-06). Standing \u20ac265.01 urban. CEG 18.5c."
   },
@@ -1569,6 +1574,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.3523, night:0.2657, peak:0.4914, ev:0.0898},
     windows:{ ev:[2,5], peak:[17,19], night:[23,8] },
     standing:364.89, exit:50, length:12, green:true, export_rate:0.185,
+    price_change:{"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "Bord Gais price announcement, 9 Sep 2026", "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."},
     verified_date:"2026-09-15",
     notes:"Rates last checked 25 Aug 2026 from bordgaisenergy.ie/home/ev-plan-comparison. Day 35.23c (08-23 excl peak), Peak 49.14c (17-19), Night 26.57c (23-08), EV 8.98c (02-05), with the 15% new-customer discount. Standing €364.89 — €120 higher than BG's other plans. CEG 18.5c. UNVERIFIED as of 14 Sep 2026 — the scraper cannot read this plan’s overnight EV rate from Bord Gáis’s plan feed, so it is not re-checked when its siblings are; re-verify by hand."
   },
@@ -4990,6 +4996,7 @@ function renderResult(){
     </div>
 
     ${freshnessChip(best.plan)}
+    ${priceChangeChip(best.plan)}
     ${renderContractAlert()}
     ${state.chosen_plan ? renderChoiceStrip() : ''}
 
@@ -5146,6 +5153,35 @@ function freshnessChip(plan){
 function latestVerifiedDate(){
   const dates = (TARIFFS || []).map(t => t.verified_date).filter(Boolean).sort();
   return dates.length ? dates[dates.length - 1] : null;
+}
+
+/**
+ * A plan whose supplier has ANNOUNCED a price change that has not taken effect
+ * yet. The rates shown are still today's; this warns the reader what is coming
+ * and confirms it is already in the yearly figure (annualCost weights an
+ * announced rise across the part of the contract it will apply to). Nothing is
+ * shown once the date has passed — by then the rates themselves are updated.
+ */
+function priceChangeChip(plan){
+  const pc = plan && plan.price_change;
+  if (!pc || !pc.effective_date) return '';
+  const eff = new Date(`${pc.effective_date}T00:00:00Z`);
+  if (isNaN(eff.getTime()) || eff.getTime() <= Date.now()) return '';
+  // The headline % is the biggest band move, since Irish rises are uneven (a
+  // night rate can jump far more than the day rate); "up to" makes that honest.
+  const bandPcts = pc.pct_bands ? Object.values(pc.pct_bands) : [];
+  const worst = Math.max(Math.abs(pc.pct || 0), ...bandPcts.map((v) => Math.abs(v || 0)));
+  const pct = Math.round(worst * 100);
+  const uneven = bandPcts.length > 0 && Math.min(...bandPcts.map((v) => Math.abs(v || 0))) < worst - 0.005;
+  const rising = (worst >= 0) && ((pc.pct || 0) >= 0 || bandPcts.some((v) => (v || 0) > 0));
+  const when = eff.toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
+  const verb = rising ? 'rises' : 'falls';
+  return `<div class="price-change-note ${rising ? 'is-rise' : 'is-fall'}">
+    <span class="fresh-dot" aria-hidden="true"></span>
+    <span>${(plan.supplier || 'The supplier')} ${verb} this plan's rates
+    ${uneven ? 'by up to ' : ''}${pct}% on ${when}
+    — already counted in the yearly figure above.</span>
+  </div>`;
 }
 
 /** The inputs behind the figure — moved off the hero, kept in full. */
