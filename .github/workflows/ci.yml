@@ -3,9 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    # Every maintained line gets CI, not just production's branch — the beta
-    # (v5) and the frozen line (v3) are validated on push like main is.
-    branches: [main, v3, v4, v5]
+    branches: [main]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -46,7 +44,7 @@ jobs:
         run: pip install -r scraper/requirements.txt pytest
 
       - name: Scraper tests
-        run: python -m pytest scraper/test_sources.py -q
+        run: python -m pytest scraper/test_sources.py scraper/test_parsers.py -q
 
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium

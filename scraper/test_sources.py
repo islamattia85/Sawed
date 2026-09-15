@@ -210,7 +210,7 @@ def test_a_standing_charge_jumping_a_quarter_is_rejected():
     # absolute-only guard of ±€100. A change that size is a supplier
     # announcement, not something to take from a regex unreviewed.
     plans = [_plan("BG-DYN", 0.30, 331.96)]
-    out, _ = apply_updates(plans, {"BG-DYN": {"_scraped_standing": 250.0}})
+    out, _, _ = apply_updates(plans, {"BG-DYN": {"_scraped_standing": 250.0}})
     assert out[0]["standing"] == 331.96
 
 
@@ -219,22 +219,43 @@ def test_a_unit_rate_jumping_a_tenth_is_rejected():
     # absolute tolerance (±15% on a 33c rate) and inside a 10% relative one too,
     # which is why the threshold is 5%.
     plans = [_plan("EI-NB", 0.3325, 300.0)]
-    out, _ = apply_updates(plans, {"EI-NB": {"_scraped_day_rate": 0.3640}})
+    out, _, _ = apply_updates(plans, {"EI-NB": {"_scraped_day_rate": 0.3640}})
     assert out[0]["rates"]["day"] == 0.3325
 
 
 def test_a_small_correction_is_still_accepted():
     # The guard has to leave room for real movement, or it is just an off switch.
     plans = [_plan("EI-24", 0.3114, 300.0)]
-    out, changes = apply_updates(plans, {"EI-24": {"_scraped_day_rate": 0.3055}})
+    out, _, changes = apply_updates(plans, {"EI-24": {"_scraped_day_rate": 0.3055}})
     assert out[0]["rates"]["day"] == 0.3055
     assert changes == 1
 
 
 def test_a_flat_plan_updates_every_band_together():
     plans = [_plan("EI-24", 0.3114, 300.0)]
-    out, _ = apply_updates(plans, {"EI-24": {"_scraped_day_rate": 0.3055}})
+    out, _, _ = apply_updates(plans, {"EI-24": {"_scraped_day_rate": 0.3055}})
     assert set(out[0]["rates"].values()) == {0.3055}
+
+
+def test_a_big_generic_move_is_still_skipped():
+    # The keyword net is guess-prone; a large jump from it must not be written.
+    plans = [_plan("YN-24", 0.2524, 219.22)]
+    out, flags, _ = apply_updates(plans, {"YN-24": {"_scraped_day_rate": 0.3485}})
+    assert out[0]["rates"]["day"] == 0.2524
+    assert flags == []
+
+
+def test_a_big_parser_move_is_written_and_flagged():
+    # A reliable parser read that moved a lot is a real price change: write it,
+    # and point the reviewer at it rather than silently dropping it.
+    plans = [_plan("EN-EV", 0.4016, 265.01)]
+    out, flags, _ = apply_updates(
+        plans, {"EN-EV": {"_parsed": True,
+                          "_scraped_rates": {"day": 0.4416, "night": 0.4416,
+                                             "peak": 0.4416, "ev": 0.1099}}})
+    assert out[0]["rates"]["day"] == 0.4416          # the rise landed
+    assert out[0]["verified_date"] == __import__("scrape_tariffs").TODAY
+    assert any("EN-EV.day" in f for f in flags)      # and was flagged
 
 
 def test_reaching_a_site_but_finding_no_prices_is_not_a_broken_link():
