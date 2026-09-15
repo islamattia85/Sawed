@@ -150,21 +150,33 @@ export function pendingWeight(plan: Tariff, asOf: Date): number {
  * plan are computed on this same basis, so they are directly comparable.
  */
 export function annualCost(
-  sim: { cost: Float32Array; revenue?: Float32Array | null },
+  sim: { cost: Float32Array; revenue?: Float32Array | null; band?: Band[] },
   plan: Tariff,
   asOf: Date = new Date(),
 ): AnnualCost {
   const energy = sumF(sim.cost);
   const revenue = sumF(sim.revenue);
   // An announced rise costs the reader over the part of the year it applies to.
-  // Energy scales linearly with the unit rate, so a +pct rise for the weighted
-  // fraction w of the year adds energy*w*pct; a separately-announced standing
-  // move adds standing*w*standing_pct.
+  // Energy scales linearly with the unit rate, so the extra is that year-weight
+  // times the rise on the energy already spent. When the rise differs by band
+  // and the simulation kept a per-hour band trace, apply each band's own rise
+  // to the euros actually spent in that band; otherwise fall back to a flat
+  // rise on the total. A separately-announced standing move adds its own share.
   const w = pendingWeight(plan, asOf);
   const pc = plan.price_change;
-  const outlook_extra = w > 0 && pc
-    ? energy * w * pc.pct + plan.standing * w * (pc.standing_pct ?? 0)
-    : 0;
+  let outlook_extra = 0;
+  if (w > 0 && pc) {
+    let energyRise = energy * pc.pct;
+    if (pc.pct_bands && sim.band) {
+      energyRise = 0;
+      for (let i = 0; i < sim.cost.length; i += 1) {
+        const band = sim.band[i] ?? 'day';
+        const bp = pc.pct_bands[band] ?? pc.pct;
+        energyRise += (sim.cost[i] ?? 0) * bp;
+      }
+    }
+    outlook_extra = w * (energyRise + plan.standing * (pc.standing_pct ?? 0));
+  }
   return {
     energy_cost: energy,
     standing: plan.standing,

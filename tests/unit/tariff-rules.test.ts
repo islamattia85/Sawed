@@ -194,3 +194,30 @@ describe('pending price change (announced but not yet effective)', () => {
     expect(annualCost(sim, flat).outlook_extra).toBe(0);
   });
 });
+
+describe('band-specific price change', () => {
+  const cons = new Float32Array(HOURS_IN_YEAR).fill(0.5);
+  const bandPlan: Tariff = {
+    id: 'DN2', supplier: 'Energia', plan: 'Smart Data', type: 'tou', standing: 265,
+    rates: { day: 0.30, night: 0.17 }, windows: { night: [23, 8] },
+    price_change: {
+      effective_date: '2026-10-12', pct: 0.03,
+      pct_bands: { night: 0.28 }, standing_pct: 0.05,
+    },
+  };
+
+  it('applies each band its own rise, not a flat average', () => {
+    const asOf = new Date('2026-09-15T00:00:00Z');
+    const sim = simulateBaseline(bandPlan, cons);
+    const ac = annualCost(sim, bandPlan, asOf);
+    // Night hours (23-08 = 9h/day) cost less per kWh but rise 28%; day hours
+    // (15h) rise 3%. The blended energy rise must sit between 3% and 28%.
+    const w = pendingWeight(bandPlan, asOf);
+    const energy = sumF(sim.cost);
+    const impliedRise = ac.outlook_extra / w - bandPlan.standing * 0.05;
+    const impliedPct = impliedRise / energy;
+    expect(impliedPct).toBeGreaterThan(0.03);
+    expect(impliedPct).toBeLessThan(0.28);
+    expect(ac.outlook_extra).toBeGreaterThan(0);
+  });
+});

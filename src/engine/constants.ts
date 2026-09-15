@@ -62,8 +62,15 @@ export type HourWindow = readonly [number, number];
 export interface PriceChange {
   /** ISO date the new rates take effect. */
   effective_date: string;
-  /** Fractional change to unit rates, e.g. 0.07 for +7%. Signed. */
+  /**
+   * Fractional change to unit rates, e.g. 0.07 for +7%. Signed. Applied to
+   * every band unless `pct_bands` overrides per band. Irish increases are
+   * rarely uniform — a night rate can jump 28% while the day rate moves 3% —
+   * so a plan whose value is its cheap night band should carry `pct_bands`.
+   */
   pct: number;
+  /** Per-band fractional change, overriding `pct` for the bands it names. */
+  pct_bands?: Partial<Record<Band, number>>;
   /** Fractional change to the standing charge, if separately announced. */
   standing_pct?: number;
   direction?: 'increase' | 'decrease';
