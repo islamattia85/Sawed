@@ -131,6 +131,8 @@ test('the app names its version, not just its build', async ({ page }) => {
     return el ? el.textContent.trim() : null;
   });
   expect(stamp, 'the More screen no longer prints a build stamp at all').toBeTruthy();
+  // A prerelease line (6.0.0-beta.1) still names its major version, which is the
+  // whole point of the stamp — so the suffix is allowed, not the absence of one.
   expect(stamp, 'the build stamp does not say which major version this is')
-    .toMatch(/^v\d+\.\d+\.\d+ · build \S+$/);
+    .toMatch(/^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)? · build \S+$/);
 });

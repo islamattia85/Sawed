@@ -10202,7 +10202,9 @@ function renderApp(){
     // buttons are inert, so send the user somewhere that works rather than
     // rendering a screen where nothing responds.
     if (!sbInitialized()){
-      state.current_screen = state.onboarding_complete ? 'result' : 'welcome';
+      // Same V6 rule as the first-run branch below: a reader with no answer yet
+      // goes to the question, not to a pitch.
+      state.current_screen = state.onboarding_complete ? 'result' : 'fastpath';
       saveState();
       return renderApp();
     }
