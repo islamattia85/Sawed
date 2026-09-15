@@ -134,6 +134,16 @@ def build() -> list:
         if t.get("id") == "__meta__":
             continue
         if (t.get("supplier"), t.get("type")) not in covered:
+            # A carried-over plan was NOT in today's harvest, so it genuinely was
+            # not re-checked. If its supplier's other plans were refreshed today
+            # it now lags them, and a lagging plan has to admit it is unverified
+            # (the freshness test enforces exactly this). Mark it unless it
+            # already says UNVERIFIED or DISPUTED.
+            note = t.get("notes", "")
+            if not re.search(r"\b(UNVERIFIED|DISPUTED)\b", note):
+                t = {**t, "notes": (note + " UNVERIFIED — not found in today's "
+                                    "catalogue harvest; carried over from the "
+                                    "previous registry.").strip()}
             registry.append(t)
             kept += 1
 
