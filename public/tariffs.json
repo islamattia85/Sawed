@@ -829,5 +829,177 @@
     "export_rate": 0.195,
     "verified_date": "2026-09-15",
     "notes": "Legacy Day/Night meter only — once on smart, you cannot go back. For reference only. Rates from 1 July 2026: 34.12c day / 16.83c night incl VAT with the 16% discount. Standing €328.58."
+  },
+  {
+    "id": "BG-SMART-ALL-DAY-ELECTRICITY",
+    "supplier": "Bord Gáis",
+    "plan": "Smart All Day Electricity",
+    "type": "flat",
+    "rates": {
+      "day": 0.3161,
+      "night": 0.3161,
+      "peak": 0.3161,
+      "ev": 0.3161
+    },
+    "windows": {
+      "ev": null
+    },
+    "standing": 244.76,
+    "exit": 50,
+    "length": 12,
+    "green": true,
+    "export_rate": 0.185,
+    "verified_date": "2026-09-15",
+    "notes": "Harvested 2026-09-15 from the supplier's own plan list. Rates and standing charge are as published; windows and export rate follow Bord Gáis — Smart All Day. Not yet hand-checked against a second source — confirm with the supplier before switching.",
+    "price_change": {
+      "effective_date": "2026-10-09",
+      "pct": 0.091,
+      "standing_pct": 0.072,
+      "direction": "increase",
+      "source": "Bord Gais price announcement, 9 Sep 2026",
+      "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."
+    }
+  },
+  {
+    "id": "BG-STANDARD-VARIABLE-SMART-ALL-DAY-ELECTRICITY",
+    "supplier": "Bord Gáis",
+    "plan": "Standard Variable Smart All Day Electricity",
+    "type": "flat",
+    "rates": {
+      "day": 0.4159,
+      "night": 0.4159,
+      "peak": 0.4159,
+      "ev": 0.4159
+    },
+    "windows": {
+      "ev": null
+    },
+    "standing": 244.76,
+    "exit": 50,
+    "length": 12,
+    "green": true,
+    "export_rate": 0.185,
+    "verified_date": "2026-09-15",
+    "notes": "Harvested 2026-09-15 from the supplier's own plan list. Rates and standing charge are as published; windows and export rate follow Bord Gáis — Smart All Day. Not yet hand-checked against a second source — confirm with the supplier before switching.",
+    "price_change": {
+      "effective_date": "2026-10-09",
+      "pct": 0.091,
+      "standing_pct": 0.072,
+      "direction": "increase",
+      "source": "Bord Gais price announcement, 9 Sep 2026",
+      "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."
+    }
+  },
+  {
+    "id": "BG-SMART-STANDARD-GREEN-ELECTRICITY-ONLY",
+    "supplier": "Bord Gáis",
+    "plan": "Smart Standard Green Electricity Only",
+    "type": "tou",
+    "rates": {
+      "day": 0.3378,
+      "night": 0.2493,
+      "peak": 0.4112,
+      "ev": 0.2493
+    },
+    "windows": {
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
+    "standing": 244.76,
+    "exit": 50,
+    "length": 12,
+    "green": true,
+    "export_rate": 0.185,
+    "verified_date": "2026-09-15",
+    "notes": "Harvested 2026-09-15 from the supplier's own plan list. Rates and standing charge are as published; windows and export rate follow Bord Gáis — Smart Standard Electricity. Not yet hand-checked against a second source — confirm with the supplier before switching.",
+    "price_change": {
+      "effective_date": "2026-10-09",
+      "pct": 0.091,
+      "standing_pct": 0.072,
+      "direction": "increase",
+      "source": "Bord Gais price announcement, 9 Sep 2026",
+      "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."
+    }
+  },
+  {
+    "id": "EN-SMART-DAY-NIGHT",
+    "supplier": "Energia",
+    "plan": "Smart Day/Night",
+    "type": "tou",
+    "rates": {
+      "day": 0.3519,
+      "night": 0.1734,
+      "peak": 0.3519,
+      "ev": 0.1734
+    },
+    "windows": {
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
+    "standing": 265.01,
+    "exit": 50,
+    "length": 12,
+    "green": true,
+    "export_rate": 0.185,
+    "verified_date": "2026-09-15",
+    "notes": "Harvested 2026-09-15 from the supplier's own plan list. Rates and standing charge are as published; windows and export rate follow Energia — Smart Data. Not yet hand-checked against a second source — confirm with the supplier before switching.",
+    "price_change": {
+      "effective_date": "2026-10-12",
+      "pct": 0.03,
+      "pct_bands": {
+        "day": 0.03,
+        "night": 0.28,
+        "peak": 0.05,
+        "ev": 0.28
+      },
+      "standing_pct": 0.05,
+      "direction": "increase",
+      "source": "energia.ie price notice, announced Sep 2026",
+      "note": "Energia rates rise 12 Oct 2026: night ~+28%, day ~+3%, peak ~+5%, standing +5%."
+    }
+  },
+  {
+    "id": "EN-SMART-24-HOUR",
+    "supplier": "Energia",
+    "plan": "Smart 24 Hour",
+    "type": "flat",
+    "rates": {
+      "day": 0.281,
+      "night": 0.281,
+      "peak": 0.281,
+      "ev": 0.281
+    },
+    "windows": {
+      "ev": null
+    },
+    "standing": 265.01,
+    "exit": 50,
+    "length": 12,
+    "green": true,
+    "export_rate": 0.185,
+    "verified_date": "2026-09-15",
+    "notes": "Harvested 2026-09-15 from the supplier's own plan list. Rates and standing charge are as published; windows and export rate follow Energia — Standard 24hr. Not yet hand-checked against a second source — confirm with the supplier before switching.",
+    "price_change": {
+      "effective_date": "2026-10-12",
+      "pct": 0.03,
+      "standing_pct": 0.05,
+      "direction": "increase",
+      "source": "energia.ie price notice, announced Sep 2026",
+      "note": "Energia rates rise 12 Oct 2026: night ~+28%, day ~+3%, peak ~+5%, standing +5%."
+    }
   }
 ]
