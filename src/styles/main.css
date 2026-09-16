@@ -318,6 +318,11 @@
   .price-change-note{display:flex;align-items:flex-start;gap:8px;width:100%;padding:11px 14px;margin-bottom:14px;background:var(--surface);border:1px solid var(--amber);border-radius:var(--radius-lg);font-size:13px;line-height:1.5;color:var(--ink)}
   .price-change-note .fresh-dot{background:var(--amber);margin-top:5px}
 
+  /* The surface's siblings, at the top of the screen they belong to. */
+  .surface-strip{display:flex;gap:4px;padding:4px;margin-bottom:14px;background:var(--well);border:1px solid var(--line);border-radius:999px}
+  .surface-seg{flex:1 1 0;min-width:0;padding:8px 10px;border:0;background:transparent;border-radius:999px;font-family:var(--display);font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .surface-seg.active{background:var(--surface);color:var(--ink);box-shadow:var(--lift)}
+
   /* V6 data objects — a shape where a paragraph used to be. The figures are
      not removed, they move into the key beside the drawing. */
   .v6-object{margin-bottom:14px;padding:14px;background:var(--surface);border:1px solid var(--hair);border-radius:var(--radius-lg)}

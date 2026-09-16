@@ -9758,8 +9758,9 @@ function renderMore(){
     ['Tools', [
       [ic('clip',19),'Audit an installer quote','Objective check against 2026 Irish market prices','auditor'],
       [ic('scales',19),'My saved quotes', nQuotes ? nQuotes + ' quote' + (nQuotes === 1 ? '' : 's') + ' saved — compare side by side' : 'Save installer quotes and compare them side by side','quotes'],
-      [ic('chart',19),'Engine details & hourly flows','Day inspector · monthly bars · annual production/use/export','analytics'],
-      [ic('layers',19),'Compare scenarios','Save configurations and compare them side by side','compare'],
+      // Hourly flows and scenario comparison moved to the surfaces they
+      // belong to — Simulate and Explore — so they are one tap from the thing
+      // they are about rather than filed in a list of tools.
     ]],
     ['Understand the numbers', [
       [ic('flask',19),'Methodology','Data sources & how the engine works','methodology'],
@@ -10063,18 +10064,60 @@ function fastPathGo(){
   showToast('Here\u2019s your result — refine anything in Settings', { type:'accent', icon:ic('checkC',16) });
 }
 
+/**
+ * Four surfaces, not fifteen destinations.
+ *
+ * The app had five tabs and nine more screens filed under "More", so anything
+ * that was not one of the five was somewhere in a list — Analytics and Monitor
+ * included, though both are the same kind of thing as Solar. A reader looking
+ * for their hourly flows had to know they lived under More → Tools.
+ *
+ * Every screen keeps its id, so links, history and tests are unaffected. What
+ * changes is where the reader is told they are: each screen belongs to one of
+ * four surfaces, that surface's tab stays lit, and the surface's siblings sit
+ * on a strip at the top of the screen instead of two taps away in a list.
+ */
+const SURFACES = [
+  { id: 'result', icon: 'home',  label: 'Answer',
+    screens: ['result'] },
+  { id: 'plans',  icon: 'plans', label: 'Explore',
+    screens: ['plans', 'plan-detail', 'compare'],
+    strip: [['plans', 'Plans'], ['compare', 'Compare']] },
+  { id: 'solar',  icon: 'sun',   label: 'Simulate',
+    screens: ['solar', 'analytics', 'monitor'],
+    strip: [['solar', 'Solar'], ['analytics', 'Hourly'], ['monitor', 'Market']] },
+  { id: 'more',   icon: 'grid',  label: 'Tools',
+    screens: ['more', 'refine', 'csv-import', 'auditor', 'quotes',
+      'methodology', 'independence', 'how-to-switch'] },
+];
+
+/** The surface a screen belongs to, or null for the screens outside the shell. */
+function surfaceOf(screen){
+  return SURFACES.find(s => s.screens.includes(screen)) || null;
+}
+
+/**
+ * The siblings of the current screen, as a segmented control.
+ *
+ * Only surfaces with more than one screen get one, and "Tools" is excluded on
+ * purpose: eight segments is a list with extra steps, and More is already a
+ * hub that groups them.
+ */
+function surfaceStrip(screen){
+  const surface = surfaceOf(screen);
+  if (!surface || !surface.strip) return '';
+  return `<div class="surface-strip" role="tablist" aria-label="${surface.label}">
+    ${surface.strip.map(([id, label]) => `
+      <button class="surface-seg ${id === screen ? 'active' : ''}" role="tab"
+        aria-selected="${id === screen}" onclick="setScreen('${id}')">${label}</button>
+    `).join('')}
+  </div>`;
+}
+
 function bottomNav(){
-  const cur = state.current_screen;
-  // map sub-screens to their nav home so the right tab stays lit
-  const moreScreens = ['analytics','quotes','auditor','independence','methodology','how-to-switch','refine','csv-import','compare'];
-  const navActive = moreScreens.includes(cur) ? 'more' : cur;
-  const items = [
-    { id:'result',  icon:'home',   label:'Home' },
-    { id:'plans',   icon:'plans',  label:'Plans' },
-    { id:'solar',   icon:'sun',    label:'Solar' },
-    { id:'monitor', icon:'radar',  label:'Monitor' },
-    { id:'more',    icon:'grid',   label:'More' }
-  ];
+  const active = surfaceOf(state.current_screen);
+  const navActive = active ? active.id : state.current_screen;
+  const items = SURFACES;
   return `<nav class="bottom-nav" role="navigation" aria-label="Sections">
     ${items.map(item => `
       <div class="bottom-nav-item ${navActive === item.id ? 'active' : ''}" onclick="setScreen('${item.id}')">
@@ -10509,6 +10552,14 @@ function renderApp(){
 
   root.setAttribute('data-chrome','app');
   root.innerHTML = html;
+  // The surface's siblings ride at the top of the screen body, above whatever
+  // that screen renders. Injected here rather than inside each render function
+  // so a screen never has to know which surface it belongs to.
+  const strip = surfaceStrip(state.current_screen);
+  if (strip){
+    const body = root.querySelector('.screen');
+    if (body) body.insertAdjacentHTML('afterbegin', strip);
+  }
   if (state.current_screen === 'auditor')    bindAuditor();
   if (state.current_screen === 'refine')     bindRefine();
   if (state.current_screen === 'csv-import') bindCsvImport();
