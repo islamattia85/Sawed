@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test --grep-invert @shots",
+    "shots": "playwright test --grep @shots"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",

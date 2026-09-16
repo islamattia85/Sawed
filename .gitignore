@@ -10,3 +10,4 @@ blob-report/
 __pycache__/
 *.pyc
 .pytest_cache/
+screenshots/
