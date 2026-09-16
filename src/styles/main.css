@@ -72,6 +72,11 @@
     --band-day:rgba(255,255,255,.04); --band-night:rgba(41,182,246,.16);
     --band-peak:rgba(255,23,68,.16); --band-ev:rgba(0,230,118,.16);
     --band-wfh:rgba(255,145,0,.14);
+    /* Solid versions, for marks that ARE the colour (bar slices, donut arcs)
+       rather than a wash behind something else. A 4%-alpha white is correct as
+       a background and invisible as a slice. */
+    --bandink-day:#8FA3B8; --bandink-night:#29B6F6; --bandink-peak:#FF5A7A;
+    --bandink-ev:#00E676; --bandink-wfh:#FF9100;
     --surface:linear-gradient(168deg,#151C17 0%,#0F1511 72%);
     --surface-deep:linear-gradient(172deg,#121915 0%,#0C110E 75%);
     --lift:inset 0 1px 0 rgba(255,255,255,.045), 0 16px 32px -24px rgba(0,0,0,.9);
@@ -100,6 +105,8 @@
     --band-day:rgba(12,30,18,.045); --band-night:rgba(2,119,189,.14);
     --band-peak:rgba(211,47,47,.14); --band-ev:rgba(0,163,90,.16);
     --band-wfh:rgba(217,119,6,.14);
+    --bandink-day:#6B7F94; --bandink-night:#0277BD; --bandink-peak:#D32F2F;
+    --bandink-ev:#00A35A; --bandink-wfh:#D97706;
     --surface:linear-gradient(168deg,#FFFFFF 0%,#F8FBF8 78%);
     --surface-deep:linear-gradient(172deg,#FDFEFD 0%,#F3F7F4 80%);
     --lift:inset 0 1px 0 rgba(255,255,255,.9), 0 12px 26px -20px rgba(18,46,30,.30);
@@ -317,6 +324,11 @@
   .fresh-chev{margin-left:auto;color:var(--ink-dim);font-size:17px}
   .price-change-note{display:flex;align-items:flex-start;gap:8px;width:100%;padding:11px 14px;margin-bottom:14px;background:var(--surface);border:1px solid var(--amber);border-radius:var(--radius-lg);font-size:13px;line-height:1.5;color:var(--ink)}
   .price-change-note .fresh-dot{background:var(--amber);margin-top:5px}
+
+  .v6-net{display:grid;grid-template-columns:1fr auto;gap:2px 12px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line-soft);font-size:13px}
+  .v6-net-label{color:var(--ink-soft)}
+  .v6-net-value{font-family:var(--mono);font-weight:700;color:var(--ink);text-align:right}
+  .v6-net-value.is-credit{color:var(--accent)}
 
   /* The surface's siblings, at the top of the screen they belong to. */
   .surface-strip{display:flex;gap:4px;padding:4px;margin-bottom:14px;background:var(--well);border:1px solid var(--line);border-radius:999px}

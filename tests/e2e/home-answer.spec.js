@@ -73,23 +73,39 @@ test('prose is set in the prose face', async ({ page }) => {
   expect(mono, `monospace prose on the home screen: ${mono.join(' | ')}`).toEqual([]);
 });
 
-test('nothing was deleted — the working still holds all of it', async ({ page }) => {
+/**
+ * The rule is that nothing is deleted. It was written when the working panel
+ * was the only place anything could go, so it asserted that everything was in
+ * that one panel — which is why the panel grew to seven cards and became the
+ * thing readers complained about.
+ *
+ * V6 keeps the rule and drops the assumption. Whatever answers "how did you
+ * work that out?" stays on the answer. What asks "what could I do instead?" —
+ * the health score, the night-rate prompt, the EV-versus-petrol sum — moved to
+ * Simulate, which is the surface for exactly that question. So this test now
+ * checks both places: still present, and reachable.
+ */
+test('nothing was deleted — the working and Simulate hold all of it', async ({ page }) => {
   const errors = await boot(page);
 
   // Collapsed by default.
   await expect(page.locator('.plan-compare')).toHaveCount(0);
   await page.locator('.working-toggle').click();
 
-  const text = await page.evaluate(() => document.querySelector('.working-body').innerText);
+  const working = await page.evaluate(() => document.querySelector('.working-body').innerText);
   for (const [what, re] of [
     ['the plan comparison', /Your current plan|Estimated baseline/i],
     ['the savings breakdown', /Total saving/i],
     ['the assumptions', /What this is based on/i],
     ['the working', /How we calculated this/i],
-    ['the health score', /Energy health score/i],
   ]) {
-    expect(text, `${what} is gone, not moved`).toMatch(re);
+    expect(working, `${what} is gone from the answer, not moved`).toMatch(re);
   }
+
+  // …and what left the answer landed on Simulate rather than vanishing.
+  await page.evaluate(() => window.setScreen('solar'));
+  const simulate = await page.evaluate(() => document.body.innerText);
+  expect(simulate, 'the health score is gone, not moved').toMatch(/Energy health score/i);
 
   expect(errors).toEqual([]);
 });

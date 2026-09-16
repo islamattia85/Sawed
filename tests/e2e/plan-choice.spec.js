@@ -280,11 +280,11 @@ test('the report is promoted, and the novelty tile is gone', async ({ page }) =>
 });
 
 test('the health score names its weakest factor instead of just scoring you', async ({ page }) => {
-  const errors = await boot(page);
-  // The score moved behind "Show me the working" — it is context, not the
-  // answer, and a number the reader cannot act on has no claim on the fold.
-  // It still has to name the weakest factor wherever it lives.
-  await page.locator('.working-toggle').click();
+  // The score moved again in V6, from the working panel to Simulate: it
+  // answers "what could I do better?", which is that surface's question, and
+  // on the answer screen it was a card between the reader and one figure. It
+  // still has to name the weakest factor wherever it lives.
+  const errors = await boot(page, { current_screen: 'solar' });
   const card = page.locator('text=Energy health score').locator('..').locator('..');
   await expect(card).toContainText(/Weakest:|Little left on the table/);
   expect(errors).toEqual([]);

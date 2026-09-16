@@ -2506,10 +2506,12 @@ function billSegments(best){
   }
   const segs = Object.keys(byBand)
     .sort((a, b) => byBand[b] - byBand[a])
-    .map(b => ({ label: `${BAND_LABEL[b] || b} electricity`, value: byBand[b], token: `--band-${b}` }));
+    .map(b => ({ label: `${BAND_LABEL[b] || b} electricity`, value: byBand[b], token: `--bandink-${b}` }));
   segs.push({ label: 'Standing charge', value: best.standing, token: '--ink-dim' });
-  const exported = best.export_revenue || 0;
-  if (exported > 0) segs.push({ label: 'Export credit', value: exported, token: '--accent' });
+  // Export credit is deliberately NOT a segment. It is money coming back, and
+  // a slice inside the same bar reads as money going out — on a home with a
+  // big array it was the largest block in a chart of costs. It is stated
+  // under the bar instead, where a negative number cannot be misread.
   return segs;
 }
 
@@ -2551,12 +2553,20 @@ function renderBillShape(best){
     <div class="v6-key-item">
       <span class="v6-key-dot" style="background:var(${s.token})"></span>
       <span class="v6-key-label">${s.label}</span>
-      <span class="v6-key-value">${s.label === 'Export credit' ? '−' : ''}${fmtCurrency(Math.round(s.value))}</span>
+      <span class="v6-key-value">${fmtCurrency(Math.round(s.value))}</span>
     </div>`).join('');
+  const gross = segs.reduce((a, s) => a + s.value, 0);
+  const exported = Math.round(best.export_revenue || 0);
   return `<div class="v6-object">
     <div class="v6-object-title">Where the year's money goes — ${best.plan.supplier}</div>
     ${bar}
     <div class="v6-key">${keys}</div>
+    ${exported > 0 ? `<div class="v6-net">
+      <span class="v6-net-label">Export credit</span>
+      <span class="v6-net-value is-credit">−${fmtCurrency(exported)}</span>
+      <span class="v6-net-label">You pay</span>
+      <span class="v6-net-value">${fmtCurrency(Math.round(gross - exported))}</span>
+    </div>` : ''}
   </div>`;
 }
 
@@ -2569,7 +2579,7 @@ function renderDayShape(best){
   const shown = [...new Set(used)];
   const keys = shown.map(b => `
     <div class="v6-key-item">
-      <span class="v6-key-dot" style="background:var(--band-${b})"></span>
+      <span class="v6-key-dot" style="background:var(--bandink-${b})"></span>
       <span class="v6-key-label">${BAND_LABEL[b] || b}</span>
       <span class="v6-key-value">${fmtCent(best.plan.rates[b])}/kWh</span>
     </div>`).join('');
@@ -2577,7 +2587,6 @@ function renderDayShape(best){
     <div class="v6-object-title">Your average day on ${best.plan.supplier}</div>
     ${chart}
     <div class="v6-key">${keys}</div>
-    <div class="v6-object-note">Bars are what the home uses each hour${state.has_solar ? ', green is what the panels make' : ''}. The background is the rate band that hour falls in.</div>
   </div>`;
 }
 
@@ -2611,7 +2620,6 @@ function renderYearShape(s, plan){
       <div class="v6-key-item"><span class="v6-key-label">Dearest day</span><span class="v6-key-value">${analyticsDayLabel(max)} · ${fmtCurrency(days[max])}</span></div>
       <div class="v6-key-item"><span class="v6-key-label">Cheapest day</span><span class="v6-key-value">${analyticsDayLabel(min)} · ${fmtCurrency(days[min])}</span></div>
     </div>
-    <div class="v6-object-note">Darker is a dearer day. Import cost less export credit, on this plan.</div>
   </div>`;
 }
 
@@ -2625,7 +2633,7 @@ function renderBandMix(s, plan){
   }
   const slices = Object.keys(byBand)
     .sort((a, b) => byBand[b] - byBand[a])
-    .map(b => ({ label: BAND_LABEL[b] || b, value: byBand[b], token: `--band-${b}` }));
+    .map(b => ({ label: BAND_LABEL[b] || b, value: byBand[b], token: `--bandink-${b}` }));
   const chart = bandDonut({ slices });
   if (!chart) return '';
   const total = slices.reduce((a, x) => a + x.value, 0);
@@ -2638,7 +2646,6 @@ function renderBandMix(s, plan){
   return `<div class="v6-object">
     <div class="v6-object-title">Which band you actually buy in</div>
     <div class="v6-object-split">${chart}<div class="v6-key v6-key-stack">${keys}</div></div>
-    <div class="v6-object-note">A time-of-use plan only pays if the kilowatt-hours land in the cheap band. This is where yours land.</div>
   </div>`;
 }
 
@@ -2655,7 +2662,6 @@ function renderSavingsBreakdown(best, baseCost){
   return `
     <div class="card" style="margin-bottom:14px">
       <div style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:4px">${ic('scales',12,'vertical-align:-2px')} Why this plan wins</div>
-      <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:6px">Same usage, priced hour by hour on both plans. − means cheaper on the new plan.</div>
       ${row('Your home\'s usage on the new rates', b.household)}
       ${state.ev_active ? row(state.ev_in_bill ? 'Your EV charging (night window)' : 'Adding the EV\'s charging', b.ev, evKwh ? evKwh.toLocaleString() + ' kWh in the cheap window' : '') : ''}
       ${row('Standing charge', b.standing)}
@@ -4815,9 +4821,6 @@ function renderEvSavingsCard(best){
 
   return `<div style="margin-top:14px;padding:14px 16px;background:rgba(41,182,246,.06);border:1.5px solid var(--blue);border-radius:12px">
     <div style="font-family:var(--mono);font-size:12px;color:var(--blue);letter-spacing:.08em;text-transform:uppercase;font-weight:700;margin-bottom:4px">${ic('car',12,'vertical-align:-2px')} ${state.ev_in_bill ? 'Your EV vs running a petrol car' : 'If you get the EV — what changes'}</div>
-    <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px">${state.ev_in_bill
-      ? 'This is about the car, not your electricity plan — what driving electric saves you compared to doing the same kilometres in a petrol car. Plan-switching savings are shown separately above.'
-      : 'What your bills would look like with the car, versus fuelling a petrol car for the same kilometres. Separate from plan-switching savings above.'}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
       <div style="padding:10px;background:${state.ev_in_bill ? 'var(--well)' : 'rgba(255,23,68,.06)'};border-radius:8px">
         <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em">${state.ev_in_bill ? 'Charging cost (in your bill)' : 'Electricity added to your bill'}</div>
@@ -5051,7 +5054,6 @@ function renderLogicBreakdown(){
         <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim)">${open?'▴':'▾'}</div>
       </div>
       ${open ? `
-      <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin:8px 0 12px">Exact kWh accounting for the best plan on your home — every number is a simulation output, not a guess.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div style="background:var(--accent-faint);border-radius:8px;padding:10px 12px">
           <div style="font-family:var(--mono);font-size:12px;color:var(--accent);text-transform:uppercase;letter-spacing:.06em">Generated</div>
@@ -5130,9 +5132,6 @@ function renderNightRateCard(best, baseCost){
       ${bestNight.supplier} — ${bestNight.plan} has a <b style="color:var(--ink)">${nightRate}c/kWh night rate</b> vs ${dayRate}c/kWh day.<br>
       Run dishwasher, washing machine &amp; hot water at <b style="color:var(--ink)">2am–8am</b> to capture this saving.
     </div>
-    <button class="btn-secondary" style="margin-top:10px;width:100%;border-color:var(--amber);color:var(--amber)" onclick="setScreen('plans')">
-      See all night-rate plans ranked →
-    </button>
   </div>`;
 }
 
@@ -5254,10 +5253,7 @@ function renderResult(){
         ${renderSavingsBreakdown(best, baseCost)}
         ${renderAssumptions(setupLabel)}
         ${renderTrustPanel()}
-        ${renderLogicBreakdown()}
-        ${renderNightRateCard(best, baseCost)}
-        ${renderEvSavingsCard(best)}
-        ${renderEnergyScore(best, baseCost)}`;
+        ${renderLogicBreakdown()}`;
 
       return `<div class="working">
         <button class="working-toggle" aria-expanded="${open}" onclick="state._home_detail_open=!state._home_detail_open;saveState();renderApp()">
@@ -6391,6 +6387,13 @@ function renderSolarDashboard(){
     `}
 
     <div class="section-title">Get this system installed</div>
+    <!-- Moved off the answer screen. All three are about what this home could
+         do differently, which is what Simulate is for; on the answer they were
+         three more cards between the reader and a single figure. -->
+    ${renderEnergyScore(best, baseCost)}
+    ${renderNightRateCard(best, baseCost)}
+    ${renderEvSavingsCard(best)}
+
     <div class="secondary-card" onclick="openLeadForm()">
       <div class="secondary-card-icon">${ic('home',19)}</div>
       <div class="secondary-card-body">
@@ -7665,12 +7668,6 @@ function renderAnalytics(){
       </div>
     </div>
 
-    <div style="font-size:13px;color:var(--ink-soft);line-height:1.7;margin:-6px 0 14px;padding:12px 14px;background:rgba(90,156,255,.04);border:1px solid rgba(90,156,255,.15);border-radius:var(--radius-md)">
-      <b style="color:var(--blue);text-transform:uppercase;letter-spacing:.1em;font-size:12px">How to read these</b> · same kWh, two lenses.<br>
-      <span style="color:var(--accent)">${(solarUtilization*100).toFixed(0)}% kept at home</span> = share of <b>generation</b> used on-site (rest exported).
-      <span style="color:var(--blue)">${(demandFromSolar*100).toFixed(0)}% of your needs met by solar</span> = share of <b>demand</b> covered by your own panels.
-    </div>
-
     ${renderYearShape(s, plan)}
     ${renderBandMix(s, plan)}
 
@@ -7927,9 +7924,7 @@ function renderAnalytics(){
       </div>
     </div>
 
-    <p class="disclaimer">
-      <b>How to read.</b> Each chart shows what your system would do on the selected day at the selected plan. Per-hour numbers are simulated — actual will vary ±5-8% with weather. The day total uses real tariff bands; for dynamic plans we use the modeled SEMOpx curve.
-    </p>
+    <p class="disclaimer">Simulated, not metered — hourly figures vary ±5–8% with the weather.</p>
   </div>
   ${bottomNav()}`;
 }
