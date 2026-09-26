@@ -1348,10 +1348,10 @@ const EMBEDDED_TARIFFS = [
     supplier:"Electric Ireland",
     plan:"Home Electric+ 24hr",
     type:"flat",
-    rates:{day:0.3055, night:0.3055, peak:0.3055, ev:0.3055},
+    rates:{day:0.313, night:0.313, peak:0.313, ev:0.313},
     windows:{ ev:null },
     standing:250.77, exit:50, length:12, green:false, export_rate:0.195,
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"Rates from 1 July 2026 (Electric Ireland raised unit rates 9.5%). Flat 29.81c incl VAT with the 20% Saver new-customer discount. Urban standing charge \u20ac250.77 (rural \u20ac314.98). CEG 19.5c. Cross-checked against two independent published rate tables."
   },
   {
@@ -1363,7 +1363,7 @@ const EMBEDDED_TARIFFS = [
     windows:{ ev:null },
     standing:255.29, exit:50, length:12, green:true, export_rate:0.185,
     price_change:{"effective_date": "2026-10-12", "pct": 0.02, "standing_pct": 0.05, "direction": "increase", "source": "energia.ie price notice, announced Sep 2026", "note": "Energia 24hr unit rate +2%, standing +5% from 12 Oct 2026."},
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"VERIFIED 25 Aug 2026 \u2014 energia.ie/about-energia/our-tariffs (price list effective 1 May 2026) and one independent rate table agree: 42.65c undiscounted, 29.86c with the 30% new-customer discount. Standing \u20ac265.01 urban (\u20ac337.02 rural). CEG 18.5c."
   },
   {
@@ -1375,7 +1375,7 @@ const EMBEDDED_TARIFFS = [
     windows:{ ev:null },
     standing:244.76, exit:50, length:12, green:true, export_rate:0.185,
     price_change:{"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "Bord Gais price announcement, 9 Sep 2026", "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."},
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"VERIFIED 25 Aug 2026 direct from bordgaisenergy.ie/home/ev-plan-comparison. Flat 30.78c with the 26% new-customer discount. Standing \u20ac244.76. CEG 18.5c."
   },
   {
@@ -1386,7 +1386,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.2879, night:0.2879, peak:0.2879, ev:0.2879},
     windows:{ ev:null },
     standing:263.86, exit:50, length:12, green:true, export_rate:0.195,
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"Rates below are from the SSE PDF 1YR-ELEC-FIXED-V5 (DD & eBill column), checked 2 June 2026. DISPUTED as of 25 Aug 2026: a published rate table gives SSE's 1 Year Home Electricity 25% as 30.85c with a \u20ac264 standing charge, against 31.52c / \u20ac240.97 here. Re-verify against SSE's own price list before relying on this plan."
   },
   {
@@ -1397,7 +1397,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.3485, night:0.3485, peak:0.3485, ev:0.3485},
     windows:{ ev:null },
     standing:219.22, exit:50, length:12, green:false, export_rate:0.1589,
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"Low standing charge. Checked 2 June 2026. DISPUTED as of 25 Aug 2026: a published table gives Yuno's Standard 24hr as 31.33c with a 20c CEG, against 25.24c and 15.89c here \u2014 a 6c gap on the unit rate, large enough to change the ranking. Re-verify against yunoenergy.ie before this plan is recommended."
   },
   {
@@ -1419,7 +1419,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.4177, night:0.3177, peak:0.4472, ev:0.3177},
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:283.47, exit:50, length:12, green:true, export_rate:0.250,
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"VERIFIED 25 Aug 2026 \u2014 Day 41.77c (08-23), Night 31.77c (23-08), Peak 44.72c (17-19). Standing \u20ac283.47 urban. CEG 25c \u2014 the highest export rate in the market, which is why this plan can win for a big array despite expensive import."
   },
   {
@@ -1433,7 +1433,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.4177, wfh:0.2924, night:0.4177, peak:0.4177, ev:0.4177},
     windows:{ peak:null, night:null, ev:null, wfh:[9,17] },
     standing:283.47, exit:50, length:12, green:true, export_rate:0.250,
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"Flat 41.77c outside the window, 29.24c between 09:00 and 17:00. Standing \u20ac283.47. CEG 25c. UNVERIFIED as of 25 Aug 2026 \u2014 only Pinergy's Standard Smart Tariff appears on published rate tables; re-check this one against pinergy.ie."
   },
   {
@@ -1444,7 +1444,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.4177, night:0.2506, peak:0.4177, ev:0.4177},
     windows:{ peak:null, night:[19,24], ev:null },
     standing:283.47, exit:50, length:12, green:true, export_rate:0.250,
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"Flat 41.77c outside the window, 25.06c between 19:00 and midnight. Standing \u20ac283.47. CEG 25c. UNVERIFIED as of 25 Aug 2026 \u2014 only Pinergy's Standard Smart Tariff appears on published rate tables; re-check this one against pinergy.ie."
   },
 
@@ -1454,10 +1454,10 @@ const EMBEDDED_TARIFFS = [
     supplier:"Electric Ireland",
     plan:"Home Electric+ SST",
     type:"tou",
-    rates:{day:0.3243, night:0.1704, peak:0.346, ev:0.1704},
+    rates:{day:0.3405, night:0.1704, peak:0.346, ev:0.1704},
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:250.77, exit:50, length:12, green:false, export_rate:0.195,
-    verified_date:"2026-08-25",
+    verified_date:"2026-09-26",
     notes:"Rates from 1 July 2026. Undiscounted 40.54c day / 21.30c night / 43.25c peak incl VAT; shown here with the 20% Saver new-customer discount. Day 08-17 & 19-23, Peak 17-19, Night 23-08. Urban standing \u20ac250.77. CEG 19.5c. Cross-checked against two independent published rate tables. UNVERIFIED as of 15 Sep 2026 — not re-read in today’s scrape while its Electric Ireland siblings were; re-verify against electricireland.ie."
   },
   {
@@ -1469,7 +1469,7 @@ const EMBEDDED_TARIFFS = [
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:265.01, exit:50, length:12, green:true, export_rate:0.185,
     price_change:{"effective_date": "2026-10-12", "pct": 0.03, "pct_bands": {"day": 0.03, "night": 0.28, "peak": 0.05, "ev": 0.28}, "standing_pct": 0.05, "direction": "increase", "source": "energia.ie price notice, announced Sep 2026", "note": "Energia rates rise 12 Oct 2026: night ~+28%, day ~+3%, peak ~+5%, standing +5%."},
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"VERIFIED 25 Aug 2026 \u2014 the \"Smart Data 27%\" tier: Day 30.75c, Night 16.91c (23-08), Peak 34.54c (17-19), all incl VAT. Standing \u20ac265.01 urban. CEG 18.5c. Energia's published list is still the 1 May 2026 one."
   },
   {
@@ -1481,7 +1481,7 @@ const EMBEDDED_TARIFFS = [
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:244.76, exit:50, length:12, green:true, export_rate:0.185,
     price_change:{"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "Bord Gais price announcement, 9 Sep 2026", "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."},
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"VERIFIED 25 Aug 2026 direct from bordgaisenergy.ie/home/ev-plan-comparison. Day 32.89c (08-23 excl peak), Peak 40.04c (17-19), Night 24.28c (23-08), all with the 26% new-customer discount. Standing \u20ac244.76. CEG 18.5c. NOTE: the 26 July automated scrape wrote the EV plan's 35.23c day rate onto this plan \u2014 32.89c is the published figure."
   },
   {
@@ -1492,7 +1492,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.3047, night:0.1958, peak:0.3412, ev:0.1958},
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:263.86, exit:50, length:12, green:true, export_rate:0.195,
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"Checked 2 June 2026. DISPUTED as of 25 Aug 2026: a published rate table gives SSE's 1 Year Smart 25% as 32.65c day / 20.98c night / 36.56c peak with a \u20ac264 standing charge, against 33.20 / 20.96 / 40.10 and \u20ac302.48 here \u2014 the peak rate differs by 3.5c. Re-verify against SSE's own price list."
   },
   {
@@ -1503,7 +1503,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.2998, night:0.1645, peak:0.3499, ev:0.1645},
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:219.22, exit:50, length:12, green:false, export_rate:0.1589,
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"Low standing charge. Checked 2 June 2026. CEG was due to rise to 17.16c on 1 July 2026 and the 15.89c below predates that. UNVERIFIED since Yuno's 24hr plan was disputed on 25 Aug 2026 \u2014 re-verify the whole Yuno range."
   },
   {
@@ -1529,7 +1529,7 @@ const EMBEDDED_TARIFFS = [
     standing:283.47, exit:50, length:12, green:true, export_rate:0.250,
     discontinued: true,
     discontinued_date: "2026-05-21",
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"Flat 41.77c outside the window, 5.99c between 02:00 and 05:00 \u2014 the cheapest EV window in the market. Standing \u20ac283.47. CEG 25c. UNVERIFIED as of 25 Aug 2026 \u2014 only Pinergy's Standard Smart Tariff appears on published rate tables; re-check this one against pinergy.ie."
   },
   {
@@ -1540,7 +1540,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.364, night:0.1854, peak:0.376, ev:0.1088},
     windows:{ ev:[2,4], night:[23,8], peak:null },
     standing:250.77, exit:50, length:12, green:false, export_rate:0.195,
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"VERIFIED from electricireland.ie/residential/electricity-and-gas/ev-night-boost. Day (08-23) 37.60c, Night (23-08) 18.54c, Boost (02-04) 10.88c \u2014 all incl VAT and the 5.5% discount. Urban standing \u20ac250.77. CEG 19.5c."
   },
   {
@@ -1552,7 +1552,7 @@ const EMBEDDED_TARIFFS = [
     windows:{ ev:[2,6], peak:null, night:null },
     standing:265.01, exit:50, length:12, green:true, export_rate:0.185,
     price_change:{"effective_date": "2026-10-12", "pct": 0.05, "standing_pct": 0.28, "direction": "increase", "source": "energia.ie price notice, announced Sep 2026", "note": "Energia raises rates from 12 Oct 2026; EV-tariff standing charge +28%. Unit rate change estimated — confirm with Energia."},
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"VERIFIED 25 Aug 2026 \u2014 the \"EV Smart Drive 10%\" tier: Day 40.16c, EV 9.42c (02-06). Standing \u20ac265.01 urban. CEG 18.5c."
   },
   {
@@ -1575,7 +1575,7 @@ const EMBEDDED_TARIFFS = [
     windows:{ ev:[2,5], peak:[17,19], night:[23,8] },
     standing:364.89, exit:50, length:12, green:true, export_rate:0.185,
     price_change:{"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "Bord Gais price announcement, 9 Sep 2026", "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."},
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"Rates last checked 25 Aug 2026 from bordgaisenergy.ie/home/ev-plan-comparison. Day 35.23c (08-23 excl peak), Peak 49.14c (17-19), Night 26.57c (23-08), EV 8.98c (02-05), with the 15% new-customer discount. Standing €364.89 — €120 higher than BG's other plans. CEG 18.5c. UNVERIFIED as of 14 Sep 2026 — the scraper cannot read this plan’s overnight EV rate from Bord Gáis’s plan feed, so it is not re-checked when its siblings are; re-verify by hand."
   },
   {
@@ -1586,7 +1586,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.3858, night:0.3858, peak:0.3858, ev:0.1386},
     windows:{ ev:[23,5], peak:null, night:null },
     standing:357.23, exit:50, length:12, green:true, export_rate:0.195,
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"2-band only: 18h rate 33.76c (5am-11pm) + 6h EV rate 12.13c (11pm-5am). 30% new customer discount, valid from 31 Oct 2025. Standing \u20ac357.23 (higher than other SSE plans). CEG 19.5c. Verified 2 June 2026 from sseairtricity.com/assets/Tariffs/ROI/Current/1YR-ELEC-30-EVMax.pdf. UNVERIFIED since SSE's other plans were disputed on 25 Aug 2026 \u2014 re-check the PDF."
   },
   {
@@ -1597,7 +1597,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.3245, night:0.2099, peak:0.3845, ev:0.1079},
     windows:{ ev:[2,6], peak:[17,19], night:[23,8] },
     standing:219.22, exit:50, length:12, green:false, export_rate:0.1589,
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"Checked 2 June 2026. UNVERIFIED since Yuno's 24hr plan was disputed on 25 Aug 2026 \u2014 re-verify the whole Yuno range, including the CEG rate."
   },
 
@@ -1610,7 +1610,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.3412, night:0.1683, peak:0.3412, ev:0.1683},
     windows:{ peak:null, night:[23,8], ev:null },
     standing:328.58, exit:50, length:12, green:false, export_rate:0.195,
-    verified_date:"2026-09-15",
+    verified_date:"2026-09-26",
     notes:"Legacy Day/Night meter only \u2014 once on smart, you cannot go back. For reference only. Rates from 1 July 2026: 34.12c day / 16.83c night incl VAT with the 16% discount. Standing \u20ac328.58."
   }
 ];
