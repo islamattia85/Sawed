@@ -1348,11 +1348,11 @@ const EMBEDDED_TARIFFS = [
     supplier:"Electric Ireland",
     plan:"Home Electric+ 24hr",
     type:"flat",
-    rates:{day:0.313, night:0.313, peak:0.313, ev:0.313},
+    rates:{day:0.3055, night:0.3055, peak:0.3055, ev:0.3055},
     windows:{ ev:null },
     standing:250.77, exit:50, length:12, green:false, export_rate:0.195,
     verified_date:"2026-09-27",
-    notes:"Rates from 1 July 2026 (Electric Ireland raised unit rates 9.5%). Flat 29.81c incl VAT with the 20% Saver new-customer discount. Urban standing charge \u20ac250.77 (rural \u20ac314.98). CEG 19.5c. Cross-checked against two independent published rate tables."
+    notes:"Rates from 1 July 2026 (Electric Ireland raised unit rates 9.5%). Flat 29.81c incl VAT with the 20% Saver new-customer discount. Urban standing charge \u20ac250.77 (rural \u20ac314.98). CEG 19.5c. Cross-checked against two independent published rate tables. DISPUTED as of 28 Sep 2026: the 27 Sep scrape read 31.30c, but published sources still give 29.81c (38.04c undiscounted, from 1 July) and neither matches the 30.55c here. Rate held pending a check against electricireland.ie."
   },
   {
     id:"EN-24",
@@ -1454,11 +1454,11 @@ const EMBEDDED_TARIFFS = [
     supplier:"Electric Ireland",
     plan:"Home Electric+ SST",
     type:"tou",
-    rates:{day:0.3405, night:0.1704, peak:0.346, ev:0.1704},
+    rates:{day:0.3243, night:0.1704, peak:0.346, ev:0.1704},
     windows:{ peak:[17,19], night:[23,8], ev:null },
     standing:250.77, exit:50, length:12, green:false, export_rate:0.195,
     verified_date:"2026-09-27",
-    notes:"Rates from 1 July 2026. Undiscounted 40.54c day / 21.30c night / 43.25c peak incl VAT; shown here with the 20% Saver new-customer discount. Day 08-17 & 19-23, Peak 17-19, Night 23-08. Urban standing \u20ac250.77. CEG 19.5c. Cross-checked against two independent published rate tables. UNVERIFIED as of 15 Sep 2026 — not re-read in today’s scrape while its Electric Ireland siblings were; re-verify against electricireland.ie."
+    notes:"Rates from 1 July 2026. Undiscounted 40.54c day / 21.30c night / 43.25c peak incl VAT; shown here with the 20% Saver new-customer discount. Day 08-17 & 19-23, Peak 17-19, Night 23-08. Urban standing \u20ac250.77. CEG 19.5c. Cross-checked against two independent published rate tables. DISPUTED as of 28 Sep 2026: the 27 Sep scrape read the day rate as 34.05c (night and peak unchanged), which would put day within 0.6c of peak. Day rate held at 32.43c pending a check against electricireland.ie."
   },
   {
     id:"EN-SMART",
