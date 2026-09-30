@@ -96,7 +96,7 @@ export function createV7(api) {
       <span class="v7-switch-ico">${api.ic('sun', 18)}</span>
       <span class="v7-switch-text"><b>Include solar</b><small>${on
         ? `${api.totalPanels()} panels · ${api.totalKwp().toFixed(1)} kWp${S().battery_kwh > 0 ? ` · ${S().battery_kwh} kWh battery` : ''}`
-        : 'Left out — your system is kept'}</small></span>
+        : api.hasModelledSystem() ? 'Left out — your system is kept' : 'Not modelled — switch on to estimate one'}</small></span>
       <span class="v7-switch ${on ? 'on' : ''}" aria-hidden="true"><i></i></span>
     </button>`;
   }
@@ -446,8 +446,8 @@ export function createV7(api) {
       </section>`
       : `<section class="v7-hero v7-solar-hero">
         <div class="v7-eyebrow">Solar</div>
-        <div class="v7-headline">${api.totalPanels() ? 'Solar is left out of every figure. Switch it back on above — your system is kept.' : 'No panels are in the model yet.'}</div>
-        ${api.totalPanels() ? '' : `<button class="switch-cta v7-cta" onclick="exploreSolar()">Model a system for this roof ${api.ic('chevR', 18)}</button>`}
+        <div class="v7-headline">${api.hasModelledSystem() ? 'Solar is left out of every figure. Switch it back on above — your system is kept.' : 'No solar is modelled for this home, so every figure is without panels.'}</div>
+        ${api.hasModelledSystem() ? '' : `<button class="switch-cta v7-cta" onclick="exploreSolar()">Model a system for this roof ${api.ic('chevR', 18)}</button>`}
       </section>`;
 
     const score = api.computeEnergyScore(best, baseCost);

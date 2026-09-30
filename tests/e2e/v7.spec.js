@@ -165,3 +165,22 @@ test('the same switch is at the top of the Solar screen', async ({ page }) => {
   await page.getByRole('switch', { name: /Include solar/ }).click();
   await expect(page.locator('.v7-solar-hero .qr-value')).toContainText(/yr payback/);
 });
+
+test('opening Solar with no solar models nothing', async ({ page }) => {
+  // It used to build an estimated array the moment the tab opened, so a home
+  // that had said "no solar" found panels switched on — and every figure on
+  // Home changed — just for looking.
+  const errors = await boot(page, { has_solar: false, considering_solar: false, battery_kwh: 0 });
+  const before = await page.evaluate(() => window.getRecommendation().annualSavings);
+
+  await page.getByRole('button', { name: /^Solar$/ }).click();
+  await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('solar');
+  expect(await page.evaluate(() => [window.state.has_solar, !!window.state.considering_solar]))
+    .toEqual([false, false]);
+  await expect(page.locator('.v7-solar-hero')).toContainText(/No solar is modelled/);
+  await expect(page.getByRole('switch', { name: /Include solar/ })).toContainText(/Not modelled/);
+
+  await page.evaluate(() => window.setScreen('result'));
+  expect(await page.evaluate(() => window.getRecommendation().annualSavings)).toBe(before);
+  expect(errors).toEqual([]);
+});

@@ -17,12 +17,24 @@ import { boot } from './support.js';
  * So: no question, no gate, no modes. The screen lands on a working answer and
  * gives one quiet sentence for anyone we guessed wrong about.
  *
+ * V7 changed one thing, at the owner's request: for a home with no solar, the
+ * tab no longer models a system by itself. Doing it just for looking switched
+ * panels on and changed every figure on Home. The estimate now arrives on one
+ * explicit tap — "Model a system for this roof" — and everything above still
+ * holds from that tap onwards.
+ *
  * It also no longer offers a different system. A suggested spec sitting beside
  * the reader's own turned "is this worth it" into a comparison they had not
  * asked for, and made it hard to tell which figures described which system.
  * That belongs where someone has already decided to change the spec, so it
  * lives on the customise screen.
  */
+
+/** Open Solar on a home without panels and ask for an estimate, as a reader would. */
+async function modelFromNothing(page) {
+  await page.evaluate(() => window.setScreen('solar'));
+  await page.getByRole('button', { name: /Model a system for this roof/ }).click();
+}
 
 const NO_SOLAR = {
   has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0,
@@ -31,7 +43,7 @@ const NO_SOLAR = {
 
 test('the tab lands on an answer, with nothing to choose or unlock first', async ({ page }) => {
   const errors = await boot(page, NO_SOLAR);
-  await page.evaluate(() => window.setScreen('solar'));
+  await modelFromNothing(page);
 
   // A number, immediately.
   await expect(page.locator('.qr-value')).toContainText(/yr payback/);
@@ -50,8 +62,9 @@ test('the tab lands on an answer, with nothing to choose or unlock first', async
 test('the answer is not blocked by the twelve-design sweep', async ({ page }) => {
   const errors = await boot(page, NO_SOLAR);
 
-  const started = Date.now();
   await page.evaluate(() => window.setScreen('solar'));
+  const started = Date.now();
+  await page.getByRole('button', { name: /Model a system for this roof/ }).click();
   await expect(page.locator('.qr-value')).toContainText(/yr payback/);
   const elapsed = Date.now() - started;
 
@@ -161,7 +174,7 @@ test('the recommendation is a single defensible pick, and applying it works', as
 
 test('correcting our guess is a sentence, not a gate', async ({ page }) => {
   const errors = await boot(page, NO_SOLAR);
-  await page.evaluate(() => window.setScreen('solar'));
+  await modelFromNothing(page);
 
   const correct = page.locator('.solar-correct');
   await expect(correct).toBeVisible();

@@ -9966,6 +9966,7 @@ const V7 = createV7({
   annualKwh: v7AnnualKwh, setupLabel: v7SetupLabel,
   plansData: v7PlansData, solarData: v7SolarData, monthlyTotals: v7MonthlyTotals,
   renderResultEmpty: v7ResultEmpty,
+  hasModelledSystem: v7HasModelledSystem,
   // What a plan costs this home as simulated — solar, battery and EV included.
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
   renderSolarBody: (part) => renderSolarDashboard({ bodyOnly: part || true }),
@@ -9985,23 +9986,29 @@ const V7 = createV7({
  * alone. So "off" is a what-if, not a deletion: turning it back on restores
  * the same system, not an estimate.
  */
+/** True once a system has actually been modelled — not the default placeholder. */
+function v7HasModelledSystem(){ return !!state.considering_solar && totalPanels() > 0; }
+
 function toggleSolarModel(){
   const on = !state.has_solar;
   state.has_solar = on;
-  if (on){
-    state.considering_solar = true;
-    if (!totalPanels()){
-      // Nothing to restore — size a sensible system, as the quick answer does.
-      state.count_A = 10;
-      state.solar_is_estimate = true;
-      applyEstimatedSolarCost();
-    }
+  if (on && !v7HasModelledSystem()){
+    // Nothing of theirs to restore. The panel count sitting in state is the
+    // default placeholder, not a system anyone chose — so size one from usage,
+    // exactly as "Model a system for this roof" does, and say it is estimated.
+    const annualKwh = Object.values(state.bills).reduce((a, b) => a + b, 0);
+    state.count_A = Math.max(6, Math.min(16, Math.round(annualKwh / 450))); state.count_B = 0;
+    state.battery_kwh = annualKwh > 6000 ? 10 : annualKwh > 3500 ? 5 : 0;
+    state.solar_is_estimate = true;
+    applyEstimatedSolarCost();
+    snapshotMySystem();
   }
+  if (on) state.considering_solar = true;
   invalidate();
   saveState();
   renderApp();
   showToast(on
-    ? `Solar back in: ${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ' · ' + state.battery_kwh + ' kWh battery' : ''}`
+    ? `Solar ${state.solar_is_estimate ? 'modelled (estimated)' : 'back in'}: ${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ' · ' + state.battery_kwh + ' kWh battery' : ''}`
     : 'Solar left out — every figure is now without panels. Your system is kept.',
     { type: 'accent', icon: ic('sun', 16) });
 }
@@ -10088,11 +10095,11 @@ function setScreen(name){
     // P1.6: silent revert looked like a glitch — let the user know
     showToast('Back to your system.', { type:'accent', icon:ic('home',16), title:'' });
   }
-  // Solar screen requires user to opt in (so we know the system spec is "real")
-  if (name === 'solar' && !state.considering_solar){
-    exploreSolar();
-    return;
-  }
+  // Opening the Solar tab never models anything by itself. It used to call
+  // exploreSolar() here for anyone without a system, so a reader who had said
+  // "no solar" found an estimated array switched on — and every figure on
+  // Home changed — just for looking. The tab now says there is no system and
+  // offers to model one; nothing happens until they ask.
   state.current_screen = name;
   saveState();
   pushScreenHistory(name);
