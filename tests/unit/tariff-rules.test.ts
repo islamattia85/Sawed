@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   isInWindow, bandAt, rateAt, isFlatPlan, simulateBaseline, annualCost, sumF, WHOLESALE_CAP, pendingWeight,
+  staticRateAt, weekdayOf,
 } from '../../src/engine/tariff-rules.js';
-import { HOURS_IN_YEAR, type Tariff } from '../../src/engine/constants.js';
+import { HOURS_IN_YEAR, PSO_LEVY, type Tariff } from '../../src/engine/constants.js';
 
 const flat: Tariff = {
   id: 'FLAT', supplier: 'Test', plan: '24h', type: 'flat', standing: 250,
@@ -142,13 +143,13 @@ describe('annualCost', () => {
     expect(c.energy_cost).toBeCloseTo(600, 6);
     expect(c.standing).toBe(250);
     expect(c.export_revenue).toBeCloseTo(50, 6);
-    expect(c.net).toBeCloseTo(600 + 250 - 50, 6);
+    expect(c.net).toBeCloseTo(600 + 250 + PSO_LEVY - 50, 6);
   });
 
   it('handles a plan with no export at all', () => {
     const c = annualCost({ cost: sim.cost, revenue: null }, flat);
     expect(c.export_revenue).toBe(0);
-    expect(c.net).toBeCloseTo(850, 6);
+    expect(c.net).toBeCloseTo(850 + PSO_LEVY, 6);
   });
 
   it('can go negative when export revenue exceeds cost plus standing', () => {
@@ -219,5 +220,58 @@ describe('band-specific price change', () => {
     expect(impliedPct).toBeGreaterThan(0.03);
     expect(impliedPct).toBeLessThan(0.28);
     expect(ac.outlook_extra).toBeGreaterThan(0);
+  });
+});
+
+describe('weekend rates', () => {
+  // A plan whose Saturday daytime is free, and one whose whole weekend is half price.
+  const freeSaturday: Tariff = {
+    ...flat, id: 'SAT', weekend: { days: [5], rates: { day: 0 }, window: [8, 23] },
+  };
+  const cheapWeekend: Tariff = {
+    ...dayNight, id: 'WKND', weekend: { days: [5, 6], rates: { day: 0.19, night: 0.09 } },
+  };
+
+  it('knows the calendar: 1 Jan 2026 was a Thursday, 3 Jan a Saturday', () => {
+    expect(weekdayOf(0)).toBe(3);
+    expect(weekdayOf(2 * 24 + 10)).toBe(5);
+    expect(weekdayOf(3 * 24)).toBe(6);
+    expect(weekdayOf(4 * 24)).toBe(0);
+  });
+
+  it('applies the weekend rate only on its days and inside its window', () => {
+    const sat10 = 2 * 24 + 10;
+    expect(staticRateAt(sat10, freeSaturday)).toBe(0);
+    expect(staticRateAt(2 * 24 + 7, freeSaturday)).toBe(0.35);   // before 08:00
+    expect(staticRateAt(3 * 24 + 10, freeSaturday)).toBe(0.35);  // Sunday
+    expect(staticRateAt(10, freeSaturday)).toBe(0.35);           // Thursday
+    expect(staticRateAt(3 * 24 + 2, cheapWeekend)).toBe(0.09);   // Sunday night
+    expect(staticRateAt(1 * 24 + 2, cheapWeekend)).toBe(0.18);   // Friday night
+  });
+
+  it('a free Saturday takes about one day in seven off a flat bill', () => {
+    const cons = new Float32Array(HOURS_IN_YEAR).fill(1);
+    const base = sumF(simulateBaseline(flat, cons).cost);
+    const sat = sumF(simulateBaseline(freeSaturday, cons).cost);
+    // 52 Saturdays in 2026, 15 free hours each
+    expect(base - sat).toBeCloseTo(52 * 15 * 0.35, 1);
+  });
+
+  it('rateAt uses the weekend rate when it knows the hour of the year', () => {
+    expect(rateAt(10, freeSaturday, 2 * 24 + 10)).toBe(0);
+    expect(rateAt(10, freeSaturday)).toBe(0.35);
+  });
+});
+
+describe('weekend span', () => {
+  const halfWeekend: Tariff = {
+    ...dayNight, id: 'SPAN', weekend: { span: [[5, 8], [6, 23]], rates: { day: 0.19, night: 0.09 } },
+  };
+  it('runs from 8am Saturday to 11pm Sunday and no further', () => {
+    const sat = 2 * 24;
+    expect(staticRateAt(sat + 7, halfWeekend)).toBe(0.18);
+    expect(staticRateAt(sat + 8, halfWeekend)).toBe(0.19);
+    expect(staticRateAt(sat + 24 + 22, halfWeekend)).toBe(0.19);
+    expect(staticRateAt(sat + 24 + 23, halfWeekend)).toBe(0.18);
   });
 });

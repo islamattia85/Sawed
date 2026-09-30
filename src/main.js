@@ -7,7 +7,7 @@ import {
 import { npv20 as engineNpv20 } from './engine/npv';
 import { buildReportData, renderReport } from './pdf/index.js';
 import {
-  isInWindow, bandAt, rateAt as engineRateAt, isFlatPlan,
+  isInWindow, bandAt, rateAt as engineRateAt, isFlatPlan, staticRateAt,
   simulateBaseline as engineSimulateBaseline, annualCost, sumF, WHOLESALE_CAP,
 } from './engine/tariff-rules';
 import { moneyBar, dayProfile, paybackCurve, yearRibbon, bandDonut } from './ui/charts.js';
@@ -650,6 +650,7 @@ const IC = {
   plus:    '<path d="M12 5.2v13.6M5.2 12h13.6"/>',
   moon:    '<path d="M19.6 13.8A7.8 7.8 0 1 1 10.2 4.4a6.4 6.4 0 0 0 9.4 9.4Z"/>',
   leaf:    '<path d="M5.4 18.6C6.3 9.4 12.7 4.9 19.6 4.9c0 6.9-4.5 13.3-13.7 14.2"/><path d="M5.4 18.6C8.3 14.3 12 11 16.4 8.6"/>',
+  calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
   trendUp: '<path d="M4 16.5 9.5 11l3.5 3.5L20 7.5"/><path d="M14.5 7.5H20V13"/>',
   warn:    '<path d="M12 4.4 3.4 19h17.2L12 4.4Z"/><path d="M12 10.2v3.6"/><circle cx="12" cy="16.4" r=".9" fill="currentColor" stroke="none"/>',
   info:    '<circle cx="12" cy="12" r="8.2"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r="1" fill="currentColor" stroke="none"/>',
@@ -1309,459 +1310,59 @@ function buildWholesale(){
    June 2026). Includes one dynamic-tariff plan per CRU mandate.
    ============================================================ */
 const EMBEDDED_TARIFFS = [
-  // === DYNAMIC TARIFFS (CRU mandate effective 1 June 2026) ===
-  // These are wholesale-tracking: rates change every 30 min, base rate + half-hourly SEMOpx price (capped 50c).
-  {
-    id:"EI-DYN",
-    supplier:"Electric Ireland",
-    plan:"Dynamic Price Plan",
-    type:"dynamic",
-    rates:{day:0.1981, night:0.0852, peak:0.2255, ev:0.0852},
-    windows:{ peak:[17,19], night:[23,8], ev:null },
-    standing:328.58, exit:50, length:12, green:false, export_rate:0.195,
-    verified_date:"2026-06-02",
-    notes:"\u2605 NEW (19 May 2026). Base ToU + half-hourly SEMOpx wholesale (capped 50c). Requires CTF-4 smart meter. UNVERIFIED SINCE THE 1 JULY 2026 PRICE CHANGE \u2014 the base rates below predate it and may be up to 9.5% low. Re-check before relying on this plan."
-  },
-  {
-    id:"BG-DYN",
-    supplier:"Bord Gáis",
-    plan:"Smart Dynamic",
-    type:"dynamic",
-    rates:{day:0.1673, night:0.1673, peak:0.1673, ev:0.1673},
-    windows:{ ev:null },
-    standing:331.96, exit:50, length:12, green:true, export_rate:0.185,
-    verified_date:"2026-06-01",
-    notes:"\u2605 NEW (1 June 2026). Single base rate 16.73c + half-hourly wholesale. No discount on base. Day-ahead prices at bordgaisenergy.ie/day-ahead-market-prices. UNVERIFIED since launch \u2014 the base rate is not published on the plan-comparison page and was not re-checked on 25 Aug 2026."
-  },
-  {
-    id:"EN-DYN",
-    supplier:"Energia",
-    plan:"Dynamic Rates",
-    type:"dynamic",
-    rates:{day:0.2197, night:0.1251, peak:0.2292, ev:0.1251},
-    windows:{ peak:[17,19], night:[23,8], ev:null },
-    standing:299.75, exit:50, length:12, green:true, export_rate:0.185,
-    verified_date:"2026-06-02",
-    notes:"\u2605 NEW (2 June 2026). 3-band base ToU + half-hourly wholesale. 100% green. Day 21.97c / Night 12.51c / Peak 22.92c base. UNVERIFIED since launch \u2014 the base rates are not on Energia's published tariff page and were not re-checked on 25 Aug 2026."
-  },
-
-  // === STANDARD 24-HOUR PLANS (smart meter, flat rate, new-customer discount applied) ===
-  {
-    id:"EI-24",
-    supplier:"Electric Ireland",
-    plan:"Home Electric+ 24hr",
-    type:"flat",
-    rates:{day:0.3055, night:0.3055, peak:0.3055, ev:0.3055},
-    windows:{ ev:null },
-    standing:250.77, exit:50, length:12, green:false, export_rate:0.195,
-    verified_date:"2026-09-15",
-    notes:"Rates from 1 July 2026 (Electric Ireland raised unit rates 9.5%). Flat 29.81c incl VAT with the 20% Saver new-customer discount. Urban standing charge \u20ac250.77 (rural \u20ac314.98). CEG 19.5c. Cross-checked against two independent published rate tables."
-  },
-  {
-    id:"EN-24",
-    supplier:"Energia",
-    plan:"Standard 24hr",
-    type:"flat",
-    rates:{day:0.2986, night:0.2986, peak:0.2986, ev:0.2986},
-    windows:{ ev:null },
-    standing:255.29, exit:50, length:12, green:true, export_rate:0.185,
-    price_change:{"effective_date": "2026-10-12", "pct": 0.02, "standing_pct": 0.05, "direction": "increase", "source": "energia.ie price notice, announced Sep 2026", "note": "Energia 24hr unit rate +2%, standing +5% from 12 Oct 2026."},
-    verified_date:"2026-09-15",
-    notes:"VERIFIED 25 Aug 2026 \u2014 energia.ie/about-energia/our-tariffs (price list effective 1 May 2026) and one independent rate table agree: 42.65c undiscounted, 29.86c with the 30% new-customer discount. Standing \u20ac265.01 urban (\u20ac337.02 rural). CEG 18.5c."
-  },
-  {
-    id:"BG-24",
-    supplier:"Bord Gáis",
-    plan:"Smart All Day",
-    type:"flat",
-    rates:{day:0.3078, night:0.3078, peak:0.3078, ev:0.3078},
-    windows:{ ev:null },
-    standing:244.76, exit:50, length:12, green:true, export_rate:0.185,
-    price_change:{"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "Bord Gais price announcement, 9 Sep 2026", "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."},
-    verified_date:"2026-09-15",
-    notes:"VERIFIED 25 Aug 2026 direct from bordgaisenergy.ie/home/ev-plan-comparison. Flat 30.78c with the 26% new-customer discount. Standing \u20ac244.76. CEG 18.5c."
-  },
-  {
-    id:"SSE-EVDAY",
-    supplier:"SSE Airtricity",
-    plan:"1 Year Fixed 24hr Smart",
-    type:"flat",
-    rates:{day:0.2879, night:0.2879, peak:0.2879, ev:0.2879},
-    windows:{ ev:null },
-    standing:263.86, exit:50, length:12, green:true, export_rate:0.195,
-    verified_date:"2026-09-15",
-    notes:"Rates below are from the SSE PDF 1YR-ELEC-FIXED-V5 (DD & eBill column), checked 2 June 2026. DISPUTED as of 25 Aug 2026: a published rate table gives SSE's 1 Year Home Electricity 25% as 30.85c with a \u20ac264 standing charge, against 31.52c / \u20ac240.97 here. Re-verify against SSE's own price list before relying on this plan."
-  },
-  {
-    id:"YN-24",
-    supplier:"Yuno Energy",
-    plan:"Standard Smart Plan",
-    type:"flat",
-    rates:{day:0.3485, night:0.3485, peak:0.3485, ev:0.3485},
-    windows:{ ev:null },
-    standing:219.22, exit:50, length:12, green:false, export_rate:0.1589,
-    verified_date:"2026-09-15",
-    notes:"Low standing charge. Checked 2 June 2026. DISPUTED as of 25 Aug 2026: a published table gives Yuno's Standard 24hr as 31.33c with a 20c CEG, against 25.24c and 15.89c here \u2014 a 6c gap on the unit rate, large enough to change the ranking. Re-verify against yunoenergy.ie before this plan is recommended."
-  },
-  {
-    id:"FL-24",
-    supplier:"Flogas",
-    plan:"Smart 24hr",
-    type:"flat",
-    rates:{day:0.3024, night:0.3024, peak:0.3024, ev:0.3024},
-    windows:{ ev:null },
-    standing:234.5, exit:50, length:12, green:false, export_rate:0.185,
-    verified_date:"2026-06-02",
-    notes:"Checked 2 June 2026. DISPUTED as of 25 Aug 2026: Flogas appears to have repriced in July 2026. A published table gives Smart 24hr 20% as 29.76c with a \u20ac270 standing charge, against 30.24c / \u20ac234.50 here. Re-verify against flogas.ie."
-  },
-  {
-    id:"PIN-LF",
-    supplier:"Pinergy",
-    plan:"Lifestyle Standard Smart Tariff",
-    type:"tou",
-    rates:{day:0.4177, night:0.3177, peak:0.4472, ev:0.3177},
-    windows:{ peak:[17,19], night:[23,8], ev:null },
-    standing:283.47, exit:50, length:12, green:true, export_rate:0.250,
-    verified_date:"2026-09-15",
-    notes:"VERIFIED 25 Aug 2026 \u2014 Day 41.77c (08-23), Night 31.77c (23-08), Peak 44.72c (17-19). Standing \u20ac283.47 urban. CEG 25c \u2014 the highest export rate in the market, which is why this plan can win for a big array despite expensive import."
-  },
-  {
-    id:"PIN-WFH",
-    supplier:"Pinergy",
-    plan:"Lifestyle Working from Home Time",
-    type:"tou",
-    // 29.24c inside the 9-17 WFH window, 41.77c the rest of the time. The
-    // rate keys must mirror the window keys: a window with no matching rate
-    // resolves to undefined and poisons the whole plan's cost with NaN.
-    rates:{day:0.4177, wfh:0.2924, night:0.4177, peak:0.4177, ev:0.4177},
-    windows:{ peak:null, night:null, ev:null, wfh:[9,17] },
-    standing:283.47, exit:50, length:12, green:true, export_rate:0.250,
-    verified_date:"2026-09-15",
-    notes:"Flat 41.77c outside the window, 29.24c between 09:00 and 17:00. Standing \u20ac283.47. CEG 25c. UNVERIFIED as of 25 Aug 2026 \u2014 only Pinergy's Standard Smart Tariff appears on published rate tables; re-check this one against pinergy.ie."
-  },
-  {
-    id:"PIN-FAM",
-    supplier:"Pinergy",
-    plan:"Lifestyle Family Time",
-    type:"tou",
-    rates:{day:0.4177, night:0.2506, peak:0.4177, ev:0.4177},
-    windows:{ peak:null, night:[19,24], ev:null },
-    standing:283.47, exit:50, length:12, green:true, export_rate:0.250,
-    verified_date:"2026-09-15",
-    notes:"Flat 41.77c outside the window, 25.06c between 19:00 and midnight. Standing \u20ac283.47. CEG 25c. UNVERIFIED as of 25 Aug 2026 \u2014 only Pinergy's Standard Smart Tariff appears on published rate tables; re-check this one against pinergy.ie."
-  },
-
-  // === SMART DAY/NIGHT/PEAK PLANS (3-band ToU) ===
-  {
-    id:"EI-SST",
-    supplier:"Electric Ireland",
-    plan:"Home Electric+ SST",
-    type:"tou",
-    rates:{day:0.3243, night:0.1704, peak:0.346, ev:0.1704},
-    windows:{ peak:[17,19], night:[23,8], ev:null },
-    standing:250.77, exit:50, length:12, green:false, export_rate:0.195,
-    verified_date:"2026-08-25",
-    notes:"Rates from 1 July 2026. Undiscounted 40.54c day / 21.30c night / 43.25c peak incl VAT; shown here with the 20% Saver new-customer discount. Day 08-17 & 19-23, Peak 17-19, Night 23-08. Urban standing \u20ac250.77. CEG 19.5c. Cross-checked against two independent published rate tables. UNVERIFIED as of 15 Sep 2026 — not re-read in today’s scrape while its Electric Ireland siblings were; re-verify against electricireland.ie."
-  },
-  {
-    id:"EN-SMART",
-    supplier:"Energia",
-    plan:"Smart Data",
-    type:"tou",
-    rates:{day:0.3075, night:0.1691, peak:0.3454, ev:0.1691},
-    windows:{ peak:[17,19], night:[23,8], ev:null },
-    standing:265.01, exit:50, length:12, green:true, export_rate:0.185,
-    price_change:{"effective_date": "2026-10-12", "pct": 0.03, "pct_bands": {"day": 0.03, "night": 0.28, "peak": 0.05, "ev": 0.28}, "standing_pct": 0.05, "direction": "increase", "source": "energia.ie price notice, announced Sep 2026", "note": "Energia rates rise 12 Oct 2026: night ~+28%, day ~+3%, peak ~+5%, standing +5%."},
-    verified_date:"2026-09-15",
-    notes:"VERIFIED 25 Aug 2026 \u2014 the \"Smart Data 27%\" tier: Day 30.75c, Night 16.91c (23-08), Peak 34.54c (17-19), all incl VAT. Standing \u20ac265.01 urban. CEG 18.5c. Energia's published list is still the 1 May 2026 one."
-  },
-  {
-    id:"BG-TOU",
-    supplier:"Bord Gáis",
-    plan:"Smart Standard Electricity",
-    type:"tou",
-    rates:{day:0.3289, night:0.2428, peak:0.4004, ev:0.2428},
-    windows:{ peak:[17,19], night:[23,8], ev:null },
-    standing:244.76, exit:50, length:12, green:true, export_rate:0.185,
-    price_change:{"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "Bord Gais price announcement, 9 Sep 2026", "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."},
-    verified_date:"2026-09-15",
-    notes:"VERIFIED 25 Aug 2026 direct from bordgaisenergy.ie/home/ev-plan-comparison. Day 32.89c (08-23 excl peak), Peak 40.04c (17-19), Night 24.28c (23-08), all with the 26% new-customer discount. Standing \u20ac244.76. CEG 18.5c. NOTE: the 26 July automated scrape wrote the EV plan's 35.23c day rate onto this plan \u2014 32.89c is the published figure."
-  },
-  {
-    id:"SSE-DNP",
-    supplier:"SSE Airtricity",
-    plan:"1 Year Fixed Smart Day/Night/Peak",
-    type:"tou",
-    rates:{day:0.3047, night:0.1958, peak:0.3412, ev:0.1958},
-    windows:{ peak:[17,19], night:[23,8], ev:null },
-    standing:263.86, exit:50, length:12, green:true, export_rate:0.195,
-    verified_date:"2026-09-15",
-    notes:"Checked 2 June 2026. DISPUTED as of 25 Aug 2026: a published rate table gives SSE's 1 Year Smart 25% as 32.65c day / 20.98c night / 36.56c peak with a \u20ac264 standing charge, against 33.20 / 20.96 / 40.10 and \u20ac302.48 here \u2014 the peak rate differs by 3.5c. Re-verify against SSE's own price list."
-  },
-  {
-    id:"YN-DNP",
-    supplier:"Yuno Energy",
-    plan:"Smart Day/Night/Peak",
-    type:"tou",
-    rates:{day:0.2998, night:0.1645, peak:0.3499, ev:0.1645},
-    windows:{ peak:[17,19], night:[23,8], ev:null },
-    standing:219.22, exit:50, length:12, green:false, export_rate:0.1589,
-    verified_date:"2026-09-15",
-    notes:"Low standing charge. Checked 2 June 2026. CEG was due to rise to 17.16c on 1 July 2026 and the 15.89c below predates that. UNVERIFIED since Yuno's 24hr plan was disputed on 25 Aug 2026 \u2014 re-verify the whole Yuno range."
-  },
-  {
-    id:"FL-DNP",
-    supplier:"Flogas",
-    plan:"Smart Day/Night/Peak",
-    type:"tou",
-    rates:{day:0.3145, night:0.1844, peak:0.3699, ev:0.1844},
-    windows:{ peak:[17,19], night:[23,8], ev:null },
-    standing:234.5, exit:50, length:12, green:false, export_rate:0.185,
-    verified_date:"2026-06-02",
-    notes:"Checked 2 June 2026. DISPUTED as of 25 Aug 2026: a published table gives Flogas Smart Electricity 20% as 32.42c day / 20.76c night / 38.36c peak with a \u20ac270 standing charge, against 31.45 / 18.44 / 36.99 and \u20ac234.50 here. Flogas appears to have repriced in July 2026. Re-verify against flogas.ie."
-  },
-
-  // === EV / NIGHT BOOST PLANS (key arbitrage candidates) ===
-  {
-    id:"PIN-EV",
-    supplier:"Pinergy",
-    plan:"Lifestyle EV Night Time",
-    type:"ev",
-    rates:{day:0.4177, night:0.4177, peak:0.4177, ev:0.0599},
-    windows:{ ev:[2,5], peak:null, night:null },
-    standing:283.47, exit:50, length:12, green:true, export_rate:0.250,
-    discontinued: true,
-    discontinued_date: "2026-05-21",
-    verified_date:"2026-09-15",
-    notes:"Flat 41.77c outside the window, 5.99c between 02:00 and 05:00 \u2014 the cheapest EV window in the market. Standing \u20ac283.47. CEG 25c. UNVERIFIED as of 25 Aug 2026 \u2014 only Pinergy's Standard Smart Tariff appears on published rate tables; re-check this one against pinergy.ie."
-  },
-  {
-    id:"EI-NB",
-    supplier:"Electric Ireland",
-    plan:"Home Electric+ Night Boost",
-    type:"ev",
-    rates:{day:0.364, night:0.1854, peak:0.376, ev:0.1088},
-    windows:{ ev:[2,4], night:[23,8], peak:null },
-    standing:250.77, exit:50, length:12, green:false, export_rate:0.195,
-    verified_date:"2026-09-15",
-    notes:"VERIFIED from electricireland.ie/residential/electricity-and-gas/ev-night-boost. Day (08-23) 37.60c, Night (23-08) 18.54c, Boost (02-04) 10.88c \u2014 all incl VAT and the 5.5% discount. Urban standing \u20ac250.77. CEG 19.5c."
-  },
-  {
-    id:"EN-EV",
-    supplier:"Energia",
-    plan:"EV Smart Drive",
-    type:"ev",
-    rates:{day:0.4016, night:0.4016, peak:0.4016, ev:0.0942},
-    windows:{ ev:[2,6], peak:null, night:null },
-    standing:265.01, exit:50, length:12, green:true, export_rate:0.185,
-    price_change:{"effective_date": "2026-10-12", "pct": 0.0, "pct_bands": {"day": 0.0, "night": 0.0, "peak": 0.0, "ev": 0.3}, "standing_pct": 0.28, "direction": "increase", "source": "Energia published tariff list effective 12 Oct 2026 (https://www.energia.ie/about-energia/our-tariffs)", "note": "Energia EV Smart Drive from 12 Oct 2026: EV-window rate +30%, all other hours unchanged, standing charge +28%. From Energia's published price list."},
-    verified_date:"2026-09-15",
-    notes:"VERIFIED 25 Aug 2026 \u2014 the \"EV Smart Drive 10%\" tier: Day 40.16c, EV 9.42c (02-06). Standing \u20ac265.01 urban. CEG 18.5c."
-  },
-  {
-    id:"EN-EV-PLUS",
-    supplier:"Energia",
-    plan:"EV Smart Drive Plus",
-    type:"ev",
-    rates:{day:0.3893, night:0.2399, peak:0.5108, ev:0.1103},
-    windows:{ ev:[2,6], peak:[17,19], night:[23,8] },
-    standing:265.01, exit:50, length:12, green:true, export_rate:0.185,
-    verified_date:"2026-06-02",
-    notes:"Checked 2 June 2026. UNVERIFIED as a current reading \u2014 not re-read since June. The 25 Aug dispute (a third-party table gave peak 45.41c) is resolved in our favour: Energia's own published list from 12 Oct 2026 gives the standard rates as day 43.26c / night 26.65c / peak 56.76c, and this plan's 10% discount on those is exactly 38.93c / 23.99c / 51.08c \u2014 the rates held here. The 45.41c figure matches a different supplier's product.",
-    price_change:{"effective_date": "2026-10-12", "pct": 0.0, "pct_bands": {"day": 0.0, "night": 0.0, "peak": 0.0, "ev": 0.201}, "standing_pct": 0.28, "direction": "increase", "source": "Energia published tariff list effective 12 Oct 2026 (https://www.energia.ie/about-energia/our-tariffs)", "note": "Energia EV Smart Drive Plus from 12 Oct 2026: EV-window rate +20%, day/night/peak unchanged, standing charge +28%. From Energia's published price list."}
-  },
-  {
-    id:"BG-EV",
-    supplier:"Bord Gáis",
-    plan:"EV Smart Electricity",
-    type:"ev",
-    rates:{day:0.3523, night:0.2657, peak:0.4914, ev:0.0898},
-    windows:{ ev:[2,5], peak:[17,19], night:[23,8] },
-    standing:364.89, exit:50, length:12, green:true, export_rate:0.185,
-    price_change:{"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "Bord Gais price announcement, 9 Sep 2026", "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."},
-    verified_date:"2026-09-15",
-    notes:"Rates last checked 25 Aug 2026 from bordgaisenergy.ie/home/ev-plan-comparison. Day 35.23c (08-23 excl peak), Peak 49.14c (17-19), Night 26.57c (23-08), EV 8.98c (02-05), with the 15% new-customer discount. Standing €364.89 — €120 higher than BG's other plans. CEG 18.5c. UNVERIFIED as of 14 Sep 2026 — the scraper cannot read this plan’s overnight EV rate from Bord Gáis’s plan feed, so it is not re-checked when its siblings are; re-verify by hand."
-  },
-  {
-    id:"SSE-EVMAX",
-    supplier:"SSE Airtricity",
-    plan:"Smart EV Max",
-    type:"ev",
-    rates:{day:0.3858, night:0.3858, peak:0.3858, ev:0.1386},
-    windows:{ ev:[23,5], peak:null, night:null },
-    standing:357.23, exit:50, length:12, green:true, export_rate:0.195,
-    verified_date:"2026-09-15",
-    notes:"2-band only: 18h rate 33.76c (5am-11pm) + 6h EV rate 12.13c (11pm-5am). 30% new customer discount, valid from 31 Oct 2025. Standing \u20ac357.23 (higher than other SSE plans). CEG 19.5c. Verified 2 June 2026 from sseairtricity.com/assets/Tariffs/ROI/Current/1YR-ELEC-30-EVMax.pdf. UNVERIFIED since SSE's other plans were disputed on 25 Aug 2026 \u2014 re-check the PDF."
-  },
-  {
-    id:"YN-EV",
-    supplier:"Yuno Energy",
-    plan:"EV Variable Discount",
-    type:"ev",
-    rates:{day:0.3245, night:0.2099, peak:0.3845, ev:0.1079},
-    windows:{ ev:[2,6], peak:[17,19], night:[23,8] },
-    standing:219.22, exit:50, length:12, green:false, export_rate:0.1589,
-    verified_date:"2026-09-15",
-    notes:"Checked 2 June 2026. UNVERIFIED since Yuno's 24hr plan was disputed on 25 Aug 2026 \u2014 re-verify the whole Yuno range, including the CEG rate."
-  },
-
-  // === LEGACY NIGHTSAVER (no smart meter; for reference only) ===
-  {
-    id:"EI-NS",
-    supplier:"Electric Ireland",
-    plan:"Energysaver Nightsaver",
-    type:"dn",
-    rates:{day:0.3412, night:0.1683, peak:0.3412, ev:0.1683},
-    windows:{ peak:null, night:[23,8], ev:null },
-    standing:328.58, exit:50, length:12, green:false, export_rate:0.195,
-    verified_date:"2026-09-15",
-    notes:"Legacy Day/Night meter only \u2014 once on smart, you cannot go back. For reference only. Rates from 1 July 2026: 34.12c day / 16.83c night incl VAT with the 16% discount. Standing \u20ac328.58."
-  },
-
-  // === FULL CATALOGUE — plans the harvest found that the curated list
-  //     never carried. Rates and standing as published; windows and export
-  //     rate follow the supplier's sibling plan. See scraper/merge_catalogue.py
-  //     for what was deliberately left out, and why. ===
-
-  {
-    id:"BG-SMART-ALL-DAY-ELECTRICITY",
-    supplier:"Bord G\u00e1is",
-    plan:"Smart All Day Electricity",
-    type:"flat",
-    rates:{day:0.3161, night:0.3161, peak:0.3161, ev:0.3161},
-    windows:{ ev:null },
-    standing:244.76, exit:50, length:12, green:true, export_rate:0.185,
-    verified_date:"2026-09-15",
-    notes:"Harvested 2026-09-15 from the supplier's own plan list. Rates and standing charge are as published; windows and export rate follow Bord G\u00e1is \u2014 Smart All Day. Not yet hand-checked against a second source \u2014 confirm with the supplier before switching.",
-    price_change:{"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "Bord Gais price announcement, 9 Sep 2026", "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."}
-  },
-  {
-    id:"BG-STANDARD-VARIABLE-SMART-ALL-DAY-ELECTRICITY",
-    supplier:"Bord G\u00e1is",
-    plan:"Standard Variable Smart All Day Electricity",
-    type:"flat",
-    rates:{day:0.4159, night:0.4159, peak:0.4159, ev:0.4159},
-    windows:{ ev:null },
-    standing:244.76, exit:50, length:12, green:true, export_rate:0.185,
-    verified_date:"2026-09-15",
-    notes:"Harvested 2026-09-15 from the supplier's own plan list. Rates and standing charge are as published; windows and export rate follow Bord G\u00e1is \u2014 Smart All Day. Not yet hand-checked against a second source \u2014 confirm with the supplier before switching.",
-    price_change:{"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "Bord Gais price announcement, 9 Sep 2026", "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."}
-  },
-  {
-    id:"BG-SMART-STANDARD-GREEN-ELECTRICITY-ONLY",
-    supplier:"Bord G\u00e1is",
-    plan:"Smart Standard Green Electricity Only",
-    type:"tou",
-    rates:{day:0.3378, night:0.2493, peak:0.4112, ev:0.2493},
-    windows:{ peak:[17, 19], night:[23, 8], ev:null },
-    standing:244.76, exit:50, length:12, green:true, export_rate:0.185,
-    verified_date:"2026-09-15",
-    notes:"Harvested 2026-09-15 from the supplier's own plan list. Rates and standing charge are as published; windows and export rate follow Bord G\u00e1is \u2014 Smart Standard Electricity. Not yet hand-checked against a second source \u2014 confirm with the supplier before switching.",
-    price_change:{"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "Bord Gais price announcement, 9 Sep 2026", "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."}
-  },
-  {
-    id:"EN-SMART-DAY-NIGHT",
-    supplier:"Energia",
-    plan:"Smart Day/Night",
-    type:"tou",
-    rates:{day:0.3519, night:0.1734, peak:0.3519, ev:0.1734},
-    windows:{ peak:[17, 19], night:[23, 8], ev:null },
-    standing:265.01, exit:50, length:12, green:true, export_rate:0.185,
-    verified_date:"2026-09-15",
-    notes:"Harvested 2026-09-15 from the supplier's own plan list. Rates and standing charge are as published; windows and export rate follow Energia \u2014 Smart Data. Not yet hand-checked against a second source \u2014 confirm with the supplier before switching.",
-    price_change:{"effective_date": "2026-10-12", "pct": 0.03, "pct_bands": {"day": 0.03, "night": 0.28, "peak": 0.05, "ev": 0.28}, "standing_pct": 0.05, "direction": "increase", "source": "energia.ie price notice, announced Sep 2026", "note": "Energia rates rise 12 Oct 2026: night ~+28%, day ~+3%, peak ~+5%, standing +5%."}
-  },
-  {
-    id:"EN-SMART-24-HOUR",
-    supplier:"Energia",
-    plan:"Smart 24 Hour",
-    type:"flat",
-    rates:{day:0.281, night:0.281, peak:0.281, ev:0.281},
-    windows:{ ev:null },
-    standing:265.01, exit:50, length:12, green:true, export_rate:0.185,
-    verified_date:"2026-09-15",
-    notes:"Harvested 2026-09-15 from the supplier's own plan list. Rates and standing charge are as published; windows and export rate follow Energia \u2014 Standard 24hr. Not yet hand-checked against a second source \u2014 confirm with the supplier before switching.",
-    price_change:{"effective_date": "2026-10-12", "pct": 0.03, "standing_pct": 0.05, "direction": "increase", "source": "energia.ie price notice, announced Sep 2026", "note": "Energia rates rise 12 Oct 2026: night ~+28%, day ~+3%, peak ~+5%, standing +5%."}
-  },
-
-  // === SUPPLIERS READ FROM THEIR OWN SITES (30 Sep 2026) — Waterpower and
-  //     PrePayPower. Parsed by scraper/parsers.py; see each plan's notes for
-  //     what the supplier does not publish. ===
-  {
-    id:"WP-24",
-    supplier:"Waterpower",
-    plan:"24 Hour (e-billing)",
-    type:"flat",
-    rates:{"day": 0.3142, "night": 0.3142, "peak": 0.3142, "ev": 0.3142},
-    windows:{"ev": null},
-    standing:246.67,
-    exit:0,
-    length:0,
-    green:false,
-    export_rate:0,
-    verified_date:"2026-09-30",
-    notes:"Read 30 Sep 2026 from waterpower.ie/current-electricity-rates (the supplier's own page): urban, e-billing, inc VAT. The page carries no date; its PSO line is the 2025/26 levy (\u20ac19.10), so it is this year's list. Waterpower does not publish its Clean Export Guarantee rate, so export_rate is 0: for a home with solar these figures leave out any export payment and understate the plan. Exit fee and contract length are not published either."
-  },
-  {
-    id:"WP-DN",
-    supplier:"Waterpower",
-    plan:"Day/Night (e-billing)",
-    type:"dn",
-    rates:{"day": 0.3296, "night": 0.2541, "peak": 0.3296, "ev": 0.2541},
-    windows:{"peak": null, "night": [23, 8], "ev": null},
-    standing:246.67,
-    exit:0,
-    length:0,
-    green:false,
-    export_rate:0,
-    verified_date:"2026-09-30",
-    notes:"Read 30 Sep 2026 from waterpower.ie/current-electricity-rates (the supplier's own page): urban, e-billing, inc VAT. The page carries no date; its PSO line is the 2025/26 levy (\u20ac19.10), so it is this year's list. Waterpower does not publish its Clean Export Guarantee rate, so export_rate is 0: for a home with solar these figures leave out any export payment and understate the plan. Exit fee and contract length are not published either."
-  },
-  {
-    id:"PPP-24",
-    supplier:"PrePayPower",
-    plan:"24 Hr Standard (pay-as-you-go)",
-    type:"flat",
-    rates:{"day": 0.3362, "night": 0.3362, "peak": 0.3362, "ev": 0.3362},
-    windows:{"ev": null},
-    standing:507.09,
-    exit:0,
-    length:0,
-    green:false,
-    export_rate:0,
-    verified_date:"2026-09-30",
-    notes:"UNVERIFIED as a current price \u2014 PrePayPower dates this table 'correct as of 01/05/26'. Read 30 Sep 2026 from prepaypower.ie estimated-annual-bill-faqs: urban. Pay-as-you-go: a PrePayPower meter is needed. Units are published ex VAT and have 9% VAT added here; the standing figure is the daily standing charge PLUS the daily prepayment service charge (both inc VAT) for a year, because both are fixed costs of the plan. Export rate is not published (0 here), nor an exit fee or contract length."
-  },
-  {
-    id:"PPP-NS",
-    supplier:"PrePayPower",
-    plan:"Nightsaver Standard (pay-as-you-go)",
-    type:"dn",
-    rates:{"day": 0.3722, "night": 0.1838, "peak": 0.3722, "ev": 0.1838},
-    windows:{"peak": null, "night": [23, 8], "ev": null},
-    standing:620.68,
-    exit:0,
-    length:0,
-    green:false,
-    export_rate:0,
-    verified_date:"2026-09-30",
-    notes:"UNVERIFIED as a current price \u2014 PrePayPower dates this table 'correct as of 01/05/26'. Read 30 Sep 2026 from prepaypower.ie estimated-annual-bill-faqs: urban. Pay-as-you-go: a PrePayPower meter is needed. Units are published ex VAT and have 9% VAT added here; the standing figure is the daily standing charge PLUS the daily prepayment service charge (both inc VAT) for a year, because both are fixed costs of the plan. Export rate is not published (0 here), nor an exit fee or contract length."
-  },
-  {
-    id:"PPP-TOU",
-    supplier:"PrePayPower",
-    plan:"Time of Use Day/Night/Peak (pay-as-you-go)",
-    type:"tou",
-    rates:{"day": 0.3719, "night": 0.1928, "peak": 0.4179, "ev": 0.1928},
-    windows:{"peak": [17, 19], "night": [23, 8], "ev": null},
-    standing:507.09,
-    exit:0,
-    length:0,
-    green:false,
-    export_rate:0,
-    verified_date:"2026-09-30",
-    notes:"UNVERIFIED as a current price \u2014 PrePayPower dates this table 'correct as of 01/05/26'. Read 30 Sep 2026 from prepaypower.ie estimated-annual-bill-faqs: urban. Pay-as-you-go: a PrePayPower meter is needed. Units are published ex VAT and have 9% VAT added here; the standing figure is the daily standing charge PLUS the daily prepayment service charge (both inc VAT) for a year, because both are fixed costs of the plan. Export rate is not published (0 here), nor an exit fee or contract length."
-  }
+  {"id": "EI-24", "supplier": "Electric Ireland", "plan": "Home Electric+ Saver 16%", "type": "flat", "rates": {"day": 0.313, "night": 0.313, "peak": 0.313, "ev": 0.313}, "windows": {"ev": null}, "standing": 250.77, "exit": 50, "length": 12, "green": false, "export_rate": 0.195, "verified_date": "2026-09-30", "source": {"url": "https://www.electricireland.ie/switch/new-customer/price-plans?priceType=E", "anchor": ["Home Electric+ Saver 16%", "Pricing"], "fields": {"day": "Electricity unit price"}, "read": "2026-09-30"}, "notes": "Smart meter, 24-hour rate, 16% off unit rates for 12 months, new customers. Urban standing charge €250.77 inc VAT: Electric Ireland's plan cards do not print it; it is consistent with each card's Estimated Annual Bill (4,200 kWh + standing + €19.10 PSO). CEG 19.5c not re-read from electricireland.ie in this check."},
+  {"id": "EI-SST", "supplier": "Electric Ireland", "plan": "Home Electric + SST Saver 16%", "type": "tou", "rates": {"day": 0.3405, "night": 0.1789, "peak": 0.3633, "ev": 0}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 250.77, "exit": 50, "length": 12, "green": false, "export_rate": 0.195, "verified_date": "2026-09-30", "source": {"url": "https://www.electricireland.ie/switch/new-customer/price-plans?priceType=E", "anchor": ["Home Electric + SST Saver 16%", "Pricing"], "fields": {"day": "Day: 08.00 - 23.00", "night": "Night: 23.00 - 08.00", "peak": "Peak: 17.00 - 19.00"}, "also": ["Home Electric SST Saver 16%"], "read": "2026-09-30"}, "notes": "Smart meter day/night/peak, 16% off unit rates for 12 months, new customers. Also listed, at the same rates, as 'Home Electric SST Saver 16%'. Urban standing charge €250.77 inc VAT: Electric Ireland's plan cards do not print it; it is consistent with each card's Estimated Annual Bill (4,200 kWh + standing + €19.10 PSO). CEG 19.5c not re-read from electricireland.ie in this check."},
+  {"id": "EI-NB", "supplier": "Electric Ireland", "plan": "Home Electric+ Night Boost", "type": "ev", "rates": {"day": 0.376, "night": 0.1854, "ev": 0.1088}, "windows": {"night": [23, 8], "ev": [2, 4]}, "standing": 250.77, "exit": 50, "length": 12, "green": false, "export_rate": 0.195, "verified_date": "2026-09-30", "source": {"url": "https://www.electricireland.ie/switch/new-customer/price-plans?priceType=E", "anchor": ["Home Electric+ Night Boost", "Pricing"], "fields": {"day": "Day: 08.00 - 23.00", "night": "Night: 23.00 - 08.00", "ev": "Night Boost: 02.00 - 04.00"}, "read": "2026-09-30"}, "notes": "Smart meter; Night Boost 02:00-04:00, 5.5% off unit rates, new customers. Urban standing charge €250.77 inc VAT: Electric Ireland's plan cards do not print it; it is consistent with each card's Estimated Annual Bill (4,200 kWh + standing + €19.10 PSO). CEG 19.5c not re-read from electricireland.ie in this check."},
+  {"id": "EI-NS", "supplier": "Electric Ireland", "plan": "Energysaver Nightsaver 16%", "type": "tou", "rates": {"day": 0.3412, "night": 0.1683}, "windows": {"peak": null, "night": [23, 8], "ev": null}, "standing": 328.58, "exit": 50, "length": 12, "green": false, "export_rate": 0.195, "verified_date": "2026-09-30", "source": {"url": "https://www.electricireland.ie/switch/new-customer/price-plans?priceType=E", "anchor": ["Energysaver Nightsaver 16%", "Pricing"], "fields": {"day": "Day: 08.00 - 23.00", "night": "Night: 23.00 - 08.00"}, "read": "2026-09-30"}, "notes": "Day & night (non-smart) meter, 16% off for 12 months. Nightsaver urban standing €328.58 not printed on the card; carried from the last full price list. Urban standing charge €250.77 inc VAT: Electric Ireland's plan cards do not print it; it is consistent with each card's Estimated Annual Bill (4,200 kWh + standing + €19.10 PSO). CEG 19.5c not re-read from electricireland.ie in this check."},
+  {"id": "EI-ES", "supplier": "Electric Ireland", "plan": "Energysaver 16%", "type": "flat", "rates": {"day": 0.3195, "night": 0.3195, "peak": 0.3195, "ev": 0.3195}, "windows": {"ev": null}, "standing": 250.77, "exit": 50, "length": 12, "green": false, "export_rate": 0.195, "verified_date": "2026-09-30", "source": {"url": "https://www.electricireland.ie/switch/new-customer/price-plans?priceType=E", "anchor": ["Energysaver 16%", "Pricing"], "fields": {"day": "Electricity unit price"}, "read": "2026-09-30"}, "notes": "Standard (non-smart) 24-hour meter, 16% off unit rates for 12 months, new customers. Urban standing charge €250.77 inc VAT: Electric Ireland's plan cards do not print it; it is consistent with each card's Estimated Annual Bill (4,200 kWh + standing + €19.10 PSO). CEG 19.5c not re-read from electricireland.ie in this check."},
+  {"id": "EI-GREEN", "supplier": "Electric Ireland", "plan": "Green Electricity", "type": "flat", "rates": {"day": 0.3613, "night": 0.3613, "peak": 0.3613, "ev": 0.3613}, "windows": {"ev": null}, "standing": 250.77, "exit": 50, "length": 12, "green": true, "export_rate": 0.195, "verified_date": "2026-09-30", "source": {"url": "https://www.electricireland.ie/switch/new-customer/price-plans?priceType=E", "anchor": ["Green Electricity", "Pricing"], "fields": {"day": "Electricity unit price"}, "read": "2026-09-30"}, "notes": "Standard meter, 100% green electricity, 5.5% off unit rates. Urban standing charge €250.77 inc VAT: Electric Ireland's plan cards do not print it; it is consistent with each card's Estimated Annual Bill (4,200 kWh + standing + €19.10 PSO). CEG 19.5c not re-read from electricireland.ie in this check."},
+  {"id": "EI-GREEN-NS", "supplier": "Electric Ireland", "plan": "Green Electricity NightSaver", "type": "tou", "rates": {"day": 0.3862, "night": 0.1915}, "windows": {"peak": null, "night": [23, 8], "ev": null}, "standing": 328.58, "exit": 50, "length": 12, "green": true, "export_rate": 0.195, "verified_date": "2026-09-30", "source": {"url": "https://www.electricireland.ie/switch/new-customer/price-plans?priceType=E", "anchor": ["Green Electricity NightSaver", "Pricing"], "fields": {"day": "Day: 08.00 - 23.00", "night": "Night: 23.00 - 08.00"}, "read": "2026-09-30"}, "notes": "Day & night meter, 100% green electricity, 5.5% off. Nightsaver standing carried from the last full price list. Urban standing charge €250.77 inc VAT: Electric Ireland's plan cards do not print it; it is consistent with each card's Estimated Annual Bill (4,200 kWh + standing + €19.10 PSO). CEG 19.5c not re-read from electricireland.ie in this check."},
+  {"id": "EI-WKND", "supplier": "Electric Ireland", "plan": "Home Electric+ Weekender", "type": "flat", "rates": {"day": 0.3865, "night": 0.3865, "peak": 0.3865, "ev": 0.3865}, "windows": {"ev": null}, "standing": 250.77, "exit": 50, "length": 12, "green": false, "export_rate": 0.195, "verified_date": "2026-09-30", "source": {"url": "https://www.electricireland.ie/switch/new-customer/price-plans?priceType=E", "anchor": ["Home Electric+ Weekender", "Pricing"], "fields": {"day": "Electricity unit price"}, "read": "2026-09-30"}, "notes": "Smart meter, one flat rate, and free electricity 08:00-23:00 on Saturday or Sunday (the customer picks; modelled as Saturday). Urban standing charge €250.77 inc VAT: Electric Ireland's plan cards do not print it; it is consistent with each card's Estimated Annual Bill (4,200 kWh + standing + €19.10 PSO). CEG 19.5c not re-read from electricireland.ie in this check.", "weekend": {"days": [5], "window": [8, 23], "rates": {"day": 0, "night": 0, "peak": 0, "ev": 0}}},
+  {"id": "EI-DYN", "supplier": "Electric Ireland", "plan": "Dynamic Price Plan", "type": "dynamic", "rates": {"day": 0.1981, "night": 0.0852, "peak": 0.2255, "ev": 0.0852}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 328.58, "exit": 50, "length": 12, "green": false, "export_rate": 0.195, "verified_date": "2026-06-02", "notes": "★ NEW (19 May 2026). Base ToU + half-hourly SEMOpx wholesale (capped 50c). Requires CTF-4 smart meter. UNVERIFIED SINCE THE 1 JULY 2026 PRICE CHANGE — the base rates below predate it and may be up to 9.5% low. Re-check before relying on this plan."},
+  {"id": "BG-24", "supplier": "Bord Gáis Energy", "plan": "Smart All Day Electricity Discount", "type": "flat", "rates": {"day": 0.3078, "night": 0.3078, "peak": 0.3078, "ev": 0.3078}, "windows": {"ev": null}, "standing": 244.77, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-30", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart All Day Electricity Discount", "Discounted electricity unit rates"], "fields": {"day": "Day"}, "read": "2026-09-30"}, "notes": "Smart meter, one flat rate, 26% off unit rates for 12 months. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).", "price_change": {"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)", "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."}},
+  {"id": "BG-TOU", "supplier": "Bord Gáis Energy", "plan": "Smart Standard Electricity Discount", "type": "tou", "rates": {"day": 0.3289, "night": 0.2428, "peak": 0.4004, "ev": 0}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 244.77, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-30", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart Standard Electricity Discount", "Discounted electricity unit rates"], "fields": {"day": "Day", "peak": "Peak", "night": "Night"}, "read": "2026-09-30"}, "notes": "Smart day/night/peak, 26% off for 12 months. Peak 17:00-19:00 Monday to Friday only. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).", "weekend": {"days": [5, 6], "rates": {"peak": 0.3289}, "same_as": {"peak": "day"}}, "price_change": {"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)", "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."}},
+  {"id": "BG-TOU-PLUS", "supplier": "Bord Gáis Energy", "plan": "Smart Standard Plus Electricity Discount", "type": "tou", "rates": {"day": 0.3289, "night": 0.2428, "peak": 0.4004, "ev": 0}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 244.77, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-30", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart Standard Plus Electricity Discount", "Discounted electricity unit rates"], "fields": {"day": "Day", "peak": "Peak", "night": "Night"}, "read": "2026-09-30"}, "notes": "Same rates as Smart Standard with the Spend Goal feature. Peak Monday to Friday only. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).", "weekend": {"days": [5, 6], "rates": {"peak": 0.3289}, "same_as": {"peak": "day"}}, "price_change": {"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)", "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."}},
+  {"id": "BG-EV", "supplier": "Bord Gáis Energy", "plan": "Smart EV Plus Electricity Discount", "type": "ev", "rates": {"day": 0.32, "night": 0.2419, "peak": 0.4083, "ev": 0.1252}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": [2, 5]}, "standing": 364.89, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-30", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart EV Plus Electricity Discount", "Discounted electricity unit rates"], "fields": {"day": "Day", "peak": "Peak", "night": "Night", "ev": "EV"}, "read": "2026-09-30"}, "notes": "Smart EV plan, 15% off for 12 months; EV time 02:00-05:00 every day, peak Monday to Friday (Smart EV tariff terms, Aug 2026). UNVERIFIED standing: €364.89 is the Smart EV plan's standing charge; the EV Plus card does not print one. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).", "weekend": {"days": [5, 6], "rates": {"peak": 0.32}, "same_as": {"peak": "day"}}, "price_change": {"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)", "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."}},
+  {"id": "BG-WKND", "supplier": "Bord Gáis Energy", "plan": "Smart Weekend Electricity Discount", "type": "tou", "rates": {"day": 0.3239, "night": 0.2897, "peak": 0.3952, "ev": 0}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 244.77, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-30", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart Weekend Electricity Discount", "Discounted electricity unit rates"], "fields": {"day": "Day", "peak": "Peak", "night": "Night"}, "read": "2026-09-30"}, "notes": "Smart plan charged at the night rate all weekend, Friday 11pm to Monday 8am; 26% off for 12 months. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).", "weekend": {"span": [[4, 23], [0, 8]], "rates": {"day": 0.2897, "peak": 0.2897}, "same_as": {"day": "night", "peak": "night"}}, "price_change": {"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)", "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."}},
+  {"id": "BG-STANDARD-VARIABLE-SMART-ALL-DAY-ELECTRICITY", "supplier": "Bord Gáis Energy", "plan": "Standard Variable Smart All Day Electricity", "type": "flat", "rates": {"day": 0.4159, "night": 0.4159, "peak": 0.4159, "ev": 0.4159}, "windows": {"ev": null}, "standing": 244.77, "exit": 0, "length": 0, "green": true, "export_rate": 0.185, "verified_date": "2026-09-30", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Standard Variable Smart All Day Electricity", "Electricity unit rates"], "fields": {"day": "Day"}, "read": "2026-09-30"}, "notes": "No discount, no fixed term. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).", "price_change": {"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)", "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."}},
+  {"id": "BG-DYN", "supplier": "Bord Gáis", "plan": "Smart Dynamic", "type": "dynamic", "rates": {"day": 0.1673, "night": 0.1673, "peak": 0.1673, "ev": 0.1673}, "windows": {"ev": null}, "standing": 331.96, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-30", "notes": "★ NEW (1 June 2026). Single base rate 16.73c + half-hourly wholesale. No discount on base. Day-ahead prices at bordgaisenergy.ie/day-ahead-market-prices. UNVERIFIED since launch — the base rate is not published on the plan-comparison page and was not re-checked on 25 Aug 2026.", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart Dynamic Electricity", "Electricity unit rates"], "fields": {"day": "Base"}, "read": "2026-09-30"}, "price_change": {"effective_date": "2026-10-09", "pct": 0.137, "standing_pct": 0.047, "direction": "increase", "source": "bordgaisenergy.ie/home/our-tariffs, Smart Dynamic table from 9 Oct 2026", "note": "Base rate 16.73c → 19.02c and standing €331.96 → €347.56 from 9 Oct 2026; the wholesale part is added hourly on top."}},
+  {"id": "EN-SMART-24-HOUR", "supplier": "Energia", "plan": "Smart 24 Hour", "type": "flat", "rates": {"day": 0.281, "night": 0.281, "peak": 0.281, "ev": 0.281}, "windows": {"ev": null}, "standing": 265.01, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-30", "source": {"url": "https://www.energia.ie/energy-plans/electricity", "anchor": ["Energy Plans Table", "Smart 24 Hour"], "fields": {"day": "Smart meter"}, "read": "2026-09-30"}, "notes": "Smart meter flat rate, 30% off. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €265.01 inc VAT urban (€255.29 ex VAT +5% from 12 Oct = €278.27 inc). CEG 18.5c.", "price_change": {"effective_date": "2026-10-12", "standing_pct": 0.05, "direction": "increase", "source": "energia.ie/about-energia/our-tariffs, standard rates from 12 Oct 2026 (ex VAT) with this plan's discount", "pct": 0.04, "note": "28.10c → 29.22c from 12 Oct 2026."}},
+  {"id": "EN-SMART", "supplier": "Energia", "plan": "Smart Data", "type": "tou", "rates": {"day": 0.3075, "night": 0.1691, "peak": 0.3454, "ev": 0}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 265.01, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-30", "source": {"url": "https://www.energia.ie/energy-plans/electricity", "anchor": ["Energy Plans Table", "Smart Data"], "fields": {"night": {"label": "Smart meter", "col": 1}, "day": {"label": "Smart meter", "col": 2}, "peak": {"label": "Smart meter", "col": 3}}, "read": "2026-09-30"}, "notes": "Smart day/night/peak, 27% off. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €265.01 inc VAT urban (€255.29 ex VAT +5% from 12 Oct = €278.27 inc). CEG 18.5c.", "price_change": {"effective_date": "2026-10-12", "standing_pct": 0.05, "direction": "increase", "source": "energia.ie/about-energia/our-tariffs, standard rates from 12 Oct 2026 (ex VAT) with this plan's discount", "pct": 0.03, "pct_bands": {"day": 0.03, "night": 0.28, "peak": 0.05, "ev": 0.28}, "note": "From 12 Oct 2026: day 30.75 → 31.68c, night 16.91 → 21.64c, peak 34.54 → 36.26c."}},
+  {"id": "EN-SMART-DAY-NIGHT", "supplier": "Energia", "plan": "Smart Day/Night", "type": "tou", "rates": {"day": 0.3519, "night": 0.1734, "ev": 0}, "windows": {"peak": null, "night": [23, 8], "ev": null}, "standing": 265.01, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-30", "source": {"url": "https://www.energia.ie/energy-plans/electricity", "anchor": ["Energy Plans Table", "Smart Day/Night"], "fields": {"night": {"label": "Smart meter", "col": 1}, "day": {"label": "Smart meter", "col": 2}}, "read": "2026-09-30"}, "notes": "Smart day/night, no peak band, 20% off. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €265.01 inc VAT urban (€255.29 ex VAT +5% from 12 Oct = €278.27 inc). CEG 18.5c.", "price_change": {"effective_date": "2026-10-12", "standing_pct": 0.05, "direction": "increase", "source": "energia.ie/about-energia/our-tariffs, standard rates from 12 Oct 2026 (ex VAT) with this plan's discount", "pct": 0, "pct_bands": {"day": 0, "night": 0.25, "ev": 0.25}, "note": "From 12 Oct 2026: night 17.34 → 21.67c, day unchanged."}},
+  {"id": "EN-EV", "supplier": "Energia", "plan": "EV Smart Drive", "type": "ev", "rates": {"day": 0.4016, "night": 0, "peak": 0, "ev": 0.0942}, "windows": {"ev": [2, 6], "peak": null, "night": null}, "standing": 265.01, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-30", "source": {"url": "https://www.energia.ie/energy-plans/electricity", "anchor": ["Energy Plans Table", "EV Smart Drive"], "fields": {"ev": {"label": "Smart meter", "col": 1}, "day": {"label": "Smart meter", "col": 2}}, "read": "2026-09-30"}, "notes": "Smart EV, charge window 02:00-06:00, 10% off. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €265.01 inc VAT urban (€255.29 ex VAT +5% from 12 Oct = €278.27 inc). CEG 18.5c.", "price_change": {"effective_date": "2026-10-12", "standing_pct": 0.05, "direction": "increase", "source": "energia.ie/about-energia/our-tariffs, standard rates from 12 Oct 2026 (ex VAT) with this plan's discount", "pct": 0, "pct_bands": {"ev": 0.3}, "note": "From 12 Oct 2026: EV charge 9.42 → 12.25c, other hours unchanged."}},
+  {"id": "EN-24", "supplier": "Energia", "plan": "Standard Electricity", "type": "flat", "rates": {"day": 0.2986, "night": 0.2986, "peak": 0.2986, "ev": 0.2986}, "windows": {"ev": null}, "standing": 265.01, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-30", "source": {"url": "https://www.energia.ie/energy-plans/electricity", "anchor": ["Energy Plans Table", "Standard Electricity"], "fields": {"day": "Standard 24hr meter"}, "read": "2026-09-30"}, "notes": "Standard (non-smart) 24-hour meter, 30% off. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €265.01 inc VAT urban (€255.29 ex VAT +5% from 12 Oct = €278.27 inc). CEG 18.5c.", "price_change": {"effective_date": "2026-10-12", "standing_pct": 0.05, "direction": "increase", "source": "energia.ie/about-energia/our-tariffs, standard rates from 12 Oct 2026 (ex VAT) with this plan's discount", "pct": 0.02, "note": "29.86c → 30.45c from 12 Oct 2026."}},
+  {"id": "EN-DYN", "supplier": "Energia", "plan": "Dynamic Rates", "type": "dynamic", "rates": {"day": 0.2197, "night": 0.1251, "peak": 0.2292, "ev": 0.1251}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 299.75, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-06-02", "notes": "★ NEW (2 June 2026). 3-band base ToU + half-hourly wholesale. 100% green. Day 21.97c / Night 12.51c / Peak 22.92c base. UNVERIFIED since launch — the base rates are not on Energia's published tariff page and were not re-checked on 25 Aug 2026."},
+  {"id": "EN-EV-PLUS", "supplier": "Energia", "plan": "EV Smart Drive Plus", "type": "ev", "rates": {"day": 0.3893, "night": 0.2399, "peak": 0.5108, "ev": 0.1103}, "windows": {"ev": [2, 6], "peak": [17, 19], "night": [23, 8]}, "standing": 265.01, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-06-02", "notes": "Not in Energia's new-customer plan table on 30 Sep 2026; still on its tariff list for existing customers.", "price_change": {"effective_date": "2026-10-12", "pct": 0.0, "pct_bands": {"day": 0.0, "night": 0.0, "peak": 0.0, "ev": 0.201}, "standing_pct": 0.28, "direction": "increase", "source": "Energia published tariff list effective 12 Oct 2026 (https://www.energia.ie/about-energia/our-tariffs)", "note": "Energia EV Smart Drive Plus from 12 Oct 2026: EV-window rate +20%, day/night/peak unchanged, standing charge +28%. From Energia's published price list."}, "discontinued": true},
+  {"id": "SSE-EVDAY", "supplier": "SSE Airtricity", "plan": "Smart Everyday 30%", "type": "flat", "rates": {"day": 0.2879, "night": 0.2879, "peak": 0.2879, "ev": 0.2879}, "windows": {"ev": null}, "standing": 263.86, "exit": 50, "length": 12, "green": true, "export_rate": 0.195, "verified_date": "2026-09-30", "source": {"url": "https://www.sseairtricity.com/ie/home/products/smart-everyday-electricity-with-top-discount", "anchor": ["Our electricity prices"], "fields": {"day": "24hr meter", "standing": "Urban 24hr meter"}, "col": 1, "read": "2026-09-30"}, "notes": "Smart meter flat rate, 30% off for 12 months. Discounted rates and standing from the plan page, inc VAT. CEG 19.5c not re-read from sseairtricity.com in this check."},
+  {"id": "SSE-DNP", "supplier": "SSE Airtricity", "plan": "Smart Day/Night/Peak 30%", "type": "tou", "rates": {"day": 0.3047, "night": 0.1958, "peak": 0.3412, "ev": 0}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 263.86, "exit": 50, "length": 12, "green": true, "export_rate": 0.195, "verified_date": "2026-09-30", "source": {"url": "https://www.sseairtricity.com/ie/home/products/smart-day-night-peak-electricity-with-top-discount", "anchor": ["Our electricity prices", "Electricity - Smart Meter"], "fields": {"day": "Smart Day", "night": "Smart Night", "peak": "Smart Peak", "standing": "Urban Smart"}, "col": 1, "read": "2026-09-30"}, "notes": "Smart day/night/peak, 30% off for 12 months. Discounted rates and standing from the plan page, inc VAT. CEG 19.5c not re-read from sseairtricity.com in this check."},
+  {"id": "SSE-24", "supplier": "SSE Airtricity", "plan": "Home Electricity 30% (24hr)", "type": "flat", "rates": {"day": 0.2879, "night": 0.2879, "peak": 0.2879, "ev": 0.2879}, "windows": {"ev": null}, "standing": 263.86, "exit": 50, "length": 12, "green": true, "export_rate": 0.195, "verified_date": "2026-09-30", "source": {"url": "https://www.sseairtricity.com/ie/home/products/electricity-top-discount", "anchor": ["Our electricity prices"], "fields": {"day": "24hr meter", "standing": "Urban 24hr"}, "col": 1, "read": "2026-09-30"}, "notes": "Standard 24-hour meter, 30% off for 12 months. Discounted rates and standing from the plan page, inc VAT. CEG 19.5c not re-read from sseairtricity.com in this check."},
+  {"id": "SSE-NS", "supplier": "SSE Airtricity", "plan": "Home Electricity 30% (Nightsaver)", "type": "tou", "rates": {"day": 0.2917, "night": 0.1866}, "windows": {"peak": null, "night": [23, 8], "ev": null}, "standing": 338.98, "exit": 50, "length": 12, "green": true, "export_rate": 0.195, "verified_date": "2026-09-30", "source": {"url": "https://www.sseairtricity.com/ie/home/products/electricity-top-discount", "anchor": ["Our electricity prices"], "fields": {"day": "Night Saver meter (Day)", "night": "Night Saver meter (Night)", "standing": "Urban Night saver"}, "col": 1, "read": "2026-09-30"}, "notes": "Day & night meter, 30% off for 12 months. Discounted rates and standing from the plan page, inc VAT. CEG 19.5c not re-read from sseairtricity.com in this check."},
+  {"id": "SSE-EVMAX", "supplier": "SSE Airtricity", "plan": "Smart EV Max", "type": "ev", "rates": {"day": 0.3858, "night": 0, "peak": 0, "ev": 0.1386}, "windows": {"ev": [23, 5], "peak": null, "night": null}, "standing": 357.23, "exit": 50, "length": 12, "green": true, "export_rate": 0.195, "verified_date": "2026-09-30", "source": {"url": "https://www.sseairtricity.com/ie/home/products/electricity-smart-ev-max", "anchor": ["Our electricity prices"], "fields": {"day": "Smart EV Max 18 Hour", "ev": "Smart EV Max 6 Hour", "standing": "Urban Smart EV"}, "col": 1, "read": "2026-09-30"}, "notes": "Smart EV: 6 cheap hours 23:00-05:00, 20% off for 12 months. Discounted rates and standing from the plan page, inc VAT. CEG 19.5c not re-read from sseairtricity.com in this check."},
+  {"id": "SSE-WKND", "supplier": "SSE Airtricity", "plan": "Smart Weekends", "type": "tou", "rates": {"day": 0.4033, "night": 0.2595, "peak": 0.4519, "ev": 0}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 356.2, "exit": 50, "length": 12, "green": true, "export_rate": 0.195, "verified_date": "2026-09-30", "source": {"url": "https://www.sseairtricity.com/ie/home/products/smart-weekends-electricity", "anchor": ["Our electricity prices"], "fields": {"day": "Weekday Day", "night": "Weekday Night", "peak": "Weekday Peak", "weekend.day": "Weekend Day", "weekend.night": "Weekend Night", "weekend.peak": "Weekend Peak", "standing": "Urban Smart"}, "col": 1, "read": "2026-09-30"}, "notes": "Half-price electricity from 8am Saturday to 11pm Sunday; 15% off for 12 months. Discounted rates and standing from the plan page, inc VAT. CEG 19.5c not re-read from sseairtricity.com in this check.", "weekend": {"span": [[5, 8], [6, 23]], "rates": {"day": 0.2017, "night": 0.1296, "peak": 0.2257}}},
+  {"id": "YN-24", "supplier": "Yuno Energy", "plan": "Electricity Bonus 24hr", "type": "flat", "rates": {"day": 0.3485, "night": 0.3485, "peak": 0.3485, "ev": 0.3485}, "windows": {"ev": null}, "standing": 219.22, "exit": 50, "length": 12, "green": false, "export_rate": 0.1716, "verified_date": "2026-09-30", "source": {"url": "https://www.yunoenergy.ie/", "anchor": ["Electricity Bonus", "24hr Urban"], "fields": {"day": "24Hr Unit Rate", "standing": "Urban Standing Charge"}, "col": 2, "read": "2026-09-30"}, "notes": "24-hour meter, 12-month plan. Yuno homepage price tables, 'Discount Tariff Details Valid from 14th September 2026', urban, inc VAT; standing excludes the PSO levy, which Yuno lists separately. Clean export 17.16c (same page)."},
+  {"id": "YN-DN", "supplier": "Yuno Energy", "plan": "Electricity Bonus Day/Night", "type": "tou", "rates": {"day": 0.3812, "night": 0.2303}, "windows": {"peak": null, "night": [23, 8], "ev": null}, "standing": 247.94, "exit": 50, "length": 12, "green": false, "export_rate": 0.1716, "verified_date": "2026-09-30", "source": {"url": "https://www.yunoenergy.ie/", "anchor": ["Electricity Bonus", "Day Night Urban"], "fields": {"day": "Day Unit Rate", "night": "Night Unit Rate", "standing": "Urban Standing Charge"}, "col": 2, "read": "2026-09-30"}, "notes": "Day & night meter. Yuno homepage price tables, 'Discount Tariff Details Valid from 14th September 2026', urban, inc VAT; standing excludes the PSO levy, which Yuno lists separately. Clean export 17.16c (same page)."},
+  {"id": "YN-DNP", "supplier": "Yuno Energy", "plan": "Electricity Smart Bonus", "type": "tou", "rates": {"day": 0.3756, "night": 0.2298, "peak": 0.4076, "ev": 0}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 235.77, "exit": 50, "length": 12, "green": false, "export_rate": 0.1716, "verified_date": "2026-09-30", "source": {"url": "https://www.yunoenergy.ie/", "anchor": ["Electricity Smart Bonus", "Electricity Pricing", "Urban"], "fields": {"day": "Day Unit Rate", "night": "Night Unit Rate", "peak": "Peak Unit Rate", "standing": "Urban Standing Charge"}, "col": 2, "read": "2026-09-30"}, "notes": "Smart day/night/peak (day 08-23, night 23-08, peak 17-19). Yuno homepage price tables, 'Discount Tariff Details Valid from 14th September 2026', urban, inc VAT; standing excludes the PSO levy, which Yuno lists separately. Clean export 17.16c (same page)."},
+  {"id": "YN-EV", "supplier": "Yuno Energy", "plan": "EV Variable", "type": "ev", "rates": {"day": 0.367, "night": 0, "peak": 0, "ev": 0.1211}, "windows": {"ev": [2, 6], "peak": null, "night": null}, "standing": 334.19, "exit": 50, "length": 12, "green": false, "export_rate": 0.1716, "verified_date": "2026-09-30", "source": {"url": "https://www.yunoenergy.ie/", "anchor": ["EV Variable", "24hr Urban"], "fields": {"day": "24Hr Unit Rate", "ev": "EV 2am - 6am", "standing": "Urban Standing Charge"}, "col": 2, "read": "2026-09-30"}, "notes": "24-hour rate with a 02:00-06:00 EV rate. Yuno homepage price tables, 'Discount Tariff Details Valid from 14th September 2026', urban, inc VAT; standing excludes the PSO levy, which Yuno lists separately. Clean export 17.16c (same page)."},
+  {"id": "YN-EV-DNP", "supplier": "Yuno Energy", "plan": "EV Variable Smart", "type": "ev", "rates": {"day": 0.4047, "night": 0.2146, "peak": 0.4538, "ev": 0.0859}, "windows": {"ev": [2, 6], "peak": [17, 19], "night": [23, 8]}, "standing": 358.07, "exit": 50, "length": 12, "green": false, "export_rate": 0.1716, "verified_date": "2026-09-30", "source": {"url": "https://www.yunoenergy.ie/", "anchor": ["EV Variable Smart", "DNP Urban"], "fields": {"day": "Day Unit Rate", "night": "Night Unit Rate", "peak": "Peak Unit Rate", "ev": "EV 2am - 6am", "standing": "Urban Standing Charge"}, "col": 2, "read": "2026-09-30"}, "notes": "Smart day/night/peak with a 02:00-06:00 EV rate. Yuno homepage price tables, 'Discount Tariff Details Valid from 14th September 2026', urban, inc VAT; standing excludes the PSO levy, which Yuno lists separately. Clean export 17.16c (same page)."},
+  {"id": "FL-24", "supplier": "Flogas", "plan": "Smart 24hr 29%", "type": "flat", "rates": {"day": 0.2931, "night": 0.2931, "peak": 0.2931, "ev": 0.2931}, "windows": {"ev": null}, "standing": 300.2, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-30", "source": {"url": "https://www.flogas.ie/price-plans/?newCustomer=Yes&lookingFor=Electricity&meterType=Smart", "api": "flogas", "plan": "Smart 24Hr Electricity 29% Loyalty Discount", "fields": {"day": "24 hr unit rate", "standing": "standing charge"}, "read": "2026-09-30"}, "notes": " Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), new-customer offer, prices from 20 Jul 2026, urban, inc VAT; standing excludes the €19.10 PSO. Microgen export 18.5c (flogas.ie). Exit fee €50."},
+  {"id": "FL-DNP", "supplier": "Flogas", "plan": "Smart Day/Night/Peak 29%", "type": "tou", "rates": {"day": 0.3194, "night": 0.2305, "peak": 0.3779, "ev": 0}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 300.2, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-30", "source": {"url": "https://www.flogas.ie/price-plans/?newCustomer=Yes&lookingFor=Electricity&meterType=Smart", "api": "flogas", "plan": "Smart Electricity 29% Loyalty Discount", "fields": {"day": "day - 08:00", "night": "night - 23:00", "peak": "peak - 17:00", "standing": "standing charge"}, "read": "2026-09-30"}, "notes": " Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), new-customer offer, prices from 20 Jul 2026, urban, inc VAT; standing excludes the €19.10 PSO. Microgen export 18.5c (flogas.ie). Exit fee €50."},
+  {"id": "FL-EV", "supplier": "Flogas", "plan": "Smart EV Night Charge 29%", "type": "ev", "rates": {"day": 0.3176, "night": 0.2466, "peak": 0.4095, "ev": 0.0996}, "windows": {"ev": [2, 5], "peak": [17, 19], "night": [23, 8]}, "standing": 387.16, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-30", "source": {"url": "https://www.flogas.ie/price-plans/?newCustomer=Yes&lookingFor=Electricity&meterType=Smart", "api": "flogas", "plan": "Smart EV Night Charge 29% Electricity Loyalty Discount", "fields": {"day": "day - 08:00", "night": "night - 23:00", "peak": "peak - 17:00", "ev": "ev night charge - 02:00", "standing": "standing charge"}, "read": "2026-09-30"}, "notes": "EV Night Charge 02:00-05:00. Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), new-customer offer, prices from 20 Jul 2026, urban, inc VAT; standing excludes the €19.10 PSO. Microgen export 18.5c (flogas.ie). Exit fee €50."},
+  {"id": "FL-STD-24", "supplier": "Flogas", "plan": "Electricity 28% (24hr)", "type": "flat", "rates": {"day": 0.3168, "night": 0.3168, "peak": 0.3168, "ev": 0.3168}, "windows": {"ev": null}, "standing": 305.68, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-30", "source": {"url": "https://www.flogas.ie/price-plans/?newCustomer=Yes&lookingFor=Electricity&meterType=Smart", "api": "flogas", "plan": "Electricity 28% Loyalty Discount", "fields": {"day": "unit rate", "standing": "standing charge"}, "read": "2026-09-30"}, "notes": "Standard (non-smart) 24-hour meter. Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), new-customer offer, prices from 20 Jul 2026, urban, inc VAT; standing excludes the €19.10 PSO. Microgen export 18.5c (flogas.ie). Exit fee €50."},
+  {"id": "PIN-LF", "supplier": "Pinergy", "plan": "Lifestyle Standard Smart Tariff", "type": "tou", "rates": {"day": 0.458, "night": 0.3484, "peak": 0.4904, "ev": 0}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 283.47, "exit": 50, "length": 12, "green": true, "export_rate": 0.25, "verified_date": "2026-09-30", "source": {"url": "https://www.pinergy.ie/terms-conditions/tariffs/", "anchor": ["Standard Smart Tariff"], "fields": {"day": "Day Unit Price", "night": "Night Unit Price", "peak": "Peak Unit Price", "standing": {"label": "Standing Charge", "col": 4}}, "col": 2, "read": "2026-09-30"}, "notes": " Pinergy 'Lifestyle & Smart Tariffs', correct as at 14 Sep 2026, inc VAT; standing €283.47 excludes the €19.10 PSO. Export 25c not re-read in this check."},
+  {"id": "PIN-WFH", "supplier": "Pinergy", "plan": "Lifestyle Working from Home Time", "type": "tou", "rates": {"day": 0.458, "wfh": 0.3206, "night": 0, "peak": 0, "ev": 0}, "windows": {"peak": null, "night": null, "ev": null, "wfh": [9, 17]}, "standing": 283.47, "exit": 50, "length": 12, "green": true, "export_rate": 0.25, "verified_date": "2026-09-30", "source": {"url": "https://www.pinergy.ie/terms-conditions/tariffs/", "anchor": ["Working from Home Time"], "fields": {"wfh": "Unit Price 9am to 5pm Weekdays", "day": "Unit Price All other times", "standing": {"label": "Standing Charge", "col": 4}}, "col": 2, "read": "2026-09-30"}, "notes": "The 9am-5pm rate applies on weekdays only. Pinergy 'Lifestyle & Smart Tariffs', correct as at 14 Sep 2026, inc VAT; standing €283.47 excludes the €19.10 PSO. Export 25c not re-read in this check.", "weekend": {"days": [5, 6], "rates": {"wfh": 0.458}, "same_as": {"wfh": "day"}}},
+  {"id": "PIN-FAM", "supplier": "Pinergy", "plan": "Lifestyle Family Time", "type": "tou", "rates": {"day": 0.458, "night": 0.2748, "peak": 0, "ev": 0}, "windows": {"peak": null, "night": [19, 24], "ev": null}, "standing": 283.47, "exit": 50, "length": 12, "green": true, "export_rate": 0.25, "verified_date": "2026-09-30", "source": {"url": "https://www.pinergy.ie/terms-conditions/tariffs/", "anchor": ["Family Time"], "fields": {"night": "Unit Price 7pm to midnight", "day": "Unit Price All other times", "standing": {"label": "Standing Charge", "col": 4}}, "col": 2, "read": "2026-09-30"}, "notes": "Cheap band 19:00-midnight every day. Pinergy 'Lifestyle & Smart Tariffs', correct as at 14 Sep 2026, inc VAT; standing €283.47 excludes the €19.10 PSO. Export 25c not re-read in this check."},
+  {"id": "PIN-EV", "supplier": "Pinergy", "plan": "Lifestyle EV Night Time", "type": "ev", "rates": {"day": 0.4177, "night": 0.4177, "peak": 0.4177, "ev": 0.0599}, "windows": {"ev": [2, 5], "peak": null, "night": null}, "standing": 283.47, "exit": 50, "length": 12, "green": true, "export_rate": 0.25, "discontinued": true, "discontinued_date": "2026-05-21", "verified_date": "2026-09-15", "notes": "Pinergy: 'no longer on sale since 21 May 2026'."},
+  {"id": "PPP-24", "supplier": "PrepayPower", "plan": "Standard 24 Hr (pay-as-you-go)", "type": "flat", "rates": {"day": 0.3762, "night": 0.3762, "peak": 0.3762, "ev": 0.3762}, "windows": {"ev": null}, "standing": 473.98, "exit": 0, "length": 12, "green": false, "export_rate": 0, "verified_date": "2026-09-30", "source": {"url": "https://www.prepaypower.ie/why-switch/pricing/rates", "anchor": ["PrepayPower Standard 24 Hr Urban"], "fields": {"day": {"label": "Standard Unit Rate", "col": 2}, "standing": ["Urban Standing Charge", "Prepayment Service Charge"]}, "col": 4, "read": "2026-09-30"}, "notes": "Early termination €11.25 per remaining month. PrepayPower rates page, 'correct as of 1st June 2026', urban, inc VAT. Standing shown here is the standing charge plus the prepayment service charge, both unavoidable on this product; PSO excluded. No export payment published."},
+  {"id": "PPP-NS", "supplier": "PrepayPower", "plan": "NightSaver (pay-as-you-go)", "type": "tou", "rates": {"day": 0.4206, "night": 0.2077}, "windows": {"peak": null, "night": [23, 8], "ev": null}, "standing": 587.58, "exit": 0, "length": 12, "green": false, "export_rate": 0, "verified_date": "2026-09-30", "source": {"url": "https://www.prepaypower.ie/why-switch/pricing/rates", "anchor": ["PrepayPower Urban NightSaver"], "fields": {"day": {"label": "Standard Unit Rate Day", "col": 2}, "night": {"label": "Standard Unit Rate Night", "col": 2}, "standing": ["Urban Standing Charge", "Prepayment Service Charge"]}, "col": 4, "read": "2026-09-30"}, "notes": "Day & night meter. PrepayPower rates page, 'correct as of 1st June 2026', urban, inc VAT. Standing shown here is the standing charge plus the prepayment service charge, both unavoidable on this product; PSO excluded. No export payment published."},
+  {"id": "PPP-TOU", "supplier": "PrepayPower", "plan": "Smart Pay Day/Night/Peak (pay-as-you-go)", "type": "tou", "rates": {"day": 0.4165, "night": 0.216, "peak": 0.4681, "ev": 0}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 507.1, "exit": 0, "length": 12, "green": false, "export_rate": 0, "verified_date": "2026-09-30", "source": {"url": "https://www.prepaypower.ie/why-switch/pricing/rates", "anchor": ["PrepayPower Smart Pay Urban Day Night Peak"], "fields": {"day": {"label": "Unit Rate Day", "col": 2}, "night": {"label": "Unit Rate Night", "col": 2}, "peak": {"label": "Unit Rate Peak", "col": 2}, "standing": ["Urban Standing Charge", "Prepayment Service Charge"]}, "col": 4, "read": "2026-09-30"}, "notes": "Smart pay-as-you-go time of use. PrepayPower rates page, 'correct as of 1st June 2026', urban, inc VAT. Standing shown here is the standing charge plus the prepayment service charge, both unavoidable on this product; PSO excluded. No export payment published."},
+  {"id": "WP-24", "supplier": "Waterpower", "plan": "24 Hour (e-billing)", "type": "flat", "rates": {"day": 0.3142, "night": 0.3142, "peak": 0.3142, "ev": 0.3142}, "windows": {"ev": null}, "standing": 246.67, "exit": 0, "length": 0, "green": false, "export_rate": 0, "verified_date": "2026-09-30", "source": {"url": "https://www.waterpower.ie/current-electricity-rates/", "anchor": ["Domestic 24 Hour Urban"], "fields": {"day": "Unit Rate c/kwh  (E-Bill Only)", "standing": {"label": "Standing Charge Per Annum", "col": 2}}, "col": 2, "unit": "eur", "read": "2026-09-30"}, "notes": "waterpower.ie/current-electricity-rates, urban, e-billing, inc VAT; standing excludes the €19.10 PSO, listed separately. The page carries no date. Waterpower does not publish a Clean Export Guarantee rate, so export is 0 here and a home with solar is understated on this plan. Exit fee and contract length not published."},
+  {"id": "WP-DN", "supplier": "Waterpower", "plan": "Day/Night (e-billing)", "type": "tou", "rates": {"day": 0.3296, "night": 0.2541}, "windows": {"peak": null, "night": [23, 8], "ev": null}, "standing": 246.67, "exit": 0, "length": 0, "green": false, "export_rate": 0, "verified_date": "2026-09-30", "source": {"url": "https://www.waterpower.ie/current-electricity-rates/", "anchor": ["Domestic Day/Night (E-Billing) Urban"], "fields": {"day": "Unit Day Rate", "night": "Unit Night Rate", "standing": {"label": "Standing Charge Per Annum", "col": 2}}, "col": 2, "unit": "eur", "read": "2026-09-30"}, "notes": "waterpower.ie/current-electricity-rates, urban, e-billing, inc VAT; standing excludes the €19.10 PSO, listed separately. The page carries no date. Waterpower does not publish a Clean Export Guarantee rate, so export is 0 here and a home with solar is understated on this plan. Exit fee and contract length not published."},
+  {"id": "WP-SST", "supplier": "Waterpower", "plan": "Smart Tariff (SST)", "type": "tou", "rates": {"day": 0.322, "night": 0.2284, "peak": 0.3658, "ev": 0}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 246.67, "exit": 0, "length": 0, "green": false, "export_rate": 0, "verified_date": "2026-09-30", "source": {"url": "https://www.waterpower.ie/current-electricity-rates/", "anchor": ["Waterpower Smart Tariff (SST) Urban"], "fields": {"day": "Unit Day Rate", "night": "Unit Night Rate", "peak": "Peak Rate", "standing": {"label": "Standing Charge Per Annum", "col": 2}}, "col": 2, "unit": "eur", "read": "2026-09-30"}, "notes": "waterpower.ie/current-electricity-rates, urban, e-billing, inc VAT; standing excludes the €19.10 PSO, listed separately. The page carries no date. Waterpower does not publish a Clean Export Guarantee rate, so export is 0 here and a home with solar is understated on this plan. Exit fee and contract length not published."},
+  {"id": "CP-24", "supplier": "Community Power", "plan": "Standard Variable 24hr", "type": "flat", "rates": {"day": 0.3788, "night": 0.3788, "peak": 0.3788, "ev": 0.3788}, "windows": {"ev": null}, "standing": 302.01, "exit": 0, "length": 0, "green": true, "export_rate": 0, "verified_date": "2026-09-30", "source": {"url": "https://www.communitypower.ie/tariffs", "anchor": ["Standard Variable Rate"], "fields": {"day": "24hr", "standing": {"label": "Total Per Year", "col": 2}}, "col": 2, "read": "2026-09-30"}, "notes": "communitypower.ie/tariffs, inc VAT, urban. UNVERIFIED from 1 Oct 2026: the page states these prices are effective 1 Oct 2025 to 30 Sep 2026 and no later list is published yet. Export not published."},
+  {"id": "CP-DN", "supplier": "Community Power", "plan": "Standard Variable Day/Night", "type": "tou", "rates": {"day": 0.3971, "night": 0.243}, "windows": {"peak": null, "night": [23, 8], "ev": null}, "standing": 302.01, "exit": 0, "length": 0, "green": true, "export_rate": 0, "verified_date": "2026-09-30", "source": {"url": "https://www.communitypower.ie/tariffs", "anchor": ["Standard Variable Rate"], "fields": {"day": "Day", "night": "Night", "standing": {"label": "Total Per Year", "col": 2}}, "col": 2, "read": "2026-09-30"}, "notes": "communitypower.ie/tariffs, inc VAT, urban. UNVERIFIED from 1 Oct 2026: the page states these prices are effective 1 Oct 2025 to 30 Sep 2026 and no later list is published yet. Export not published."},
+  {"id": "CP-SST", "supplier": "Community Power", "plan": "Smart SST", "type": "tou", "rates": {"day": 0.3971, "night": 0.243, "peak": 0.4183, "ev": 0}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 302.01, "exit": 0, "length": 0, "green": true, "export_rate": 0, "verified_date": "2026-09-30", "source": {"url": "https://www.communitypower.ie/tariffs", "anchor": ["Smart SST"], "fields": {"day": "Day", "night": "Night", "peak": "Peak", "standing": {"label": "Total Per Year", "col": 2}}, "col": 2, "read": "2026-09-30"}, "notes": "communitypower.ie/tariffs, inc VAT, urban. UNVERIFIED from 1 Oct 2026: the page states these prices are effective 1 Oct 2025 to 30 Sep 2026 and no later list is published yet. Export not published."},
+  {"id": "BG-SMART-ALL-DAY-ELECTRICITY", "supplier": "Bord Gáis", "plan": "Smart All Day Electricity", "type": "flat", "rates": {"day": 0.3161, "night": 0.3161, "peak": 0.3161, "ev": 0.3161}, "windows": {"ev": null}, "standing": 244.76, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-15", "notes": "Not in Bord Gáis's new-customer plan list on 30 Sep 2026.", "price_change": {"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "Bord Gais price announcement, 9 Sep 2026", "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."}, "discontinued": true},
+  {"id": "BG-SMART-STANDARD-GREEN-ELECTRICITY-ONLY", "supplier": "Bord Gáis", "plan": "Smart Standard Green Electricity Only", "type": "tou", "rates": {"day": 0.3378, "night": 0.2493, "peak": 0.4112, "ev": 0.2493}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 244.76, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-15", "notes": "Not in Bord Gáis's new-customer plan list on 30 Sep 2026.", "price_change": {"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "Bord Gais price announcement, 9 Sep 2026", "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."}, "discontinued": true}
 ];
 
 let TARIFFS = EMBEDDED_TARIFFS.slice();
@@ -1878,7 +1479,7 @@ function simulate(plan, gen, cons, strategy){
     const c = cons[i];
     const band = bandAt(hour, plan);
     out.band[i] = band;
-    const rate = isDynamic ? effRates[i] : (plan.rates[band] ?? plan.rates.day ?? 0);
+    const rate = isDynamic ? effRates[i] : staticRateAt(i, plan, band);
 
     // For dynamic, determine if THIS hour is cheap vs the surrounding 24h
     let isCheapDynamic = false, isExpensiveDynamic = false, dailyAvg = 0;
@@ -6543,7 +6144,7 @@ function openTariffPopup(planId){
         <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent)">${fmtCent(plan.export_rate || 0)}/kWh</div>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;padding:11px 0">
-        <div><div style="font-size:13px;font-weight:600;color:var(--ink)">Standing charge</div><div style="font-size:12px;color:var(--ink-dim);font-family:var(--mono)">Fixed yearly, incl. PSO levy</div></div>
+        <div><div style="font-size:13px;font-weight:600;color:var(--ink)">Standing charge</div><div style="font-size:12px;color:var(--ink-dim);font-family:var(--mono)">Fixed yearly; the €19.10 PSO levy is added on top</div></div>
         <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)">${fmtCurrency(plan.standing)}/yr</div>
       </div>
       ${plan.type === 'dynamic' ? `<div style="padding:9px 12px;background:var(--blue-soft);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:4px">Half-hourly wholesale pricing on top of the base rates above — hourly prices move with the market.</div>` : ''}
@@ -6834,7 +6435,7 @@ function renderPlanDetail(){
       </div>
       <div class="pd-rate-row">
         <div class="pd-rate-label">Annual standing charge
-          <small>Fixed daily fee, includes PSO levy</small>
+          <small>Fixed daily fee; the PSO levy is added on top</small>
         </div>
         <div>
           <input class="pd-rate-input ${baseTariff.standing !== plan.standing ? 'edited' : ''}" type="number" inputmode="decimal" step="0.01" min="0" max="2000" value="${plan.standing.toFixed(2)}" onchange="editPlanField('${planId}', 'standing', this.value)">
@@ -7468,7 +7069,7 @@ function renderAnalytics(){
   let maxCost = 0.001;
   for (let h = 0; h < 24; h++){
     const i = start + h;
-    const rate = plan.type === 'dynamic' && s.eff_rate ? s.eff_rate[i] : plan.rates[bandAt(h, plan)];
+    const rate = plan.type === 'dynamic' && s.eff_rate ? s.eff_rate[i] : staticRateAt(i, plan);
     const exportRev = s.grid_export[i] * plan.export_rate;
     const importCost = s.grid_import[i] * rate;
     const hCost = importCost - exportRev;
@@ -11471,7 +11072,7 @@ function renderMethodology(){
       <div class="card-label">${ic('bolt',13)} Electricity cost simulation</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.75;margin-top:6px">
         We simulate <b>8,760 hourly intervals</b> (one per hour of the year) for every plan. Your annual consumption is distributed using an industry-standard Irish load profile (ESBN EAB profile), scaled to your bimonthly bill and adjusted for heating type (gas vs heat-pump vs direct electric).<br><br>
-        For each hour we calculate the import cost at the applicable rate band, plus any export income from solar. The total includes the standing charge (PSO levy + network fee). We run this for all ${TARIFFS.length} plans and rank them by total annual cost.
+        For each hour we calculate the import cost at the applicable rate band, plus any export income from solar. The total includes the standing charge and the PSO levy. We run this for all ${TARIFFS.length} plans and rank them by total annual cost.
       </div>
     </div>
 

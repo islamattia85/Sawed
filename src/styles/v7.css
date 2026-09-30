@@ -171,6 +171,9 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
   display: flex; gap: 10px; align-items: flex-start; padding: var(--space-3);
   border-radius: var(--radius-lg); font-size: var(--text-data); line-height: 1.5; color: var(--ink);
 }
+.v7-note .ic { flex: none; }
+.v7-fine { font-size: var(--text-caption); color: var(--ink-dim); margin: var(--space-2) 0 0; line-height: 1.45; }
+.v7-fine a { color: var(--ink-dim); text-decoration: underline; }
 .v7-note.is-rise { background: var(--amber-faint); color: var(--ink); }
 .v7-note.is-rise .ic { color: var(--amber); flex: none; }
 .v7-note.is-check { background: var(--well); }
@@ -297,6 +300,9 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
   display: flex; flex-direction: column; gap: var(--space-3);
   animation: v7-rise .24s cubic-bezier(.2, .8, .2, 1);
 }
+/* A scrolling flex column: children keep their height instead of being
+   squeezed to fit (an SVG would otherwise collapse to nothing). */
+.v7-sheet > * { flex-shrink: 0; }
 .v7-grip { width: 40px; height: 4px; border-radius: var(--radius-pill); background: var(--track); margin: 0 auto var(--space-2); }
 .v7-sheet-x {
   position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; border-radius: var(--radius-pill);

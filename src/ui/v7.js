@@ -558,6 +558,9 @@ export function createV7(api) {
         <div class="v7-rate"><i class="v7-dot" style="background:var(--ink-dim)"></i>Standing<b>${api.fmtCurrency(plan.standing)}/yr</b></div>
         ${plan.export_rate ? `<div class="v7-rate"><i class="v7-dot" style="background:var(--accent)"></i>Export<b>${api.fmtCent(plan.export_rate)}</b></div>` : ''}
       </div>
+      ${weekendLine(plan, label)}
+      <div class="v7-fine">Every plan also carries the €19.10 PSO levy, set by the regulator; it is in the yearly figure above.</div>
+      ${sourceLine(plan)}
       ${pc ? `<div class="v7-note is-rise">${api.ic('trendUp', 16)}<div><b>Prices rise ${fmtDate(pc.effective_date)}.</b> ${esc(pc.note || '')} The year above already includes it for the months it applies.</div></div>` : ''}
       ${api.planDataFlag(plan) ? `<div class="v7-note is-check">${api.ic('warn', 16)}<div>These rates have not been re-checked recently. Confirm them with ${esc(plan.supplier)} before switching.</div></div>` : ''}
       <button class="v7-cta-2" onclick="handleSwitchClick('${plan.id}', '${switchName}', ${saving.toFixed(0)})">Go to ${esc(plan.supplier)} ${api.ic('chevR', 16)}</button>
@@ -565,6 +568,32 @@ export function createV7(api) {
         ${st.chosen_plan === plan.id ? '' : `<a href="#" onclick="event.preventDefault();v7Choose('${plan.id}')">Use this plan for my figures</a>`}
         <a href="#" onclick="event.preventDefault();v7Sheet(null);showPlanDetail('${plan.id}')">Full rate card</a>
       </div>`;
+  }
+
+  /** What changes at the weekend, in words — the strip above shows a weekday. */
+  function weekendLine(plan, label) {
+    const we = plan.weekend;
+    if (!we) return '';
+    const DAY = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const hh = (h) => `${String(h % 24).padStart(2, '0')}:00`;
+    let when;
+    if (we.span) when = `${DAY[we.span[0][0]]} ${hh(we.span[0][1])} to ${DAY[we.span[1][0]]} ${hh(we.span[1][1])}`;
+    else when = `${(we.days || []).map((d) => DAY[d]).join(' and ')}${we.window ? `, ${hh(we.window[0])}–${hh(we.window[1])}` : ''}`;
+    const parts = Object.entries(we.rates || {})
+      .filter(([b, v]) => plan.rates[b] != null && v !== plan.rates[b])
+      .map(([b, v]) => `${(label[b] || b).toLowerCase()} ${v === 0 ? 'free' : api.fmtCent(v)}`);
+    if (!parts.length) return '';
+    return `<div class="v7-note is-check">${api.ic('calendar', 16)}<div><b>Weekends.</b> ${esc(when)}: ${esc(parts.join(', '))}. Included in the yearly figure.</div></div>`;
+  }
+
+  /** Where the figures were read, and when. */
+  function sourceLine(plan) {
+    const src = plan.source;
+    if (!src?.url) return '';
+    let host = src.url;
+    try { host = new URL(src.url).hostname.replace(/^www\./, ''); } catch (e) { /* keep the raw url */ }
+    const when = src.read || plan.verified_date;
+    return `<div class="v7-fine">Rates read from <a href="${esc(src.url)}" target="_blank" rel="noopener">${esc(host)}</a>${when ? ` on ${fmtDate(when)}` : ''}, inc VAT.</div>`;
   }
 
   /**

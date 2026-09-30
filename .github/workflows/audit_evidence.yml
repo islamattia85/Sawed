@@ -1,8 +1,16 @@
-name: Capture supplier price evidence
+name: Capture supplier prices and verify the registry
 
-# Reads every Irish residential supplier's own price pages and price-list
-# PDFs in a real browser, and commits what it saw to the audit/evidence
-# branch. It never touches the app's data: evidence first, changes after.
+# Every morning: read every Irish residential supplier's own price pages in a
+# real browser, commit what was seen to the audit/evidence branch, then re-read
+# every plan in the registry from that evidence (scraper/verify_sources.py).
+#
+#   * a price changed      -> a pull request with the new figures, for review
+#   * a plan can't be read,
+#     or a supplier lists a
+#     plan we don't carry  -> an issue (GitHub emails the owner), kept open
+#                             until a run comes back clean
+#
+# Scheduled runs only fire from the repository's default branch.
 
 on:
   push:
@@ -15,10 +23,12 @@ on:
         required: false
         default: ''
   schedule:
-    - cron: '30 5 * * 1'   # every Monday 05:30 UTC — a weekly full re-read
+    - cron: '17 5 * * *'   # every day 05:17 UTC
 
 permissions:
   contents: write
+  pull-requests: write
+  issues: write
 
 concurrency:
   group: audit-evidence
@@ -88,3 +98,81 @@ jobs:
           git add evidence
           git commit -q -m "evidence: supplier prices as published on $(date -u +%F)" || echo "no change"
           git push origin audit/evidence
+
+  verify:
+    needs: capture
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: evidence-*
+          path: /tmp/parts
+      - name: Gather the evidence
+        run: |
+          mkdir -p /tmp/evidence
+          for d in /tmp/parts/*/; do cp "$d"*.json /tmp/evidence/ 2>/dev/null || true; done
+          ls /tmp/evidence
+      - name: Re-read every plan from the suppliers' pages
+        id: verify
+        shell: bash
+        run: |
+          set +e
+          python scraper/verify_sources.py /tmp/evidence --apply
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat verify_report.md >> "$GITHUB_STEP_SUMMARY"
+      # The new figures must still pass every registry check before anyone is
+      # asked to merge them.
+      - name: Check the updated registry
+        run: |
+          npm ci
+          npx vitest run
+      - name: Open a pull request with the changed prices
+        id: pr
+        continue-on-error: true
+        uses: peter-evans/create-pull-request@v6
+        with:
+          add-paths: |
+            public/tariffs.json
+            src/main.js
+          branch: tariffs/verified-update
+          commit-message: "tariffs: prices as published by the suppliers"
+          title: "Tariff update from the suppliers' own pages"
+          labels: tariffs
+          delete-branch: true
+          body-path: verify_report.md
+      - name: Raise an issue when a plan could not be read or is missing
+        if: steps.verify.outputs.status != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('verify_report.md', 'utf8');
+            const needsPerson = /UNREADABLE|NOT IN REGISTRY|not captured/.test(report);
+            if (!needsPerson) return;   // only price changes: the PR covers it
+            const title = 'Tariff check needs a person';
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `${report}\n\nRun: ${run}\n\nA plan UNREADABLE means its page or labels changed: fix its \`source\` recipe in public/tariffs.json. NOT IN REGISTRY means a supplier is selling a plan the app does not know: add it with a recipe.`;
+            const { data: open } = await github.rest.issues.listForRepo({ owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: 'tariffs' });
+            const existing = open.find(i => i.title === title);
+            if (existing) await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body });
+            else await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body, labels: ['tariffs'] });
+      - name: Close the issue once every plan reads cleanly
+        if: steps.verify.outputs.status == '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Tariff check needs a person';
+            const { data: open } = await github.rest.issues.listForRepo({ owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: 'tariffs' });
+            const existing = open.find(i => i.title === title);
+            if (!existing) return;
+            await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body: 'Every plan read cleanly again — closing.' });
+            await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'closed' });

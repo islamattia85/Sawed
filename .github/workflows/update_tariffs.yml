@@ -1,10 +1,10 @@
 name: Update Electricity Tariffs
 
+# Retired from the schedule: its per-supplier parsers are what let wrong
+# figures into the registry. The daily check is now audit_evidence.yml, which
+# re-reads every plan through the recipe in its `source`. Kept for manual runs.
 on:
-  schedule:
-    # Run daily at 06:00 UTC (07:00 Irish time)
-    - cron: "0 6 * * *"
-  workflow_dispatch:   # Allow manual trigger from GitHub Actions UI
+  workflow_dispatch:
 
 permissions:
   contents: write

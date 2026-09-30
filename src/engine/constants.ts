@@ -78,6 +78,38 @@ export interface PriceChange {
   note?: string;
 }
 
+/**
+ * Rates that replace the weekday ones on some days of the week — a "free
+ * Saturday" plan, or one whose weekend is simply cheaper. Within `window`
+ * (whole day when absent) on the listed `days`, a band named in `rates` is
+ * charged at that rate instead; bands it does not name keep their usual rate.
+ */
+export interface WeekendRates {
+  /** Days it applies, 0 = Monday .. 6 = Sunday. */
+  days?: readonly number[];
+  rates: Partial<Record<Band, number>>;
+  window?: HourWindow;
+  /**
+   * Alternatively, one continuous stretch of the week, [weekday, hour] to
+   * [weekday, hour), e.g. [[5, 8], [6, 23]] for 8am Saturday to 11pm Sunday.
+   */
+  span?: readonly [readonly [number, number], readonly [number, number]];
+}
+
+/**
+ * Public Service Obligation levy, euro a year inc VAT, for a domestic account.
+ * Set by the CRU, the same whatever the supplier, and billed on top of the
+ * supplier's standing charge — so plan standing charges in the registry leave
+ * it out and the engine adds it once. 2025/26 levy: €17.52 ex VAT, €19.10 inc.
+ */
+export const PSO_LEVY = 19.10;
+
+/**
+ * Weekday of the first hour of the modelled year, 0 = Monday. The engine
+ * models a 365-day calendar year; 1 January 2026 was a Thursday.
+ */
+export const YEAR_START_WEEKDAY = 3;
+
 export interface Tariff {
   id: string;
   supplier: string;
@@ -90,4 +122,5 @@ export interface Tariff {
   price_change?: PriceChange;
   rates: Partial<Record<Band, number>>;
   windows: Partial<Record<Exclude<Band, 'day'>, HourWindow>>;
+  weekend?: WeekendRates;
 }

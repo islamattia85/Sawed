@@ -6,7 +6,7 @@
  * fixed one in tests.
  */
 
-import { HOURS_IN_YEAR, type Band, type HourWindow, type Tariff } from './constants.js';
+import { HOURS_IN_YEAR, PSO_LEVY, YEAR_START_WEEKDAY, type Band, type HourWindow, type Tariff } from './constants.js';
 
 /**
  * CRU cap on the customer billing rate for a dynamic plan, euro/kWh.
@@ -39,6 +39,35 @@ export function bandAt(hour: number, plan: Tariff): Band {
   return 'day';
 }
 
+/** Weekday of hour `hourIdx` of the modelled year, 0 = Monday. */
+export function weekdayOf(hourIdx: number): number {
+  return (Math.floor(hourIdx / 24) + YEAR_START_WEEKDAY) % 7;
+}
+
+/**
+ * The plan's fixed (non-wholesale) rate for hour `hourIdx` of the year: the
+ * band rate, or the weekend rate where the plan has one for that hour.
+ */
+export function staticRateAt(hourIdx: number, plan: Tariff, band: Band = bandAt(hourIdx % 24, plan)): number {
+  const base = plan.rates[band] ?? plan.rates.day ?? 0;
+  const we = plan.weekend;
+  if (!we) return base;
+  const dow = weekdayOf(hourIdx);
+  const hour = hourIdx % 24;
+  if (we.span) {
+    const [[d0, h0], [d1, h1]] = we.span;
+    const at = dow * 24 + hour;
+    const a = d0 * 24 + h0;
+    const b = d1 * 24 + h1;
+    const inside = a < b ? at >= a && at < b : at >= a || at < b;
+    if (!inside) return base;
+  } else {
+    if (!we.days?.includes(dow)) return base;
+    if (we.window && !isInWindow(hour, we.window)) return base;
+  }
+  return we.rates[band] ?? base;
+}
+
 /**
  * Unit rate at a given hour, euro/kWh.
  *
@@ -51,7 +80,9 @@ export function rateAt(
   hourIdx?: number,
   wholesale?: Float32Array | null,
 ): number {
-  const base = plan.rates[bandAt(hour, plan)] ?? plan.rates.day ?? 0;
+  const base = hourIdx != null
+    ? staticRateAt(hourIdx, plan, bandAt(hour, plan))
+    : plan.rates[bandAt(hour, plan)] ?? plan.rates.day ?? 0;
   if (plan.type === 'dynamic' && hourIdx != null && wholesale) {
     const w = wholesale[hourIdx] ?? 0;
     return Math.min(WHOLESALE_CAP + base, base + w);
@@ -94,7 +125,7 @@ export function simulateBaseline(
     const use = cons[i] ?? 0;
     out.band[i] = band;
     out.grid_import[i] = use;
-    const rate = isDynamic ? rateAt(hour, plan, i, wholesale) : (plan.rates[band] ?? 0);
+    const rate = isDynamic ? rateAt(hour, plan, i, wholesale) : staticRateAt(i, plan, band);
     out.cost[i] = use * rate;
   }
   return out;
@@ -111,7 +142,9 @@ export interface AnnualCost {
   energy_cost: number;
   standing: number;
   export_revenue: number;
-  /** Import cost + standing charge − export revenue, INCLUDING any announced
+  /** The PSO levy, identical on every plan. */
+  pso: number;
+  /** Import cost + standing charge + PSO levy − export revenue, INCLUDING any announced
    *  price change over the year ahead. The comparable figure. */
   net: number;
   /** The extra euro a year an announced-but-not-yet-effective price change adds
@@ -181,7 +214,8 @@ export function annualCost(
     energy_cost: energy,
     standing: plan.standing,
     export_revenue: revenue,
-    net: energy + plan.standing - revenue + outlook_extra,
+    pso: PSO_LEVY,
+    net: energy + plan.standing + PSO_LEVY - revenue + outlook_extra,
     outlook_extra,
   };
 }
