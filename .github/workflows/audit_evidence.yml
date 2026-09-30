@@ -25,9 +25,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # One job per supplier, in parallel: a slow site no longer holds up the rest,
+  # and one that fails leaves the others' evidence intact.
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        supplier: ['electric', 'bord', 'sse', 'energia', 'yuno', 'flogas', 'pinergy',
+                   'prepaypower', 'waterpower', 'community', 'ecopower']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -36,14 +43,38 @@ jobs:
           cache: pip
       - run: pip install -r scraper/requirements.txt playwright==1.47.0
       - run: python -m playwright install --with-deps chromium
-      - name: Capture
+      - name: Capture ${{ matrix.supplier }}
+        if: github.event.inputs.suppliers == '' || contains(github.event.inputs.suppliers, matrix.supplier)
         working-directory: scraper
-        run: python audit_dump.py ${{ github.event.inputs.suppliers }}
+        run: python audit_dump.py ${{ matrix.supplier }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: evidence-${{ matrix.supplier }}
+          path: evidence/
+          if-no-files-found: ignore
+          retention-days: 30
+
+  commit:
+    needs: capture
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: evidence-*
+          path: /tmp/parts
       - name: Commit the evidence to audit/evidence
         run: |
+          mkdir -p /tmp/evidence
+          for d in /tmp/parts/*/; do cp "$d"*.json /tmp/evidence/ 2>/dev/null || true; done
+          { echo "# Supplier price evidence — captured $(date -u +%F)"; echo;
+            echo "Raw capture by scraper/audit_dump.py; one JSON per supplier. Nothing here is interpreted.";
+            echo; echo "| Supplier | pages read | tables | JSON payloads | PDFs read | c/kWh figures seen |";
+            echo "|---|---|---|---|---|---|";
+            cat /tmp/parts/*/README.md 2>/dev/null | grep '^| [A-Z]' | grep -v '^| Supplier' || true; } > /tmp/evidence/README.md
           git config user.name  "evidence-bot"
           git config user.email "evidence-bot@users.noreply.github.com"
-          cp -r evidence /tmp/evidence
           git fetch origin audit/evidence || true
           if git rev-parse --verify -q origin/audit/evidence >/dev/null; then
             git checkout -B audit/evidence origin/audit/evidence
@@ -55,8 +86,3 @@ jobs:
           git add evidence
           git commit -q -m "evidence: supplier prices as published on $(date -u +%F)" || echo "no change"
           git push origin audit/evidence
-      - uses: actions/upload-artifact@v4
-        with:
-          name: evidence
-          path: evidence/
-          retention-days: 30

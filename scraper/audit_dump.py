@@ -152,9 +152,11 @@ def capture(supplier: str, entries: list[str], browser) -> dict:
         page.on("response", on_response)
         rec = {"url": url}
         try:
-            resp = page.goto(url, wait_until="networkidle", timeout=45_000)
+            # "networkidle" never settles on sites with analytics beacons, and
+            # cost 45s a page; load the DOM, then give scripts a few seconds.
+            resp = page.goto(url, wait_until="domcontentloaded", timeout=30_000)
             rec["status"] = resp.status if resp else None
-            time.sleep(1.5)
+            time.sleep(4)
             # open anything collapsed — accordions often hide the price table
             for sel in ["button[aria-expanded='false']", "summary", "[data-toggle='collapse']"]:
                 for el in page.query_selector_all(sel)[:30]:
@@ -167,6 +169,9 @@ def capture(supplier: str, entries: list[str], browser) -> dict:
             rec["title"] = page.title()
             rec["text"] = text_from_html(html)[:80_000]
             rec["tables"] = tables_from_html(html)
+            # The raw page too, so the scraper's parsers can be run offline
+            # against exactly what was captured.
+            rec["html"] = html[:600_000]
             rec["json"] = payloads
             for label, u in links_from_html(html, page.url):
                 h = urlparse(u).netloc.replace("www.", "")
