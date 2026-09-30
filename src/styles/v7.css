@@ -400,6 +400,7 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 
 .v7-tiles .v7-tile-score .v7-ring { margin-bottom: 4px; }
 .v7-tile-wide { width: 100%; }
+.v7-tiles-4 .v7-tile-big { font-size: var(--text-body); }
 .v7-tiles-3 { grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
 .v7-tiles-3 .v7-tile { padding: var(--space-3); }
 .v7-tiles-3 .v7-tile-big { font-size: var(--text-body); }
@@ -436,3 +437,6 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .v7-month-stats b { font-size: var(--text-body); color: var(--ink); }
 .v7-month-stats span { font-size: var(--text-caption); color: var(--ink-soft); }
 
+
+/* One figure per line when labels are long (plan names, charging windows). */
+.v7-rates.v7-rates-1 { grid-template-columns: 1fr; }

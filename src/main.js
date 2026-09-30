@@ -5749,13 +5749,6 @@ function renderSolarDashboard(opts){
 
     ${renderSolarComparison()}
 
-    ${state.ev_active && econ ? `
-      <div class="card" style="margin-bottom:14px;border-color:var(--amber);background:linear-gradient(140deg,var(--amber-faint),var(--panel))">
-        <div class="card-label" style="color:var(--amber)">${ic('car',13)} EV petrol displacement (separate from solar)</div>
-        <div class="card-value" style="color:var(--amber);font-family:var(--mono)">€${econ.petrolCost.toFixed(0)}<span class="unit">/yr saved on petrol</span></div>
-        <div class="card-delta">${econ.litres.toFixed(0)} L petrol avoided · ${econ.evKwh.toFixed(0)} kWh charged (€${econ.evElectricityCost.toFixed(0)} elec) · net €${econ.evVsPetrolNet.toFixed(0)}/yr vs ICE</div>
-      </div>
-    ` : ''}
 
     <div class="grid-2">
       <div class="card">
@@ -5993,13 +5986,6 @@ function renderSolarDashboard(opts){
 
     ${renderSolarComparison()}
 
-    ${state.ev_active && econ ? `
-      <div class="card" style="margin-bottom:14px;border-color:var(--amber);background:linear-gradient(140deg,var(--amber-faint),var(--panel))">
-        <div class="card-label" style="color:var(--amber)">${ic('car',13)} EV petrol displacement (separate from solar)</div>
-        <div class="card-value" style="color:var(--amber);font-family:var(--mono)">€${econ.petrolCost.toFixed(0)}<span class="unit">/yr saved on petrol</span></div>
-        <div class="card-delta">${econ.litres.toFixed(0)} L petrol avoided · ${econ.evKwh.toFixed(0)} kWh charged (€${econ.evElectricityCost.toFixed(0)} elec) · net €${econ.evVsPetrolNet.toFixed(0)}/yr vs ICE</div>
-      </div>
-    ` : ''}
 
     <div class="grid-2">
       <div class="card">
@@ -9693,7 +9679,7 @@ const V7 = createV7({
   fmtCurrency, fmtCent, fmtVerifiedDate, latestVerifiedLabel, planDataFlag, planCategoryLabel,
   freshnessChip, priceChangeChip, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
   renderBillShape, renderDayShape, renderSavingsBreakdown, renderAssumptions,
-  renderTrustPanel, renderLogicBreakdown, renderNightRateCard, renderEvSavingsCard,
+  renderTrustPanel, renderLogicBreakdown, renderNightRateCard, renderEvSavingsCard, evEconomics,
 });
 
 /**

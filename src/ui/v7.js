@@ -227,7 +227,10 @@ export function createV7(api) {
     }
     let health = null;
     try { health = api.computeEnergyScore(rec.best, rec.baseCost); } catch (e) { health = null; }
-    return `<div class="v7-tiles v7-tiles-3">
+    let ev = null;
+    if (st.ev_active) { try { ev = api.evEconomics(rec.best.plan.id); } catch (e) { ev = null; } }
+    if (ev && !(ev.evKwh > 0)) ev = null;  // an EV with no driving set has nothing to say
+    return `<div class="v7-tiles ${ev ? 'v7-tiles-4' : 'v7-tiles-3'}">
       <button class="v7-tile" onclick="setScreen('plans')">
         <span class="v7-tile-ico">${api.ic('plans', 18)}</span>
         <span class="v7-tile-big">${n} plans</span>
@@ -242,6 +245,11 @@ export function createV7(api) {
         ${scoreRing({ value: health.overall, size: 44 })}
         <span class="v7-tile-big">Health</span>
         <span class="v7-tile-sub">score, and fixes</span>
+      </button>` : ''}
+      ${ev ? `<button class="v7-tile v7-tile-ev" onclick="v7Sheet('ev')">
+        <span class="v7-tile-ico">${api.ic('car', 18)}</span>
+        <span class="v7-tile-big">${eur(ev.evVsPetrolNet)}/yr</span>
+        <span class="v7-tile-sub">EV saves vs petrol</span>
       </button>` : ''}
     </div>
     <div class="report-promo v7-report" onclick="openPdfReportModal()">
@@ -516,6 +524,7 @@ export function createV7(api) {
     else if (sh.kind === 'assume') body = assumeSheet();
     else if (sh.kind === 'score') body = scoreSheet();
     else if (sh.kind === 'months') body = monthsSheet();
+    else if (sh.kind === 'ev') body = evSheet();
     if (!body) return '';
     return `<div class="v7-sheet-root" id="v7-sheet">
       <div class="v7-sheet-backdrop" onclick="v7Sheet(null)"></div>
@@ -619,8 +628,54 @@ export function createV7(api) {
         </div>
       </section>
       ${api.renderNightRateCard(best, rec.baseCost)}
-      ${api.renderEvSavingsCard(best)}`;
+      ${S().ev_active ? `<button class="v7-cta-2" onclick="v7Sheet('ev')">${api.ic('car', 16)} Your EV: charging and petrol ${api.ic('chevR', 16)}</button>` : ''}`;
   }
+
+  /**
+   * The car, on its own. Petrol against electricity is true with or without
+   * panels, so it lives here rather than on the Solar tab. Leads with the net
+   * figure; the petrol and charging figures below are its working.
+   */
+  function evSheet() {
+    const st = S();
+    const rec = api.getRecommendation();
+    const best = rec.best;
+    const ev = api.evEconomics(best.plan.id);
+    if (!ev) return '';
+    const plan = best.plan;
+    const cheapRate = plan.rates.ev ?? plan.rates.night ?? plan.rates.day;
+    const cheapName = plan.windows?.ev ? `its EV window (${hhmm(plan.windows.ev[0])}–${hhmm(plan.windows.ev[1])})`
+      : plan.windows?.night ? `its night rate (${hhmm(plan.windows.night[0])}–${hhmm(plan.windows.night[1])})` : 'its flat rate';
+    const at6 = plan.rates[api.bandAt(18, plan)] ?? plan.rates.day;
+    const lost = ev.evKwh * (at6 - cheapRate);
+    // Charging alone, on every plan on sale: the cheapest place to plug in.
+    const byCharging = rec.ranked.map((r) => {
+      const p = r.plan;
+      const rate = p.windows?.ev ? p.rates.ev : p.windows?.night ? p.rates.night : p.rates.day;
+      return { p, rate, cost: ev.evKwh * rate };
+    }).sort((a, b) => a.cost - b.cost).slice(0, 3);
+    return `<div class="v7-sheet-head">
+        <div class="v7-eyebrow">Your EV · ${Math.round(ev.km).toLocaleString('en-IE')} km a year</div>
+        <h2 class="v7-h">${ev.evVsPetrolNet >= 0 ? `${eur(ev.evVsPetrolNet)} a year less than petrol` : `${eur(-ev.evVsPetrolNet)} a year more than petrol`}</h2>
+      </div>
+      <div class="v7-sheet-figs">
+        <div><div class="v7-fig">${eur(ev.petrolCost)}</div><div class="v7-fig-sub">petrol you don't buy · ${Math.round(ev.litres).toLocaleString('en-IE')} L at €${(st.fuel_price || 1.83).toFixed(2)}</div></div>
+        <div><div class="v7-fig">${eur(ev.evElectricityCost)}</div><div class="v7-fig-sub">to charge it · ${kwh(ev.evKwh)} on ${esc(plan.supplier)}</div></div>
+      </div>
+      <div class="v7-card-title">When you plug in</div>
+      <div class="v7-rates v7-rates-1">
+        <div class="v7-rate"><i class="v7-dot" style="background:var(--bandink-ev)"></i>Overnight, on ${esc(cheapName)}<b>${api.fmtCent(cheapRate)}</b></div>
+        <div class="v7-rate"><i class="v7-dot" style="background:var(--bandink-peak)"></i>Straight home at 6pm<b>${api.fmtCent(at6)}</b></div>
+      </div>
+      ${lost > 1 ? `<div class="v7-note is-check">${api.ic('bolt', 16)}<div>Charging at 6pm instead would cost <b>${eur(lost)} more a year</b>. A charger timer or the car's own schedule does it for you.</div></div>` : ''}
+      <div class="v7-card-title">Cheapest plans to charge on</div>
+      <div class="v7-rates v7-rates-1">
+        ${byCharging.map((x) => `<div class="v7-rate"><i class="v7-dot" style="background:var(--bandink-ev)"></i>${esc(x.p.supplier)} ${esc(x.p.plan)}<b>${eur(x.cost)}/yr</b></div>`).join('')}
+      </div>
+      <div class="v7-fine">Charging alone. The plan ranked best for your home, ${esc(plan.supplier)} ${esc(plan.plan)}, already weighs charging together with everything else you use.</div>`;
+  }
+
+  const hhmm = (h) => `${String(h % 24).padStart(2, '0')}:00`;
 
   const MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
     'August', 'September', 'October', 'November', 'December'];

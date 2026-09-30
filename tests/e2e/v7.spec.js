@@ -251,3 +251,23 @@ test('the month chart opens a swipeable month-by-month sheet', async ({ page }) 
   expect(errors).toEqual([]);
 });
 
+
+test('the EV lives on Home, not on the Solar tab', async ({ page }) => {
+  const errors = await boot(page, { ev_active: true, current_screen: 'solar', _solar_detail_open: true });
+  await expect(page.getByText('EV petrol displacement')).toHaveCount(0);
+  await boot(page, { ev_active: true, ev_km_per_year: 15000 });
+  const tile = page.locator('.v7-tile-ev');
+  await expect(tile).toBeVisible();
+  await expect(tile).toContainText('EV saves vs petrol');
+  await tile.click();
+  await expect(page.locator('#v7-sheet')).toContainText('a year less than petrol');
+  await expect(page.locator('#v7-sheet')).toContainText('Cheapest plans to charge on');
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: 'screenshots/24-ev-sheet.png' });
+  expect(errors).toEqual([]);
+});
+
+test('no EV, no EV tile', async ({ page }) => {
+  await boot(page, { ev_active: false });
+  await expect(page.locator('.v7-tile-ev')).toHaveCount(0);
+});
