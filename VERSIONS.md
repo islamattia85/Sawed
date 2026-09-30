@@ -9,7 +9,7 @@ one repository and one history, and nothing else.
 | **V4** | `v4` | `4.0.0-dev` | An earlier next-major experiment. Free to break anything. |
 | **V5** | `v5` | `5.0.0-beta.1` | Warm-dark redesign + full-catalogue data (every plan a supplier lists). Parallel beta, own preview URL. |
 | **V6** | `v6` | `6.0.0-beta.1` | A refreshed design, forked from V3. Deployed to its own preview URL; promote to the published URL via Vercel's Production Branch setting, roll back to `main` at any time. |
-| **V7** | `claude/elegant-brahmagupta-10wmr1` | `7.0.0-beta.1` | A complete UI/UX rehaul on the V6 engine and data: savings ladder, plans as bars, sheets instead of screens, a new visual language. Same engine, same 31 plans, same figures. |
+| **V7** | `v7` | `7.0.0-beta.1` | A complete UI/UX rehaul on the V6 engine and data: savings ladder, plans as bars, sheets instead of screens, a new visual language. Same engine, same 31 plans, same figures. |
 
 ### Publishing a line to the main URL, and rolling back
 
