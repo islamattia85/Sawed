@@ -1,0 +1,62 @@
+name: Capture supplier price evidence
+
+# Reads every Irish residential supplier's own price pages and price-list
+# PDFs in a real browser, and commits what it saw to the audit/evidence
+# branch. It never touches the app's data: evidence first, changes after.
+
+on:
+  push:
+    branches: ['feat/price-**', 'v7']
+    paths: ['scraper/audit_dump.py', '.github/workflows/audit_evidence.yml']
+  workflow_dispatch:
+    inputs:
+      suppliers:
+        description: 'Space-separated names, e.g. "sse flogas". Empty = every supplier.'
+        required: false
+        default: ''
+  schedule:
+    - cron: '30 5 * * 1'   # every Monday 05:30 UTC — a weekly full re-read
+
+permissions:
+  contents: write
+
+concurrency:
+  group: audit-evidence
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r scraper/requirements.txt playwright==1.47.0
+      - run: python -m playwright install --with-deps chromium
+      - name: Capture
+        working-directory: scraper
+        run: python audit_dump.py ${{ github.event.inputs.suppliers }}
+      - name: Commit the evidence to audit/evidence
+        run: |
+          git config user.name  "evidence-bot"
+          git config user.email "evidence-bot@users.noreply.github.com"
+          cp -r evidence /tmp/evidence
+          git fetch origin audit/evidence || true
+          if git rev-parse --verify -q origin/audit/evidence >/dev/null; then
+            git checkout -B audit/evidence origin/audit/evidence
+          else
+            git checkout --orphan audit/evidence
+            git rm -rf -q . || true
+          fi
+          rm -rf evidence && cp -r /tmp/evidence evidence
+          git add evidence
+          git commit -q -m "evidence: supplier prices as published on $(date -u +%F)" || echo "no change"
+          git push origin audit/evidence
+      - uses: actions/upload-artifact@v4
+        with:
+          name: evidence
+          path: evidence/
+          retention-days: 30
