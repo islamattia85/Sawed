@@ -1554,7 +1554,7 @@ const EMBEDDED_TARIFFS = [
     rates:{day:0.4016, night:0.4016, peak:0.4016, ev:0.0942},
     windows:{ ev:[2,6], peak:null, night:null },
     standing:265.01, exit:50, length:12, green:true, export_rate:0.185,
-    price_change:{"effective_date": "2026-10-12", "pct": 0.05, "standing_pct": 0.28, "direction": "increase", "source": "energia.ie price notice, announced Sep 2026", "note": "Energia raises rates from 12 Oct 2026; EV-tariff standing charge +28%. Unit rate change estimated — confirm with Energia."},
+    price_change:{"effective_date": "2026-10-12", "pct": 0.0, "pct_bands": {"day": 0.0, "night": 0.0, "peak": 0.0, "ev": 0.3}, "standing_pct": 0.28, "direction": "increase", "source": "Energia published tariff list effective 12 Oct 2026 (https://www.energia.ie/about-energia/our-tariffs)", "note": "Energia EV Smart Drive from 12 Oct 2026: EV-window rate +30%, all other hours unchanged, standing charge +28%. From Energia's published price list."},
     verified_date:"2026-09-15",
     notes:"VERIFIED 25 Aug 2026 \u2014 the \"EV Smart Drive 10%\" tier: Day 40.16c, EV 9.42c (02-06). Standing \u20ac265.01 urban. CEG 18.5c."
   },
@@ -1567,7 +1567,8 @@ const EMBEDDED_TARIFFS = [
     windows:{ ev:[2,6], peak:[17,19], night:[23,8] },
     standing:265.01, exit:50, length:12, green:true, export_rate:0.185,
     verified_date:"2026-06-02",
-    notes:"Checked 2 June 2026. DISPUTED as of 25 Aug 2026: a published table gives the peak rate as 45.41c against 51.08c here \u2014 day, night and EV rates agree. Re-verify the peak band against energia.ie."
+    notes:"Checked 2 June 2026. UNVERIFIED as a current reading \u2014 not re-read since June. The 25 Aug dispute (a third-party table gave peak 45.41c) is resolved in our favour: Energia's own published list from 12 Oct 2026 gives the standard rates as day 43.26c / night 26.65c / peak 56.76c, and this plan's 10% discount on those is exactly 38.93c / 23.99c / 51.08c \u2014 the rates held here. The 45.41c figure matches a different supplier's product.",
+    price_change:{"effective_date": "2026-10-12", "pct": 0.0, "pct_bands": {"day": 0.0, "night": 0.0, "peak": 0.0, "ev": 0.201}, "standing_pct": 0.28, "direction": "increase", "source": "Energia published tariff list effective 12 Oct 2026 (https://www.energia.ie/about-energia/our-tariffs)", "note": "Energia EV Smart Drive Plus from 12 Oct 2026: EV-window rate +20%, day/night/peak unchanged, standing charge +28%. From Energia's published price list."}
   },
   {
     id:"BG-EV",
