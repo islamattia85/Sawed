@@ -9977,6 +9977,35 @@ const V7 = createV7({
   renderTrustPanel, renderLogicBreakdown, renderNightRateCard, renderEvSavingsCard,
 });
 
+/**
+ * Take solar in or out of every figure, in one tap.
+ *
+ * The system itself — panels, orientation, battery, price — is left exactly
+ * as it was, because buildSolar() already gates generation on has_solar
+ * alone. So "off" is a what-if, not a deletion: turning it back on restores
+ * the same system, not an estimate.
+ */
+function toggleSolarModel(){
+  const on = !state.has_solar;
+  state.has_solar = on;
+  if (on){
+    state.considering_solar = true;
+    if (!totalPanels()){
+      // Nothing to restore — size a sensible system, as the quick answer does.
+      state.count_A = 10;
+      state.solar_is_estimate = true;
+      applyEstimatedSolarCost();
+    }
+  }
+  invalidate();
+  saveState();
+  renderApp();
+  showToast(on
+    ? `Solar back in: ${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ' · ' + state.battery_kwh + ' kWh battery' : ''}`
+    : 'Solar left out — every figure is now without panels. Your system is kept.',
+    { type: 'accent', icon: ic('sun', 16) });
+}
+
 /** Open a sheet over the current surface, or close it with null. */
 function v7Sheet(kind, id){
   state._sheet = kind ? { kind, id: id || null } : null;
@@ -11531,6 +11560,7 @@ window.exploreSolar = exploreSolar;
 window.handleSwitchClick = handleSwitchClick;
 window.setScreen = setScreen;
 window.v7Sheet = v7Sheet;
+window.toggleSolarModel = toggleSolarModel;
 window.v7Choose = v7Choose;
 window.toggleEv = toggleEv;
 window.requestInstallerQuotes = requestInstallerQuotes;

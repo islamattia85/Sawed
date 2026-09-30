@@ -79,3 +79,13 @@ test('setup wizard and landing @shots', async ({ page }) => {
   await page.waitForTimeout(350);
   await page.screenshot(SHOT('16-landing'));
 });
+
+test('solar switch, on and off @shots', async ({ page }) => {
+  await boot(page);
+  await page.locator('.v7-switch-row').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: 'screenshots/17-switch-on.png' });
+  await page.locator('.v7-switch-row').click();
+  await page.waitForTimeout(400);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: 'screenshots/18-switch-off.png' });
+});

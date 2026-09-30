@@ -65,7 +65,7 @@ export function createV7(api) {
   }
 
   /** The home's own inputs, as one tappable line. Opens the assumptions sheet. */
-  function homeChips() {
+  function homeChips({ withSolar = true } = {}) {
     const st = S();
     const region = api.IRISH_REGIONS[st.region || 'east'];
     const kwh = api.annualKwh();
@@ -73,13 +73,31 @@ export function createV7(api) {
       `${Math.round(kwh).toLocaleString('en-IE')} kWh`,
       `${esc(st.heating_type || 'gas')} heating`,
       region ? esc(region.name) : '',
-      st.has_solar ? `${api.totalKwp().toFixed(1)} kWp${st.solar_planned ? ' planned' : ''}` : 'no solar',
-      st.battery_kwh > 0 ? `${st.battery_kwh} kWh battery` : '',
+      // Where the solar switch sits beside the chips, it already names the
+      // system, so the chips leave it out rather than say it twice.
+      withSolar ? (st.has_solar ? `${api.totalKwp().toFixed(1)} kWp${st.solar_planned ? ' planned' : ''}` : 'no solar') : '',
+      withSolar && st.battery_kwh > 0 ? `${st.battery_kwh} kWh battery` : '',
       st.ev_active ? 'EV' : '',
     ].filter(Boolean);
     return `<button class="v7-home-chips" onclick="v7Sheet('assume')" aria-label="Your home — change">
       ${chips.map((c) => `<span class="v7-chip">${c}</span>`).join('')}
       <span class="v7-chip v7-chip-edit">${api.ic('tune', 14)} Edit</span>
+    </button>`;
+  }
+
+  /**
+   * The solar switch. Lives beside the inputs it changes — under the answer on
+   * Home, and at the top of Solar — so leaving solar out never means a trip
+   * back through setup.
+   */
+  function solarSwitch() {
+    const on = !!S().has_solar;
+    return `<button class="v7-switch-row" role="switch" aria-checked="${on}" onclick="toggleSolarModel()">
+      <span class="v7-switch-ico">${api.ic('sun', 18)}</span>
+      <span class="v7-switch-text"><b>Include solar</b><small>${on
+        ? `${api.totalPanels()} panels · ${api.totalKwp().toFixed(1)} kWp${S().battery_kwh > 0 ? ` · ${S().battery_kwh} kWh battery` : ''}`
+        : 'Left out — your system is kept'}</small></span>
+      <span class="v7-switch ${on ? 'on' : ''}" aria-hidden="true"><i></i></span>
     </button>`;
   }
 
@@ -160,7 +178,7 @@ export function createV7(api) {
         <a href="#" onclick="event.preventDefault();setScreen('how-to-switch')">How switching works</a>` : ''}
       </div>
 
-      <div class="v7-basis"><span class="v7-basis-label">Worked out for</span>${homeChips()}</div>
+      <div class="v7-basis" aria-label="What these figures are worked out for">${homeChips({ withSolar: false })}${solarSwitch()}</div>
 
       <div class="v7-notices">
         ${api.freshnessChip(best.plan)}
@@ -428,8 +446,8 @@ export function createV7(api) {
       </section>`
       : `<section class="v7-hero v7-solar-hero">
         <div class="v7-eyebrow">Solar</div>
-        <div class="v7-headline">No panels are in the model yet.</div>
-        <button class="switch-cta v7-cta" onclick="exploreSolar()">Model a system for this roof ${api.ic('chevR', 18)}</button>
+        <div class="v7-headline">${api.totalPanels() ? 'Solar is left out of every figure. Switch it back on above — your system is kept.' : 'No panels are in the model yet.'}</div>
+        ${api.totalPanels() ? '' : `<button class="switch-cta v7-cta" onclick="exploreSolar()">Model a system for this roof ${api.ic('chevR', 18)}</button>`}
       </section>`;
 
     const score = api.computeEnergyScore(best, baseCost);
@@ -456,6 +474,7 @@ export function createV7(api) {
 
     return `${topbar('Solar')}
     <div class="screen v7 v7-solar">
+      ${solarSwitch()}
       ${hero}
       ${hasSystem ? api.renderSolarBody('top') : ''}
       ${scoreCard}

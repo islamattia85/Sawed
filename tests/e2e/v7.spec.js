@@ -136,3 +136,32 @@ test('the way back into setup, and sharing, survive the redesign', async ({ page
   await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('onboarding');
   expect(errors).toEqual([]);
 });
+
+test('solar can be left out in one tap, and comes back as the same system', async ({ page }) => {
+  const errors = await boot(page, { count_A: 14, battery_kwh: 10 });
+  const rungs = () => page.locator('.v7-ladder [data-rung]').count();
+  const saving = () => page.evaluate(() => window.getRecommendation().annualSavings);
+
+  expect(await rungs()).toBe(3);
+  const withSolar = await saving();
+
+  await page.getByRole('switch', { name: /Include solar/ }).click();
+  await expect.poll(rungs).toBe(2);
+  expect(await page.evaluate(() => window.state.has_solar)).toBe(false);
+  expect(await saving(), 'leaving solar out did not change the figures').toBeLessThan(withSolar);
+  // The system is kept, not wiped.
+  expect(await page.evaluate(() => [window.state.count_A, window.state.battery_kwh])).toEqual([14, 10]);
+
+  await page.getByRole('switch', { name: /Include solar/ }).click();
+  await expect.poll(rungs).toBe(3);
+  expect(Math.round(await saving())).toBe(Math.round(withSolar));
+  expect(errors).toEqual([]);
+});
+
+test('the same switch is at the top of the Solar screen', async ({ page }) => {
+  await boot(page, { current_screen: 'solar' });
+  await page.getByRole('switch', { name: /Include solar/ }).click();
+  await expect(page.locator('.v7-solar-hero')).toContainText(/left out of every figure/);
+  await page.getByRole('switch', { name: /Include solar/ }).click();
+  await expect(page.locator('.v7-solar-hero .qr-value')).toContainText(/yr payback/);
+});
