@@ -13,7 +13,7 @@
  * the same figure the engine tests already hold.
  */
 import {
-  savingsLadder, rateStrip, scoreRing, monthBars, paybackCurve, dayProfile, dayFlow, eur,
+  savingsLadder, rateStrip, scoreRing, monthBars, paybackCurve, dayProfile, eur,
 } from './charts.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
@@ -606,27 +606,6 @@ export function createV7(api) {
    * month drawn hour by hour. Every figure is summed from the same simulation
    * as the chart, so the twelve cards add up to the year.
    */
-/** The key for dayFlow, naming only the flows that actually occur. */
-  function flowKey(hours) {
-    const has = (k) => hours.some((h) => (h[k] || 0) > 0.01);
-    const items = [
-      ['solar', '--accent', 'solar'], ['batt', '--v7-batt', 'from battery'], ['grid', '--ink-dim', 'from grid'],
-      ['ev', '--v7-ev', 'EV charging'], ['charge', '--v7-batt-in', 'into battery'], ['exp', '--v7-export', 'exported'],
-    ].filter(([k]) => has(k));
-    const band = [...new Set(hours.map((h) => h.band))].filter((b) => b !== 'day');
-    const capped = / data-capped=/.test(dayFlow({ hours }));
-    const bname = { night: 'night rate', peak: 'peak', ev: 'EV window', wfh: 'WFH window' };
-    return `<div class="v7-legend v7-flow-key">
-      <span class="v7-flow-side"><i class="v7-line-key"></i>The line: what the house itself used</span>
-      <span class="v7-flow-side">Above the line: in</span>
-      ${items.filter(([k]) => ['solar', 'batt', 'grid'].includes(k)).map(([, t, l]) => `<span><i class="v7-dot" style="background:var(${t})"></i>${l}</span>`).join('')}
-      <span class="v7-flow-side">Below: out</span>
-      ${items.filter(([k]) => ['ev', 'charge', 'exp'].includes(k)).map(([, t, l]) => `<span><i class="v7-dot" style="background:var(${t})"></i>${l}</span>`).join('')}
-      ${band.length ? `<span class="v7-flow-side">Shaded: ${band.map((b) => bname[b] || b).join(', ')}</span>` : ''}
-      ${capped ? '<span class="v7-flow-side">A notched bar is cut short to keep the rest readable; its figure is the full kWh.</span>' : ''}
-    </div>`;
-  }
-
   function monthsSheet() {
     const best = api.getBestPlan();
     const months = api.monthDetail(best);
@@ -649,9 +628,8 @@ export function createV7(api) {
           <div><b>${Math.round(selfUse * 100)}%</b><span>of your solar used at home</span></div>
           <div><b>${kwh(m.cons / m.days)}</b><span>used on an average day</span></div>
         </div>
-        <div class="v7-card-title">An average ${MONTH[i]} day — where each hour's power came from, and went</div>
-        ${dayFlow({ hours: m.hours, height: 150 })}
-        ${flowKey(m.hours)}
+        <div class="v7-card-title">An average ${MONTH[i]} day</div>
+        ${dayProfile({ hours: m.hours, height: 110 })}
       </article>`;
     }).join('');
     const dots = MONTH.map((n, i) => `<button class="v7-month-dot" onclick="v7GoMonth(${i})" aria-label="${n}">${n[0]}</button>`).join('');

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error - plain JS module, no types
-import { savingsLadder, rateStrip, scoreRing, monthBars, dayFlow } from '../../src/ui/charts.js';
+import { savingsLadder, rateStrip, scoreRing, monthBars } from '../../src/ui/charts.js';
 
 /**
  * The V7 objects carry the answer itself, not just its working — the ladder is
@@ -103,71 +103,3 @@ describe('the V7 objects follow the same rules as the V6 ones', () => {
 });
 
 
-describe('dayFlow', () => {
-  const hour = (o) => ({ solar: 0, batt: 0, grid: 0, ev: 0, charge: 0, exp: 0, band: 'day', ...o });
-  const hours = Array.from({ length: 24 }, (_, h) => hour(h === 3
-    ? { grid: 3, ev: 2, charge: 1, band: 'ev' }          // cheap window: grid in, EV + battery out
-    : h === 18 ? { batt: 1, band: 'peak' } : {}));
-  const svg = dayFlow({ hours, height: 114 });
-  const rects = (hr) => [...svg.split(`data-hour="${hr}"`)[1].split('</g>')[0]
-    .matchAll(/<rect [^>]*height="([\d.]+)"/g)].map((m) => parseFloat(m[1]!));
-
-  it('draws a kWh the same height above and below the line', () => {
-    // hour 3: 3 kWh in (one grid bar) and 3 kWh out (EV 2 + battery 1)
-    const [grid, ev, charge] = rects(3);
-    expect(grid).toBeCloseTo(ev! + charge!, 2);
-    expect(ev).toBeCloseTo(2 * charge!, 2);
-  });
-
-  it('keeps every flow on the hour for the reader who taps it', () => {
-    expect(svg).toContain('data-hour="3" data-solar="0" data-batt="0"');
-    expect(svg).toContain('data-grid="3" data-ev="2" data-charge="1" data-exp="0"');
-  });
-
-  it('uses tokens only and keeps its ticks readable', () => {
-    expect(svg.match(/#[0-9a-fA-F]{3,8}\b/g)).toBeNull();
-    expect([...svg.matchAll(/font-size="([\d.]+)"/g)].every((m) => parseFloat(m[1]!) >= 10)).toBe(true);
-  });
-});
-
-describe('dayFlow — house line and capped outliers', () => {
-  const hour = (o) => ({ solar: 0, batt: 0, grid: 0, ev: 0, charge: 0, exp: 0, band: 'day', ...o });
-  // an ordinary day of ~1 kWh an hour, and one 2am hour where the battery
-  // takes 6 kWh from the grid on top of the house's 0.5
-  const hours = Array.from({ length: 24 }, (_, h) =>
-    h === 2 ? hour({ grid: 6.5, charge: 6, band: 'ev' }) : hour({ grid: 1 }));
-  const svg = dayFlow({ hours, height: 120 });
-
-  it('draws the house use as a line, from in minus out', () => {
-    expect(svg).toContain('class="v7-house-line"');
-    expect(svg).toContain('data-hour="2"');
-    expect(svg).toMatch(/data-hour="2"[^>]*data-house="0.5"/);
-    expect(svg).toMatch(/data-hour="5"[^>]*data-house="1"/);
-  });
-
-  it('cuts an outlier at the cap, marks it, and prints its real figure', () => {
-    expect(svg).toContain('data-capped="6.5"');
-    expect(svg).toContain('data-capped="6"');
-    expect(svg).toMatch(/>6\.5<\/text>/);
-    expect(svg).toMatch(/>6<\/text>/);
-  });
-
-  it('leaves an ordinary day uncapped', () => {
-    const even = dayFlow({ hours: Array.from({ length: 24 }, () => hour({ grid: 1, exp: 0.5 })) });
-    expect(even).not.toContain('data-capped');
-  });
-});
-
-describe('dayFlow — a run of EV-charging hours does not set its own cap', () => {
-  const hour = (o) => ({ solar: 0, batt: 0, grid: 0, ev: 0, charge: 0, exp: 0, band: 'day', ...o });
-  // four hours of 7 kWh overnight charging, against a day of ~0.6 kWh hours
-  const hours = Array.from({ length: 24 }, (_, h) => (h >= 2 && h < 6
-    ? hour({ grid: 7.5, ev: 7, band: 'ev' }) : hour({ grid: 0.6 })));
-  it('caps all four charging hours, so the ordinary day stays readable', () => {
-    const svg = dayFlow({ hours });
-    expect((svg.match(/data-capped="7.5"/g) || []).length).toBe(4);
-    // …and the four share one label, not four colliding ones.
-    expect((svg.match(/data-run="2-5"/g) || []).length).toBe(2);   // one above, one below
-    expect(svg).toMatch(/>up to 7\.5<\/text>/);
-  });
-});

@@ -39,7 +39,6 @@
   --glass-top: rgba(244, 242, 236, .86);  --glass-nav: rgba(255, 255, 255, .92);
   --hero-a: #FFFFFF;        --hero-b: #FFFFFF;
   --v7-mid: #8DC3A6;
-  --v7-batt: #C98A1B; --v7-batt-in: #E8C27A; --v7-ev: #6D5BD0; --v7-export: #2F6FB0;
   --bandink-day: #9AA7B4;   --bandink-night: #2F6FB0;  --bandink-peak: #C8553D;
   --bandink-ev: #127A4C;    --bandink-wfh: #C98A1B;
   --mono: "Inter Tight", system-ui, -apple-system, sans-serif;
@@ -65,7 +64,6 @@
   --glass-top: rgba(15, 19, 17, .86);  --glass-nav: rgba(23, 28, 25, .94);
   --hero-a: #171C19;        --hero-b: #171C19;
   --v7-mid: #2F7A56;
-  --v7-batt: #E0A24A; --v7-batt-in: #8A6A33; --v7-ev: #9B8CF2; --v7-export: #5E9BD6;
   --bandink-day: #7D8994;   --bandink-night: #5E9BD6;  --bandink-peak: #E0765E;
   --bandink-ev: #4CCB8C;    --bandink-wfh: #E0A24A;
   --mono: "Inter Tight", system-ui, -apple-system, sans-serif;
@@ -432,6 +430,3 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .v7-month-stats b { font-size: var(--text-body); color: var(--ink); }
 .v7-month-stats span { font-size: var(--text-caption); color: var(--ink-soft); }
 
-.v7-flow-key { gap: 4px 12px; }
-.v7-flow-side { flex-basis: 100%; color: var(--ink-dim); font-weight: 600; margin-top: 2px; }
-.v7-line-key { display: inline-block; width: 16px; height: 2px; background: var(--ink); vertical-align: 3px; margin-right: 6px; border-radius: 4px; }
