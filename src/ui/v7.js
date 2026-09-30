@@ -568,6 +568,7 @@ export function createV7(api) {
         ${plan.export_rate ? `<div class="v7-rate"><i class="v7-dot" style="background:var(--accent)"></i>Export<b>${api.fmtCent(plan.export_rate)}</b></div>` : ''}
       </div>
       ${weekendLine(plan, label)}
+      ${batteryLine(s, plan)}
       <div class="v7-fine">Every plan also carries the €19.10 PSO levy, set by the regulator; it is in the yearly figure above.</div>
       ${sourceLine(plan)}
       ${pc ? `<div class="v7-note is-rise">${api.ic('trendUp', 16)}<div><b>Prices rise ${fmtDate(pc.effective_date)}.</b> ${esc(pc.note || '')} The year above already includes it for the months it applies.</div></div>` : ''}
@@ -593,6 +594,22 @@ export function createV7(api) {
       .map(([b, v]) => `${(label[b] || b).toLowerCase()} ${v === 0 ? 'free' : api.fmtCent(v)}`);
     if (!parts.length) return '';
     return `<div class="v7-note is-check">${api.ic('calendar', 16)}<div><b>Weekends.</b> ${esc(when)}: ${esc(parts.join(', '))}. Included in the yearly figure.</div></div>`;
+  }
+
+  /**
+   * How the battery is run on this plan. In Automatic each plan is costed with
+   * the setting that suits it, so the reader is told which one that is — it is
+   * a setting to make in their inverter app if they switch.
+   */
+  function batteryLine(s, plan) {
+    const st = S();
+    if (!(st.battery_kwh > 0) || !st.has_solar || !s?.strategy_used) return '';
+    const auto = (st.strategy_mode || 'auto') === 'auto';
+    const arb = s.strategy_used === 'arbitrage';
+    const what = arb
+      ? 'charge the battery from the grid in the cheap overnight window and use it at peak'
+      : 'fill the battery from your solar only (grid charging would not pay on this plan)';
+    return `<div class="v7-note is-check">${api.ic('battery', 16)}<div><b>Battery.</b> ${auto ? 'Costed to' : 'Set to'} ${what}.${auto && arb ? ' Set this in your inverter app when you switch.' : ''}</div></div>`;
   }
 
   /** Where the figures were read, and when. */

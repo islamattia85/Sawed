@@ -271,3 +271,34 @@ test('no EV, no EV tile', async ({ page }) => {
   await boot(page, { ev_active: false });
   await expect(page.locator('.v7-tile-ev')).toHaveCount(0);
 });
+
+test('the landing page is reachable from More, and leads back', async ({ page }) => {
+  await boot(page, { current_screen: 'more' });
+  await page.getByText('Start page').click();
+  await expect(page.locator('.welcome-page')).toBeVisible();
+  await page.getByText('Back to my results').click();
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('result');
+});
+
+test('modelling solar after a no-solar setup prices the system, even if a quote was once typed', async ({ page }) => {
+  await boot(page, { has_solar: false, considering_solar: false, count_A: 0, count_B: 0, battery_kwh: 0,
+    install_cost: 0, grant_seai: 0, cost_is_manual: true, current_screen: 'solar' });
+  await page.getByRole('button', { name: /Model a system/ }).click();
+  const st = await page.evaluate(() => ({ c: window.state.install_cost, n: window.state.count_A }));
+  expect(st.n).toBeGreaterThan(0);
+  expect(st.c).toBeGreaterThan(3000);
+});
+
+test('Automatic battery strategy is never worse than either fixed setting, plan by plan', async ({ page }) => {
+  await boot(page, { strategy_mode: 'auto', charge_from_grid: true, battery_kwh: 10 });
+  const r = await page.evaluate(() => {
+    const ids = window.TARIFFS.filter((t) => !t.discontinued).map((t) => t.id);
+    const cost = (mode, grid) => {
+      window.state.strategy_mode = mode; window.state.charge_from_grid = grid; window.invalidate();
+      return Object.fromEntries(ids.map((id) => [id, (() => { const p = window.TARIFFS.find((t) => t.id === id); return window.__annual(window.sim(id), p); })()]));
+    };
+    const auto = cost('auto', true), arb = cost('arbitrage', true), self = cost('self-consume', false);
+    return ids.filter((id) => auto[id] > Math.min(arb[id], self[id]) + 0.5);
+  });
+  expect(r).toEqual([]);
+});

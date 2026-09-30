@@ -24,6 +24,9 @@ const ARBITRAGE = {
   current_screen: 'solar', has_solar: true, considering_solar: true,
   count_A: 12, battery_kwh: 5, panel_w: 440, tilt_A: 35, azimuth_A: 180,
   strategy_mode: 'arbitrage', charge_from_grid: true,
+  // A current-version save: the one-time upgrade to Automatic applies only to
+  // older saves, whose strategy was often a leftover rather than a choice.
+  schema_version: 3,
 };
 
 const strategy = (page) => page.evaluate(() => ({

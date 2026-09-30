@@ -857,7 +857,7 @@ const DEFAULT_STATE = {
   hot_water_strategy: "smart",  // tool default — 15% of load shifted to 2-5am
   base_load_w: 220,
   // Strategy — defaults match engineering tool for output parity
-  strategy_mode: "arbitrage",      // tool default; sanitizer drops to 'self-consume' if no battery
+  strategy_mode: "auto",           // each plan scored with whichever battery strategy suits it
   charge_from_grid: true,          // tool default; auto-disabled if battery_kwh == 0
   battery_max: 1.00,               // SoC ceiling fraction (tool uses this; default 100%)
   // Baseline plan (for "savings vs" comparison)
@@ -889,7 +889,7 @@ const DEFAULT_STATE = {
   solar_is_estimate: false,     // true when system spec came from our defaults, not the user
   switched_to: null,            // id of plan the user marked as "switched to"
   switched_date: null,          // ISO date when they switched
-  schema_version: 2             // bump + add a migrateState case when a field's MEANING changes
+  schema_version: 3             // bump + add a migrateState case when a field's MEANING changes
 };
 
 let state;
@@ -924,6 +924,11 @@ function migrateState(saved){
     // v1 → v2: schema_version field introduced; nothing structural changed, so
     // just stamp the current version. (Future steps go here as: if (v < 3) {...} )
     if (v < 2){ v = 2; }
+    // v2 → v3: the battery strategy was a single global switch, and it
+    // was often "self-consume" only because a no-solar setup had reset it, so
+    // homes that later modelled a battery were never scored with grid
+    // charging. Automatic scores every plan with the strategy that suits it.
+    if (v < 3){ state.strategy_mode = 'auto'; state.charge_from_grid = true; v = 3; }
     state.schema_version = Math.max(v, DEFAULT_STATE.schema_version);
   } catch(e){ /* leave state as merged defaults */ }
 }
@@ -1599,16 +1604,26 @@ function sim(planId){
   const plan = getPlanById(planId);
   // Build strategy object on the fly from flat state (matches tool's interface)
   const eff = effectiveStrategy();
-  const strategy = {
-    mode: eff.mode,
-    charge_from_grid: eff.charge_from_grid,
-    arbitrage_priority: 0.7,
-    discharge_strategy: 'peak_first',
-    reserve_for_evening: 0.0
+  const run = (mode, fromGrid) => {
+    const r = simulate(plan, CACHE.solar.total, CACHE.cons, {
+      mode, charge_from_grid: fromGrid,
+      arbitrage_priority: 0.7, discharge_strategy: 'peak_first', reserve_for_evening: 0.0,
+    });
+    const sdf = baselineDiscountFactor(planId);
+    if (sdf !== 1){ for (let i = 0; i < r.cost.length; i++) r.cost[i] *= sdf; }
+    r.strategy_used = mode === 'arbitrage' && fromGrid ? 'arbitrage' : 'self-consume';
+    return r;
   };
-  const ssim = simulate(plan, CACHE.solar.total, CACHE.cons, strategy);
-  const sdf = baselineDiscountFactor(planId);
-  if (sdf !== 1){ for (let i = 0; i < ssim.cost.length; i++) ssim.cost[i] *= sdf; }
+  let ssim;
+  if (eff.hasBattery && eff.mode === 'auto'){
+    // What an owner would do: set the inverter to whichever pays on this plan.
+    // Grid charging earns on a plan with a cheap window and loses round-trip
+    // energy on a flat one, so the choice is per plan, not global.
+    const a = run('arbitrage', true), b = run('self-consume', false);
+    ssim = annualCost(a, plan).net <= annualCost(b, plan).net ? a : b;
+  } else {
+    ssim = run(eff.mode, eff.charge_from_grid);
+  }
   CACHE.sims[planId] = ssim;
   return CACHE.sims[planId];
 }
@@ -1736,7 +1751,7 @@ function invalidate(){
 function effectiveStrategy(){
   const hasBattery = (state.battery_kwh || 0) > 0;
   return {
-    mode: hasBattery ? (state.strategy_mode || 'arbitrage') : 'self-consume',
+    mode: hasBattery ? (state.strategy_mode || 'auto') : 'self-consume',
     charge_from_grid: hasBattery ? state.charge_from_grid !== false : false,
     hasBattery,
   };
@@ -1744,6 +1759,7 @@ function effectiveStrategy(){
 /** True when grid-charging arbitrage is genuinely running. */
 function arbitrageOn(){
   const s = effectiveStrategy();
+  if (s.hasBattery && s.mode === 'auto') return sim(getBestPlan().plan.id).strategy_used === 'arbitrage';
   return s.hasBattery && s.mode === 'arbitrage' && s.charge_from_grid;
 }
 
@@ -2673,7 +2689,7 @@ function computeOptimisations(){
   };
 
   // Battery strategy — evaluate whichever direction the user ISN'T on
-  if ((state.battery_kwh || 0) > 0){
+  if ((state.battery_kwh || 0) > 0 && effectiveStrategy().mode !== 'auto'){
     const onArb = arbitrageOn();
     if (onArb){
       tryOpt('selfconsume');
@@ -3619,9 +3635,9 @@ function goFastPath(){
   state._solar_user_configured = false;
   state._solar_payback_intro_done = false;
   state.solar_view = 'mine';
-  // Battery arbitrage only makes sense with a battery — reset to the safe default
-  state.strategy_mode = 'self-consume';
-  state.charge_from_grid = false;
+  // Automatic is right whatever battery is modelled next.
+  state.strategy_mode = 'auto';
+  state.charge_from_grid = true;
   state._fp_csv_mode = false;
   invalidate();
   state.current_screen = 'fastpath';
@@ -3658,7 +3674,7 @@ function reRunOnboarding(){
   _ob.install_grant = state.grant_seai != null ? state.grant_seai : -1;
   _ob.grant_touched = !!state.grant_is_manual;
   _ob.cost_touched  = !!state.cost_is_manual;
-  _ob.strategy = state.strategy_mode || 'arbitrage';
+  _ob.strategy = state.strategy_mode || 'auto';
   _ob.charge_from_grid = state.charge_from_grid !== false;
   _ob.has_ev = !!state.ev_active;
   _ob.ev_in_bill = state.ev_in_bill !== false;
@@ -3975,13 +3991,17 @@ function obStep6Solar(){
       <div class="ob-mini-section">
         <div class="ob-mini-title">${ic('bolt',14)} Battery strategy</div>
         <p style="font-size:12px;color:var(--ink-dim);margin:0 0 10px;line-height:1.6;font-family:var(--display)">How should the battery charge?</p>
+        <div onclick="_ob.strategy='auto';_ob.charge_from_grid=true;renderApp();" style="padding:12px 10px;margin-bottom:8px;border:1.5px solid ${_ob.strategy === 'auto' ? 'var(--accent)' : 'var(--line)'};border-radius:8px;cursor:pointer;background:${_ob.strategy === 'auto' ? 'var(--accent-soft)' : 'transparent'}">
+          <div style="font-size:13px;font-weight:700;color:${_ob.strategy === 'auto' ? 'var(--accent)' : 'var(--ink)'}">Automatic (recommended)</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.5">We cost every plan with the setting that suits it: charging overnight from the grid where there's a cheap window, solar only where there isn't.</div>
+        </div>
         <div style="display:flex;gap:8px">
           <div onclick="_ob.strategy='arbitrage';_ob.charge_from_grid=true;renderApp();" style="flex:1;padding:12px 10px;border:1.5px solid ${_ob.strategy === 'arbitrage' ? 'var(--accent)' : 'var(--line)'};border-radius:8px;cursor:pointer;background:${_ob.strategy === 'arbitrage' ? 'var(--accent-soft)' : 'transparent'}">
             <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${_ob.strategy === 'arbitrage' ? 'var(--accent)' : 'var(--ink-soft)'};letter-spacing:.06em">ARBITRAGE</div>
             <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.5">Fills overnight, discharges at peak. Needs a night or EV plan.</div>
           </div>
-          <div onclick="_ob.strategy='self-consume';_ob.charge_from_grid=false;renderApp();" style="flex:1;padding:12px 10px;border:1.5px solid ${_ob.strategy !== 'arbitrage' ? 'var(--blue)' : 'var(--line)'};border-radius:8px;cursor:pointer;background:${_ob.strategy !== 'arbitrage' ? 'rgba(41,182,246,.06)' : 'transparent'}">
-            <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${_ob.strategy !== 'arbitrage' ? 'var(--blue)' : 'var(--ink-soft)'};letter-spacing:.06em">SELF-CONSUME</div>
+          <div onclick="_ob.strategy='self-consume';_ob.charge_from_grid=false;renderApp();" style="flex:1;padding:12px 10px;border:1.5px solid ${_ob.strategy === 'self-consume' ? 'var(--blue)' : 'var(--line)'};border-radius:8px;cursor:pointer;background:${_ob.strategy === 'self-consume' ? 'rgba(41,182,246,.06)' : 'transparent'}">
+            <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${_ob.strategy === 'self-consume' ? 'var(--blue)' : 'var(--ink-soft)'};letter-spacing:.06em">SELF-CONSUME</div>
             <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.5">Fills from solar only.</div>
           </div>
         </div>
@@ -4220,15 +4240,19 @@ function commitOnboarding(){
     state.battery_kwh = 0;
     state.install_cost = 0;
     state.grant_seai = 0;
+    // No system, so no price of one: a quote typed on an earlier run must not
+    // be applied to whatever system is modelled next.
+    state.cost_is_manual = false;
+    state.grant_is_manual = false;
   }
 
   // Commit battery strategy from onboarding
   if (_ob.battery_kwh > 0){
-    state.strategy_mode = _ob.strategy || 'arbitrage';
+    state.strategy_mode = _ob.strategy || 'auto';
     state.charge_from_grid = _ob.charge_from_grid !== false;
   } else {
-    state.strategy_mode = 'self-consume';
-    state.charge_from_grid = false;
+    state.strategy_mode = 'auto';   // right for whatever battery is modelled later
+    state.charge_from_grid = true;
   }
 
   // Commit EV
@@ -4238,7 +4262,7 @@ function commitOnboarding(){
     state.ev_km_per_year = _ob.ev_km;
     state.ev_kwh_per_100km = _ob.ev_eff;
     // EV + battery always enables arbitrage (override self-consume if EV added later)
-    if (state.battery_kwh > 0 && state.strategy_mode !== 'self-consume'){
+    if (state.battery_kwh > 0 && state.strategy_mode === 'arbitrage'){
       state.charge_from_grid = true;
       state.strategy_mode = 'arbitrage';
     }
@@ -5229,7 +5253,13 @@ function applyEstimatedSolarCost(){
   const kwp = totalKwp();
   // Respect manual overrides: a user-typed cost or grant (including €0 — e.g.
   // not grant-eligible) must survive toggles, cycles and re-onboarding.
-  if (!state.cost_is_manual)  state.install_cost = estimateInstallCost(kwp, state.battery_kwh || 0);
+  // A typed €0 grant is real (not eligible); a €0 installation never is — it
+  // is the reset left by choosing "no solar", and kept as a "manual" price it
+  // gave every newly modelled system a 0-year payback.
+  if (!state.cost_is_manual || !(state.install_cost > 0)) {
+    state.install_cost = estimateInstallCost(kwp, state.battery_kwh || 0);
+    state.cost_is_manual = false;
+  }
   if (!state.grant_is_manual) state.grant_seai = calcSeaiGrant(kwp, state.battery_kwh || 0).total;
 }
 
@@ -6259,7 +6289,7 @@ function toggleEv(){
     if (!state.ev_km_per_year) state.ev_km_per_year = 15000;
     if (state.battery_kwh > 0){
       state.charge_from_grid = true;
-      state.strategy_mode = 'arbitrage';
+      if (state.strategy_mode !== 'auto') state.strategy_mode = 'arbitrage';
     }
   } else {
     state.ev_km_per_year = 0;
@@ -7821,15 +7851,22 @@ function setAnalyticsView(v){
 
 function renderStrategyControls(){
   const hasBatt = (state.battery_kwh || 0) > 0;
-  const isArb = arbitrageOn();
+  const mode = state.strategy_mode || 'auto';
+  const isAuto = mode === 'auto';
+  const isArb = !isAuto && mode === 'arbitrage' && state.charge_from_grid !== false;
   return `
-    <div class="strat-row">
+    <div class="strat-row" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="strat-opt ${isAuto ? 'active' : ''}" onclick="setStrategy('auto', true)" style="${!hasBatt ? 'opacity:0.4;pointer-events:none' : ''}">
+        <div class="strat-opt-icon">${ic('spark',18)}</div>
+        <div class="strat-opt-title">Automatic</div>
+        <div class="strat-opt-sub">Recommended. Each plan is costed with the setting that suits it.</div>
+      </div>
       <div class="strat-opt ${isArb ? 'active' : ''}" onclick="setStrategy('arbitrage', true)" style="${!hasBatt ? 'opacity:0.4;pointer-events:none' : ''}">
         <div class="strat-opt-icon">${ic('bolt',18)}</div>
         <div class="strat-opt-title">Arbitrage</div>
         <div class="strat-opt-sub">Fills in cheap windows, discharges at peak. Best on TOU/EV plans.</div>
       </div>
-      <div class="strat-opt ${!isArb ? 'active' : ''}" onclick="setStrategy('self-consume', false)" style="${!hasBatt ? 'opacity:0.4;pointer-events:none' : ''}">
+      <div class="strat-opt ${!isAuto && !isArb ? 'active' : ''}" onclick="setStrategy('self-consume', false)" style="${!hasBatt ? 'opacity:0.4;pointer-events:none' : ''}">
         <div class="strat-opt-icon">${ic('sun',18)}</div>
         <div class="strat-opt-title">Self-consume</div>
         <div class="strat-opt-sub">Fills from solar only. Use if your plan has no cheap window.</div>
@@ -8531,7 +8568,7 @@ function refineChanged(){
   // would otherwise leave a freshly-added battery stuck on self-consume. Default
   // a newly-added battery to arbitrage (the better choice for most owners).
   if (_battWas === 0 && (state.battery_kwh || 0) > 0){
-    state.strategy_mode = 'arbitrage';
+    if (state.strategy_mode !== 'auto') state.strategy_mode = 'arbitrage';
     state.charge_from_grid = true;
   }
   // Auto-set has_solar based on whether they have any panels
@@ -8571,7 +8608,7 @@ function refineChanged(){
   // Auto-arbitrage if battery + EV
   if (state.ev_active && state.battery_kwh > 0){
     state.charge_from_grid = true;
-    state.strategy_mode = 'arbitrage';
+    if (state.strategy_mode !== 'auto') state.strategy_mode = 'arbitrage';
   }
   invalidate();
   saveState();
@@ -9239,6 +9276,7 @@ function renderMore(){
   const nQuotes = (state.solar_quotes || []).length;
   const groups = [
     ['Your setup', [
+      [ic('sun',19),'Start page','The landing page: quick answer, full setup, quote audit','welcome'],
       [ic('tune',19),'Settings','Usage, heating, solar spec, EV & battery strategy','refine'],
       [ic('csv',19),'Import smart-meter data','ESB Networks CSV — the most accurate result','csv-import'],
     ]],
@@ -11427,6 +11465,7 @@ window.applyRegion = applyRegion;
 window.getRecommendation = getRecommendation;
 window.getBestPlan = getBestPlan;
 window.sim = sim;
+window.__annual = (s, p) => annualCost(s, p).net;   // tests: a plan's comparable yearly cost
 window.bandAt = bandAt;
 window.calcNPV20 = calcNPV20;
 

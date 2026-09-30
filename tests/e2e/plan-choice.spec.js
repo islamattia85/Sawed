@@ -118,7 +118,7 @@ test('generating a report leaves the user’s settings exactly as they were', as
   }));
 
   const before = await snapshot();
-  expect(before.strategy).toBe('arbitrage');
+  expect(before.strategy).toBe('auto');
   expect(before.chargeFromGrid).toBe(true);
 
   const download = page.waitForEvent('download', { timeout: 45_000 });
