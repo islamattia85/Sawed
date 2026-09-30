@@ -256,6 +256,15 @@ def assign(plan: dict, field: str, value: float) -> None:
                     plan["rates"][b] = value
 
 
+def fill_unused_bands(plan: dict) -> None:
+    """A band with no window never applies; keep it equal to the rate that does
+    in those hours, so no rate card or minimum ever reads a stale number."""
+    r, w = plan.get("rates", {}), plan.get("windows") or {}
+    for b in ("night", "peak", "ev", "wfh"):
+        if b in r and not w.get(b):
+            r[b] = r["night"] if (b == "ev" and w.get("night")) else r.get("day")
+
+
 def write_embedded(tariffs: list) -> None:
     """Mirror the registry into the bundle's fallback copy, whole."""
     text = MAIN_JS.read_text()
@@ -336,6 +345,9 @@ def main(argv: list[str]) -> int:
     print("\n".join(report))
 
     if apply:
+        for t in tariffs:
+            if t.get("id") != "__meta__" and t.get("rates"):
+                fill_unused_bands(t)
         TARIFFS.write_text(json.dumps(tariffs, ensure_ascii=False, indent=2) + "\n")
         write_embedded(tariffs)
     return 1 if (changed or unreadable or gaps) else 0

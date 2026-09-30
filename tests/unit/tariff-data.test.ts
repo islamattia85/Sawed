@@ -172,3 +172,21 @@ describe('public/tariffs.json (the data users are priced against)', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe('bands a plan does not use', () => {
+  // A band with no window never applies, but its number is still shown on rate
+  // cards and read by "cheapest rate" logic — a placeholder 0 there would read
+  // as free electricity.
+  it('carry the rate that actually applies in those hours, never a placeholder', () => {
+    const offenders: string[] = [];
+    for (const t of active) {
+      for (const b of ['night', 'peak', 'ev', 'wfh'] as const) {
+        const v = t.rates[b];
+        const w = (t.windows ?? {})[b];
+        if (v != null && !w && v !== t.rates.day && v !== t.rates.night) offenders.push(`${t.id}.${b} = ${v}`);
+        if (v === 0 && t.type !== 'dynamic') offenders.push(`${t.id}.${b} is 0`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});
