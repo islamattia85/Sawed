@@ -184,3 +184,41 @@ test('opening Solar with no solar models nothing', async ({ page }) => {
   expect(await page.evaluate(() => window.getRecommendation().annualSavings)).toBe(before);
   expect(errors).toEqual([]);
 });
+
+test('a home without panels sees only solar on the Solar tab', async ({ page }) => {
+  // It used to show the health score, the market, the hourly view and "best
+  // plan WITH this solar" to a home that had no solar at all.
+  await boot(page, { has_solar: false, considering_solar: false, battery_kwh: 0, current_screen: 'solar' });
+  const text = await page.evaluate(() => document.querySelector('.screen').innerText);
+  expect(text).not.toMatch(/health score|Hour by hour|Market|WITH this solar/i);
+  await expect(page.getByRole('button', { name: /Model a system for this roof/ })).toBeVisible();
+});
+
+test('the health sheet carries its own advice', async ({ page }) => {
+  await boot(page, { current_screen: 'result' });
+  await page.locator('.v7-tile-score').click();
+  await expect(page.locator('#v7-sheet .v7-ring')).toBeVisible();
+  await expect(page.locator('#v7-sheet')).toContainText(/Weakest:|Little left on the table/);
+});
+
+test('Market and Hour by hour are reachable from More', async ({ page }) => {
+  await boot(page, { current_screen: 'more' });
+  await expect(page.getByText('Market', { exact: true })).toBeVisible();
+  await expect(page.getByText('Hour by hour', { exact: true })).toBeVisible();
+});
+
+test('the health score judges the plan on the same home the ladder does', async ({ page }) => {
+  // It compared the bill WITHOUT solar with the best plan WITH it, scoring a
+  // solar home 23 for plan efficiency when switching was worth €148 of €551.
+  await boot(page);
+  const mine = await page.evaluate(() =>
+    Math.round(+document.querySelectorAll('.v7-ladder [data-rung]')[1].dataset.value));
+  await page.locator('.v7-tile-score').click();
+  const weak = await page.locator('#v7-sheet').innerText();
+  const m = weak.match(/You pay €([\d,]+)/);
+  if (m) expect(+m[1].replace(/,/g, '')).toBe(mine);
+  const plan = await page.evaluate(() => [...document.querySelectorAll('#v7-sheet .v7-part')]
+    .map((el) => el.innerText.split('\n')).find((p) => /Plan efficiency/.test(p[0])));
+  expect(plan, 'no plan-efficiency factor').toBeTruthy();
+  expect(+plan[plan.length - 1]).toBeGreaterThan(50);
+});

@@ -274,7 +274,7 @@ export function scoreRing({ value = 0, size = 88, token = '--accent' } = {}) {
     <circle cx="${size / 2}" cy="${size / 2}" r="${n(r)}" fill="none" stroke="var(${token})" stroke-width="8"
       stroke-linecap="round" stroke-dasharray="${n(dash)} ${n(c)}"
       transform="rotate(-90 ${size / 2} ${size / 2})"/>
-    <text x="50%" y="50%" dy="0.35em" text-anchor="middle" font-size="25" font-weight="700"
+    <text x="50%" y="50%" dy="0.35em" text-anchor="middle" font-size="${size < 64 ? 13 : 25}" font-weight="700"
       fill="var(--ink)">${Math.round(v)}</text>
   </svg>`;
 }

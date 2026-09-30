@@ -26,9 +26,9 @@ const jsAttr = (s) => esc(jsq(s));
 export const V7_SURFACES = [
   { id: 'result', icon: 'home', label: 'Home', screens: ['result'] },
   { id: 'plans', icon: 'plans', label: 'Plans', screens: ['plans', 'plan-detail', 'compare'] },
-  { id: 'solar', icon: 'sun', label: 'Solar', screens: ['solar', 'analytics', 'monitor'] },
+  { id: 'solar', icon: 'sun', label: 'Solar', screens: ['solar', 'analytics'] },
   { id: 'more', icon: 'grid', label: 'More',
-    screens: ['more', 'refine', 'csv-import', 'auditor', 'quotes', 'methodology', 'independence', 'how-to-switch'] },
+    screens: ['more', 'monitor', 'refine', 'csv-import', 'auditor', 'quotes', 'methodology', 'independence', 'how-to-switch'] },
 ];
 
 export function createV7(api) {
@@ -208,14 +208,6 @@ export function createV7(api) {
         </button>
       </div>
 
-      <div class="report-promo v7-report" onclick="openPdfReportModal()">
-        <div class="v7-report-ico">${api.ic('doc', 22)}</div>
-        <div>
-          <div class="v7-report-title">Your full report, as a PDF</div>
-          <div class="v7-report-sub">Ten typeset pages — your year, hour by hour, and the twenty-year position.</div>
-        </div>
-        <span class="v7-chev">${api.ic('chevR', 18)}</span>
-      </div>
     </div>
     ${nav()}`;
   }
@@ -225,25 +217,40 @@ export function createV7(api) {
     const st = S();
     const n = rec.ranked.length;
     const rank = rec.ranked.findIndex((r) => r.plan.id === st.baseline) + 1;
-    let solar = { big: 'Model it', sub: 'What panels would do for this home' };
+    let solar = { big: 'Solar', sub: 'not modelled' };
     if (st.has_solar && api.totalPanels() > 0) {
       try {
         const scen = api.computeSolarPaybackScenarios();
         const s = st.ev_active ? scen.withEv : scen.withoutEv;
-        solar = { big: s.payback < 50 ? `${s.payback.toFixed(1)} yr` : '—', sub: 'solar payback' };
+        solar = { big: s.payback < 50 ? `${s.payback.toFixed(1)} yr` : '—', sub: 'payback' };
       } catch (e) { /* the tile is a door; a failed estimate must not block the answer */ }
     }
-    return `<div class="v7-tiles">
+    let health = null;
+    try { health = api.computeEnergyScore(rec.best, rec.baseCost); } catch (e) { health = null; }
+    return `<div class="v7-tiles v7-tiles-3">
       <button class="v7-tile" onclick="setScreen('plans')">
         <span class="v7-tile-ico">${api.ic('plans', 18)}</span>
         <span class="v7-tile-big">${n} plans</span>
-        <span class="v7-tile-sub">${rank > 0 ? `yours ranks #${rank}` : 'ranked on your usage'}</span>
+        <span class="v7-tile-sub">${rank > 0 ? `yours is #${rank}` : 'ranked for you'}</span>
       </button>
       <button class="v7-tile" onclick="setScreen('solar')">
         <span class="v7-tile-ico">${api.ic('sun', 18)}</span>
         <span class="v7-tile-big">${solar.big}</span>
         <span class="v7-tile-sub">${solar.sub}</span>
       </button>
+      ${health ? `<button class="v7-tile v7-tile-score" onclick="v7Sheet('score')" aria-label="Energy health score ${health.overall} of 100">
+        ${scoreRing({ value: health.overall, size: 44 })}
+        <span class="v7-tile-big">Health</span>
+        <span class="v7-tile-sub">score, and fixes</span>
+      </button>` : ''}
+    </div>
+    <div class="report-promo v7-report" onclick="openPdfReportModal()">
+      <div class="v7-report-ico">${api.ic('doc', 20)}</div>
+      <div>
+        <div class="v7-report-title">Your full report, as a PDF</div>
+        <div class="v7-report-sub">Ten typeset pages — your year, hour by hour</div>
+      </div>
+      <span class="v7-chev">${api.ic('chevR', 18)}</span>
     </div>`;
   }
 
@@ -445,22 +452,9 @@ export function createV7(api) {
         </button>
       </section>`
       : `<section class="v7-hero v7-solar-hero">
-        <div class="v7-eyebrow">Solar</div>
         <div class="v7-headline">${api.hasModelledSystem() ? 'Solar is left out of every figure. Switch it back on above — your system is kept.' : 'No solar is modelled for this home, so every figure is without panels.'}</div>
         ${api.hasModelledSystem() ? '' : `<button class="switch-cta v7-cta" onclick="exploreSolar()">Model a system for this roof ${api.ic('chevR', 18)}</button>`}
       </section>`;
-
-    const score = api.computeEnergyScore(best, baseCost);
-    const weakest = score.parts.slice().sort((a, b) => a.score - b.score)[0];
-    const scoreCard = `<section class="v7-card v7-score">
-      ${scoreRing({ value: score.overall })}
-      <div class="v7-score-body">
-        <div class="v7-card-title">Energy health score</div>
-        <div class="v7-score-weak">${weakest && weakest.score < 90 ? `Weakest: <b>${esc(weakest.label)}</b> — ${esc(weakest.why)}` : 'Little left on the table.'}</div>
-        <div class="v7-score-parts">${score.parts.map((p) => `
-          <div class="v7-part"><span>${esc(p.label)}</span><span class="v7-part-bar"><i style="width:${p.score}%"></i></span><b>${p.score}</b></div>`).join('')}</div>
-      </div>
-    </section>`;
 
     const months = hasSystem ? (() => {
       const m = api.monthlyTotals(best);
@@ -472,28 +466,35 @@ export function createV7(api) {
       </section>`;
     })() : '';
 
+    // Without a system this tab is only about solar: the switch, the offer to
+    // model one, and a way to check a quote already in hand. The health score,
+    // the market and the plan choice are about the whole home and live there.
+    if (!hasSystem) {
+      return `${topbar('Solar')}
+      <div class="screen v7 v7-solar">
+        ${solarSwitch()}
+        ${hero}
+        <button class="v7-tile v7-tile-wide" onclick="setScreen('auditor')">
+          <span class="v7-tile-ico">${api.ic('clip', 18)}</span>
+          <span class="v7-tile-big">Already have an installer quote?</span>
+          <span class="v7-tile-sub">Check it against 2026 Irish prices</span>
+        </button>
+      </div>
+      ${nav()}`;
+    }
+
     return `${topbar('Solar')}
     <div class="screen v7 v7-solar">
       ${solarSwitch()}
       ${hero}
-      ${hasSystem ? api.renderSolarBody('top') : ''}
-      ${scoreCard}
+      ${api.renderSolarBody('top')}
       ${months}
-      <div class="v7-tiles">
-        <button class="v7-tile" onclick="setScreen('analytics')">
-          <span class="v7-tile-ico">${api.ic('chart', 18)}</span>
-          <span class="v7-tile-big">Hour by hour</span>
-          <span class="v7-tile-sub">any day of the year</span>
-        </button>
-        <button class="v7-tile" onclick="setScreen('monitor')">
-          <span class="v7-tile-ico">${api.ic('radar', 18)}</span>
-          <span class="v7-tile-big">Market</span>
-          <span class="v7-tile-sub">price moves & alerts</span>
-        </button>
-      </div>
-      ${api.renderNightRateCard(best, baseCost)}
-      ${api.renderEvSavingsCard(best)}
-      ${api.renderSolarBody(hasSystem ? 'rest' : true)}
+      <button class="v7-tile v7-tile-wide" onclick="setScreen('analytics')">
+        <span class="v7-tile-ico">${api.ic('chart', 18)}</span>
+        <span class="v7-tile-big">Hour by hour</span>
+        <span class="v7-tile-sub">what the panels and battery do on any day of the year</span>
+      </button>
+      ${api.renderSolarBody('rest')}
     </div>
     ${nav()}`;
   }
@@ -511,6 +512,7 @@ export function createV7(api) {
     let body = '';
     if (sh.kind === 'plan') body = planSheet(sh.id);
     else if (sh.kind === 'assume') body = assumeSheet();
+    else if (sh.kind === 'score') body = scoreSheet();
     if (!body) return '';
     return `<div class="v7-sheet-root" id="v7-sheet">
       <div class="v7-sheet-backdrop" onclick="v7Sheet(null)"></div>
@@ -560,6 +562,32 @@ export function createV7(api) {
         ${st.chosen_plan === plan.id ? '' : `<a href="#" onclick="event.preventDefault();v7Choose('${plan.id}')">Use this plan for my figures</a>`}
         <a href="#" onclick="event.preventDefault();v7Sheet(null);showPlanDetail('${plan.id}')">Full rate card</a>
       </div>`;
+  }
+
+  /**
+   * The health score and what would raise it. The night-rate prompt and the
+   * EV sum are its "how to improve" — they were cards on the Solar tab, where
+   * a home without panels found advice that had nothing to do with panels.
+   */
+  function scoreSheet() {
+    const rec = api.getRecommendation();
+    const best = rec.best;
+    const score = api.computeEnergyScore(best, rec.baseCost);
+    const weakest = score.parts.slice().sort((a, b) => a.score - b.score)[0];
+    return `<div class="v7-sheet-head">
+        <div class="v7-eyebrow">Your home</div>
+        <h2 class="v7-h">Energy health score</h2>
+      </div>
+      <section class="v7-score">
+        ${scoreRing({ value: score.overall })}
+        <div class="v7-score-body">
+          <div class="v7-score-weak">${weakest && weakest.score < 90 ? `Weakest: <b>${esc(weakest.label)}</b> — ${esc(weakest.why)}` : 'Little left on the table.'}</div>
+          <div class="v7-score-parts">${score.parts.map((p) => `
+            <div class="v7-part"><span>${esc(p.label)}</span><span class="v7-part-bar"><i style="width:${p.score}%"></i></span><b>${p.score}</b></div>`).join('')}</div>
+        </div>
+      </section>
+      ${api.renderNightRateCard(best, rec.baseCost)}
+      ${api.renderEvSavingsCard(best)}`;
   }
 
   function assumeSheet() {

@@ -89,3 +89,14 @@ test('solar switch, on and off @shots', async ({ page }) => {
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: 'screenshots/18-switch-off.png' });
 });
+
+test('no-solar Solar tab, home tiles, health sheet @shots', async ({ page }) => {
+  await boot(page, { has_solar: false, considering_solar: false, battery_kwh: 0, current_screen: 'solar' });
+  await page.screenshot({ path: 'screenshots/19-solar-empty.png' });
+  await boot(page);
+  await page.locator('.v7-tiles-3').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: 'screenshots/20-home-tiles.png' });
+  await page.locator('.v7-tile-score').click();
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: 'screenshots/21-health-sheet.png' });
+});

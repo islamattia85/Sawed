@@ -280,12 +280,14 @@ test('the report is promoted, and the novelty tile is gone', async ({ page }) =>
 });
 
 test('the health score names its weakest factor instead of just scoring you', async ({ page }) => {
-  // The score moved again in V6, from the working panel to Simulate: it
-  // answers "what could I do better?", which is that surface's question, and
-  // on the answer screen it was a card between the reader and one figure. It
+  // It has moved three times: the working panel, then Simulate, then — once
+  // the Solar tab showed it to homes with no panels — a tile on Home that
+  // opens a sheet. It scores the whole home, so it lives with the answer. It
   // still has to name the weakest factor wherever it lives.
-  const errors = await boot(page, { current_screen: 'solar' });
-  const card = page.locator('text=Energy health score').locator('..').locator('..');
+  const errors = await boot(page);
+  await page.locator('.v7-tile-score').click();
+  const card = page.locator('#v7-sheet');
+  await expect(card).toContainText(/Energy health score/);
   await expect(card).toContainText(/Weakest:|Little left on the table/);
   expect(errors).toEqual([]);
 });

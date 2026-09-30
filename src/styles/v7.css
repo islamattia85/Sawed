@@ -391,3 +391,9 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .v7-switch.on { background: var(--accent); }
 .v7-switch.on i { transform: translateX(18px); }
 @media (prefers-reduced-motion: reduce) { .v7-switch, .v7-switch i { transition: none; } }
+
+.v7-tiles .v7-tile-score .v7-ring { margin-bottom: 4px; }
+.v7-tile-wide { width: 100%; }
+.v7-tiles-3 { grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
+.v7-tiles-3 .v7-tile { padding: var(--space-3); }
+.v7-tiles-3 .v7-tile-big { font-size: var(--text-body); }

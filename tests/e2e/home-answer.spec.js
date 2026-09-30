@@ -85,7 +85,7 @@ test('prose is set in the prose face', async ({ page }) => {
  * Simulate, which is the surface for exactly that question. So this test now
  * checks both places: still present, and reachable.
  */
-test('nothing was deleted — the working and Simulate hold all of it', async ({ page }) => {
+test('nothing was deleted — the working and the health sheet hold all of it', async ({ page }) => {
   const errors = await boot(page);
 
   // Collapsed by default.
@@ -102,10 +102,10 @@ test('nothing was deleted — the working and Simulate hold all of it', async ({
     expect(working, `${what} is gone from the answer, not moved`).toMatch(re);
   }
 
-  // …and what left the answer landed on Simulate rather than vanishing.
-  await page.evaluate(() => window.setScreen('solar'));
-  const simulate = await page.evaluate(() => document.body.innerText);
-  expect(simulate, 'the health score is gone, not moved').toMatch(/Energy health score/i);
+  // …and the health score, which left the working, is one tap away on Home.
+  await page.locator('.v7-tile-score').click();
+  const sheet = await page.evaluate(() => document.getElementById('v7-sheet')?.innerText || '');
+  expect(sheet, 'the health score is gone, not moved').toMatch(/Energy health score/i);
 
   expect(errors).toEqual([]);
 });

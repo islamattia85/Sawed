@@ -4852,11 +4852,20 @@ function renderEvSavingsCard(best){
 function computeEnergyScore(best, baseCost){
   const clamp = (v) => Math.max(1, Math.min(100, Math.round(v)));
   const parts = [];
-  // Plan efficiency: best-possible cost as % of what you pay now (100 = on the best plan)
-  const planScore = clamp(100 * best.net / Math.max(1, baseCost));
+  // Plan efficiency: the best plan's cost as a share of your current plan's,
+  // both on the home as it is — solar and battery included. It compared your
+  // bill WITHOUT solar against the best plan WITH it, so a solar home scored
+  // 23 for "plan efficiency" when switching was worth €148 of a €551 bill:
+  // the panels' earnings were being blamed on the tariff.
+  const basePlanNow = getPlanById(state.baseline);
+  const mineNow = annualCost(sim(basePlanNow.id), basePlanNow).net;
+  const gap = mineNow - best.net;
+  const planScore = gap <= 1 ? 100
+    : mineNow <= 0 ? clamp(100 - gap / 10)       // already a net earner: score the euros left on the table
+    : clamp(100 * Math.max(0, best.net) / mineNow);
   parts.push({ key:'plan', label:'Plan efficiency', score:planScore,
-    why: planScore >= 99 ? "You're on the best plan for your usage" : `You pay ${fmtCurrency(Math.round(baseCost))}, best is ${fmtCurrency(Math.round(best.net))} — switching closes the gap`,
-    fix: planScore >= 99 ? null : { label:`Switch and save ${fmtCurrency(Math.round(baseCost - best.net))}/yr`, go:"setScreen('plans')" } });
+    why: planScore >= 99 ? "You're on the best plan for your usage" : `You pay ${fmtCurrency(Math.round(mineNow))}, best is ${fmtCurrency(Math.round(best.net))} — switching closes the gap`,
+    fix: planScore >= 99 ? null : { label:`Switch and save ${fmtCurrency(Math.round(gap))}/yr`, go:"setScreen('plans')" } });
   // Solar: performance if installed, potential if not
   if (state.has_solar && totalPanels() > 0){
     const s = best.sim;
@@ -9569,9 +9578,11 @@ function renderMore(){
     ['Tools', [
       [ic('clip',19),'Audit an installer quote','Objective check against 2026 Irish market prices','auditor'],
       [ic('scales',19),'My saved quotes', nQuotes ? nQuotes + ' quote' + (nQuotes === 1 ? '' : 's') + ' saved — compare side by side' : 'Save installer quotes and compare them side by side','quotes'],
-      // Hourly flows and scenario comparison moved to the surfaces they
-      // belong to — Simulate and Explore — so they are one tap from the thing
-      // they are about rather than filed in a list of tools.
+      // Market and the hourly view are about the whole home, with or without
+      // panels, so they are listed here. Hour by hour is also on Solar when
+      // there is a system to look at.
+      [ic('radar',19),'Market','Price moves, announced rises and alerts','monitor'],
+      [ic('chart',19),'Hour by hour','Any day of the year — use, import, export, cost','analytics'],
     ]],
     ['Understand the numbers', [
       [ic('flask',19),'Methodology','Data sources & how the engine works','methodology'],
