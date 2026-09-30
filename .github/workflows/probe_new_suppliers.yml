@@ -1,0 +1,37 @@
+name: Probe new suppliers
+
+# PrePayPower, Waterpower, Community Power and Ecopower are not yet in the
+# catalogue. Their sites are unreachable from the dev container, so this reads
+# them from a runner and prints what they publish. Read-only: it writes no data
+# and opens no pull request.
+
+on:
+  push:
+    branches:
+      - 'feat/price-**'
+    paths:
+      - 'scraper/probe_new_suppliers.py'
+      - '.github/workflows/probe_new_suppliers.yml'
+  workflow_dispatch:
+    inputs:
+      suppliers:
+        description: 'Space-separated names, e.g. "ecopower waterpower". Empty = all four.'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r scraper/requirements.txt
+      - name: Read the four suppliers' own price pages
+        working-directory: scraper
+        run: python probe_new_suppliers.py ${{ github.event.inputs.suppliers }}
