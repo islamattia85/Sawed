@@ -35,3 +35,6 @@ jobs:
       - name: Read the four suppliers' own price pages
         working-directory: scraper
         run: python probe_new_suppliers.py ${{ github.event.inputs.suppliers }}
+      - name: Second pass — tables, export pages, script-rendered sites
+        working-directory: scraper
+        run: python probe_new_suppliers.py --deep

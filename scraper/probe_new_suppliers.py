@@ -128,6 +128,103 @@ def probe(name: str, cfg: dict) -> None:
             show_text("pdf", pdf_text(got.content))
 
 
+# ---------------------------------------------------------------- second pass
+# The first pass flattened tables into one column (PrePayPower's became
+# ambiguous), found no export rate anywhere, and read nothing from Waterpower
+# or Ecopower. These read structure rather than prose.
+
+DEEP = {
+    "PrePayPower": ["https://www.prepaypower.ie/why-switch/pricing/estimated-annual-bill-faqs",
+                    "https://www.prepaypower.ie/why-switch/pricing"],
+    "Community Power": ["https://www.communitypower.ie/tariffs"],
+    "Waterpower": ["https://www.waterpower.ie/wpe-sst-smart-tariff/", "https://www.waterpower.ie/"],
+    "Ecopower": ["https://www.ecopower.ie/", "https://www.ecopower.ie/electricity-prices"],
+}
+EXPORT = re.compile(r"export|micro-?gen|clean\s*export|\bceg\b|feed.?in|solar", re.I)
+
+
+def tables(html: str) -> None:
+    soup = BeautifulSoup(html, "lxml")
+    tabs = soup.find_all("table")
+    print(f"    tables: {len(tabs)}")
+    for ti, t in enumerate(tabs[:6]):
+        print(f"    --- table {ti}")
+        for tr in t.find_all("tr")[:40]:
+            cells = [" ".join(c.get_text(" ", strip=True).split()) for c in tr.find_all(["th", "td"])]
+            if any(cells):
+                print("      " + " | ".join(cells))
+
+
+def structure(html: str, base: str) -> None:
+    soup = BeautifulSoup(html, "lxml")
+    imgs = [(i.get("alt") or "", i.get("src") or "") for i in soup.find_all("img")]
+    frames = [f.get("src") for f in soup.find_all("iframe")]
+    print(f"    images: {len(imgs)}  iframes: {frames[:5]}")
+    for alt, src in imgs[:25]:
+        if re.search(r"tariff|price|rate|sst|smart", f"{alt} {src}", re.I):
+            print(f"      img alt={alt[:60]!r} src={urljoin(base, src)}")
+    links = []
+    for a in soup.find_all("a", href=True):
+        u = urljoin(base, a["href"].strip())
+        label = " ".join(a.get_text(" ", strip=True).split())[:60]
+        links.append((label, u))
+    print(f"    links: {len(links)}")
+    for label, u in links:
+        if re.search(r"tariff|price|rate|export|micro|ceg|solar|smart|domestic|home|pdf", f"{label} {u}", re.I):
+            print(f"      {label!r:40} {u}")
+    scripts = " ".join(s.get_text() for s in soup.find_all("script"))
+    for m in list(re.finditer(r"(\d{1,2}\.\d{1,2})\s*c", scripts))[:10]:
+        print(f"      script rate-ish: ...{scripts[max(0, m.start()-60):m.end()+20]!r}")
+
+
+def export_lines(text: str) -> None:
+    hits = [ln.strip() for ln in text.splitlines() if EXPORT.search(ln) and len(ln.strip()) < 240]
+    for ln in hits[:15]:
+        print(f"      export? | {ln}")
+
+
+def deep(name: str) -> None:
+    print(RULE)
+    print(f"DEEP {name}")
+    print(RULE)
+    s = requests.Session()
+    for u in DEEP.get(name, []):
+        got = fetch(u, session=s)
+        print(f"  PAGE {u} -> {got.kind} {got.status or ''} ({len(got.text)} chars)")
+        if not got.ok:
+            continue
+        tables(got.text)
+        structure(got.text, u)
+        export_lines(text_of(got.text))
+    # every supplier: go looking for an export / microgeneration page
+    root = DEEP[name][0].split("/", 3)[:3]
+    root = "/".join(root) + "/"
+    home = fetch(root, session=s)
+    if home.ok:
+        soup = BeautifulSoup(home.text, "lxml")
+        cands = []
+        for a in soup.find_all("a", href=True):
+            u = urljoin(root, a["href"])
+            if EXPORT.search(f"{a.get_text(' ', strip=True)} {u}") and u not in cands:
+                cands.append(u)
+        print(f"  export-looking links from home: {cands[:8]}")
+        for u in cands[:4]:
+            got = fetch(u, session=s)
+            print(f"  EXPORT PAGE {u} -> {got.kind} {got.status or ''}")
+            if got.ok:
+                t = pdf_text(got.content) if got.content[:4] == b"%PDF" else text_of(got.text)
+                export_lines(t)
+                print(f"      rates in page: {sorted(set(rates_from_text(t)))[:12]}")
+
+
+if __name__ == "__main__" and "--deep" in sys.argv:
+    for name in DEEP:
+        try:
+            deep(name)
+        except Exception as e:
+            print(f"  DEEP FAILED: {type(e).__name__}: {e}")
+    sys.exit(0)
+
 if __name__ == "__main__":
     wanted = {a.lower() for a in sys.argv[1:]}
     for name, cfg in SUPPLIERS.items():
