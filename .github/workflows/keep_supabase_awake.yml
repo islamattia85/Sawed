@@ -1,0 +1,27 @@
+name: Keep the accounts database awake
+
+# Supabase pauses a free project after 7 days with no database activity, and
+# while it is paused nobody can sign in (30 Sep 2026: exactly that). A tiny
+# read every three days keeps it active. The key is the public anon key the
+# app itself ships; row-level security means this read returns nothing.
+
+on:
+  schedule:
+    - cron: '41 6 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Touch the database
+        env:
+          URL: https://fbsdlpptcuxfkmyhcfna.supabase.co
+          KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZic2RscHB0Y3V4ZmtteWhjZm5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4OTc1NDEsImV4cCI6MjEwMDQ3MzU0MX0.vM9Wgwwa1bLcyL8-FWDgAFGF_rWuwcOhV4i9cq_I6pw
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/rest/v1/profiles?select=id&limit=1" \
+            -H "apikey: $KEY" -H "Authorization: Bearer $KEY")
+          echo "Supabase answered $code"
+          # 200 = awake. Anything else means it is paused or down: fail, so
+          # GitHub emails the owner before a user finds out.
+          test "$code" = "200"
