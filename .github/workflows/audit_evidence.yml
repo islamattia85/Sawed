@@ -82,7 +82,9 @@ jobs:
             git checkout --orphan audit/evidence
             git rm -rf -q . || true
           fi
-          rm -rf evidence && cp -r /tmp/evidence evidence
+          # Merge: a run for some suppliers keeps the others' last evidence.
+          mkdir -p evidence && cp /tmp/evidence/*.json evidence/ 2>/dev/null || true
+          cp /tmp/evidence/README.md evidence/README.md
           git add evidence
           git commit -q -m "evidence: supplier prices as published on $(date -u +%F)" || echo "no change"
           git push origin audit/evidence

@@ -38,7 +38,8 @@ from bs4 import BeautifulSoup
 OUT = Path(__file__).resolve().parent.parent / "evidence"
 
 SUPPLIERS = {
-    "Electric Ireland": ["https://www.electricireland.ie/residential/electricity-and-gas/smart-meter-price-plans",
+    "Electric Ireland": ["https://www.electricireland.ie/switch/new-customer/price-plans?priceType=E",
+                         "https://www.electricireland.ie/residential/electricity-and-gas/smart-meter-price-plans",
                          "https://www.electricireland.ie/residential/price-changes",
                          "https://www.electricireland.ie/residential/products/electricity"],
     "Bord Gáis Energy": ["https://www.bordgaisenergy.ie/home/our-tariffs",
@@ -52,8 +53,11 @@ SUPPLIERS = {
                 "https://www.energia.ie/energy-plans/electricity"],
     "Yuno Energy": ["https://www.yunoenergy.ie/", "https://www.yunoenergy.ie/our-tariffs",
                     "https://www.yunoenergy.ie/plans"],
-    "Flogas": ["https://www.flogas.ie/home/electricity/tariffs", "https://www.flogas.ie/home/our-price-plans",
-               "https://www.flogas.ie/residential"],
+    # Flogas renders from its pricing API; the query string selects the offer
+    # set (new customers, electricity only, by meter).
+    "Flogas": ["https://www.flogas.ie/price-plans/?newCustomer=Yes&lookingFor=Electricity&meterType=Smart",
+               "https://www.flogas.ie/price-plans/?newCustomer=Yes&lookingFor=Electricity&meterType=Standard",
+               "https://www.flogas.ie/flogas-tariff-rates", "https://www.flogas.ie/solar-panels/micro-generation"],
     "Pinergy": ["https://www.pinergy.ie/terms-conditions/tariffs/", "https://www.pinergy.ie/lifestyle-plans/"],
     "PrePayPower": ["https://www.prepaypower.ie/why-switch/pricing/rates",
                     "https://www.prepaypower.ie/why-switch/pricing/estimated-annual-bill-faqs"],
@@ -142,10 +146,13 @@ def capture(supplier: str, entries: list[str], browser) -> dict:
         def on_response(resp):
             try:
                 ct = resp.headers.get("content-type", "")
-                if "json" in ct and len(payloads) < 25:
+                if "json" in ct and len(payloads) < 40:
                     body = resp.text()
-                    if PRICEY_JSON.search(body) and len(body) < 400_000:
-                        payloads.append({"url": resp.url, "body": body[:120_000]})
+                    # A supplier's own pricing API is kept whole: a truncated
+                    # payload cannot be parsed, and it is the cleanest source.
+                    limit = 3_000_000 if "pricing" in resp.url else 120_000
+                    if PRICEY_JSON.search(body) and len(body) < limit:
+                        payloads.append({"url": resp.url, "body": body[:limit]})
             except Exception:
                 pass
 
