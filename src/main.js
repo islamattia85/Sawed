@@ -10043,11 +10043,18 @@ function v7SolarData(){
 function v7MonthDetail(best){
   const s = best.sim;
   const out = [];
+  // Battery discharge is stored as energy drawn from the cells; what reaches
+  // the house is that times the one-way efficiency, as simulate() applies it.
+  const oneWay = Math.sqrt(state.battery_eff || 0.9);
+  const noEv = CACHE.consNoEv;
   let i = 0;
   for (let m = 0; m < 12; m++){
     const days = DAYS_IN_MONTH[m];
     const acc = { gen: 0, cons: 0, imp: 0, exp: 0, cost: 0, revenue: 0, days };
-    const hours = Array.from({ length: 24 }, (_, h) => ({ cons: 0, gen: 0, imp: 0, band: (s.band && s.band[h]) || 'day' }));
+    const hours = Array.from({ length: 24 }, (_, h) => ({
+      cons: 0, gen: 0, imp: 0,
+      solar: 0, batt: 0, grid: 0, ev: 0, charge: 0, exp: 0,
+      band: (s.band && s.band[h]) || 'day' }));
     for (let d = 0; d < days && i < HOURS_IN_YEAR; d++){
       for (let h = 0; h < 24; h++, i++){
         const g = s.gen ? s.gen[i] : 0, c = s.cons ? s.cons[i] : 0;
@@ -10055,10 +10062,19 @@ function v7MonthDetail(best){
         acc.gen += g; acc.cons += c; acc.imp += im; acc.exp += ex;
         acc.cost += s.cost ? s.cost[i] : 0;
         acc.revenue += s.revenue ? s.revenue[i] : 0;
-        hours[h].cons += c; hours[h].gen += g; hours[h].imp += im;
+        const H = hours[h];
+        H.cons += c; H.gen += g; H.imp += im;
+        H.solar += g - (s.curtailed ? s.curtailed[i] : 0);
+        H.batt += (s.battery_discharge ? s.battery_discharge[i] : 0) * oneWay;
+        H.grid += im;
+        H.ev += noEv && state.ev_active ? Math.max(0, c - noEv[i]) : 0;
+        H.charge += s.battery_charge ? s.battery_charge[i] : 0;
+        H.exp += ex;
       }
     }
-    hours.forEach(x => { x.cons /= days; x.gen /= days; x.imp /= days; });
+    hours.forEach(x => {
+      for (const k of ['cons', 'gen', 'imp', 'solar', 'batt', 'grid', 'ev', 'charge', 'exp']) x[k] /= days;
+    });
     acc.hours = hours;
     out.push(acc);
   }

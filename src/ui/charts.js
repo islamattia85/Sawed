@@ -308,3 +308,66 @@ export function monthBars({ a = [], b = [], tokenA = '--accent', tokenB = '--ink
   return `<svg class="v7-months" viewBox="0 0 ${width} ${height}" width="100%" height="${height}"
     role="group" aria-label="Month by month">${bars}</svg>`;
 }
+
+/**
+ * One day's energy balance, hour by hour.
+ *
+ * Above the line, where the power came from: solar, the battery, the grid.
+ * Below it, where power went other than the house: the EV, into the battery,
+ * back out to the grid. Above minus below is the house's own use, exactly —
+ * the simulation balances every hour — so nothing is drawn that is not a
+ * real flow.
+ *
+ * This is the object that shows how an EV tariff works: in the cheap window
+ * the grid bar climbs while the EV and the battery fill below the line, and in
+ * the dear hours the battery bar replaces the grid.
+ *
+ * @param {{hours:{solar:number,batt:number,grid:number,ev:number,charge:number,exp:number,band:string}[], width?:number, height?:number}} o
+ */
+export function dayFlow({ hours = [], width = 320, height = 150 } = {}) {
+  if (!hours.length) return '';
+  const pad = 14;
+  const up = hours.map((h) => (h.solar || 0) + (h.batt || 0) + (h.grid || 0));
+  const down = hours.map((h) => (h.ev || 0) + (h.charge || 0) + (h.exp || 0));
+  const peakUp = Math.max(0.001, ...up);
+  const peakDown = Math.max(0, ...down);
+  const plot = height - pad;
+  // Share the vertical space in proportion to the two sides, so a kWh is the
+  // same height above and below the line.
+  const scale = plot / (peakUp + peakDown || 1);
+  const zero = n(peakUp * scale);
+  const bw = width / hours.length;
+  const bandToken = { peak: '--band-peak', night: '--band-night', ev: '--band-ev', wfh: '--band-wfh', day: '--band-day' };
+  const bands = hours.map((h, i) => `<rect x="${n(i * bw)}" y="0" width="${n(bw) + 0.5}" height="${plot}"
+    fill="var(${bandToken[h.band] || '--band-day'})" opacity="0.6"/>`).join('');
+
+  const stack = (i, parts, dir) => {
+    let acc = 0;
+    return parts.map(([v, tok]) => {
+      const hgt = (v || 0) * scale;
+      if (hgt < 0.2) { acc += hgt; return ''; }
+      const y = dir > 0 ? zero - acc - hgt : zero + acc;
+      acc += hgt;
+      return `<rect x="${n(i * bw + bw * 0.14)}" y="${n(y)}" width="${n(bw * 0.72)}" height="${n(hgt)}" fill="var(${tok})"/>`;
+    }).join('');
+  };
+
+  const bars = hours.map((h, i) => `<g data-hour="${i}" data-solar="${n(h.solar)}" data-batt="${n(h.batt)}"
+      data-grid="${n(h.grid)}" data-ev="${n(h.ev)}" data-charge="${n(h.charge)}" data-exp="${n(h.exp)}"
+      data-band="${esc(h.band)}">
+    <title>${String(i).padStart(2, '0')}:00 · ${esc(h.band)} · in: solar ${n(h.solar)}, battery ${n(h.batt)}, grid ${n(h.grid)} kWh · out: EV ${n(h.ev)}, battery ${n(h.charge)}, export ${n(h.exp)} kWh</title>
+    ${stack(i, [[h.solar, '--accent'], [h.batt, '--v7-batt'], [h.grid, '--ink-dim']], 1)}
+    ${stack(i, [[h.ev, '--v7-ev'], [h.charge, '--v7-batt-in'], [h.exp, '--v7-export']], -1)}
+  </g>`).join('');
+
+  const ticks = [0, 6, 12, 18].map((h) =>
+    `<text x="${n(h * bw + bw / 2)}" y="${height - 2}" font-size="10" text-anchor="middle"
+      fill="var(--ink-dim)">${String(h).padStart(2, '0')}</text>`).join('');
+
+  return `<svg class="v7-dayflow" viewBox="0 0 ${width} ${height}" width="100%" height="${height}"
+    role="group" aria-label="Where each hour's power came from and went">
+    ${bands}
+    <line x1="0" y1="${zero}" x2="${width}" y2="${zero}" stroke="var(--line)" stroke-width="1"/>
+    ${bars}${ticks}
+  </svg>`;
+}

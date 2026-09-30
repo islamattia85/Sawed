@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error - plain JS module, no types
-import { savingsLadder, rateStrip, scoreRing, monthBars } from '../../src/ui/charts.js';
+import { savingsLadder, rateStrip, scoreRing, monthBars, dayFlow } from '../../src/ui/charts.js';
 
 /**
  * The V7 objects carry the answer itself, not just its working — the ladder is
@@ -99,5 +99,33 @@ describe('the V7 objects follow the same rules as the V6 ones', () => {
   it('keeps SVG text at or above the tick floor', () => {
     const sizes = [...all.matchAll(/font-size="([\d.]+)"/g)].map((m) => parseFloat(m[1]!));
     expect(sizes.every((s) => s >= 10)).toBe(true);
+  });
+});
+
+
+describe('dayFlow', () => {
+  const hour = (o) => ({ solar: 0, batt: 0, grid: 0, ev: 0, charge: 0, exp: 0, band: 'day', ...o });
+  const hours = Array.from({ length: 24 }, (_, h) => hour(h === 3
+    ? { grid: 3, ev: 2, charge: 1, band: 'ev' }          // cheap window: grid in, EV + battery out
+    : h === 18 ? { batt: 1, band: 'peak' } : {}));
+  const svg = dayFlow({ hours, height: 114 });
+  const rects = (hr) => [...svg.split(`data-hour="${hr}"`)[1].split('</g>')[0]
+    .matchAll(/<rect [^>]*height="([\d.]+)"/g)].map((m) => parseFloat(m[1]!));
+
+  it('draws a kWh the same height above and below the line', () => {
+    // hour 3: 3 kWh in (one grid bar) and 3 kWh out (EV 2 + battery 1)
+    const [grid, ev, charge] = rects(3);
+    expect(grid).toBeCloseTo(ev! + charge!, 2);
+    expect(ev).toBeCloseTo(2 * charge!, 2);
+  });
+
+  it('keeps every flow on the hour for the reader who taps it', () => {
+    expect(svg).toContain('data-hour="3" data-solar="0" data-batt="0"');
+    expect(svg).toContain('data-grid="3" data-ev="2" data-charge="1" data-exp="0"');
+  });
+
+  it('uses tokens only and keeps its ticks readable', () => {
+    expect(svg.match(/#[0-9a-fA-F]{3,8}\b/g)).toBeNull();
+    expect([...svg.matchAll(/font-size="([\d.]+)"/g)].every((m) => parseFloat(m[1]!) >= 10)).toBe(true);
   });
 });

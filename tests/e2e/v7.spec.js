@@ -250,3 +250,37 @@ test('the month chart opens a swipeable month-by-month sheet', async ({ page }) 
   expect(Math.abs(sums.solar - sums.year), 'months do not add up to the year').toBeLessThanOrEqual(12);
   expect(errors).toEqual([]);
 });
+
+test('a month shows the EV window at work, and every hour balances', async ({ page }) => {
+  // An EV home with a battery on Energia's EV plan: the cheap window should
+  // show power coming in from the grid and going into the car and the battery.
+  const errors = await boot(page, {
+    current_screen: 'solar', chosen_plan: 'EN-EV', ev_active: true, ev_in_bill: true,
+    ev_km_per_year: 15000, battery_kwh: 10, charge_from_grid: true,
+  });
+  await page.locator('.v7-months-card [data-month="11"] rect').first().click();
+  const r = await page.evaluate(() => {
+    const card = document.querySelectorAll('.v7-month')[11];
+    const hs = [...card.querySelectorAll('.v7-dayflow [data-hour]')].map((g) => {
+      const d = g.dataset; const f = (k) => +d[k];
+      return { band: d.band, in: f('solar') + f('batt') + f('grid'), out: f('ev') + f('charge') + f('exp'),
+        grid: f('grid'), ev: f('ev'), charge: f('charge') };
+    });
+    const win = hs.filter((h) => h.band === 'ev');
+    return {
+      winGrid: win.reduce((a, h) => a + h.grid, 0), winEv: win.reduce((a, h) => a + h.ev, 0),
+      winCharge: win.reduce((a, h) => a + h.charge, 0), n: win.length,
+      house: hs.map((h) => h.in - h.out),
+      key: card.querySelector('.v7-flow-key').textContent,
+    };
+  });
+  expect(r.n, 'no EV-window hours on an EV plan').toBeGreaterThan(0);
+  expect(r.winEv, 'the car does not charge in its window').toBeGreaterThan(0);
+  expect(r.winCharge, 'the battery does not fill from the cheap window').toBeGreaterThan(0);
+  expect(r.winGrid).toBeGreaterThanOrEqual(r.winEv + r.winCharge - 0.01);
+  // Above minus below is the house's own use: never negative.
+  expect(Math.min(...r.house)).toBeGreaterThanOrEqual(-0.01);
+  expect(r.key).toMatch(/EV charging/);
+  expect(r.key).toMatch(/into battery/);
+  expect(errors).toEqual([]);
+});
