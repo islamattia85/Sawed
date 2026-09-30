@@ -52,3 +52,20 @@ test('the payback curve, in the light theme @shots', async ({ page }) => {
   await boot(page, { current_screen: 'solar', theme: 'light', _show_npv_breakdown: true });
   await page.screenshot(SHOT('10-payback-light'));
 });
+
+test('sheets — a plan, and the home @shots', async ({ page }) => {
+  await boot(page, { current_screen: 'plans' });
+  await page.locator('.v7-plan').first().click();
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: 'screenshots/11-plan-sheet.png' });
+  await boot(page, { current_screen: 'result', _sheet: { kind: 'assume' } });
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: 'screenshots/12-assume-sheet.png' });
+});
+
+test('dark theme @shots', async ({ page }) => {
+  await boot(page, { theme: 'dark' });
+  await page.screenshot(SHOT('13-home-dark'));
+  await boot(page, { theme: 'dark', current_screen: 'plans' });
+  await page.screenshot(SHOT('14-plans-dark'));
+});

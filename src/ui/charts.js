@@ -196,3 +196,115 @@ export function bandDonut({ slices = [], size = 128 } = {}) {
   return `<svg class="v6-donut" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"
     role="group" aria-label="Usage by tariff band">${arcs}</svg>`;
 }
+
+/* ------------------------------------------------------------------
+   V7 objects. Same rules as above: pure, token colours, exact figures
+   carried in data-* and <title>.
+   ------------------------------------------------------------------ */
+
+/**
+ * The answer as a ladder: what the home pays today, what it would pay on the
+ * best plan with nothing else changed, and what it pays with the solar and
+ * battery added.
+ *
+ * This exists because a single "you could save" figure merged two different
+ * decisions. Switching supplier is free and takes ten minutes; solar is a
+ * five-figure purchase. A reader has to see how much of the saving is which
+ * before they can act on either.
+ *
+ * @param {{rungs:{label:string,value:number,token:string,note?:string}[], width?:number}} o
+ */
+export function savingsLadder({ rungs = [], width = 320 } = {}) {
+  const items = rungs.filter((r) => r && Number.isFinite(r.value));
+  if (!items.length) return '';
+  const rowH = 22;
+  const gap = 14;
+  const labelH = 16;
+  const max = Math.max(1, ...items.map((r) => Math.max(0, r.value)));
+  const height = items.length * (rowH + gap + labelH) - gap;
+  const rows = items.map((r, i) => {
+    const y = i * (rowH + gap + labelH);
+    const w = Math.max(3, (Math.max(0, r.value) / max) * width);
+    return `<g data-rung="${i}" data-label="${esc(r.label)}" data-value="${n(r.value)}">
+      <title>${esc(r.label)}: ${eur(r.value)}/yr</title>
+      <text x="0" y="${y + 12}" font-size="13" fill="var(--ink-soft)">${esc(r.label)}</text>
+      <text x="${width}" y="${y + 12}" font-size="13" text-anchor="end" font-weight="700"
+        fill="var(--ink)">${eur(r.value)}</text>
+      <rect x="0" y="${y + labelH}" width="${width}" height="${rowH}" rx="${rowH / 2}" fill="var(--track-soft)"/>
+      <rect x="0" y="${y + labelH}" width="${n(w)}" height="${rowH}" rx="${rowH / 2}" fill="var(${r.token})"/>
+    </g>`;
+  }).join('');
+  return `<svg class="v7-ladder" viewBox="0 0 ${width} ${height}" width="100%" height="${height}"
+    role="group" aria-label="Your yearly bill, step by step">${rows}</svg>`;
+}
+
+/**
+ * A plan's 24 hours as one strip, each hour coloured by its rate band.
+ * The shape of a tariff, readable before any rate is.
+ *
+ * @param {{bands:string[], rates?:Record<string,number>, width?:number, height?:number}} o
+ */
+export function rateStrip({ bands = [], rates = {}, width = 320, height = 20 } = {}) {
+  if (!bands.length) return '';
+  const cw = width / bands.length;
+  const tok = { day: '--bandink-day', night: '--bandink-night', peak: '--bandink-peak', ev: '--bandink-ev', wfh: '--bandink-wfh' };
+  const cells = bands.map((b, h) => `<rect x="${n(h * cw)}" y="0" width="${n(cw) + 0.3}" height="${height}"
+    fill="var(${tok[b] || '--bandink-day'})" data-hour="${h}" data-band="${esc(b)}"><title>${String(h).padStart(2, '0')}:00 · ${esc(b)}${
+      Number.isFinite(rates[b]) ? ` · ${n(rates[b] * 100)}c/kWh` : ''}</title></rect>`).join('');
+  return `<svg class="v7-ratestrip" viewBox="0 0 ${width} ${height}" width="100%" height="${height}"
+    preserveAspectRatio="none" role="img" aria-label="Rate band by hour">
+    <defs><clipPath id="rs-clip"><rect width="${width}" height="${height}" rx="4"/></clipPath></defs>
+    <g clip-path="url(#rs-clip)">${cells}</g></svg>`;
+}
+
+/**
+ * A score out of 100 as a ring. The number sits in the middle, so the ring
+ * adds the one thing the number cannot: how far there is still to go.
+ *
+ * @param {{value:number, size?:number, token?:string}} o
+ */
+export function scoreRing({ value = 0, size = 88, token = '--accent' } = {}) {
+  const v = Math.max(0, Math.min(100, Number(value) || 0));
+  const r = size / 2 - 6;
+  const c = 2 * Math.PI * r;
+  const dash = (v / 100) * c;
+  return `<svg class="v7-ring" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"
+    role="img" aria-label="Score ${Math.round(v)} of 100" data-value="${Math.round(v)}">
+    <circle cx="${size / 2}" cy="${size / 2}" r="${n(r)}" fill="none" stroke="var(--track-soft)" stroke-width="8"/>
+    <circle cx="${size / 2}" cy="${size / 2}" r="${n(r)}" fill="none" stroke="var(${token})" stroke-width="8"
+      stroke-linecap="round" stroke-dasharray="${n(dash)} ${n(c)}"
+      transform="rotate(-90 ${size / 2} ${size / 2})"/>
+    <text x="50%" y="50%" dy="0.35em" text-anchor="middle" font-size="25" font-weight="700"
+      fill="var(--ink)">${Math.round(v)}</text>
+  </svg>`;
+}
+
+/**
+ * Twelve months, two series side by side — what the panels make against what
+ * the home uses. Winter's gap is the whole case for a battery or a night rate.
+ *
+ * @param {{a:number[], b:number[], tokenA?:string, tokenB?:string, width?:number, height?:number}} o
+ */
+export function monthBars({ a = [], b = [], tokenA = '--accent', tokenB = '--ink-dim', width = 320, height = 110 } = {}) {
+  const months = Math.max(a.length, b.length);
+  if (!months) return '';
+  const pad = 14;
+  const plot = height - pad;
+  const max = Math.max(0.001, ...a, ...b);
+  const slot = width / months;
+  const bw = slot * 0.34;
+  const L = 'JFMAMJJASOND';
+  const bars = Array.from({ length: months }, (_, i) => {
+    const ha = ((a[i] || 0) / max) * plot;
+    const hb = ((b[i] || 0) / max) * plot;
+    const x = i * slot + slot / 2;
+    return `<g data-month="${i}" data-a="${n(a[i])}" data-b="${n(b[i])}">
+      <title>Month ${i + 1}: ${Math.round(a[i] || 0)} / ${Math.round(b[i] || 0)} kWh</title>
+      <rect x="${n(x - bw - 1)}" y="${n(plot - ha)}" width="${n(bw)}" height="${n(ha)}" rx="2" fill="var(${tokenA})"/>
+      <rect x="${n(x + 1)}" y="${n(plot - hb)}" width="${n(bw)}" height="${n(hb)}" rx="2" fill="var(${tokenB})"/>
+      <text x="${n(x)}" y="${height - 2}" font-size="10" text-anchor="middle" fill="var(--ink-dim)">${L[i] || ''}</text>
+    </g>`;
+  }).join('');
+  return `<svg class="v7-months" viewBox="0 0 ${width} ${height}" width="100%" height="${height}"
+    role="group" aria-label="Month by month">${bars}</svg>`;
+}

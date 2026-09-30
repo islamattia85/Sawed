@@ -36,6 +36,9 @@ async function audit(page, price, panels, battery) {
   return page.evaluate(() => document.getElementById('audit-result').innerText);
 }
 
+// innerText reflects CSS text-transform. These patterns used to match
+// "PAYBACK" only because the label was styled uppercase; V7 sets labels in
+// sentence case, so they match the word, not the styling.
 test.beforeEach(async ({ page }) => {
   await boot(page, HOUSE);
 });
@@ -44,7 +47,7 @@ test('a quote is judged on what the quoted system saves, not on a tariff switch'
   const text = await audit(page, 12000, 12, 5);
 
   const benefit = Number((text.match(/€([\d,]+)\/yr benefit/) || [])[1]?.replace(/,/g, ''));
-  const payback = Number((text.match(/PAYBACK[^\n]*\n([\d.]+) yr/) || [])[1]);
+  const payback = Number((text.match(/payback[^\n]*\n([\d.]+) yr/i) || [])[1]);
 
   // A 5.3 kWp system with storage on a heat-pump home with an EV saves well
   // over a thousand a year. Anything near €500 is the tariff-switch figure
@@ -60,7 +63,7 @@ test('a quote is judged on what the quoted system saves, not on a tariff switch'
 test('a bigger system saves more, and a dearer one takes longer to repay', async ({ page }) => {
   const parse = (t) => ({
     benefit: Number((t.match(/€([\d,]+)\/yr benefit/) || [])[1]?.replace(/,/g, '')),
-    payback: Number((t.match(/PAYBACK[^\n]*\n([\d.]+) yr/) || [])[1]),
+    payback: Number((t.match(/payback[^\n]*\n([\d.]+) yr/i) || [])[1]),
   });
 
   const small = parse(await audit(page, 8000, 10, 0));

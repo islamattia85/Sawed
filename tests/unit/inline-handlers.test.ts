@@ -20,8 +20,11 @@ import { dirname, join } from 'node:path';
  * called from an inline attribute, and require each one to be exported.
  */
 
-const SRC = readFileSync(
-  join(dirname(fileURLToPath(import.meta.url)), '../../src/main.js'), 'utf8');
+// The V7 views emit inline handlers too, and resolve against the same window
+// bridge in main.js — so both files are read as one source.
+const SRC = ['../../src/main.js', '../../src/ui/v7.js']
+  .map((f) => readFileSync(join(dirname(fileURLToPath(import.meta.url)), f), 'utf8'))
+  .join('\n');
 
 /** Things that resolve without an export: language keywords and host objects. */
 const AMBIENT = new Set([
