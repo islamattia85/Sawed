@@ -222,3 +222,31 @@ test('the health score judges the plan on the same home the ladder does', async 
   expect(plan, 'no plan-efficiency factor').toBeTruthy();
   expect(+plan[plan.length - 1]).toBeGreaterThan(50);
 });
+
+test('the month chart opens a swipeable month-by-month sheet', async ({ page }) => {
+  const errors = await boot(page, { current_screen: 'solar' });
+  // Tap July's bars: the sheet opens on July, not January.
+  await page.locator('.v7-months-card [data-month="6"] rect').first().click();
+  await expect(page.locator('#v7-sheet .v7-month')).toHaveCount(12);
+  await expect.poll(() => page.evaluate(() => window.state._sheet.id)).toBe('6');
+  await expect(page.locator('.v7-month-dot.active')).toHaveText('J');
+
+  // Swipe to the next month.
+  await page.evaluate(() => {
+    const t = document.querySelector('.v7-months-track');
+    t.scrollLeft = t.children[7].offsetLeft - t.offsetLeft;
+    t.dispatchEvent(new Event('scroll'));
+  });
+  await expect.poll(() => page.evaluate(() => window.state._sheet.id)).toBe('7');
+
+  // The twelve cards add up to the year the chart shows.
+  const sums = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll('.v7-month')];
+    const kwh = (t) => +t.replace(/[^\d]/g, '');
+    const solar = cards.reduce((a, c) => a + kwh(c.querySelectorAll('.v7-month-bar b')[0].textContent), 0);
+    const legend = document.querySelector('.v7-months-card .v7-legend').textContent;
+    return { solar, year: kwh(legend.match(/solar ([\d,]+)/)[1]) };
+  });
+  expect(Math.abs(sums.solar - sums.year), 'months do not add up to the year').toBeLessThanOrEqual(12);
+  expect(errors).toEqual([]);
+});

@@ -403,3 +403,29 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
    a phone. Dropdowns never outgrow their row; the chosen option truncates. */
 #app-root select { max-width: 100%; min-width: 0; text-overflow: ellipsis; }
 #app-root :has(> select) { min-width: 0; max-width: 100%; }
+
+/* Month by month — one card per month, one swipe per month. */
+.v7-months-card { cursor: pointer; }
+.v7-tap-hint { display: flex; align-items: center; gap: 4px; margin-top: var(--space-2); font-size: var(--text-caption); font-weight: 600; color: var(--accent); }
+.v7-month-dots { display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; }
+.v7-month-dot {
+  border: 0; background: none; padding: 6px 0; border-radius: var(--radius-pill); cursor: pointer;
+  font: 600 var(--text-caption) var(--display); color: var(--ink-dim);
+}
+.v7-month-dot.active { background: var(--accent); color: var(--on-accent); }
+.v7-months-track {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 100%; gap: var(--space-4);
+  overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none;
+}
+.v7-months-track::-webkit-scrollbar { display: none; }
+.v7-month { scroll-snap-align: start; display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.v7-month-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+.v7-month-cost { font-size: var(--text-lead); font-weight: 800; color: var(--ink); }
+.v7-month-bars { display: flex; flex-direction: column; gap: 6px; }
+.v7-month-bar { display: grid; grid-template-columns: 44px 1fr auto; gap: 8px; align-items: center; font-size: var(--text-caption); color: var(--ink-soft); }
+.v7-month-bar i { display: block; height: 12px; border-radius: var(--radius-pill); }
+.v7-month-bar b { color: var(--ink); white-space: nowrap; }
+.v7-month-stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.v7-month-stats > div { background: var(--well); border-radius: var(--radius-lg); padding: var(--space-3); display: flex; flex-direction: column; gap: 2px; }
+.v7-month-stats b { font-size: var(--text-body); color: var(--ink); }
+.v7-month-stats span { font-size: var(--text-caption); color: var(--ink-soft); }

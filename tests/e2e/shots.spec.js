@@ -100,3 +100,13 @@ test('no-solar Solar tab, home tiles, health sheet @shots', async ({ page }) => 
   await page.waitForTimeout(350);
   await page.screenshot({ path: 'screenshots/21-health-sheet.png' });
 });
+
+test('month by month sheet @shots', async ({ page }) => {
+  await boot(page, { current_screen: 'solar', theme: 'dark' });
+  await page.locator('.v7-months-card [data-month="6"] rect').first().click();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: 'screenshots/22-months-july.png' });
+  await page.evaluate(() => window.v7GoMonth(11));
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: 'screenshots/23-months-december.png' });
+});

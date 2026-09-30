@@ -10032,16 +10032,41 @@ function v7SolarData(){
   const npv = calcNPV20(cur.solarBenefit, sysCost, state.battery_kwh || 0, state.panel_degradation);
   return { scen, cur, sysCost, npv, range, view, best, baseCost };
 }
-function v7MonthlyTotals(best){
-  const HOURS_PER_MONTH = HOURS_IN_YEAR / 12;
-  const gen = new Array(12).fill(0), cons = new Array(12).fill(0);
+/**
+ * The year, month by month, from the simulation the app already ran.
+ *
+ * Calendar months, not twelve equal 730-hour slices: a card labelled March
+ * has to cover March. For each month it carries the totals and an average day
+ * — every hour-of-day averaged over that month's days — so the day drawn for
+ * July is July's, not the year's.
+ */
+function v7MonthDetail(best){
   const s = best.sim;
-  for (let i = 0; i < HOURS_IN_YEAR; i++){
-    const m = Math.min(11, Math.floor(i / HOURS_PER_MONTH));
-    gen[m] += s.gen ? s.gen[i] : 0;
-    cons[m] += s.cons ? s.cons[i] : 0;
+  const out = [];
+  let i = 0;
+  for (let m = 0; m < 12; m++){
+    const days = DAYS_IN_MONTH[m];
+    const acc = { gen: 0, cons: 0, imp: 0, exp: 0, cost: 0, revenue: 0, days };
+    const hours = Array.from({ length: 24 }, (_, h) => ({ cons: 0, gen: 0, imp: 0, band: (s.band && s.band[h]) || 'day' }));
+    for (let d = 0; d < days && i < HOURS_IN_YEAR; d++){
+      for (let h = 0; h < 24; h++, i++){
+        const g = s.gen ? s.gen[i] : 0, c = s.cons ? s.cons[i] : 0;
+        const im = s.grid_import ? s.grid_import[i] : 0, ex = s.grid_export ? s.grid_export[i] : 0;
+        acc.gen += g; acc.cons += c; acc.imp += im; acc.exp += ex;
+        acc.cost += s.cost ? s.cost[i] : 0;
+        acc.revenue += s.revenue ? s.revenue[i] : 0;
+        hours[h].cons += c; hours[h].gen += g; hours[h].imp += im;
+      }
+    }
+    hours.forEach(x => { x.cons /= days; x.gen /= days; x.imp /= days; });
+    acc.hours = hours;
+    out.push(acc);
   }
-  return { gen, cons };
+  return out;
+}
+function v7MonthlyTotals(best){
+  const d = v7MonthDetail(best);
+  return { gen: d.map(m => m.gen), cons: d.map(m => m.cons) };
 }
 function v7ResultEmpty(){
   return `${topbar('No plans available')}
@@ -10055,7 +10080,8 @@ const V7 = createV7({
   state: () => state,
   ic, IRISH_REGIONS, renderProfileNavBtn,
   annualKwh: v7AnnualKwh, setupLabel: v7SetupLabel,
-  plansData: v7PlansData, solarData: v7SolarData, monthlyTotals: v7MonthlyTotals,
+  plansData: v7PlansData, solarData: v7SolarData, monthlyTotals: v7MonthlyTotals, monthDetail: v7MonthDetail,
+  getBestPlan,
   renderResultEmpty: v7ResultEmpty,
   hasModelledSystem: v7HasModelledSystem,
   // What a plan costs this home as simulated — solar, battery and EV included.
@@ -10108,6 +10134,23 @@ function toggleSolarModel(){
 function v7Sheet(kind, id){
   state._sheet = kind ? { kind, id: id || null } : null;
   renderApp();
+}
+/** Open the month-by-month sheet at the bar that was tapped (or January). */
+function v7OpenMonth(ev){
+  const g = ev && ev.target && ev.target.closest ? ev.target.closest('[data-month]') : null;
+  v7Sheet('months', g ? g.getAttribute('data-month') : '0');
+}
+/** Scroll the months track to a month (the letter strip above it). */
+function v7GoMonth(i){
+  const track = document.querySelector('.v7-months-track');
+  const card = track && track.children[i];
+  if (card) track.scrollTo({ left: card.offsetLeft - track.offsetLeft, behavior: 'smooth' });
+}
+/** Keep the letter strip in step with whichever month is on screen. */
+function v7MonthScrolled(track){
+  const i = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+  document.querySelectorAll('.v7-month-dot').forEach((d, k) => d.classList.toggle('active', k === i));
+  if (state._sheet && state._sheet.kind === 'months') state._sheet.id = String(i);
 }
 /** Adopt a plan from its sheet — the same rule as the picker. */
 function v7Choose(planId){
@@ -10544,6 +10587,12 @@ function renderApp(){
   // trip and lost the context behind it.
   const sheetHtml = V7.sheet();
   if (sheetHtml) root.insertAdjacentHTML('beforeend', sheetHtml);
+  if (sheetHtml && state._sheet && state._sheet.kind === 'months'){
+    const track = root.querySelector('.v7-months-track');
+    const card = track && track.children[+state._sheet.id || 0];
+    if (card) track.scrollLeft = card.offsetLeft - track.offsetLeft;
+    if (track) v7MonthScrolled(track);
+  }
   root.classList.toggle('has-sheet', !!sheetHtml);
   if (state.current_screen === 'auditor')    bindAuditor();
   if (state.current_screen === 'refine')     bindRefine();
@@ -11660,6 +11709,9 @@ window.setScreen = setScreen;
 window.v7Sheet = v7Sheet;
 window.toggleSolarModel = toggleSolarModel;
 window.v7Choose = v7Choose;
+window.v7OpenMonth = v7OpenMonth;
+window.v7GoMonth = v7GoMonth;
+window.v7MonthScrolled = v7MonthScrolled;
 window.toggleEv = toggleEv;
 window.requestInstallerQuotes = requestInstallerQuotes;
 window.openEmailModal = openEmailModal;

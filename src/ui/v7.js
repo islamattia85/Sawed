@@ -13,7 +13,7 @@
  * the same figure the engine tests already hold.
  */
 import {
-  savingsLadder, rateStrip, scoreRing, monthBars, paybackCurve, eur,
+  savingsLadder, rateStrip, scoreRing, monthBars, paybackCurve, dayProfile, eur,
 } from './charts.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
@@ -458,11 +458,13 @@ export function createV7(api) {
 
     const months = hasSystem ? (() => {
       const m = api.monthlyTotals(best);
-      return `<section class="v7-card">
+      return `<section class="v7-card v7-months-card" role="button" tabindex="0" onclick="v7OpenMonth(event)"
+          aria-label="Month by month — tap to go through each month">
         <div class="v7-card-title">What the panels make, against what the home uses</div>
         ${monthBars({ a: m.gen, b: m.cons })}
         <div class="v7-legend"><span><i class="v7-dot" style="background:var(--accent)"></i>solar ${Math.round(m.gen.reduce((a, b) => a + b, 0)).toLocaleString('en-IE')} kWh</span>
           <span><i class="v7-dot" style="background:var(--ink-dim)"></i>use ${Math.round(m.cons.reduce((a, b) => a + b, 0)).toLocaleString('en-IE')} kWh</span></div>
+        <div class="v7-tap-hint">Tap a month to go through the year ${api.ic('chevR', 14)}</div>
       </section>`;
     })() : '';
 
@@ -513,6 +515,7 @@ export function createV7(api) {
     if (sh.kind === 'plan') body = planSheet(sh.id);
     else if (sh.kind === 'assume') body = assumeSheet();
     else if (sh.kind === 'score') body = scoreSheet();
+    else if (sh.kind === 'months') body = monthsSheet();
     if (!body) return '';
     return `<div class="v7-sheet-root" id="v7-sheet">
       <div class="v7-sheet-backdrop" onclick="v7Sheet(null)"></div>
@@ -588,6 +591,54 @@ export function createV7(api) {
       </section>
       ${api.renderNightRateCard(best, rec.baseCost)}
       ${api.renderEvSavingsCard(best)}`;
+  }
+
+  const MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+    'August', 'September', 'October', 'November', 'December'];
+  const kwh = (v) => `${Math.round(v).toLocaleString('en-IE')} kWh`;
+
+  /**
+   * The year a month at a time, one swipe per month.
+   *
+   * The twelve-bar chart shows the shape of the year; this is what each bar
+   * means for the home — what came off the grid, what went back, how much of
+   * its own power it used, what the month cost, and an average day of that
+   * month drawn hour by hour. Every figure is summed from the same simulation
+   * as the chart, so the twelve cards add up to the year.
+   */
+  function monthsSheet() {
+    const best = api.getBestPlan();
+    const months = api.monthDetail(best);
+    const peak = Math.max(1, ...months.map((m) => Math.max(m.gen, m.cons)));
+    const cards = months.map((m, i) => {
+      const selfUse = m.gen > 0 ? Math.max(0, Math.min(1, (m.gen - m.exp) / m.gen)) : 0;
+      const net = m.cost - m.revenue;
+      return `<article class="v7-month" data-month="${i}" aria-label="${MONTH[i]}">
+        <div class="v7-month-head">
+          <h3 class="v7-h">${MONTH[i]}</h3>
+          <span class="v7-month-cost ${net <= 0 ? 'is-gain' : ''}">${net <= 0 ? `${eur(-net)} credit` : eur(net)}</span>
+        </div>
+        <div class="v7-month-bars">
+          <div class="v7-month-bar"><span>Solar</span><i style="width:${(m.gen / peak * 100).toFixed(1)}%;background:var(--accent)"></i><b>${kwh(m.gen)}</b></div>
+          <div class="v7-month-bar"><span>Use</span><i style="width:${(m.cons / peak * 100).toFixed(1)}%;background:var(--ink-dim)"></i><b>${kwh(m.cons)}</b></div>
+        </div>
+        <div class="v7-month-stats">
+          <div><b>${kwh(m.imp)}</b><span>bought from the grid</span></div>
+          <div><b>${kwh(m.exp)}</b><span>sold back</span></div>
+          <div><b>${Math.round(selfUse * 100)}%</b><span>of your solar used at home</span></div>
+          <div><b>${kwh(m.cons / m.days)}</b><span>used on an average day</span></div>
+        </div>
+        <div class="v7-card-title">An average ${MONTH[i]} day</div>
+        ${dayProfile({ hours: m.hours, height: 110 })}
+      </article>`;
+    }).join('');
+    const dots = MONTH.map((n, i) => `<button class="v7-month-dot" onclick="v7GoMonth(${i})" aria-label="${n}">${n[0]}</button>`).join('');
+    return `<div class="v7-sheet-head">
+        <div class="v7-eyebrow">Month by month · swipe</div>
+        <h2 class="v7-h">Your year on ${esc(best.plan.supplier)}</h2>
+      </div>
+      <div class="v7-month-dots" role="tablist">${dots}</div>
+      <div class="v7-months-track" onscroll="v7MonthScrolled(this)">${cards}</div>`;
   }
 
   function assumeSheet() {
