@@ -134,10 +134,12 @@ def probe(name: str, cfg: dict) -> None:
 # or Ecopower. These read structure rather than prose.
 
 DEEP = {
-    "PrePayPower": ["https://www.prepaypower.ie/why-switch/pricing/estimated-annual-bill-faqs",
+    "PrePayPower": ["https://www.prepaypower.ie/why-switch/pricing/rates",
+                    "https://www.prepaypower.ie/why-switch/pricing/estimated-annual-bill-faqs",
                     "https://www.prepaypower.ie/why-switch/pricing"],
     "Community Power": ["https://www.communitypower.ie/tariffs"],
-    "Waterpower": ["https://www.waterpower.ie/wpe-sst-smart-tariff/", "https://www.waterpower.ie/"],
+    "Waterpower": ["https://www.waterpower.ie/current-electricity-rates/",
+                   "https://www.waterpower.ie/wpe-sst-smart-tariff/", "https://www.waterpower.ie/"],
     "Ecopower": ["https://www.ecopower.ie/", "https://www.ecopower.ie/electricity-prices"],
 }
 EXPORT = re.compile(r"export|micro-?gen|clean\s*export|\bceg\b|feed.?in|solar", re.I)
@@ -196,6 +198,10 @@ def deep(name: str) -> None:
         tables(got.text)
         structure(got.text, u)
         export_lines(text_of(got.text))
+        for ln in text_of(got.text).splitlines():
+            if re.search(r"(20\d\d|effective|valid from|correct as of|updated)", ln, re.I) and len(ln) < 200:
+                print(f"      date? | {ln.strip()}")
+        show_text("text", text_of(got.text))
     # every supplier: go looking for an export / microgeneration page
     root = DEEP[name][0].split("/", 3)[:3]
     root = "/".join(root) + "/"
