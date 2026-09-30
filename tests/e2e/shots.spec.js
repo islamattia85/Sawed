@@ -122,3 +122,17 @@ test('month flow on an EV home @shots', async ({ page }) => {
   await page.waitForTimeout(700);
   await page.screenshot({ path: 'screenshots/25-flow-july.png' });
 });
+
+test('month flow with house line @shots', async ({ page }) => {
+  await boot(page, { current_screen: 'solar', theme: 'dark', chosen_plan: 'YN-EV', battery_kwh: 10, charge_from_grid: true });
+  await page.locator('.v7-months-card [data-month="8"] rect').first().click();
+  await page.waitForTimeout(500);
+  await page.locator('#v7-sheet .v7-sheet').evaluate((el) => { el.scrollTop = 420; });
+  await page.screenshot({ path: 'screenshots/26-flow-line-sept.png' });
+  await boot(page, { current_screen: 'solar', theme: 'dark', chosen_plan: 'EN-EV', ev_active: true,
+    ev_in_bill: true, ev_km_per_year: 15000, battery_kwh: 10, charge_from_grid: true });
+  await page.locator('.v7-months-card [data-month="11"] rect').first().click();
+  await page.waitForTimeout(500);
+  await page.locator('#v7-sheet .v7-sheet').evaluate((el) => { el.scrollTop = 420; });
+  await page.screenshot({ path: 'screenshots/27-flow-line-dec-ev.png' });
+});

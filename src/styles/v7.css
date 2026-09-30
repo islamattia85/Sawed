@@ -434,3 +434,4 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 
 .v7-flow-key { gap: 4px 12px; }
 .v7-flow-side { flex-basis: 100%; color: var(--ink-dim); font-weight: 600; margin-top: 2px; }
+.v7-line-key { display: inline-block; width: 16px; height: 2px; background: var(--ink); vertical-align: 3px; margin-right: 6px; border-radius: 4px; }

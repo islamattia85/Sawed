@@ -129,3 +129,45 @@ describe('dayFlow', () => {
     expect([...svg.matchAll(/font-size="([\d.]+)"/g)].every((m) => parseFloat(m[1]!) >= 10)).toBe(true);
   });
 });
+
+describe('dayFlow — house line and capped outliers', () => {
+  const hour = (o) => ({ solar: 0, batt: 0, grid: 0, ev: 0, charge: 0, exp: 0, band: 'day', ...o });
+  // an ordinary day of ~1 kWh an hour, and one 2am hour where the battery
+  // takes 6 kWh from the grid on top of the house's 0.5
+  const hours = Array.from({ length: 24 }, (_, h) =>
+    h === 2 ? hour({ grid: 6.5, charge: 6, band: 'ev' }) : hour({ grid: 1 }));
+  const svg = dayFlow({ hours, height: 120 });
+
+  it('draws the house use as a line, from in minus out', () => {
+    expect(svg).toContain('class="v7-house-line"');
+    expect(svg).toContain('data-hour="2"');
+    expect(svg).toMatch(/data-hour="2"[^>]*data-house="0.5"/);
+    expect(svg).toMatch(/data-hour="5"[^>]*data-house="1"/);
+  });
+
+  it('cuts an outlier at the cap, marks it, and prints its real figure', () => {
+    expect(svg).toContain('data-capped="6.5"');
+    expect(svg).toContain('data-capped="6"');
+    expect(svg).toMatch(/>6\.5<\/text>/);
+    expect(svg).toMatch(/>6<\/text>/);
+  });
+
+  it('leaves an ordinary day uncapped', () => {
+    const even = dayFlow({ hours: Array.from({ length: 24 }, () => hour({ grid: 1, exp: 0.5 })) });
+    expect(even).not.toContain('data-capped');
+  });
+});
+
+describe('dayFlow — a run of EV-charging hours does not set its own cap', () => {
+  const hour = (o) => ({ solar: 0, batt: 0, grid: 0, ev: 0, charge: 0, exp: 0, band: 'day', ...o });
+  // four hours of 7 kWh overnight charging, against a day of ~0.6 kWh hours
+  const hours = Array.from({ length: 24 }, (_, h) => (h >= 2 && h < 6
+    ? hour({ grid: 7.5, ev: 7, band: 'ev' }) : hour({ grid: 0.6 })));
+  it('caps all four charging hours, so the ordinary day stays readable', () => {
+    const svg = dayFlow({ hours });
+    expect((svg.match(/data-capped="7.5"/g) || []).length).toBe(4);
+    // …and the four share one label, not four colliding ones.
+    expect((svg.match(/data-run="2-5"/g) || []).length).toBe(2);   // one above, one below
+    expect(svg).toMatch(/>up to 7\.5<\/text>/);
+  });
+});

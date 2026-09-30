@@ -614,13 +614,16 @@ export function createV7(api) {
       ['ev', '--v7-ev', 'EV charging'], ['charge', '--v7-batt-in', 'into battery'], ['exp', '--v7-export', 'exported'],
     ].filter(([k]) => has(k));
     const band = [...new Set(hours.map((h) => h.band))].filter((b) => b !== 'day');
+    const capped = / data-capped=/.test(dayFlow({ hours }));
     const bname = { night: 'night rate', peak: 'peak', ev: 'EV window', wfh: 'WFH window' };
     return `<div class="v7-legend v7-flow-key">
+      <span class="v7-flow-side"><i class="v7-line-key"></i>The line: what the house itself used</span>
       <span class="v7-flow-side">Above the line: in</span>
       ${items.filter(([k]) => ['solar', 'batt', 'grid'].includes(k)).map(([, t, l]) => `<span><i class="v7-dot" style="background:var(${t})"></i>${l}</span>`).join('')}
       <span class="v7-flow-side">Below: out</span>
       ${items.filter(([k]) => ['ev', 'charge', 'exp'].includes(k)).map(([, t, l]) => `<span><i class="v7-dot" style="background:var(${t})"></i>${l}</span>`).join('')}
       ${band.length ? `<span class="v7-flow-side">Shaded: ${band.map((b) => bname[b] || b).join(', ')}</span>` : ''}
+      ${capped ? '<span class="v7-flow-side">A notched bar is cut short to keep the rest readable; its figure is the full kWh.</span>' : ''}
     </div>`;
   }
 
