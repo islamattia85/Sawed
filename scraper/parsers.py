@@ -396,6 +396,149 @@ def parse_yuno(session: requests.Session) -> dict:
     return out
 
 
+def _cells(tr) -> list[str]:
+    return [" ".join(c.get_text(" ", strip=True).split()) for c in tr.find_all(["th", "td"])]
+
+
+def _num(cell: str) -> Optional[float]:
+    m = re.search(r"(\d+(?:[.,]\d+)?)", cell or "")
+    return float(m.group(1).replace(",", "")) if m else None
+
+
+# ---------------------------------------------------------------------------
+# Waterpower — one table per tariff on /current-electricity-rates/
+#
+#   Domestic 24 Hour Urban           | Ex.Vat  | Incl.Vat
+#   Unit Rate c/kwh (Post Bill Only) | 0.2926  | 0.3190
+#   Unit Rate c/kwh (E-Bill Only)    | 0.2883  | 0.3142
+#   Standing Charge Per Annum        | €226.30 | €246.67
+#
+# The column says c/kWh but the figures are euro (0.3142 = 31.42c). Read the
+# inc-VAT column, the e-bill row (the cheaper of the two, as with every other
+# supplier's direct-debit + eBill convention) and the urban table.
+# ---------------------------------------------------------------------------
+
+WATERPOWER_URL = "https://www.waterpower.ie/current-electricity-rates/"
+
+
+def _unit(v: Optional[float]) -> Optional[float]:
+    """A unit rate in euro/kWh whether the page wrote 0.3142 or 31.42."""
+    if v is None:
+        return None
+    return round(v if v < 1.5 else v / 100.0, 4)
+
+
+def _waterpower_tables(html: str) -> dict[str, list[list[str]]]:
+    soup = BeautifulSoup(html, "lxml")
+    out = {}
+    for t in soup.find_all("table"):
+        rows = [_cells(tr) for tr in t.find_all("tr")]
+        rows = [r for r in rows if any(r)]
+        if rows:
+            out[rows[0][0].lower()] = rows[1:]
+    return out
+
+
+def _row(rows: list[list[str]], *words: str) -> Optional[float]:
+    for r in rows:
+        label = r[0].lower()
+        if all(w in label for w in words) and len(r) >= 3:
+            return _num(r[2])          # inc-VAT column
+    return None
+
+
+def parse_waterpower(session: requests.Session) -> dict:
+    got = fetch(WATERPOWER_URL, session=session)
+    if not got.ok:
+        return {}
+    tabs = _waterpower_tables(got.text)
+    out: dict = {}
+    t24 = tabs.get("domestic 24 hour urban")
+    if t24:
+        r = _unit(_row(t24, "unit rate", "e-bill"))
+        st = _row(t24, "standing charge")
+        if r:
+            out["WP-24"] = {"rates": {"day": r, "night": r, "peak": r, "ev": r},
+                            "standing": round(st, 2) if st else None}
+    tdn = tabs.get("domestic day/night (e-billing) urban")
+    if tdn:
+        d, n = _unit(_row(tdn, "day rate")), _unit(_row(tdn, "night rate"))
+        st = _row(tdn, "standing charge")
+        if d and n:
+            out["WP-DN"] = {"rates": {"day": d, "night": n, "peak": d, "ev": n},
+                            "standing": round(st, 2) if st else None}
+    return out
+
+
+# ---------------------------------------------------------------------------
+# PrePayPower — the estimated-annual-bill table
+#
+#   Tariff | 24 H Unit Rate | Day | Night | Peak | CRU … | Standing Charge |
+#          Service Charge | PSO | PSO | EAB | EAB
+#   24 Hr Urban Standard | 30.84c | | | | 4,200 kwh | 93.89c | 45.04c | …
+#
+# Units are quoted EXCLUDING VAT; the standing and service charges are per day
+# INCLUDING VAT. That split is not a guess: rebuilding the page's own
+# estimated annual bill from it gives €1,938.04 against the published
+# €1,937.81, and no other reading comes within €80. PrePayPower is
+# pay-as-you-go: the daily service charge is a real fixed cost of the plan,
+# so it is folded into the annual standing figure the app ranks on.
+# ---------------------------------------------------------------------------
+
+PREPAYPOWER_URL = "https://www.prepaypower.ie/why-switch/pricing/estimated-annual-bill-faqs"
+VAT = 1.09
+
+
+def _per_day_eur(cell: str) -> Optional[float]:
+    """'93.89c' or '€1.2501' as euro per day."""
+    v = _num(cell)
+    if v is None:
+        return None
+    return v / 100.0 if "c" in cell and "€" not in cell else v
+
+
+def parse_prepaypower(session: requests.Session) -> dict:
+    got = fetch(PREPAYPOWER_URL, session=session)
+    if not got.ok:
+        return {}
+    soup = BeautifulSoup(got.text, "lxml")
+    out: dict = {}
+    for t in soup.find_all("table"):
+        rows = [r for r in (_cells(tr) for tr in t.find_all("tr")) if any(r)]
+        head = next((r for r in rows if r and r[0].lower() == "tariff"), None)
+        if not head or not any("24 h" in h.lower() for h in head):
+            continue
+        col = {h.lower(): i for i, h in enumerate(head)}
+        def c(row, name):
+            i = next((i for h, i in col.items() if h.startswith(name)), None)
+            return row[i] if i is not None and i < len(row) else ""
+        for r in rows:
+            name = r[0].lower()
+            if not name.startswith("urban") and "urban" not in name:
+                continue
+            fixed = [_per_day_eur(c(r, "standing")), _per_day_eur(c(r, "service"))]
+            standing = round(sum(fixed) * 365, 2) if all(x is not None for x in fixed) else None
+            ex = lambda key: _num(c(r, key))
+            inc = lambda v: round(v * VAT / 100.0, 4) if v else None
+            if "24 hr" in name:
+                u = inc(ex("24 h"))
+                if u:
+                    out["PPP-24"] = {"rates": {"day": u, "night": u, "peak": u, "ev": u},
+                                     "standing": standing}
+            elif "nightsaver" in name:
+                d, n = inc(ex("day")), inc(ex("night"))
+                if d and n:
+                    out["PPP-NS"] = {"rates": {"day": d, "night": n, "peak": d, "ev": n},
+                                     "standing": standing}
+            elif "time of use" in name:
+                d, n, pk = inc(ex("day")), inc(ex("night")), inc(ex("peak"))
+                if d and n and pk:
+                    out["PPP-TOU"] = {"rates": {"day": d, "night": n, "peak": pk, "ev": n},
+                                      "standing": standing}
+        break
+    return out
+
+
 SUPPLIER_PARSERS = {
     "Bord Gáis Energy": parse_bord_gais,
     "Energia": parse_energia,
@@ -403,4 +546,6 @@ SUPPLIER_PARSERS = {
     "Pinergy": parse_pinergy,
     "Electric Ireland": parse_electric_ireland,
     "Yuno Energy": parse_yuno,
+    "Waterpower": parse_waterpower,
+    "PrePayPower": parse_prepaypower,
 }

@@ -397,3 +397,9 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .v7-tiles-3 { grid-template-columns: repeat(3, 1fr); gap: var(--space-2); }
 .v7-tiles-3 .v7-tile { padding: var(--space-3); }
 .v7-tiles-3 .v7-tile-big { font-size: var(--text-body); }
+
+/* A native <select> sizes itself to its longest option, so one long plan name
+   ("… Day/Night/Peak (pay-as-you-go)") pushed the Settings screen sideways on
+   a phone. Dropdowns never outgrow their row; the chosen option truncates. */
+#app-root select { max-width: 100%; min-width: 0; text-overflow: ellipsis; }
+#app-root :has(> select) { min-width: 0; max-width: 100%; }

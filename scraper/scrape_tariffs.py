@@ -184,6 +184,25 @@ SUPPLIERS = [
             "PIN-EV":  ["ev night"],
         },
     },
+    {
+        "name": "Waterpower",
+        "seeds": ["/current-electricity-rates/"],
+        "root": "https://www.waterpower.ie/",
+        "plans": {
+            "WP-24": ["24 hour"],
+            "WP-DN": ["day/night", "day night"],
+        },
+    },
+    {
+        "name": "PrePayPower",
+        "seeds": ["/why-switch/pricing/estimated-annual-bill-faqs"],
+        "root": "https://www.prepaypower.ie/",
+        "plans": {
+            "PPP-24":  ["24 hr", "24 hour"],
+            "PPP-NS":  ["nightsaver"],
+            "PPP-TOU": ["time of use", "day/night/peak"],
+        },
+    },
 ]
 
 

@@ -15,6 +15,7 @@ import pytest
 import parsers
 from sources import Fetched
 from parsers import (
+    parse_waterpower, parse_prepaypower,
     parse_energia, parse_pinergy, parse_electric_ireland,
     _bg_entries, _bg_pick, _bg_rates, _sse_row, _sse_standing,
 )
@@ -268,3 +269,93 @@ def test_sync_skips_plans_the_bundle_does_not_carry(tmp_path):
                                    "standing": 219.22, "verified_date": "2026-09-14"}])
     assert n == 0
     assert p.read_text() == MAIN_JS_FIXTURE
+
+
+# ---------------------------------------------------------------------------
+# Waterpower — table per tariff; figures in euro despite the c/kwh label
+# (markup as read from waterpower.ie/current-electricity-rates on 30 Sep 2026)
+# ---------------------------------------------------------------------------
+
+def _table(title, rows):
+    body = "".join(f"<tr><td>{a}</td><td>{b}</td><td>{c}</td></tr>" for a, b, c in rows)
+    return f"<table><tr><th>{title}</th><th>Ex.Vat</th><th>Incl.Vat</th></tr>{body}</table>"
+
+
+WATERPOWER_HTML = "".join([
+    _table("Domestic 24 Hour Urban", [
+        ("Unit Rate c/kwh (Post Bill Only)", "0.2926", "0.3190"),
+        ("Unit Rate c/kwh (E-Bill Only)", "0.2883", "0.3142"),
+        ("Standing Charge Per Annum", "€226.30", "€246.67"),
+        ("PSO Levy *", "€17.52", "€19.10")]),
+    _table("Domestic 24 Hour Rural", [
+        ("Unit Rate c/kwh (E-Bill Only)", "0.2883", "0.3142"),
+        ("Standing Charge Per Annum", "€295.65", "€322.26")]),
+    _table("Domestic Day/Night (Post Billing) Urban", [
+        ("Unit Day Rate c/kwh (Post Bill Only)", "0.3069", "0.3346"),
+        ("Unit Night Rate c/kwh (Post Bill only)", "0.2366", "0.2579"),
+        ("Standing Charge Per Annum", "€226.30", "€246.67")]),
+    _table("Domestic Day/Night (E-Billing) Urban", [
+        ("Unit Day Rate c/kwh", "0.3024", "0.3296"),
+        ("Unit Night Rate c/kwh", "0.2331", "0.2541"),
+        ("Standing Charge Per Annum", "€226.30", "€246.67")]),
+])
+
+
+def test_waterpower_reads_the_ebill_inc_vat_urban_24h(monkeypatch):
+    _stub_fetch(monkeypatch, WATERPOWER_HTML)
+    out = parse_waterpower(session=None)
+    assert out["WP-24"]["rates"]["day"] == 0.3142        # e-bill, not post (0.3190)
+    assert out["WP-24"]["standing"] == 246.67            # urban, not rural (322.26)
+
+
+def test_waterpower_reads_the_ebill_day_night_not_the_post_billing_table(monkeypatch):
+    _stub_fetch(monkeypatch, WATERPOWER_HTML)
+    r = parse_waterpower(session=None)["WP-DN"]["rates"]
+    assert (r["day"], r["night"]) == (0.3296, 0.2541)
+
+
+# ---------------------------------------------------------------------------
+# PrePayPower — units ex VAT, daily fixed charges inc VAT
+# (markup as read from prepaypower.ie estimated-annual-bill-faqs, dated 1 May 2026)
+# ---------------------------------------------------------------------------
+
+PPP_HEAD = ["Tariff", "24 H Unit Rate", "Day Unit Rate", "Night Unit Rate", "Peak Unit Rate",
+            "CRU Avg Elec Consumption", "Standing Charge", "Service Charge", "PSO*", "PSO*",
+            "EAB", "EAB"]
+PPP_ROWS = [
+    ["24 Hr Urban Standard", "30.84c", "", "", "", "4,200 kwh", "93.89c", "45.04c", "4.80c", "5.23c", "€1,777.60", "€1,937.81"],
+    ["24 Hr Rural Standard", "30.84c", "", "", "", "4,200 kwh", "€1.2269", "45.04c", "4.80c", "5.23c", "€1,874.07", "€2,042.96"],
+    ["Urban Nightsaver Standard", "", "34.15c", "16.86c", "", "4,200 kwh", "€1.2501", "45.04c", "4.80c", "5.23c", "€1,745.37", "€1,902.45"],
+    ["Urban Time of Use Day/Night/Peak", "", "34.12c", "17.69c", "38.34c", "4,200 kwh", "93.89c", "45.04c", "4.80c", "5.23c", "€1,685.00", "€1,836.65"],
+]
+PPP_HTML = "<table>" + "".join(
+    "<tr>" + "".join(f"<td>{c}</td>" for c in r) + "</tr>"
+    for r in [["", "Exc VAT"] * 6, PPP_HEAD] + PPP_ROWS) + "</table>"
+
+
+def test_prepaypower_adds_vat_to_units_but_not_to_the_fixed_charges(monkeypatch):
+    _stub_fetch(monkeypatch, PPP_HTML)
+    out = parse_prepaypower(session=None)
+    assert out["PPP-24"]["rates"]["day"] == round(30.84 * 1.09 / 100, 4)   # 0.3362
+    # standing 93.89c + service 45.04c per day, already inc VAT, for a year
+    assert out["PPP-24"]["standing"] == round((0.9389 + 0.4504) * 365, 2)
+
+
+def test_prepaypower_split_reproduces_the_suppliers_own_estimated_bill(monkeypatch):
+    # The reason the VAT split is trusted: it rebuilds PrePayPower's published
+    # €1,937.81 estimated annual bill (4,200 kWh + PSO 5.23c/day) to within €1.
+    _stub_fetch(monkeypatch, PPP_HTML)
+    p = parse_prepaypower(session=None)["PPP-24"]
+    eab = 4200 * p["rates"]["day"] + p["standing"] + 0.0523 * 365
+    assert abs(eab - 1937.81) < 1.0
+
+
+def test_prepaypower_reads_the_urban_rows_into_the_right_bands(monkeypatch):
+    _stub_fetch(monkeypatch, PPP_HTML)
+    out = parse_prepaypower(session=None)
+    assert out["PPP-NS"]["rates"]["night"] == round(16.86 * 1.09 / 100, 4)
+    assert out["PPP-NS"]["standing"] == round((1.2501 + 0.4504) * 365, 2)   # €-per-day cell
+    tou = out["PPP-TOU"]["rates"]
+    assert (tou["day"], tou["night"], tou["peak"]) == (
+        round(34.12 * 1.09 / 100, 4), round(17.69 * 1.09 / 100, 4), round(38.34 * 1.09 / 100, 4))
+    assert "PPP-24-RURAL" not in out and len(out) == 3

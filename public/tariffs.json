@@ -1021,5 +1021,133 @@
       "source": "energia.ie price notice, announced Sep 2026",
       "note": "Energia rates rise 12 Oct 2026: night ~+28%, day ~+3%, peak ~+5%, standing +5%."
     }
+  },
+  {
+    "id": "WP-24",
+    "supplier": "Waterpower",
+    "plan": "24 Hour (e-billing)",
+    "type": "flat",
+    "rates": {
+      "day": 0.3142,
+      "night": 0.3142,
+      "peak": 0.3142,
+      "ev": 0.3142
+    },
+    "windows": {
+      "ev": null
+    },
+    "standing": 246.67,
+    "exit": 0,
+    "length": 0,
+    "green": false,
+    "export_rate": 0,
+    "verified_date": "2026-09-30",
+    "notes": "Read 30 Sep 2026 from waterpower.ie/current-electricity-rates (the supplier's own page): urban, e-billing, inc VAT. The page carries no date; its PSO line is the 2025/26 levy (€19.10), so it is this year's list. Waterpower does not publish its Clean Export Guarantee rate, so export_rate is 0: for a home with solar these figures leave out any export payment and understate the plan. Exit fee and contract length are not published either."
+  },
+  {
+    "id": "WP-DN",
+    "supplier": "Waterpower",
+    "plan": "Day/Night (e-billing)",
+    "type": "dn",
+    "rates": {
+      "day": 0.3296,
+      "night": 0.2541,
+      "peak": 0.3296,
+      "ev": 0.2541
+    },
+    "windows": {
+      "peak": null,
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
+    "standing": 246.67,
+    "exit": 0,
+    "length": 0,
+    "green": false,
+    "export_rate": 0,
+    "verified_date": "2026-09-30",
+    "notes": "Read 30 Sep 2026 from waterpower.ie/current-electricity-rates (the supplier's own page): urban, e-billing, inc VAT. The page carries no date; its PSO line is the 2025/26 levy (€19.10), so it is this year's list. Waterpower does not publish its Clean Export Guarantee rate, so export_rate is 0: for a home with solar these figures leave out any export payment and understate the plan. Exit fee and contract length are not published either."
+  },
+  {
+    "id": "PPP-24",
+    "supplier": "PrePayPower",
+    "plan": "24 Hr Standard (pay-as-you-go)",
+    "type": "flat",
+    "rates": {
+      "day": 0.3362,
+      "night": 0.3362,
+      "peak": 0.3362,
+      "ev": 0.3362
+    },
+    "windows": {
+      "ev": null
+    },
+    "standing": 507.09,
+    "exit": 0,
+    "length": 0,
+    "green": false,
+    "export_rate": 0,
+    "verified_date": "2026-09-30",
+    "notes": "UNVERIFIED as a current price — PrePayPower dates this table 'correct as of 01/05/26'. Read 30 Sep 2026 from prepaypower.ie estimated-annual-bill-faqs: urban. Pay-as-you-go: a PrePayPower meter is needed. Units are published ex VAT and have 9% VAT added here; the standing figure is the daily standing charge PLUS the daily prepayment service charge (both inc VAT) for a year, because both are fixed costs of the plan. Export rate is not published (0 here), nor an exit fee or contract length."
+  },
+  {
+    "id": "PPP-NS",
+    "supplier": "PrePayPower",
+    "plan": "Nightsaver Standard (pay-as-you-go)",
+    "type": "dn",
+    "rates": {
+      "day": 0.3722,
+      "night": 0.1838,
+      "peak": 0.3722,
+      "ev": 0.1838
+    },
+    "windows": {
+      "peak": null,
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
+    "standing": 620.68,
+    "exit": 0,
+    "length": 0,
+    "green": false,
+    "export_rate": 0,
+    "verified_date": "2026-09-30",
+    "notes": "UNVERIFIED as a current price — PrePayPower dates this table 'correct as of 01/05/26'. Read 30 Sep 2026 from prepaypower.ie estimated-annual-bill-faqs: urban. Pay-as-you-go: a PrePayPower meter is needed. Units are published ex VAT and have 9% VAT added here; the standing figure is the daily standing charge PLUS the daily prepayment service charge (both inc VAT) for a year, because both are fixed costs of the plan. Export rate is not published (0 here), nor an exit fee or contract length."
+  },
+  {
+    "id": "PPP-TOU",
+    "supplier": "PrePayPower",
+    "plan": "Time of Use Day/Night/Peak (pay-as-you-go)",
+    "type": "tou",
+    "rates": {
+      "day": 0.3719,
+      "night": 0.1928,
+      "peak": 0.4179,
+      "ev": 0.1928
+    },
+    "windows": {
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
+    "standing": 507.09,
+    "exit": 0,
+    "length": 0,
+    "green": false,
+    "export_rate": 0,
+    "verified_date": "2026-09-30",
+    "notes": "UNVERIFIED as a current price — PrePayPower dates this table 'correct as of 01/05/26'. Read 30 Sep 2026 from prepaypower.ie estimated-annual-bill-faqs: urban. Pay-as-you-go: a PrePayPower meter is needed. Units are published ex VAT and have 9% VAT added here; the standing figure is the daily standing charge PLUS the daily prepayment service charge (both inc VAT) for a year, because both are fixed costs of the plan. Export rate is not published (0 here), nor an exit fee or contract length."
   }
 ]
