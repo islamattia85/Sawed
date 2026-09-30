@@ -359,3 +359,13 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .v7-basis { display: flex; flex-direction: column; gap: 6px; }
 .v7-basis-label { font-size: var(--text-caption); color: var(--ink-dim); }
 .v7-hero, .v7-hero.qr-hero { text-align: left; align-items: stretch; }
+
+.v7-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.v7-action {
+  display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px var(--space-3); text-align: left;
+  border: 1px solid var(--hair); border-radius: var(--radius-lg); background: var(--panel);
+  color: var(--accent); cursor: pointer; font-family: inherit;
+}
+.v7-action span { display: flex; flex-direction: column; min-width: 0; }
+.v7-action b { font-size: var(--text-data); color: var(--ink); }
+.v7-action small { font-size: var(--text-caption); color: var(--ink-soft); }

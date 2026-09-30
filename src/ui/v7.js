@@ -178,6 +178,18 @@ export function createV7(api) {
 
       ${working(rec)}
 
+      <!-- Carried over from V6's home, where they were two small actions under
+           the report. V7's first cut dropped them, which removed the only way
+           back into the guided setup from the answer. -->
+      <div class="v7-actions">
+        <button class="v7-action" onclick="reRunOnboarding()">
+          ${api.ic('rotate', 18)}<b>Re-run setup</b>
+        </button>
+        <button class="v7-action" onclick="copyShareUrl()">
+          ${api.ic('link', 18)}<b>Share analysis</b>
+        </button>
+      </div>
+
       <div class="report-promo v7-report" onclick="openPdfReportModal()">
         <div class="v7-report-ico">${api.ic('doc', 22)}</div>
         <div>

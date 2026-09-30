@@ -69,3 +69,13 @@ test('dark theme @shots', async ({ page }) => {
   await boot(page, { theme: 'dark', current_screen: 'plans' });
   await page.screenshot(SHOT('14-plans-dark'));
 });
+
+test('setup wizard and landing @shots', async ({ page }) => {
+  await boot(page);
+  await page.getByRole('button', { name: /Re-run setup/ }).click();
+  await page.waitForTimeout(350);
+  await page.screenshot(SHOT('15-wizard'));
+  await page.evaluate(() => window.setScreen('welcome'));
+  await page.waitForTimeout(350);
+  await page.screenshot(SHOT('16-landing'));
+});

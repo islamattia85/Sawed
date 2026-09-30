@@ -126,3 +126,13 @@ test('the four tabs are destinations: no back arrow on any of them', async ({ pa
     await expect(page.locator('.v7-top [aria-label="Back"]'), `${s} shows a back arrow`).toHaveCount(0);
   }
 });
+
+test('the way back into setup, and sharing, survive the redesign', async ({ page }) => {
+  // V7's first cut dropped both from the home screen and nothing noticed — a
+  // returning visitor then had no route back into the guided setup at all.
+  const errors = await boot(page);
+  await expect(page.getByRole('button', { name: /Share analysis/ })).toBeVisible();
+  await page.getByRole('button', { name: /Re-run setup/ }).click();
+  await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('onboarding');
+  expect(errors).toEqual([]);
+});
