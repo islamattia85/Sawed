@@ -1,0 +1,11 @@
+{
+ "supplier": "Ecopower",
+ "captured": "2026-09-30",
+ "pages": [
+  {
+   "url": "https://www.ecopower.ie/",
+   "error": "TimeoutError: Page.goto: Timeout 45000ms exceeded.\nCall log:\nnavigating to \"https://www.ecopower.ie/\", waiting until \"networkidle\"\n"
+  }
+ ],
+ "pdfs": []
+}
