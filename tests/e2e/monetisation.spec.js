@@ -72,3 +72,33 @@ test('the consent box is a real, visible checkbox', async ({ page }) => {
   await page.locator('.lead-consent span').click();
   await expect(box).toBeChecked();
 });
+
+test('the switch button speaks in two voices, equally prominent, and both explain before leaving', async ({ page }) => {
+  await boot(page, { has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, baseline: 'BG-STANDARD-VARIABLE-SMART-ALL-DAY-ELECTRICITY' });
+  const best = await page.evaluate(() => window.getRecommendation().best.plan);
+  const btn = page.locator('.v7-hero ~ .v7-switch-btn, .v7-switch-btn').first();
+  await expect(btn).toContainText(`Switch on ${best.supplier}'s website`);
+  const plainBox = await btn.boundingBox();
+  await btn.click();
+  await expect(page.locator('#v7-sheet')).toContainText('Pick exactly this plan');
+  await expect(page.locator('#v7-sheet')).toContainText('Sawed earns nothing from this switch');
+
+  await page.addInitScript((id) => { window.__SAWED_PARTNERS = [id]; }, best.id);
+  await boot(page, { has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, baseline: 'BG-STANDARD-VARIABLE-SMART-ALL-DAY-ELECTRICITY' });
+  const pbtn = page.locator('.v7-switch-btn').first();
+  await expect(pbtn).toContainText('Switch with Sawed');
+  const partnerBox = await pbtn.boundingBox();
+  expect(Math.abs(partnerBox.height - plainBox.height)).toBeLessThan(2);   // same prominence
+  await pbtn.click();
+  await expect(page.locator('#v7-sheet')).toContainText('pays Sawed when you switch');
+});
+
+test('sending the quote form again updates the request', async ({ page }) => {
+  await boot(page, { ...SOLAR, _lead_form: { email: 'h@x.ie', county: 'Cork', sent_at: '2026-10-01T12:00:00Z' } });
+  await page.route('**/api/lead', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, updated: true, matched: 2 }) }));
+  await page.evaluate(() => window.openLeadForm());
+  await expect(page.locator('#lead-modal')).toContainText('Update your quote request');
+  await page.check('#lead-consent');
+  await page.click('#lead-submit');
+  await expect(page.getByText(/Updated\. The installers already looking at it/)).toBeVisible();
+});

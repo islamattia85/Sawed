@@ -181,9 +181,7 @@ export function createV7(api) {
 
       ${stay
         ? `<button class="switch-cta v7-cta" onclick="setScreen('plans')">See every plan compared ${api.ic('chevR', 18)}</button>`
-        : `<button class="switch-cta v7-cta" onclick="handleSwitchClick('${best.plan.id}', '${switchName}', ${saving.toFixed(0)})">
-        Switch to ${esc(best.plan.supplier)}${fromSolar > 1 && fromSwitch > 0 ? ` · ${eur(fromSwitch)}/yr` : ''} ${api.ic('chevR', 18)}
-      </button>`}
+        : switchButton(best.plan, `${fromSolar > 1 && fromSwitch > 0 ? ` · ${eur(fromSwitch)}/yr` : ''}`)}
       <div class="qr-actions v7-links">
         <a href="#" onclick="event.preventDefault();openPlanPicker()">${st.chosen_plan ? 'Change plan' : 'Pick a different plan'}</a>
         ${saving > 10 ? `<span class="qr-actions-dot">·</span>
@@ -542,6 +540,7 @@ export function createV7(api) {
     else if (sh.kind === 'months') body = monthsSheet();
     else if (sh.kind === 'ev') body = evSheet();
     else if (sh.kind === 'quote') body = quoteSheet();
+    else if (sh.kind === 'switch') body = switchSheet(sh.id);
     if (!body) return '';
     return `<div class="v7-sheet-root" id="v7-sheet">
       <div class="v7-sheet-backdrop" onclick="v7Sheet(null)"></div>
@@ -591,7 +590,7 @@ export function createV7(api) {
       ${sourceLine(plan)}
       ${pc ? `<div class="v7-note is-rise">${api.ic('trendUp', 16)}<div><b>Prices rise ${fmtDate(pc.effective_date)}.</b> ${esc(pc.note || '')} The year above already includes it for the months it applies.</div></div>` : ''}
       ${api.planDataFlag(plan) ? `<div class="v7-note is-check">${api.ic('warn', 16)}<div>These rates have not been re-checked recently. Confirm them with ${esc(plan.supplier)} before switching.</div></div>` : ''}
-      <button class="v7-cta-2" onclick="handleSwitchClick('${plan.id}', '${switchName}', ${saving.toFixed(0)})">Go to ${esc(plan.supplier)} ${api.ic('chevR', 16)}</button>
+      ${switchButton(plan, '', 'v7-cta-2')}
       <div class="v7-sheet-links">
         ${st.chosen_plan === plan.id ? '' : `<a href="#" onclick="event.preventDefault();v7Choose('${plan.id}')">Use this plan for my figures</a>`}
         <a href="#" onclick="event.preventDefault();v7Sheet(null);showPlanDetail('${plan.id}')">Full rate card</a>
@@ -628,6 +627,48 @@ export function createV7(api) {
       ? 'charge the battery from the grid in the cheap overnight window and use it at peak'
       : 'fill the battery from your solar only (grid charging would not pay on this plan)';
     return `<div class="v7-note is-check">${api.ic('battery', 16)}<div><b>Battery.</b> ${auto ? 'Costed to' : 'Set to'} ${what}.${auto && arb ? ' Set this in your inverter app when you switch.' : ''}</div></div>`;
+  }
+
+  /**
+   * The switch button, in one of two voices. A partner supplier (one that pays
+   * us for a switch) gets "Switch with Sawed"; any other gets "Switch on their
+   * website". Both are the same size and colour: the best plan must always be
+   * the most prominent, whether or not it pays us. Both open the same
+   * "before you switch" sheet.
+   */
+  function switchButton(plan, extra = '', cls = 'switch-cta v7-cta') {
+    const partner = api.isPartnerPlan(plan.id);
+    return `<button class="${cls} v7-switch-btn" data-partner="${partner}" onclick="v7Sheet('switch','${plan.id}')">
+      ${partner ? `${api.ic('logo', 18)} Switch with Sawed` : `Switch on ${esc(plan.supplier)}'s website`}${extra} ${api.ic(partner ? 'chevR' : 'external', 18)}
+    </button>`;
+  }
+
+  function switchSheet(id) {
+    const plan = api.getPlanById(id);
+    if (!plan) return '';
+    const st = S();
+    const partner = api.isPartnerPlan(id);
+    const saving = api.sameHomeCost(st.baseline) - api.annualCost(api.sim(id), plan).net;
+    const switchName = jsAttr(`${plan.supplier} ${plan.plan}`);
+    const meter = plan.type === 'flat' ? 'any meter' : 'a smart meter (most homes have one now)';
+    return `<div class="v7-sheet-head">
+        <div class="v7-eyebrow">${partner ? 'Switch with Sawed' : 'Before you switch'}</div>
+        <h2 class="v7-h">${esc(plan.supplier)} — ${esc(plan.plan)}</h2>
+        ${saving > 1 ? `<div class="v7-muted">About ${eur(saving)} a year less than you pay now.</div>` : ''}
+      </div>
+      <ol class="v7-steps">
+        <li><b>Pick exactly this plan:</b> “${esc(plan.plan)}”. Suppliers list several; the figures here are for this one.</li>
+        <li><b>Have to hand:</b> your MPRN (11 digits starting 10, on any electricity bill), a recent meter reading if asked, and your bank details for direct debit.</li>
+        <li><b>Meter:</b> this plan needs ${meter}.</li>
+        <li><b>Nothing to cancel:</b> your new supplier tells your old one. There's no break in supply, and you have 14 days to change your mind.</li>
+        ${plan.exit ? `<li><b>Contract:</b> ${plan.length || 12} months; leaving early costs €${plan.exit}.</li>` : ''}
+      </ol>
+      <button class="switch-cta v7-cta" onclick="v7Sheet(null);handleSwitchClick('${plan.id}', '${switchName}', ${Math.round(saving)})">
+        ${partner ? `Continue with Sawed ${api.ic('chevR', 18)}` : `Open ${esc(plan.supplier)}'s website ${api.ic('external', 18)}`}
+      </button>
+      <div class="v7-fine">${partner
+        ? `${esc(plan.supplier)} pays Sawed when you switch through us. You pay the same price, and it never changes how plans are ranked.`
+        : `Sawed earns nothing from this switch. We show it because it's the right plan for your home.`}</div>`;
   }
 
   /** Where the figures were read, and when. */

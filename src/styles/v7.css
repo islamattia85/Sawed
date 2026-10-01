@@ -524,3 +524,6 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .portal-spec, .portal-contact { font-size: var(--text-data); color: var(--ink-soft); line-height: 1.5; }
 .portal-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 .portal-actions .is-on { text-decoration: underline; }
+
+.v7-steps { margin: 0; padding-left: 1.2em; display: grid; gap: var(--space-2); font-size: var(--text-data); color: var(--ink-soft); line-height: 1.5; }
+.v7-steps b { color: var(--ink); }

@@ -652,6 +652,8 @@ const IC = {
   moon:    '<path d="M19.6 13.8A7.8 7.8 0 1 1 10.2 4.4a6.4 6.4 0 0 0 9.4 9.4Z"/>',
   leaf:    '<path d="M5.4 18.6C6.3 9.4 12.7 4.9 19.6 4.9c0 6.9-4.5 13.3-13.7 14.2"/><path d="M5.4 18.6C8.3 14.3 12 11 16.4 8.6"/>',
   calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+  external: '<path d="M14 5h5v5"/><path d="M19 5l-8 8"/><path d="M18 14v4a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18V7.5A1.5 1.5 0 0 1 5.5 6H10"/>',
+  logo: '<circle cx="12" cy="12" r="4"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/>',
   trendUp: '<path d="M4 16.5 9.5 11l3.5 3.5L20 7.5"/><path d="M14.5 7.5H20V13"/>',
   warn:    '<path d="M12 4.4 3.4 19h17.2L12 4.4Z"/><path d="M12 10.2v3.6"/><circle cx="12" cy="16.4" r=".9" fill="currentColor" stroke="none"/>',
   info:    '<circle cx="12" cy="12" r="8.2"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r="1" fill="currentColor" stroke="none"/>',
@@ -5875,7 +5877,7 @@ function renderSolarDashboard(opts){
     <div class="section-title">Next step</div>
     <div class="v7-next">
       <div class="v7-next-spec">${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh battery` : ''}</div>
-      <button class="switch-cta v7-cta" onclick="openLeadForm()">Get 3 quotes for this system ${ic('chevR', 18)}</button>
+      <button class="switch-cta v7-cta" onclick="openLeadForm()">${state._lead_form && state._lead_form.sent_at ? 'Update my quote request' : 'Get 3 quotes for this system'} ${ic('chevR', 18)}</button>
       <button class="v7-cta-2" onclick="v7Sheet('quote')">${ic('clip', 16)} Upload a quote you already have</button>
       <div class="v7-fine">SEAI-registered installers only. An uploaded quote is checked against 2026 Irish prices and becomes the system modelled here.${(state.solar_quotes || []).length > 1 ? ` <a href="#" onclick="event.preventDefault();setScreen('quotes')">Compare your ${state.solar_quotes.length} saved quotes</a>` : ''}</div>
     </div>
@@ -9931,7 +9933,7 @@ let _portal = { status: 'idle', rows: [], error: null };
 async function loadInstallerLeads(){
   if (!_sb || !_sbUser) return;
   _portal = { ..._portal, status: 'loading' };
-  const { data, error } = await _sb.rpc('installer_leads');
+  const { data, error } = await _sb.rpc('installer_leads_v2');
   _portal = error ? { status: 'error', rows: [], error: error.message } : { status: 'ready', rows: data || [], error: null };
   renderApp();
 }
@@ -9962,7 +9964,7 @@ function renderInstallerPortal(){
       const sp = r.spec || {};
       const open = !['sent', 'declined'].includes(r.status);
       return `<div class="card portal-lead">
-        <div class="portal-head"><b>${escAttr(r.county)}${r.eircode_area ? ' · ' + escAttr(r.eircode_area) : ''}</b><span class="portal-status is-${r.status}">${r.status}</span></div>
+        <div class="portal-head"><b>${escAttr(r.county)}${r.eircode_area ? ' · ' + escAttr(r.eircode_area) : ''}</b><span>${r.details_updated ? '<span class="portal-status is-sent">updated</span> ' : ''}<span class="portal-status is-${r.status}">${r.status}</span></span></div>
         <div class="portal-spec">${sp.panels || '?'} panels · ${sp.kwp || '?'} kWp${sp.battery_kwh ? ` · ${sp.battery_kwh} kWh battery` : ''}${sp.ev ? ' · EV' : ''} · ${tl[r.timeline] || r.timeline}<br>
           ${sp.payback_years ? `Modelled payback ${sp.payback_years} yr · ` : ''}${sp.annual_kwh ? `${sp.annual_kwh.toLocaleString('en-IE')} kWh/yr · ` : ''}quality ${r.quality_score}/100 · €${Number(r.price_eur).toFixed(0)}</div>
         ${open ? `<div class="portal-contact">${escAttr(r.name || '')}<br><a href="mailto:${escAttr(r.email)}">${escAttr(r.email)}</a>${r.phone ? ` · <a href="tel:${escAttr(r.phone)}">${escAttr(r.phone)}</a>` : ''}</div>` : ''}
@@ -11428,7 +11430,8 @@ function openLeadForm(){
   m.innerHTML = `
     <div class="modal" onclick="event.stopPropagation()" style="max-height:90vh;overflow-y:auto">
       <div class="modal-handle"></div>
-      <h3>Get up to <em>3 installer quotes</em></h3>
+      <h3>${lf.sent_at ? 'Update your <em>quote request</em>' : 'Get up to <em>3 installer quotes</em>'}</h3>
+      ${lf.sent_at ? `<p style="font-size:12px;color:var(--ink-dim);margin:-4px 0 10px">Sent ${new Date(lf.sent_at).toLocaleDateString('en-IE')}. Change anything and send again — installers who have it see the update; nobody is charged twice.</p>` : ''}
       <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px;line-height:1.6">SEAI-registered installers covering your county. They see the system below and contact you directly.</p>
       <div style="background:var(--well);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--ink-soft);line-height:1.6">
         <b style="color:var(--ink)">${sp.panels} panels · ${sp.kwp} kWp${sp.battery_kwh ? ` · ${sp.battery_kwh} kWh battery` : ''}</b>${sp.payback_years ? `<br>Modelled payback ${sp.payback_years} years` : ''}
@@ -11486,9 +11489,11 @@ async function submitLeadForm(){
     const out = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(out.error || 'Your request could not be sent. Please try again.');
     captureEmail(body.email, 'installer_quotes');
+    state._lead_form = { ...state._lead_form, sent_at: state._lead_form.sent_at || new Date().toISOString() };
+    saveState();
     trackEvent('lead_submitted', { county: body.county, timeline: body.timeline, battery: body.spec.battery_kwh > 0 });
     closeLeadModal();
-    showToast(out.duplicate ? 'We already have your request — installers will be in touch.'
+    showToast(out.updated ? `Updated. ${out.matched > 0 ? `The installer${out.matched > 1 ? 's' : ''} already looking at it will see your new details.` : 'We have your latest details.'}`
       : out.matched > 0 ? `Sent to ${out.matched} installer${out.matched > 1 ? 's' : ''} in ${body.county}. They'll contact you directly.`
       : `Saved. We don't have a partner installer in ${body.county} yet — we'll email you when we do.`,
       { type: 'accent', icon: ic('checkC', 16) });
