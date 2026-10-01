@@ -5168,21 +5168,45 @@ function priceChangeChip(plan){
   </div>`;
 }
 
-/** The inputs behind the figure — moved off the hero, kept in full. */
+/**
+ * The inputs behind the figure, and how they were turned into it — one card.
+ *
+ * This and "How we calculated this" sat one under the other and listed the
+ * same usage, heating and system twice. The card now says each input once,
+ * adds the few only the other panel had (the area's sunshine, hot water,
+ * battery strategy), and keeps the method behind a single "how it works".
+ */
 function renderAssumptions(setupLabel){
   const kwh = Math.round(Object.values(state.bills || {}).reduce((a,b)=>a+b,0));
-  return `<div class="card" style="margin-bottom:14px">
+  const region = IRISH_REGIONS[state.region || 'east'];
+  const sun = region ? Math.round((region.ghi_multiplier - 1) * 100) : 0;
+  const hw = state.hot_water_strategy && state.hot_water_strategy !== 'none' ? ` · ${state.hot_water_strategy} hot water` : '';
+  const strat = state.battery_kwh > 0 && state.has_solar
+    ? ` · battery ${({ auto: 'automatic', arbitrage: 'charges cheap, uses at peak', self: 'self-consume' })[state.strategy_mode] || state.strategy_mode}` : '';
+  const dates = (TARIFFS || []).map(t => t.verified_date).filter(Boolean).sort();
+  const latest = dates.length ? dates[dates.length - 1] : null;
+  return `<div class="card based-on" style="margin-bottom:14px">
     <div class="card-label">${ic('info',13)} What this is based on</div>
-    <div style="margin-top:10px;font-size:15px;color:var(--ink-soft);line-height:1.7">
-      ${kwh.toLocaleString()} kWh a year · ${state.heating_type} heating · ${setupLabel}
+    <div class="based-on-line">
+      ${region ? `${esc(region.name)} (${sun >= 0 ? '+' : ''}${sun}% sun) · ` : ''}${kwh.toLocaleString()} kWh a year · ${esc(state.heating_type)} heating${hw} · ${setupLabel}${strat}
     </div>
-    <div style="margin-top:8px;font-size:13px;color:var(--ink-dim);line-height:1.6">
+    <div class="based-on-src">
       ${state._csv_imported
-        ? `Taken from the smart-meter data you imported.`
-        : `Estimated from your €${state.bimonthly_bill_eur} bimonthly bill.
-           <a href="#" onclick="event.preventDefault();setScreen('csv-import')" style="color:var(--accent)">Import smart-meter data</a> for exact figures.`}
+        ? `Usage from the smart-meter data you imported.`
+        : `Usage estimated from your €${state.bimonthly_bill_eur} two-month bill.
+           <a href="#" onclick="event.preventDefault();setScreen('csv-import')">Import smart-meter data</a> for exact figures.`}
     </div>
     ${configChips()}
+    <div class="based-on-links">
+      <a href="#" onclick="event.preventDefault();openMyHome()">Change my home</a>
+      <a href="#" onclick="event.preventDefault();openMySystem()">Change my system</a>
+    </div>
+    <details class="based-on-how">
+      <summary>How the figure is worked out</summary>
+      <p>Every plan is simulated hour by hour, all 8,760 hours of a year, against your usage and your panels' output: sunshine calibrated per region (PVGIS), the sun's position for your roof, and panel heat losses. The battery follows the strategy above. Dynamic plans follow wholesale prices with the CRU 50c cap.</p>
+      <p><b>Not modelled:</b> real weather (a typical year, ±5–8% against any actual one), shading on your roof, future price changes, and EV charging smarter than cheap-window timing. Check big decisions with an installer.</p>
+      <p class="based-on-data">Data: PVGIS · SEMOpx · CRU${latest ? ` · prices verified ${fmtVerifiedDate(latest)}` : ''}</p>
+    </details>
   </div>`;
 }
 

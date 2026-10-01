@@ -844,3 +844,14 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .sy-status { margin-bottom: var(--space-1); }
 .sy-status .v7-seg-btn { flex: 1; }
 .v7-cta-alt { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); }
+
+/* ---------------------------------------------------------- What this is based on */
+.based-on-line { margin-top: var(--space-2); font-size: var(--text-body); color: var(--ink); line-height: 1.6; }
+.based-on-src { margin-top: var(--space-2); font-size: var(--text-data); color: var(--ink-soft); line-height: 1.55; }
+.based-on-src a, .based-on-links a { color: var(--accent); font-weight: 600; }
+.based-on-links { display: flex; gap: var(--space-4); margin-top: var(--space-3); font-size: var(--text-data); }
+.based-on-how { margin-top: var(--space-3); border-top: 1px solid var(--hair); padding-top: var(--space-2); }
+.based-on-how summary { cursor: pointer; font-size: var(--text-data); font-weight: 600; color: var(--ink-soft); padding: var(--space-1) 0; }
+.based-on-how p { margin: var(--space-2) 0 0; font-size: var(--text-data); color: var(--ink-soft); line-height: 1.6; }
+.based-on-how b { color: var(--ink); }
+.based-on-data { font-size: var(--text-caption) !important; color: var(--ink-dim) !important; }

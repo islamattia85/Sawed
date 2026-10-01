@@ -301,7 +301,6 @@ export function createV7(api) {
         </div>
         ${api.renderSavingsBreakdown(best, rec.baseCost)}
         ${api.renderAssumptions(api.setupLabel())}
-        ${api.renderTrustPanel()}
         ${api.renderLogicBreakdown()}
       </div>` : '';
     return `<div class="working v7-working">

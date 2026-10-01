@@ -97,7 +97,8 @@ test('nothing was deleted — the working and the health sheet hold all of it', 
     ['the plan comparison', /Your current plan|Estimated baseline/i],
     ['the savings breakdown', /Total saving/i],
     ['the assumptions', /What this is based on/i],
-    ['the working', /How we calculated this/i],
+    // The method was merged into the assumptions card rather than repeated.
+    ['the method', /How the figure is worked out/i],
   ]) {
     expect(working, `${what} is gone from the answer, not moved`).toMatch(re);
   }
