@@ -302,3 +302,16 @@ test('Automatic battery strategy is never worse than either fixed setting, plan 
   });
   expect(r).toEqual([]);
 });
+
+test('when nothing beats the current plan, the answer is to stay — not €0 and a switch button', async ({ page }) => {
+  await boot(page, { has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
+  const cheapest = await page.evaluate(() => window.getRecommendation().cheapest.plan.id);
+  await boot(page, { has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, baseline: cheapest });
+  const hero = page.locator('.v7-hero');
+  await expect(hero).toContainText('already the best value');
+  await expect(page.getByRole('button', { name: /^Switch to/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /See every plan compared/ })).toBeVisible();
+  // Like for like: today's bill and the same plan's cost carry the same levy.
+  const r = await page.evaluate(() => window.getRecommendation());
+  expect(Math.abs(r.baseCost - r.cheapest.net)).toBeLessThan(1);
+});

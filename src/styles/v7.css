@@ -498,3 +498,4 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 /* On the page (not in a sheet) the second action is an outline, so the first
    one is clearly the main step. */
 .v7-next .v7-cta-2 { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); }
+.v7-imp-wait { opacity: .7; }

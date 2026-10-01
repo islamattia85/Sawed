@@ -159,19 +159,31 @@ export function createV7(api) {
           <span><i class="v7-dot" style="background:var(--accent)"></i>${eur(fromSwitch)} from switching</span>
         </div>` : '';
 
+    // When nothing on the market beats the plan this home is on, the answer
+    // is "stay" — not a €0 saving with a button to switch to something dearer.
+    const stay = saving <= 10 && !chosen;
+    const hero = stay ? `
+        <div class="v7-eyebrow">Your plan is already the best value</div>
+        <div class="qr-value v7-figure"><span>${api.fmtCurrency(rec.baseCost)}</span><span class="v7-figure-unit">a year where you are</span></div>
+        <div class="v7-headline">No plan on the market costs less for this home. The closest is <b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}, ${eur(Math.max(0, -saving))} a year more.</div>`
+      : `
+        <div class="v7-eyebrow">${saving > 10 ? 'You could pay less' : 'Your best plan'}</div>
+        <div class="qr-value v7-figure" data-countup="${Math.round(Math.max(0, saving))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, saving))}</span><span class="v7-figure-unit">a year</span></div>
+        <div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Best for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`;
+
     return `${topbar('')}
     <div class="screen v7 v7-home">
       <section class="v7-hero qr-hero">
-        <div class="v7-eyebrow">${saving > 10 ? 'You could pay less' : 'Your best plan'}</div>
-        <div class="qr-value v7-figure" data-countup="${Math.round(Math.max(0, saving))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, saving))}</span><span class="v7-figure-unit">a year</span></div>
-        <div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Best for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>
+        ${hero}
         ${savingsLadder({ rungs })}
         ${split}
       </section>
 
-      <button class="switch-cta v7-cta" onclick="handleSwitchClick('${best.plan.id}', '${switchName}', ${saving.toFixed(0)})">
+      ${stay
+        ? `<button class="switch-cta v7-cta" onclick="setScreen('plans')">See every plan compared ${api.ic('chevR', 18)}</button>`
+        : `<button class="switch-cta v7-cta" onclick="handleSwitchClick('${best.plan.id}', '${switchName}', ${saving.toFixed(0)})">
         Switch to ${esc(best.plan.supplier)}${fromSolar > 1 && fromSwitch > 0 ? ` · ${eur(fromSwitch)}/yr` : ''} ${api.ic('chevR', 18)}
-      </button>
+      </button>`}
       <div class="qr-actions v7-links">
         <a href="#" onclick="event.preventDefault();openPlanPicker()">${st.chosen_plan ? 'Change plan' : 'Pick a different plan'}</a>
         ${saving > 10 ? `<span class="qr-actions-dot">·</span>

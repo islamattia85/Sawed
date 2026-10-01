@@ -37,6 +37,8 @@ async function rows(page) {
   if (await toggle.count() && await toggle.getAttribute('aria-expanded') === 'false') {
     await toggle.click();
   }
+  // Drawn a moment after the first paint.
+  await page.waitForFunction(() => [...document.querySelectorAll('.card')].some((c) => /Solar impact/i.test(c.textContent)), null, { timeout: 10000 }).catch(() => {});
   return page.evaluate(() => {
     const card = [...document.querySelectorAll('.card')]
       .find((c) => /Solar impact/i.test(c.textContent));
