@@ -10190,14 +10190,14 @@ function renderFastPath(){
     </div>
     <div class="fp-eyebrow" style="margin-top:18px">Quick answer</div>
     <div class="fp-title">${state._csv_imported ? `Your usage is<br><em>already measured</em>` : state._fp_csv_mode ? `Import your<br><em>smart meter</em> data` : kwhMode ? `Your yearly<br><em>electricity</em> use?` : `What's your<br><em>electricity</em> bill?`}</div>
-    <div class="fp-sub">One number and we'll estimate the rest. You can refine anything after you see your savings.</div>
+    <div class="fp-sub">One number. We'll work out the rest.</div>
 
     ${state._csv_imported ? `<div style="margin-bottom:14px">${csvLockCard()}</div>` : `<div class="fp-billbox">
-      <div style="display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--well);margin-bottom:12px">
+      ${!kwhMode && !state._fp_csv_mode ? '' : `<div style="display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--well);margin-bottom:12px">
         <button onclick="fpSetUsageMode('bill')" style="padding:7px 13px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${!kwhMode && !state._fp_csv_mode?'var(--accent)':'transparent'};color:${!kwhMode && !state._fp_csv_mode?'#fff':'var(--ink-soft)'}">€ Bill</button>
         <button onclick="fpSetUsageMode('kwh')" style="padding:7px 13px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${kwhMode && !state._fp_csv_mode?'var(--accent)':'transparent'};color:${kwhMode && !state._fp_csv_mode?'#fff':'var(--ink-soft)'}">kWh / year</button>
         <button onclick="fpSetUsageMode('csv')" style="padding:7px 13px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${state._fp_csv_mode?'var(--accent)':'transparent'};color:${state._fp_csv_mode?'#fff':'var(--ink-soft)'}">Smart CSV</button>
-      </div>
+      </div>`}
       ${state._fp_csv_mode ? `
       <div style="text-align:left">
         <div style="font-size:12px;color:var(--ink-soft);line-height:1.7">Most accurate — real 30-min readings. From <b>myaccount.esbnetworks.ie</b> → My Meter → <b>Download HDF Data</b>. Less than a year still works — we scale it to a full-year profile.</div>
@@ -10218,10 +10218,11 @@ function renderFastPath(){
         <input class="fp-billinput" id="fp-bill" inputmode="numeric" value="${bill}" oninput="fpSync(this.value)"/>
       </div>
       <div class="fp-billhint">electricity bill only · per two months · not gas</div>
-      <input class="fp-billslider" type="range" min="60" max="700" step="10" value="${bill}" oninput="document.getElementById('fp-bill').value=this.value"/>`}
+      <input class="fp-billslider" type="range" min="60" max="700" step="10" value="${bill}" oninput="document.getElementById('fp-bill').value=this.value"/>
+      <button class="fp-exact" onclick="fpSetUsageMode('kwh')">I know my yearly kWh, or have my ESB meter file</button>`}
     </div>`}
 
-    <div class="fp-assume-label">We've assumed — tap any to change</div>
+    <div class="fp-assume-label">We've assumed (tap to change)</div>
     <div class="fp-assume-grid">
       <div class="fp-assume" style="grid-column:span 2" onclick="fpTogglePlanPicker()">
         <span class="fp-assume-ic">${ic('bolt',16)}</span>
@@ -10253,8 +10254,7 @@ function renderFastPath(){
     </div>
 
     <button class="fp-cta" onclick="fastPathGo()">See my savings →</button>
-    <div class="fp-foot">No account needed · 30 seconds · free</div>
-    <div class="fp-customise" onclick="startOnboarding()">Want the full setup? Solar, EV &amp; guided steps →</div>
+    <div class="fp-foot">No account needed · free</div>
   </div>`;
 }
 function fpSync(v){ /* keep slider loosely in sync; no-op guard */ }
@@ -10416,7 +10416,7 @@ function fastPathGo(){
   saveState();
   fireEvent('fastpath_complete', { bill: state.bimonthly_bill_eur, region: state.region });
   renderApp();
-  showToast('Here\u2019s your result — change anything in My home', { type:'accent', icon:ic('checkC',16) });
+  // No toast: the answer is on screen, and 'Based on … Change' says how to adjust it.
 }
 
 

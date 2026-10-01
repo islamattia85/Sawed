@@ -669,3 +669,17 @@ test('v8 Solar: an invitation without a system; with one, the answer first and t
   await page.locator('.v7-deep').click();
   await expect(page.locator('.v7-months-card')).toBeVisible();
 });
+
+test('first visit: three taps to the answer, short screens, the button always in view', async ({ page }) => {
+  await bootFresh(page);
+  const words = () => page.evaluate(() => document.getElementById('app-root').innerText.split(/\s+/).filter(Boolean).length);
+  await page.getByRole('button', { name: /Get my answer/ }).click();                       // tap 1
+  expect(await words(), 'the quick question has grown wordy').toBeLessThanOrEqual(70);
+  const cta = await page.evaluate(() => document.querySelector('.fp-cta').getBoundingClientRect().bottom <= innerHeight);
+  expect(cta, 'the button to see savings needs a scroll').toBe(true);
+  await page.locator('#fp-bill').fill('250');                                              // tap 2
+  await page.getByRole('button', { name: /See my savings/ }).click();                      // tap 3
+  await expect(page.locator('.v7-hero .v7-figure')).toBeVisible();
+  await expect(page.locator('.toast, .v7-toast')).toHaveCount(0);
+  expect(await page.evaluate(() => document.body.scrollHeight / innerHeight)).toBeLessThan(1.3);
+});

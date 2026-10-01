@@ -1019,3 +1019,6 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .v7-invite-list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-3); }
 .v7-invite-list li { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-body); color: var(--ink); }
 .v7-invite-list li svg { flex: none; color: var(--accent); }
+/* v8: the quick question's button never needs a scroll to find. */
+.fp-cta { position: sticky; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 5; box-shadow: 0 12px 30px rgba(0, 0, 0, .18); }
+.fp-exact { display: block; margin: var(--space-3) auto 0; padding: 0; border: 0; background: none; font: 600 var(--text-data) var(--display); color: var(--accent); cursor: pointer; }
