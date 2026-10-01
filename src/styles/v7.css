@@ -697,3 +697,16 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .sy-toggle-top { padding-top: 0; border-top: 0; }
 .sy-toggle-top b { display: flex; align-items: center; gap: var(--space-2); font: 700 var(--text-body) var(--display); }
 .sy-toggle-top b svg { color: var(--accent); }
+
+/* iOS zooms the page when a field under 16px takes focus, and the zoomed
+   page then pans sideways inside sheets. Fields on touch screens are set at
+   the lead size, and sheets only ever scroll up and down. */
+@media (pointer: coarse) {
+  input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea { font-size: var(--text-lead); }
+}
+.v7-sheet { overflow-x: hidden; overscroll-behavior: contain; touch-action: pan-y; }
+.v7-sheet-root { overflow: hidden; }
+.v7-sheet select, .v7-sheet input { min-width: 0; max-width: 100%; }
+.sy-field > span:first-child { flex: 1 1 auto; }
+.sy-field select { flex: 0 1 auto; text-overflow: ellipsis; }
+.sy-num input { width: 84px; }

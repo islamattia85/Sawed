@@ -396,3 +396,21 @@ test('My home carries the EV details and the plan discount', async ({ page }) =>
   expect(await page.evaluate(() => window.state.ev_km_per_year)).toBe(20000);
   await expect(page.locator('#v7-sheet')).toContainText('Discount on it');
 });
+
+test('sheet fields never trigger the iOS focus zoom, and sheets never scroll sideways', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await boot(page, { ev_active: true, battery_kwh: 5, has_solar: true, considering_solar: true, count_A: 12 });
+  for (const open of ['openMyHome()', "openMySystem();sysFine('panels',true);sysFine('battery',true)"]) {
+    await page.evaluate(open);
+    const r = await page.evaluate(() => {
+      const sh = document.querySelector('.v7-sheet');
+      const coarse = matchMedia('(pointer: coarse)').matches;
+      const small = [...sh.querySelectorAll('input[type=number], select')]
+        .filter((e) => parseFloat(getComputedStyle(e).fontSize) < 16).length;
+      return { coarse, small, over: sh.scrollWidth - sh.clientWidth, ox: getComputedStyle(sh).overflowX };
+    });
+    if (r.coarse) expect(r.small, 'fields under 16px zoom the page on iPhone').toBe(0);
+    expect(r.over).toBeLessThanOrEqual(0);
+    expect(r.ox).toBe('hidden');
+  }
+});
