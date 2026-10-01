@@ -472,3 +472,29 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .v7-qf-input i { font-style: normal; color: var(--ink-dim); font-size: var(--text-data); }
 .v7-qf-ev { font-size: var(--text-caption); color: var(--ink-dim); font-style: italic; }
 .v7-qf-ev.is-missing { color: var(--amber); font-style: normal; }
+
+/* ---------- solar: what would make it pay back faster ---------- */
+.v7-imp {
+  background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4); margin-bottom: var(--space-2);
+}
+.v7-imp-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); color: var(--ink); }
+.v7-imp-head b { font-size: var(--text-body); }
+.v7-imp-gain { color: var(--accent); font-weight: 700; white-space: nowrap; }
+.v7-imp-gain.is-flat { color: var(--ink-dim); }
+.v7-imp-sub { font-size: var(--text-data); color: var(--ink-soft); margin-top: 4px; line-height: 1.5; }
+.v7-imp-btn {
+  margin-top: var(--space-2); padding: 8px 14px; border-radius: var(--radius-pill); border: 1px solid var(--accent);
+  background: var(--accent-soft); color: var(--accent); font: inherit; font-size: var(--text-caption); font-weight: 700; cursor: pointer;
+}
+.v7-imp-none { color: var(--ink-soft); font-size: var(--text-data); }
+.v7-imp-more { margin: var(--space-2) 0; }
+.v7-imp-more summary { cursor: pointer; color: var(--ink-soft); font-size: var(--text-data); padding: var(--space-2) 0; }
+.v7-imp-more .v7-imp { opacity: .85; }
+.v7-imp-good { display: flex; gap: var(--space-2); align-items: flex-start; font-size: var(--text-data); color: var(--ink-soft); margin: var(--space-2) 0; }
+.v7-imp-good .ic { color: var(--accent); flex: none; margin-top: 2px; }
+.v7-next { display: grid; gap: var(--space-2); margin-bottom: var(--space-4); }
+.v7-next-spec { font-size: var(--text-data); color: var(--ink-soft); }
+/* On the page (not in a sheet) the second action is an outline, so the first
+   one is clearly the main step. */
+.v7-next .v7-cta-2 { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); }

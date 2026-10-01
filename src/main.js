@@ -2789,6 +2789,54 @@ function applyOptimisation(id){
   renderApp();
 }
 
+/**
+ * Everything that would make this system pay back faster, in one list, best
+ * first. Settings changes cost nothing so they lead; hardware follows by
+ * payback. What we advise against is folded away underneath with its reason,
+ * and what is already right is a quiet line at the end, not a to-do.
+ */
+function renderImproveList(advice){
+  const opts = computeOptimisations();
+  const fmtPb = (y) => y < 1 ? 'under a year' : `${y.toFixed(0)} yr`;
+  const worth = [], notWorth = [];
+  for (const o of opts.suggest) worth.push({ rank: 0, gain: o.delta, html: `
+      <div class="v7-imp">
+        <div class="v7-imp-head"><b>${o.title}</b><span class="v7-imp-gain">+${fmtCurrency(o.delta)}/yr</span></div>
+        <div class="v7-imp-sub">Free — a setting, no hardware. ${o.body}</div>
+        <button class="v7-imp-btn" onclick="applyOptimisation('${o.id}')">Apply to my model</button>
+      </div>` });
+  for (const u of (opts.upgrades || [])){
+    const ok = u.payback !== Infinity && u.payback <= 12;
+    const html = `
+      <div class="v7-imp">
+        <div class="v7-imp-head"><b>${u.label}</b><span class="v7-imp-gain ${u.gain > 0 ? '' : 'is-flat'}">+${fmtCurrency(u.gain)}/yr</span></div>
+        <div class="v7-imp-sub">~${fmtCurrency(u.netExtra)} extra after grant · ${u.payback === Infinity || u.payback > 30
+          ? "it doesn't pay for itself"
+          : ok ? `pays for itself in <b>${fmtPb(u.payback)}</b>` : `pays back in ${fmtPb(u.payback)}, too long at today's prices`}</div>
+      </div>`;
+    (ok ? worth : notWorth).push({ rank: ok ? u.payback : 99, gain: u.gain, html });
+  }
+  for (const a of (advice || [])){
+    if (a.kind === 'optimal') continue;
+    const html = `<div class="v7-imp"><div class="v7-imp-head"><b>${a.headline}</b></div><div class="v7-imp-sub">${a.body}</div></div>`;
+    if (a.kind === 'battery-hold') notWorth.push({ rank: 99, gain: 0, html });
+    else worth.push({ rank: 50, gain: 0, html });
+  }
+  worth.sort((x, y) => x.rank - y.rank || y.gain - x.gain);
+  const good = [...opts.confirmed.map(o => `${o.title} (~${fmtCurrency(o.keep)}/yr)`),
+    ...(advice || []).filter(a => a.kind === 'optimal').map(a => a.headline)];
+  if (!worth.length && !notWorth.length && !good.length) return '';
+  return `
+    <div class="section-title">Make it pay back faster</div>
+    ${worth.length ? worth.map(x => x.html).join('') : `<div class="v7-imp v7-imp-none">Nothing worth changing — this system is already well matched to your home.</div>`}
+    ${notWorth.length ? `<details class="v7-imp-more">
+      <summary>Looked at, not worth it (${notWorth.length})</summary>
+      ${notWorth.map(x => x.html).join('')}
+    </details>` : ''}
+    ${good.length ? `<div class="v7-imp-good">${ic('checkC', 15)} <span>Already set up well: ${good.join(' · ')}</span></div>` : ''}
+    ${opts.suggest.length ? `<div class="v7-fine">Each figure is simulated on your home. Applying one can change the others.</div>` : ''}`;
+}
+
 function renderOptimisations(){
   const opts = computeOptimisations();
   if (!opts.suggest.length && !opts.confirmed.length) return '';
@@ -5745,29 +5793,15 @@ function renderSolarDashboard(opts){
          the headline, and they now sit behind one door. This screen was 4.2
          phone-screens of simultaneous facts; a homeowner asking "is solar
          worth it on my roof" was handed a modelling environment. -->
-    ${renderOptimisations()}
+    ${renderImproveList(advice)}
 
-    ${(advice.length > 0 || (computeOptimisations().upgrades || []).length > 0) ? `
-      <div class="section-title">Hardware upgrades</div>
-      ${(computeOptimisations().upgrades || []).map(u => `
-        <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:8px">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
-            <div style="font-size:15px;font-weight:700;color:var(--ink)">${u.label}</div>
-            <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:${u.gain > 0 ? 'var(--accent)' : 'var(--ink-dim)'};white-space:nowrap">+${fmtCurrency(u.gain)}/yr</div>
-          </div>
-          <div style="font-size:13px;color:var(--ink-soft);margin-top:5px;line-height:1.6">
-            ~${fmtCurrency(u.netExtra)} extra after grant · ${u.payback === Infinity || u.payback > 30 ? `<span style="color:var(--amber);font-weight:700">doesn't pay for itself — not recommended</span>` : u.payback > 12 ? `<span style="color:var(--amber)">pays back in ${u.payback.toFixed(0)} yr — long; not recommended at current prices</span>` : `pays itself back in <b style="color:var(--ink)">${u.payback.toFixed(0)} yr</b>`}
-          </div>
-        </div>
-      `).join('')}
-      ${advice.map(a => `
-        <div class="advisor-card">
-          <div class="advisor-title" ${a.kind === 'battery-hold' ? 'style="color:var(--ink-soft)"' : ''}>${a.kind === 'optimal' ? '✓ Optimal' : a.kind === 'battery-hold' ? 'On hold — honest call' : 'Upgrade opportunity'}</div>
-          <div class="advisor-headline">${a.headline}</div>
-          <div class="advisor-body">${a.body}</div>
-        </div>
-      `).join('')}
-    ` : ''}
+    <div class="section-title">Next step</div>
+    <div class="v7-next">
+      <div class="v7-next-spec">${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh battery` : ''}</div>
+      <button class="switch-cta v7-cta" onclick="openLeadForm()">Get 3 quotes for this system ${ic('chevR', 18)}</button>
+      <button class="v7-cta-2" onclick="v7Sheet('quote')">${ic('clip', 16)} Upload a quote you already have</button>
+      <div class="v7-fine">SEAI-registered installers only. An uploaded quote is checked against 2026 Irish prices and becomes the system modelled here.${(state.solar_quotes || []).length > 1 ? ` <a href="#" onclick="event.preventDefault();setScreen('quotes')">Compare your ${state.solar_quotes.length} saved quotes</a>` : ''}</div>
+    </div>
 
     <div class="working">
       <button class="working-toggle" aria-expanded="${!!state._solar_detail_open}" onclick="state._solar_detail_open=!state._solar_detail_open;saveState();renderApp()">
@@ -5820,59 +5854,6 @@ function renderSolarDashboard(opts){
 
       </div>`}
     </div>
-
-    ${state.ev_active && econ ? `
-      <div class="ev-banner">
-        <div class="ev-banner-icon">${ic('car',20)}</div>
-        <div>
-          <b>EV profile active.</b> Petrol displaced: ${fmtCurrency(econ.petrolCost)}/yr for ${econ.km.toLocaleString()} km. Your battery now grid-charges 2-5am to keep the EV on cheap rates.
-          <div style="margin-top:8px"><a href="#" onclick="event.preventDefault(); toggleEv();" style="color:var(--amber);font-size:12px;font-weight:600">Remove EV profile</a></div>
-        </div>
-      </div>
-    ` : `
-      <div class="secondary-card amber" onclick="toggleEv()">
-        <div class="secondary-card-icon">${ic('car',19)}</div>
-        <div class="secondary-card-body">
-          <div class="secondary-card-title">Considering an EV?</div>
-          <div class="secondary-card-sub">See how it changes your tariff and lifetime payback</div>
-        </div>
-        <div class="secondary-card-arrow">+</div>
-      </div>
-    `}
-
-    <div class="section-title">Get this system installed</div>
-    <!-- Moved off the answer screen. All three are about what this home could
-         do differently, which is what Simulate is for; on the answer they were
-         three more cards between the reader and a single figure. -->
-
-    <div class="secondary-card" onclick="openLeadForm()">
-      <div class="secondary-card-icon">${ic('home',19)}</div>
-      <div class="secondary-card-body">
-        <div class="secondary-card-title">Get 3 installer quotes for this exact spec</div>
-        <div class="secondary-card-sub">${totalPanels()} panels · ${state.battery_kwh > 0 ? state.battery_kwh + ' kWh battery · ' : ''}SEAI-registered only</div>
-      </div>
-      <div class="secondary-card-arrow">›</div>
-    </div>
-
-    <div class="secondary-card amber" onclick="setScreen('quotes')">
-      <div class="secondary-card-icon">${ic('scales',19)}</div>
-      <div class="secondary-card-body">
-        <div class="secondary-card-title">Already have quotes? Check them</div>
-        <div class="secondary-card-sub">Audit against 2026 benchmarks or compare side-by-side${(state.solar_quotes||[]).length ? ' · ' + state.solar_quotes.length + ' added' : ''}</div>
-      </div>
-      <div class="secondary-card-arrow">›</div>
-    </div>
-
-    ${state.has_solar ? `
-      <div class="secondary-card blue" onclick="setScreen('analytics')">
-        <div class="secondary-card-icon">${ic('chart',19)}</div>
-        <div class="secondary-card-body">
-          <div class="secondary-card-title">See engine details &amp; hourly flows</div>
-          <div class="secondary-card-sub">Day inspector · monthly bars · annual production/use/export</div>
-        </div>
-        <div class="secondary-card-arrow">›</div>
-      </div>
-    ` : ''}
 
     <p class="disclaimer">
       Modelled from typical-year weather and your bill — real generation varies ±5-8%. Always check the figures with your installer.

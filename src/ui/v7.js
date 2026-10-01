@@ -648,7 +648,8 @@ export function createV7(api) {
         </div>
       </section>
       ${api.renderNightRateCard(best, rec.baseCost)}
-      ${S().ev_active ? `<button class="v7-cta-2" onclick="v7Sheet('ev')">${api.ic('car', 16)} Your EV: charging and petrol ${api.ic('chevR', 16)}</button>` : ''}`;
+      ${S().ev_active ? `<button class="v7-cta-2" onclick="v7Sheet('ev')">${api.ic('car', 16)} Your EV: charging and petrol ${api.ic('chevR', 16)}</button>`
+        : `<button class="v7-link" onclick="v7Sheet(null);toggleEv()">${api.ic('car', 14)} Thinking about an EV? See what it would change</button>`}`;
   }
 
   /**
@@ -805,6 +806,7 @@ export function createV7(api) {
       </div>
       ${api.renderAssumptions(api.setupLabel())}
       <button class="v7-cta-2" onclick="v7Sheet(null);setScreen('refine')">Change any of it ${api.ic('chevR', 16)}</button>
+      ${!st.ev_active ? `<div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();v7Sheet(null);toggleEv()">Thinking about an EV? See what it would change</a></div>` : ''}
       <div class="v7-sheet-links">
         <a href="#" onclick="event.preventDefault();v7Sheet(null);setScreen('csv-import')">Import smart-meter data for exact figures</a>
         ${st.has_solar ? `<a href="#" onclick="event.preventDefault();v7Sheet(null);goRefineSolar()">Change the solar system</a>` : ''}
