@@ -9510,15 +9510,19 @@ function renderJourneySheet(kind){
   // The plans ranked best for this home come first, the top one chosen: that
   // is almost always the one the person just switched to. Every other plan
   // follows. The current plan is not offered: a switch is to something else.
+  // The plan the app recommends everywhere else comes first: the one the
+  // person chose by hand if they did, otherwise the cheapest. The ranking's
+  // next two follow it.
   const rec = getRecommendation();
   const ranked = (rec.ranked || []).map((r) => r.plan).filter((p) => p && p.id !== state.baseline);
-  const top = ranked.slice(0, 3);
+  const lead = rec.best && rec.best.plan && rec.best.plan.id !== state.baseline ? [rec.best.plan] : [];
+  const top = [...lead, ...ranked.filter((p) => !lead.some((l) => l.id === p.id))].slice(0, 3);
   const rest = activeTariffsSorted().filter((p) => p.id !== state.baseline && !top.some((t) => t.id === p.id));
   const opt = (p, i) => `<option value="${p.id}" ${i === 0 ? 'selected' : ''}>${esc(p.supplier)} — ${esc(p.plan)}</option>`;
   return `<div class="v7-sheet-head"><div class="v7-eyebrow">The tally</div><h2 class="v7-h">Which plan did you switch to?</h2></div>
     <p class="me-p">It becomes your plan here, and the yearly saving against your old one is counted from the date.</p>
     <label class="sy-field sy-field-stack"><span><b>Plan</b></span><select id="jr-plan">
-      <optgroup label="Best for your home">${top.map(opt).join('')}</optgroup>
+      <optgroup label="${rec.isManualChoice ? 'Your chosen plan, then the cheapest' : 'Best for your home'}">${top.map(opt).join('')}</optgroup>
       <optgroup label="All other plans">${rest.map((p) => opt(p, -1)).join('')}</optgroup>
     </select></label>
     <label class="sy-field"><span><b>Date</b></span><input type="date" id="jr-date" value="${today}" max="${today}"></label>

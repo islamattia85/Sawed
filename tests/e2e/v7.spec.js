@@ -593,3 +593,11 @@ test('"I switched plan" opens with the best plan for the home already chosen', a
   await page.getByRole('button', { name: /I switched plan/ }).click();
   await expect(page.locator('#jr-plan')).toHaveValue(best);
 });
+
+test('"I switched plan" starts on the plan the person chose, when they chose one', async ({ page }) => {
+  await boot(page, { current_screen: 'me', journey: [] });
+  const pick = await page.evaluate(() => window.getRecommendation().ranked.map((r) => r.plan.id).filter((id) => id !== window.state.baseline)[4]);
+  await page.evaluate((id) => { window.state.chosen_plan = id; window.renderApp(); }, pick);
+  await page.getByRole('button', { name: /I switched plan/ }).click();
+  await expect(page.locator('#jr-plan')).toHaveValue(pick);
+});
