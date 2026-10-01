@@ -929,3 +929,18 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .me-add[disabled] { opacity: .6; cursor: default; }
 .sy-field-stack { flex-direction: column; align-items: stretch; gap: var(--space-2); }
 .sy-field-stack select { max-width: 100%; width: 100%; }
+/* The score reads by colour as well as number: red is money left, green is doing well. */
+.sc-ring { background: radial-gradient(closest-side, var(--panel) 78%, transparent 80%), conic-gradient(var(--c) calc(var(--p) * 1%), color-mix(in srgb, var(--c) 16%, transparent) 0); }
+.sc-ring b { color: var(--c); }
+.sc-verdict { font: 700 var(--text-body) var(--display); }
+.sc-verdict.is-gain, .sc-scale .is-gain { color: var(--accent); }
+.sc-verdict.is-maybe, .sc-scale .is-maybe { color: var(--amber); }
+.sc-verdict.is-warn, .sc-scale .is-warn { color: var(--loss); }
+.sc-scale { display: flex; flex-wrap: wrap; gap: 4px var(--space-3); font-size: var(--text-caption); font-weight: 600; }
+.sc-scale span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: var(--radius-pill); background: currentColor; margin-right: 5px; }
+.sc-part.is-maybe .sc-bar i { background: var(--amber); }
+.sc-part.is-warn .sc-bar i { background: var(--loss); }
+.sc-part.is-maybe .sc-bar { background: var(--amber-soft); }
+.sc-part.is-warn .sc-bar { background: color-mix(in srgb, var(--loss) 14%, transparent); }
+.sc-ring { width: 92px; height: 92px; }
+.sc-ring small { font-size: var(--text-caption); line-height: 1.2; }
