@@ -461,3 +461,40 @@ test('account sync: screen state stays local, quotes are never lost, the same ho
   expect(r.otherHome).toBe(false);
   expect(r.quotes).toEqual(['1', '2', '3']);
 });
+
+test('a quote is saved without touching the system; modelling it keeps the old system to bring back', async ({ page }) => {
+  await boot(page, { current_screen: 'solar', has_solar: true, considering_solar: true, count_A: 14, battery_kwh: 10,
+    install_cost: 13000, cost_is_manual: true, solar_planned: false, solar_quotes: [] });
+  const read = { is_solar_quote: true, installer: 'Bright Roofs', panel_count: 10, panel_watts: 440, battery_kwh: 5,
+    price_total_eur: 9000, grant_eur: 1800, warnings: [], extras: [], evidence: {} };
+  await page.evaluate((q) => { window.__setQuoteRead({ status: 'review', quote: q }); window.v7Sheet('quote'); }, read);
+  await page.getByRole('button', { name: /Save to my quotes/ }).click();
+  let st = await page.evaluate(() => ({ n: window.state.count_A, b: window.state.battery_kwh, q: window.state.solar_quotes.length }));
+  expect(st).toEqual({ n: 14, b: 10, q: 1 });
+
+  await page.evaluate((q) => { window.__setQuoteRead({ status: 'review', quote: q }); window.v7Sheet('quote'); }, read);
+  await page.getByRole('button', { name: /Model my home with this quote/ }).click();
+  st = await page.evaluate(() => ({ n: window.state.count_A, b: window.state.battery_kwh, planned: window.state.solar_planned,
+    prev: window.state.solar_quotes.find((x) => x.source === 'previous')?.installer }));
+  expect(st).toEqual({ n: 10, b: 5, planned: true, prev: 'Your installed system' });
+
+  // One tap brings the installed system back, exactly.
+  await page.evaluate(() => window.setScreen('me'));
+  await page.getByRole('button', { name: 'Bring back' }).click();
+  st = await page.evaluate(() => ({ n: window.state.count_A, b: window.state.battery_kwh, c: window.state.install_cost, planned: window.state.solar_planned }));
+  expect(st).toEqual({ n: 14, b: 10, c: 13000, planned: false });
+});
+
+test('closing My home or My system goes back to the screen it was opened from', async ({ page }) => {
+  await boot(page, { current_screen: 'me', has_solar: true, considering_solar: true, count_A: 12 });
+  for (const open of ['openMyHome()', 'openMySystem()']) {
+    await page.evaluate(open);
+    await expect(page.locator('#v7-sheet')).toBeVisible();
+    await page.locator('.v7-sheet-x').click();
+    expect(await page.evaluate(() => window.state.current_screen)).toBe('me');
+  }
+  // The household picture opens them too.
+  await expect(page.locator('.hs')).toBeVisible();
+  await page.locator('.hs-hit[aria-label="My home"]').click({ force: true });
+  await expect(page.locator('#v7-sheet')).toContainText('My home');
+});

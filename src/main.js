@@ -5564,7 +5564,7 @@ function markSolarAsMine(){
 
 function goRefineSolar(){
   // One place to change the system: the My system sheet, over the Solar tab.
-  if (!['result', 'plans', 'solar', 'more'].includes(state.current_screen)) state.current_screen = 'solar';
+  if (NO_SHEET_SCREENS.includes(state.current_screen)) state.current_screen = 'solar';
   trackPageView('my-system');
   openMySystem();
 }
@@ -9338,18 +9338,51 @@ function renderCompareTable(selIds){
  * built from, what the app found, the quotes kept and the requests sent.
  * A guest gets the same page, saved on this phone, with the one thing an
  * account adds said plainly. */
+/** The current system, filed as a saved entry so it can be brought back. */
+function fileCurrentSystem(){
+  if (!v7HasModelledSystem()) return null;
+  const cfg = {};
+  SYS_KEYS.forEach((k) => { cfg[k] = state[k]; });
+  ['panel_w', 'battery_eff', 'battery_min', 'battery_discharge_kw', 'inverter_kw', 'cost_is_manual', 'grant_is_manual'].forEach((k) => { cfg[k] = state[k]; });
+  const label = state.solar_planned || state.solar_is_estimate ? 'Your previous plan' : 'Your installed system';
+  // One kept copy per kind is enough; a newer one replaces it.
+  state.solar_quotes = (state.solar_quotes || []).filter((x) => !(x.source === 'previous' && x.installer === label));
+  const rec = { id: 'p' + Date.now(), installer: label, price: state.install_cost || 0, kwp: +totalKwp().toFixed(2),
+    battery: state.battery_kwh || 0, panels: totalPanels(), source: 'previous', cfg };
+  state.solar_quotes.push(rec);
+  return rec;
+}
+
+/** Make a saved quote (or a filed system) the modelled one. */
 function quoteToSystem(id){
   const q = (state.solar_quotes || []).find((x) => x.id === id);
   if (!q) return;
-  const w = state.panel_w || 440;
-  state.has_solar = true; state.considering_solar = true; state.solar_is_estimate = false;
-  state.count_A = Math.max(1, Math.round((+q.kwp || 0) * 1000 / w)); state.count_B = 0;
-  state.battery_kwh = +q.battery || 0;
-  state.install_cost = Math.round(+q.price || 0); state.cost_is_manual = true;
+  const kept = fileCurrentSystem();
+  if (q.cfg){
+    applySystemConfig(q.cfg);
+    ['panel_w', 'battery_eff', 'battery_min', 'battery_discharge_kw', 'inverter_kw', 'cost_is_manual', 'grant_is_manual'].forEach((k) => { if (q.cfg[k] !== undefined) state[k] = q.cfg[k]; });
+    state.solar_quotes = state.solar_quotes.filter((x) => x.id !== q.id);
+  } else {
+    if (q.watts > 0) state.panel_w = q.watts;
+    const w = state.panel_w || 440;
+    state.has_solar = true; state.considering_solar = true; state.solar_is_estimate = false;
+    // A quote is a system not yet bought.
+    state.solar_planned = true;
+    state.count_A = q.panels > 0 ? q.panels : Math.max(1, Math.round((+q.kwp || 0) * 1000 / w)); state.count_B = 0;
+    state.battery_kwh = +q.battery || 0;
+    state.install_cost = Math.round(+q.price || 0); state.cost_is_manual = true;
+    if (q.grant != null){ state.grant_seai = q.grant; state.grant_is_manual = true; } else state.grant_is_manual = false;
+    if (q.tilt) state.tilt_A = q.tilt;
+    if (q.azimuth) state.azimuth_A = q.azimuth;
+    const fine = state.fine = state.fine || {};
+    if (q.watts > 0) fine.panels = true;
+    if (q.tilt && q.azimuth) fine.roof = true;
+  }
   applyEstimatedSolarCost();
-  if ((state.solar_view || 'mine') === 'mine') snapshotMySystem();
+  state.solar_view = 'mine';
+  snapshotMySystem();
   invalidate(); saveState();
-  showToast(`Modelling ${esc(q.installer || 'the quote')}: ${(+q.kwp).toFixed(1)} kWp${q.battery > 0 ? ` + ${q.battery} kWh` : ''}`, { type: 'accent', icon: ic('checkC', 16) });
+  showToast(`Now modelling ${esc(q.installer || 'the quote')}${kept ? `. ${esc(kept.installer)} is kept in My quotes` : ''}`, { type: 'accent', icon: ic('checkC', 16) });
   setScreen('solar');
 }
 
@@ -9369,6 +9402,138 @@ function meOpenAuth(view){
   renderApp();
 }
 
+/**
+ * The household as a picture: the house, its roof, battery, car, hot water
+ * and the grid, with the year's energy moving between them.
+ *
+ * Every figure is the simulated year for this home on the plan it is on, so
+ * the picture is the model, not decoration. Each part opens the place it is
+ * changed: the roof and battery open My system, the house My home, the car
+ * the EV sheet, the grid the plans.
+ */
+function householdScene(){
+  if (CACHE.dirty) rebuildBase();
+  const sys = !!state.has_solar && totalPanels() > 0;
+  const batt = sys && (state.battery_kwh || 0) > 0;
+  const ev = !!state.ev_active;
+  const hp = state.heating_type === 'heatpump';
+  let gen = 0, use = 0, imp = 0, exp = 0, cyc = 0;
+  try {
+    const s = sim(state.baseline);
+    gen = sys ? sumF(CACHE.solar.total) : 0;
+    use = sumF(CACHE.cons);
+    imp = sumF(s.grid_import);
+    exp = sumF(s.grid_export);
+    cyc = batt && s.battery_discharge ? sumF(s.battery_discharge) : 0;
+  } catch (e) {}
+  const evKwh = ev ? (state.ev_km_per_year || 0) * (state.ev_kwh_per_100km || 17) / 100 : 0;
+  const k = (v) => `${Math.round(v).toLocaleString('en-IE')} kWh`;
+  const hw = { smart: 'Hot water heated 2–5am', legacy: 'Hot water on an immersion timer', none: hp ? 'Hot water from the heat pump' : 'Hot water from the boiler' }[state.hot_water_strategy] || 'Hot water';
+  const planned = sys && (state.solar_planned || state.solar_is_estimate);
+  const tap = (go, label, x, y, w, h) => `<rect class="hs-hit" x="${x}" y="${y}" width="${w}" height="${h}" rx="12" onclick="${go}" role="button" tabindex="0" aria-label="${label}"><title>${label}</title></rect>`;
+
+  const panels = sys ? Array.from({ length: 4 }, (_, i) => {
+    const x0 = 196 + i * 16, y0 = 70 + i * 10.7;
+    return `<polygon class="hs-panel" points="${x0},${y0} ${x0 + 14},${y0 + 9.4} ${x0 + 14},${y0 + 21} ${x0},${y0 + 11.6}"/>`;
+  }).join('') : '';
+
+  return `<section class="hs" aria-label="Your household and its energy over a year">
+    <div class="hs-top">
+      <span>${planned ? 'Your home with the planned system' : 'Your home'} · a typical year</span>
+      <span class="hs-badge">${planned ? 'planned' : sys ? 'installed' : 'no solar'}</span>
+    </div>
+    <svg class="hs-svg" viewBox="0 0 360 300" role="img" aria-hidden="true">
+      ${sys ? `<g class="hs-sun"><circle cx="318" cy="38" r="13"/>${[0, 45, 90, 135, 180, 225, 270, 315].map((a) => {
+        const r = a * Math.PI / 180; return `<line x1="${318 + Math.cos(r) * 18}" y1="${38 + Math.sin(r) * 18}" x2="${318 + Math.cos(r) * 24}" y2="${38 + Math.sin(r) * 24}"/>`; }).join('')}</g>
+        <path class="hs-flow hs-flow-sun" d="M300 52 L262 84"/>` : ''}
+
+      <!-- grid -->
+      <g class="hs-pylon"><path d="M44 120 L32 215 M44 120 L56 215 M28 140 H60 M24 165 H64 M36 190 L52 165 M52 190 L36 165 M40 140 L48 120"/></g>
+      ${imp > 0 ? `<path class="hs-flow hs-flow-in" d="M62 176 C80 176 96 176 122 176"/>` : ''}
+      ${exp > 0 ? `<path class="hs-flow hs-flow-out" d="M122 190 C96 190 80 190 62 190"/>` : ''}
+
+      <!-- house -->
+      <polygon class="hs-roof" points="104,124 190,58 276,124"/>
+      ${panels}
+      <rect class="hs-wall" x="120" y="122" width="140" height="110" rx="4"/>
+      <rect class="hs-door" x="176" y="190" width="28" height="42" rx="3"/>
+      <rect class="hs-win" x="134" y="140" width="26" height="22" rx="3"/>
+      <g class="hs-tank"><rect x="226" y="140" width="20" height="40" rx="8"/><path d="M231 158 h10 M231 166 h10"/></g>
+
+      ${batt ? `<g class="hs-batt"><rect x="292" y="140" width="34" height="56" rx="6"/><rect x="304" y="135" width="10" height="6" rx="2"/>
+        <rect class="hs-batt-fill" x="297" y="168" width="24" height="23" rx="3"/></g>
+        <path class="hs-flow hs-flow-batt" d="M262 168 H290"/>` : ''}
+      ${hp ? `<g class="hs-hp"><rect x="82" y="214" width="32" height="24" rx="4"/><circle cx="98" cy="226" r="7"/></g>` : ''}
+      ${ev ? `<g class="hs-car"><path d="M276 266 l8-16 h38 l10 16 v12 h-56 z"/><circle cx="290" cy="278" r="6"/><circle cx="320" cy="278" r="6"/></g>
+        <path class="hs-flow hs-flow-ev" d="M246 232 C254 254 266 262 276 266"/>` : ''}
+
+      <text class="hs-val" x="44" y="236" text-anchor="middle">Grid</text>
+      <text class="hs-sub" x="44" y="252" text-anchor="middle">↓ ${k(imp)}</text>
+      ${exp > 0 ? `<text class="hs-sub" x="44" y="268" text-anchor="middle">↑ ${k(exp)}</text>` : ''}
+      <text class="hs-val" x="190" y="262" text-anchor="middle">Home uses ${k(use)}</text>
+      <text class="hs-sub" x="190" y="280" text-anchor="middle">${esc(hw)}</text>
+      ${sys ? `<text class="hs-val" x="190" y="30" text-anchor="middle">Solar makes ${k(gen)}</text>
+        <text class="hs-sub" x="190" y="46" text-anchor="middle">${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp</text>` : ''}
+      ${batt ? `<text class="hs-sub" x="309" y="214" text-anchor="middle">${state.battery_kwh} kWh</text>
+        <text class="hs-sub" x="309" y="229" text-anchor="middle">gives ${Math.round(cyc).toLocaleString("en-IE")} kWh</text>` : ''}
+      ${ev ? `<text class="hs-sub" x="304" y="296" text-anchor="middle">EV ${k(evKwh)}</text>` : ''}
+
+      ${tap('openMySystem()', 'My system: panels and battery', 100, 56, 180, 70)}
+      ${tap('openMyHome()', 'My home', 118, 124, 144, 110)}
+      ${tap("setScreen('plans')", 'Your plan and the grid', 14, 112, 64, 166)}
+      ${batt ? tap('openMySystem()', 'Battery', 286, 130, 46, 104) : ''}
+      ${ev ? tap("v7Sheet('ev')", 'Your EV', 266, 244, 76, 54) : ''}
+    </svg>
+    <div class="hs-actions">
+      ${sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('sun', 14)} Add solar</button>`}
+      ${batt || !sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('battery', 14)} Add a battery</button>`}
+      ${ev ? '' : `<button class="me-mini" onclick="openMyHome()">${ic('car', 14)} Add an EV</button>`}
+      <span class="hs-hint">Tap any part to change it</span>
+    </div>
+  </section>`;
+}
+
+/**
+ * What the app found, said in terms of what the person can do and when.
+ *
+ * One "€X a year" figure mixed a switch that can happen this week with panels
+ * that may never be bought. It is split by status: an installed system's
+ * savings are already being made, so only the switch is on offer; a planned
+ * one is shown as two decisions, the switch available now and the system
+ * as a separate "if you install it".
+ */
+function householdFindings(){
+  try {
+    const rec = getRecommendation();
+    const sys = state.has_solar && totalPanels() > 0;
+    const planned = sys && (state.solar_planned || state.solar_is_estimate);
+    const best = rec.best.plan;
+    const planName = `${esc(best.supplier)} ${esc(best.plan)}`;
+    const money = (v) => v > 10 ? eur(v) : '€0';
+    if (!sys){
+      const save = rec.baseCost - rec.best.net;
+      return { status: 'No solar at this home', rows: [
+        { label: save > 10 ? `Switch to ${planName}` : 'Stay on your plan', sub: save > 10 ? 'Available now · about ten minutes online' : 'Nothing on sale beats it for your home', value: money(save), cls: 'is-gain', go: "setScreen('result')" },
+        { label: 'See what solar would do', sub: 'Model a system for your roof', value: '', go: 'openMySystem()' },
+      ] };
+    }
+    if (planned){
+      const sp = plannedSolarSplit() || { switchNow: 0, withPlanned: 0 };
+      return { status: `Planned system · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` + ${state.battery_kwh} kWh` : ''} · not installed yet`, rows: [
+        { label: sp.switchNow > 10 ? 'Switch plan' : 'Your plan is the best one today', sub: 'Available now, without the panels', value: money(sp.switchNow), cls: 'is-gain', go: "setScreen('result')" },
+        { label: 'If you install the planned system', sub: `On top of the switch · it costs ${eur(Math.max(0, state.install_cost - state.grant_seai))} after the grant`, value: money(sp.withPlanned), cls: 'is-maybe', go: "setScreen('solar')" },
+      ] };
+    }
+    const mine = sumF(sim(state.baseline).cost) + getPlanById(state.baseline).standing + PSO_LEVY;
+    const solarNow = rec.baseCost - mine;
+    const sw = mine - rec.best.net;
+    return { status: `Installed system · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` + ${state.battery_kwh} kWh` : ''}`, rows: [
+      { label: 'Your panels already save', sub: 'Against the same home without them, on your plan', value: money(solarNow), cls: 'is-done', go: "setScreen('solar')" },
+      { label: sw > 10 ? `Switch to ${planName}` : 'Stay on your plan', sub: sw > 10 ? 'Available now · on top of what the panels save' : 'Nothing on sale beats it with your panels', value: money(sw), cls: 'is-gain', go: "setScreen('result')" },
+    ] };
+  } catch (e){ return null; }
+}
+
 function renderMe(){
   const signedIn = !!_sbUser;
   if (signedIn && _myLeads === null){ _myLeads = []; loadMyLeads(); }
@@ -9376,10 +9541,7 @@ function renderMe(){
   const region = IRISH_REGIONS[state.region || 'east'];
   const kwh = Math.round(v7AnnualKwh());
   const hasSys = state.considering_solar && totalPanels() > 0;
-  let found = null;
-  try {
-    if (state.onboarding_complete){ const rec = getRecommendation(); found = { save: rec.baseCost - rec.best.net, plan: rec.best.plan }; }
-  } catch (e) {}
+  const found = state.onboarding_complete ? householdFindings() : null;
   const quotes = state.solar_quotes || [];
   const card = (onclick, icon, title, sub, cta) => `<button class="me-card" onclick="${onclick}">
       <span class="me-card-ico">${icon}</span><b>${title}</b><small>${sub}</small><span class="me-card-cta">${cta} ${ic('chevR', 14)}</span></button>`;
@@ -9416,17 +9578,19 @@ function renderMe(){
     ${_handover ? `<button class="me-warn" onclick="v7Sheet('handover')">${ic('warn', 16)} This phone and your account have different homes. Choose which to keep. Nothing is saved to your account until you do.</button>` : ''}
 
     <div class="section-title">My household</div>
+    ${state.onboarding_complete ? householdScene() : ''}
     <div class="me-cards">
       ${card('openMyHome()', ic('home', 18), 'My home', `${esc(region ? region.name : '')} · ${kwh.toLocaleString('en-IE')} kWh a year`, 'Edit')}
       ${card('openMySystem()', ic('sun', 18), 'My system', hasSys ? `${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh` : ''}` : 'No solar yet', hasSys ? 'Edit' : 'Model one')}
-      ${card(state.ev_active ? "setScreen('result');v7Sheet('ev')" : 'openMyHome()', ic('car', 18), 'My EV', state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No EV', state.ev_active ? 'See it' : 'Add one')}
+      ${card(state.ev_active ? "v7Sheet('ev')" : 'openMyHome()', ic('car', 18), 'My EV', state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No EV', state.ev_active ? 'See it' : 'Add one')}
     </div>
 
     ${found ? `<div class="section-title">What we found</div>
-    <section class="me-found" onclick="setScreen('result')" role="button" tabindex="0">
-      <div class="me-found-fig">${found.save > 10 ? eur(found.save) : '€0'}<small>a year</small></div>
-      <p>${found.save > 10 ? `less on ${esc(found.plan.supplier)} ${esc(found.plan.plan)} than you pay today` : 'Your current plan is already the best for your home'}</p>
-      <div class="me-fine">Savings you actually make will be tracked here once you switch or add solar.</div>
+    <section class="me-found">
+      <div class="me-found-status">${found.status}</div>
+      ${found.rows.map((r) => `<button class="me-found-row" onclick="${r.go}">
+        <span><b>${r.label}</b><small>${r.sub}</small></span>
+        <em class="${r.cls || ''}">${r.value}</em></button>`).join('')}
     </section>` : ''}
 
     <div class="section-title">Saved quotes</div>
@@ -9434,7 +9598,7 @@ function renderMe(){
       ${quotes.length ? quotes.map((q) => { const a = assessQuote(q); const qid = escAttr(q.id); return `<div class="me-row">
           <span><b>${esc(q.installer || 'Installer')} · ${eur(+q.price || 0)}</b>
           <small>${(+q.kwp || 0).toFixed(1)} kWp${+q.battery > 0 ? ` · ${q.battery} kWh battery` : ''} · <span class="${a.cls}">${esc(String(a.verdict).replace(/<[^>]+>/g, ''))}</span></small></span>
-          <button class="me-mini" onclick="quoteToSystem('${qid}')">Model it</button>
+          <button class="me-mini" onclick="quoteToSystem('${qid}')">${q.source === 'previous' ? 'Bring back' : 'Model it'}</button>
           <button class="me-mini me-x" aria-label="Remove quote" onclick="removeQuote('${qid}')">${ic('x', 14)}</button>
         </div>`; }).join('') : `<div class="me-empty">No quotes saved yet.</div>`}
       <button class="me-add" onclick="setScreen('solar');v7Sheet('quote')">${ic('clip', 16)} Upload an installer's quote</button>
@@ -10001,43 +10165,40 @@ async function v7QuoteFile(input){
 function v7QuoteReset(){ _quoteRead = { status: 'idle' }; renderApp(); }
 
 /** Model the home with the confirmed quote: this becomes "your system". */
-function v7ApplyQuote(){
+/**
+ * A quote is kept, and only becomes the modelled system when the person says
+ * so. Uploading one used to replace the household's system outright: an
+ * installed system, or a plan someone had spent time on, was gone the moment
+ * a quote was read. Now "save" keeps the system as it is, and "model" first
+ * files the current system in Saved quotes so one tap brings it back.
+ */
+function v7ApplyQuote(mode){
   const v = (id) => { const el = document.getElementById(id); return el && el.value !== '' ? +el.value : null; };
   const panels = v('qf-panels'), watts = v('qf-watts'), batt = v('qf-batt'), price = v('qf-price'), grant = v('qf-grant');
   if (!(panels > 0) || !(price > 0)){
-    showToast('Panels and price are needed to model the quote.', { type: 'warn', icon: ic('warn', 16) });
+    showToast('Panels and price are needed to keep the quote.', { type: 'warn', icon: ic('warn', 16) });
     return;
   }
   const q = _quoteRead.quote || {};
-  state.has_solar = true;
-  state.considering_solar = true;
-  state.solar_is_estimate = false;
-  state.count_A = Math.round(panels); state.count_B = 0;
-  if (watts > 0) state.panel_w = Math.round(watts);
-  state.battery_kwh = batt > 0 ? batt : 0;
-  state.install_cost = Math.round(price); state.cost_is_manual = true;
-  if (grant != null){ state.grant_seai = Math.round(grant); state.grant_is_manual = true; }
-  else { state.grant_is_manual = false; state.grant_seai = calcSeaiGrant(totalKwp(), state.battery_kwh).total; }
-  if (q.roof_pitch_deg > 0 && q.roof_pitch_deg < 70) state.tilt_A = Math.round(q.roof_pitch_deg);
-  const dir = String(q.orientation || '').toLowerCase();
-  const az = { south: 180, 'south-east': 135, southeast: 135, 'south-west': 225, southwest: 225, east: 90, west: 270 }[dir.trim()];
-  if (az) state.azimuth_A = az;
-  // What the quote states is no longer an assumption: the accuracy score says so.
-  const fine = state.fine = state.fine || {};
-  if (watts > 0) fine.panels = true;
-  if (az && q.roof_pitch_deg > 0) fine.roof = true;
+  const w = watts > 0 ? Math.round(watts) : (state.panel_w || 440);
+  const dir = String(q.orientation || '').toLowerCase().trim();
+  const az = { south: 180, 'south-east': 135, southeast: 135, 'south-west': 225, southwest: 225, east: 90, west: 270 }[dir];
+  const rec = { id: 'q' + Date.now(), installer: q.installer || 'Installer', price: Math.round(price),
+    kwp: +(Math.round(panels) * w / 1000).toFixed(2), battery: batt > 0 ? batt : 0, panels: Math.round(panels),
+    watts: watts > 0 ? Math.round(watts) : null, grant: grant != null ? Math.round(grant) : null,
+    tilt: q.roof_pitch_deg > 0 && q.roof_pitch_deg < 70 ? Math.round(q.roof_pitch_deg) : null, azimuth: az || null,
+    date: q.quote_date || null, source: 'upload' };
   state.solar_quotes = state.solar_quotes || [];
-  state.solar_quotes.push({ id: 'q' + Date.now(), installer: q.installer || 'Installer', price: Math.round(price),
-    kwp: +(state.count_A * (state.panel_w || 440) / 1000).toFixed(2), battery: state.battery_kwh, source: 'upload' });
-  snapshotMySystem();
-  invalidate();
+  state.solar_quotes.push(rec);
   _quoteRead = { status: 'idle' };
   state._sheet = null;
-  state.current_screen = 'solar';
-  saveState();
-  renderApp();
-  showToast(`Modelled ${q.installer || 'the quote'}: ${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh battery` : ''} · ${fmtCurrency(state.install_cost)}`,
-    { type: 'accent', icon: ic('sun', 16) });
+  if (mode !== 'model'){
+    saveState();
+    renderApp();
+    showToast(`${rec.installer} saved to My quotes. Your system is unchanged.`, { type: 'accent', icon: ic('checkC', 16) });
+    return;
+  }
+  quoteToSystem(rec.id);
 }
 
 /* ---- Privacy and your data ---------------------------------------------
@@ -10269,6 +10430,15 @@ function sysFine(part, open){
   if (open) setTimeout(() => document.getElementById('sy-fine-' + part)?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 50);
 }
 
+/** Planned or installed: decides whether the panels count as today's home
+ *  (their savings are already being made) or as a decision still to take. */
+function setSolarInstalled(installed){
+  state.solar_planned = !installed;
+  state.solar_is_estimate = false;
+  if ((state.solar_view || 'mine') === 'mine') snapshotMySystem();
+  invalidate(); saveState(); renderApp();
+}
+
 function sysSplit(on){
   if (on){
     const t = totalPanels();
@@ -10298,13 +10468,16 @@ function sysTypicalPrice(){
   invalidate(); saveState(); renderApp();
 }
 
+// Sheets open over whatever screen is showing, so closing one goes back there.
+// Only the bare pre-setup screens, which cannot host a sheet, hand over to Home.
+const NO_SHEET_SCREENS = ['welcome', 'fastpath', 'onboarding', 'intro'];
 function openMyHome(){
-  if (!['result', 'plans', 'solar', 'more'].includes(state.current_screen)) state.current_screen = 'result';
+  if (NO_SHEET_SCREENS.includes(state.current_screen)) state.current_screen = 'result';
   v7Sheet('home');
 }
 
 function openMySystem(){
-  if (!['result', 'plans', 'solar', 'more'].includes(state.current_screen)) state.current_screen = 'solar';
+  if (NO_SHEET_SCREENS.includes(state.current_screen)) state.current_screen = 'solar';
   if ((state.solar_view || 'mine') !== 'mine'){ state.solar_view = 'mine'; snapshotMySystem(); }
   if (!state.considering_solar || totalPanels() === 0){
     state.considering_solar = true; state.has_solar = true;
@@ -10345,6 +10518,10 @@ function renderSystemSheet(){
   return `<div class="v7-sheet-head">
       <div class="v7-eyebrow">My system</div>
       <h2 class="v7-h">${t} panels · ${totalKwp().toFixed(1)} kWp${batt > 0 ? ` · ${batt} kWh` : ''}</h2>
+    </div>
+    <div class="v7-seg sy-status" role="tablist" aria-label="Is this system installed?">
+      <button class="v7-seg-btn ${state.solar_planned || state.solar_is_estimate ? 'active on' : ''}" onclick="setSolarInstalled(false)">I'm planning it</button>
+      <button class="v7-seg-btn ${!state.solar_planned && !state.solar_is_estimate ? 'active on' : ''}" onclick="setSolarInstalled(true)">It's installed</button>
     </div>
     ${renderAccuracy()}
     ${state.has_solar && totalPanels() > 0 ? renderOptimisedSuggestion() : ''}
@@ -12096,6 +12273,7 @@ window.sysTypicalPrice = sysTypicalPrice;
 window.openMySystem = openMySystem;
 window.homeSet = homeSet;
 window.openMyHome = openMyHome;
+window.setSolarInstalled = setSolarInstalled;
 window.handoverKeep = handoverKeep;
 // Pure sync rules, exposed for the tests.
 window.__sync = { cloudCopy, setupKey, mergeQuotes };
@@ -12111,6 +12289,7 @@ window.isPartnerPlan = isPartnerPlan;
 window.v7QuoteFile = v7QuoteFile;
 window.v7QuoteReset = v7QuoteReset;
 window.v7ApplyQuote = v7ApplyQuote;
+window.__setQuoteRead = (q) => { _quoteRead = q; };
 window.toggleSolarModel = toggleSolarModel;
 window.v7Choose = v7Choose;
 window.v7OpenMonth = v7OpenMonth;

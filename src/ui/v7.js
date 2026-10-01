@@ -790,7 +790,11 @@ export function createV7(api) {
         </div>
         ${[x.panel_model, x.inverter_model, x.battery_model, x.orientation, ...(x.extras || [])].filter(Boolean).length
           ? `<div class="v7-fine">Also on the quote: ${esc([x.panel_model, x.inverter_model, x.battery_model, x.orientation && `facing ${x.orientation}`, ...(x.extras || [])].filter(Boolean).join(' · '))}</div>` : ''}
-        <button class="switch-cta v7-cta" onclick="v7ApplyQuote()">Model my home with this quote ${api.ic('chevR', 18)}</button>
+        <button class="switch-cta v7-cta" onclick="v7ApplyQuote('save')">${api.ic('checkC', 18)} Save to my quotes</button>
+        <button class="v7-cta-2 v7-cta-alt" onclick="v7ApplyQuote('model')">Model my home with this quote</button>
+        <div class="v7-fine">${api.hasModelledSystem()
+          ? `Saving keeps your current system as it is. Modelling switches to this quote and keeps ${S().solar_planned || S().solar_is_estimate ? 'your current plan' : 'your installed system'} in My quotes, so you can switch back.`
+          : 'Saving keeps it for later. Modelling makes it the system every figure is built on.'}</div>
         <div class="v7-sheet-links">
           <a href="#" onclick="event.preventDefault();v7QuoteReset()">Upload a different file</a>
         </div>
