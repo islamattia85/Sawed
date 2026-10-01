@@ -614,9 +614,21 @@ test('a second switch within two weeks corrects the first instead of adding to i
   expect(j[0].to).toBe(ids[1]);
 });
 
-test('the score says how it is made up and how to raise it', async ({ page }) => {
+test('how you are doing: the plan check leads, the score waits for meter data', async ({ page }) => {
   await boot(page, { current_screen: 'me' });
-  const sc = await page.evaluate(() => window.householdScore());
-  await expect(page.locator('.sc')).toContainText(sc.parts.length === 1 ? 'Only the plan is measured so far' : 'out of');
-  if (sc.parts[0].action) await expect(page.locator('.sc-act').first()).toBeVisible();
+  const pc = page.locator('.pc');
+  await expect(pc).toContainText("You're on");
+  await expect(page.locator('.sc-ring')).toHaveCount(0);
+  await expect(page.locator('.sc-wait')).toContainText('Upload your ESB smart-meter file');
+});
+
+test('suggestions written for another plan are set aside, not shown as current', async ({ page }) => {
+  await boot(page, { current_screen: 'me' });
+  await page.evaluate(() => {
+    const d = new Date(); const q = d.getFullYear() + '-Q' + (Math.floor(d.getMonth() / 3) + 1);
+    window.state.advice = { quarter: q, key: 'some other setup', items: [{ title: 'Old tip', why: 'x', saving_eur: 1, effort: 'easy' }] };
+    window.renderApp();
+  });
+  await expect(page.locator('.adv')).not.toContainText('Old tip');
+  await expect(page.locator('.adv')).toContainText('no longer apply');
 });

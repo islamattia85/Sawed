@@ -9647,25 +9647,69 @@ function householdScore(){
   return { score: max ? Math.round(parts.reduce((a, p) => a + p.pts, 0) / max * 100) : null, parts };
 }
 
+/**
+ * The plan check first, the score second.
+ *
+ * A score out of 100 built from a single measurement, with a colour key,
+ * said less than one sentence: "you are on X; Y would cost €Z less". So the
+ * card leads with that sentence and its button. The score appears only once
+ * the meter adds a second, independent measure (timing, or the panels), when
+ * a number summarising several things is worth having.
+ */
+/** What kind of plan it is, in words: told apart when names look alike. */
+function planKindText(p){
+  if (!p) return '';
+  if (p.type === 'dynamic') return 'price changes hourly';
+  if (p.type === 'flat' || isFlatPlan(p)) return 'one price all day';
+  if (p.type === 'ev' || (p.windows && p.windows.ev)) return 'cheap EV-charging hours';
+  return p.windows && p.windows.peak ? 'day, night and peak prices' : 'day and night prices';
+}
+
 function renderScoreBlock(){
   const sc = householdScore();
-  if (sc.score == null) return '';
   const hasMeter = Object.keys(meterDays()).length > 0;
   const checks = realityChecks();
+  let planCheck = '';
+  try {
+    const rec = getRecommendation();
+    const plan = getPlanById(state.baseline);
+    const cheapest = rec.cheapest || rec.best;
+    const installed = state.has_solar && totalPanels() > 0 && !(state.solar_planned || state.solar_is_estimate);
+    const mine = installed ? sumF(sim(state.baseline).cost) + plan.standing + PSO_LEVY : rec.baseCost;
+    const left = Math.max(0, mine - cheapest.net);
+    planCheck = left > 10 && cheapest.plan.id !== plan.id
+      ? `<div class="pc is-warn">
+          <div class="pc-label">Your plan</div>
+          <b>You're on ${esc(plan.supplier)} ${esc(plan.plan)}</b>
+          <small class="pc-kind">${planKindText(plan)} · ${eur(mine)} a year for this home</small>
+          <p><b>${esc(cheapest.plan.supplier)} ${esc(cheapest.plan.plan)}</b> would cost <b class="pc-gap">${eur(left)} a year less</b>.</p>
+          <small class="pc-kind">${planKindText(cheapest.plan)} · ${eur(cheapest.net)} a year for this home</small>
+          <button class="v7-cta-2" onclick="v7Sheet('plan','${cheapest.plan.id}')">See ${esc(cheapest.plan.supplier)} ${esc(cheapest.plan.plan)}</button>
+          <small>Chose your plan for another reason, like service or a fixed price? Then this gap is the cost of that choice.</small>
+        </div>`
+      : `<div class="pc is-gain">
+          <div class="pc-label">Your plan</div>
+          <b>${ic('checkC', 16)} You're on the cheapest plan for your home.</b>
+          <p>${esc(plan.supplier)} ${esc(plan.plan)}. We'll tell you if that changes.</p>
+        </div>`;
+  } catch (e) {}
+
+  const scored = sc.parts.length >= 2;
   const toneOf = (v) => v >= 80 ? 'is-gain' : v >= 55 ? 'is-maybe' : 'is-warn';
-  const tone = toneOf(sc.score);
-  return `<section class="sc">
-    <div class="sc-top">
+  const tone = toneOf(sc.score || 0);
+  const score = scored ? `<div class="sc-top">
       <div class="sc-ring ${tone}" style="--p:${Math.max(3, sc.score)}"><b>${sc.score}</b><small>out of 100</small></div>
-      <div class="sc-head"><span class="sc-verdict ${tone}">${sc.score >= 80 ? 'Doing very well' : sc.score >= 55 ? 'Doing well, with room to save' : 'Money is being left on the table'}</span>
-        <small>${sc.parts.length === 1
-          ? `Only the plan is measured so far: ${sc.parts[0].pts} of ${sc.parts[0].max} points, which is ${sc.score} out of 100. Your meter data adds timing.`
-          : `${sc.parts.map((p) => `${p.label.toLowerCase()} ${p.pts} of ${p.max}`).join(' + ')}, out of ${sc.parts.reduce((a, p) => a + p.max, 0)}.`}</small></div>
+      <div class="sc-head"><span class="sc-verdict ${tone}">${sc.score >= 80 ? 'Doing very well' : sc.score >= 55 ? 'Some room to save' : 'Money is being left on the table'}</span>
+        <small>Higher is better. Made of: ${sc.parts.map((p) => `${p.label.toLowerCase()} ${p.pts} of ${p.max}`).join(', ')}.</small></div>
     </div>
-    <div class="sc-scale" aria-hidden="true"><span class="is-warn">0–54 money left</span><span class="is-maybe">55–79 room to save</span><span class="is-gain">80–100 doing very well</span></div>
-    ${sc.parts.map((p) => { const pc = Math.round(p.pts / p.max * 100); return `<div class="sc-part ${toneOf(pc)}"><div class="sc-part-top"><span>${p.label}</span><b>${p.pts} of ${p.max}</b></div>
+    ${sc.parts.filter((p) => p.key !== 'plan').map((p) => { const pc = Math.round(p.pts / p.max * 100); return `<div class="sc-part ${toneOf(pc)}"><div class="sc-part-top"><span>${p.label}</span><b>${p.pts} of ${p.max}</b></div>
       <div class="sc-bar"><i style="width:${Math.max(3, pc)}%"></i></div><small>${p.note}</small>
-      ${p.action ? `<button class="sc-act" onclick="${p.action.go}">${p.action.label} ${ic('chevR', 14)}</button>` : ''}</div>`; }).join('')}
+      ${p.action ? `<button class="sc-act" onclick="${p.action.go}">${p.action.label} ${ic('chevR', 14)}</button>` : ''}</div>`; }).join('')}`
+    : `<div class="sc-wait"><b>Your score</b><small>Upload your ESB smart-meter file and we'll score how well your home's use fits your plan's cheap hours${state.has_solar ? ' and how your panels are doing' : ''}, and check your savings against what really happened.</small></div>`;
+
+  return `<section class="sc">
+    ${planCheck}
+    ${score}
     ${checks.filter((c) => c.kind === 'switch').map(({ e, r }) => r
       ? `<div class="sc-check"><b>${esc(e.label)}</b><small>Checked on ${r.days} days of your meter: really ${eur(r.perYear)} a year, against ${eur(e.per_year)} expected${r.ratio != null ? ` (${Math.round(r.ratio * 100)}%)` : ''}.</small></div>`
       : `<div class="sc-check"><b>${esc(e.label)}</b><small>Not checked yet: needs two weeks of meter data from ${fmtDay(e.at)}.</small></div>`).join('')}
@@ -9711,7 +9755,7 @@ async function getAdvice(){
     const res = await fetch('/api/advice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ summary: adviceSummary() }) });
     const out = await res.json().catch(() => ({}));
     if (!res.ok || !out.advice) throw new Error(out.error || 'Suggestions are not available just now.');
-    state.advice = { quarter: quarterKey(), at: new Date().toISOString(), items: out.advice.items || [] };
+    state.advice = { quarter: quarterKey(), key: setupKey(state), at: new Date().toISOString(), items: out.advice.items || [] };
     saveState();
   } catch (e){
     showToast((e && e.message) || 'Suggestions are not available just now.', { type: 'warn', icon: ic('warn', 16) });
@@ -9720,15 +9764,20 @@ async function getAdvice(){
 }
 
 function renderAdviceBlock(){
-  const a = state.advice;
+  // Suggestions belong to the plan and setup they were written for: change
+  // either and they are set aside rather than shown as if still true.
+  const a0 = state.advice;
+  const stale = !!(a0 && a0.items && a0.items.length && a0.key !== setupKey(state));
+  const a = stale ? null : a0;
   const fresh = a && a.quarter === quarterKey();
   const effort = { easy: 'Easy', some: 'Some effort', big: 'A bigger step' };
   return `<section class="adv">
+    ${stale ? `<div class="me-empty">Your plan or setup has changed since the last suggestions, so they no longer apply. Ask again for ones that fit.</div>` : ''}
     ${fresh && a.items.length ? a.items.map((x) => `<div class="adv-item">
         <div class="adv-item-top"><b>${esc(x.title)}</b>${x.saving_eur ? `<em>${eur(x.saving_eur)}/yr</em>` : ''}</div>
         <small>${esc(x.why)}</small>
         <span class="adv-tag">${effort[x.effort] || ''}</span>
-      </div>`).join('') : `<div class="me-empty">${fresh ? 'Nothing more to suggest this quarter: you are doing what saves most.' : 'Three things worth doing this quarter, worked out from your plan, your prices and how your home uses power.'}</div>`}
+      </div>`).join('') : `${stale ? '' : `<div class="me-empty">${fresh ? 'Nothing more to suggest this quarter: you are doing what saves most.' : 'Three things worth doing this quarter, worked out from your plan, your prices and how your home uses power.'}</div>`}`}
     <button class="me-add" ${_adviceBusy ? 'disabled' : ''} onclick="getAdvice()">${_adviceBusy ? 'Working it out…' : `${ic('spark', 16)} ${fresh ? 'Ask again' : "Get this quarter's suggestions"}`}</button>
     <div class="adv-fine">Written by AI (Anthropic's Claude) from the figures here, with no personal details sent. Check anything before acting on it.</div>
   </section>`;
@@ -9978,7 +10027,7 @@ function renderMe(){
     ${renderAlertsBlock()}
     <div class="section-title">Savings</div>
     ${renderTallyBlock()}
-    <div class="section-title">Your score</div>
+    <div class="section-title">How you're doing</div>
     ${renderScoreBlock()}
     <div class="section-title">This quarter</div>
     ${renderAdviceBlock()}` : ''}

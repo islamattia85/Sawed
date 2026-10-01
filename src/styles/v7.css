@@ -945,3 +945,16 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .sc-ring { width: 92px; height: 92px; }
 .sc-ring small { font-size: var(--text-caption); line-height: 1.2; }
 .sc-act { justify-self: start; display: inline-flex; align-items: center; gap: 2px; padding: 0; border: 0; background: none; font: 700 var(--text-data) var(--display); color: var(--accent); cursor: pointer; }
+.pc { display: grid; gap: var(--space-2); padding: var(--space-4); border-radius: var(--radius-lg); }
+.pc.is-warn { background: var(--amber-faint); border: 1px solid var(--amber-soft); }
+.pc.is-gain { background: var(--accent-faint); border: 1px solid var(--accent-soft); }
+.pc-label { font-size: var(--text-caption); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.pc > b { font-size: var(--text-body); display: flex; align-items: center; gap: 6px; }
+.pc.is-gain > b svg { color: var(--accent); }
+.pc p { margin: 0; font-size: var(--text-body); line-height: 1.5; color: var(--ink); }
+.pc-gap { color: var(--amber); }
+.pc small { font-size: var(--text-caption); color: var(--ink-soft); line-height: 1.5; }
+.sc-wait { display: grid; gap: 4px; padding-top: var(--space-1); }
+.sc-wait b { font-size: var(--text-body); }
+.sc-wait small { font-size: var(--text-data); color: var(--ink-soft); line-height: 1.5; }
+.pc .pc-kind { margin-top: -4px; }
