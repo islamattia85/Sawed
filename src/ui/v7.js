@@ -458,6 +458,7 @@ export function createV7(api) {
           <span class="v7-chip">${st.ev_active ? 'with EV' : 'no EV'}</span>
           <span class="v7-chip v7-chip-edit">${api.ic('tune', 14)} Change</span>
         </button>
+        <button class="v7-link" onclick="v7Sheet('quote')">${api.ic('clip', 14)} Model an installer's quote instead</button>
       </section>`
       : `<section class="v7-hero v7-solar-hero">
         <div class="v7-headline">${api.hasModelledSystem() ? 'Solar is left out of every figure. Switch it back on above — your system is kept.' : 'No solar is modelled for this home, so every figure is without panels.'}</div>
@@ -484,11 +485,12 @@ export function createV7(api) {
       <div class="screen v7 v7-solar">
         ${solarSwitch()}
         ${hero}
-        <button class="v7-tile v7-tile-wide" onclick="setScreen('auditor')">
+        <button class="v7-tile v7-tile-wide v7-quote-tile" onclick="v7Sheet('quote')">
           <span class="v7-tile-ico">${api.ic('clip', 18)}</span>
-          <span class="v7-tile-big">Already have an installer quote?</span>
-          <span class="v7-tile-sub">Check it against 2026 Irish prices</span>
+          <span class="v7-tile-big">Have an installer's quote? Upload it</span>
+          <span class="v7-tile-sub">We read the system and price from it and model your home with it</span>
         </button>
+        <button class="v7-link" onclick="setScreen('auditor')">Or type the figures in by hand</button>
       </div>
       ${nav()}`;
     }
@@ -525,6 +527,7 @@ export function createV7(api) {
     else if (sh.kind === 'score') body = scoreSheet();
     else if (sh.kind === 'months') body = monthsSheet();
     else if (sh.kind === 'ev') body = evSheet();
+    else if (sh.kind === 'quote') body = quoteSheet();
     if (!body) return '';
     return `<div class="v7-sheet-root" id="v7-sheet">
       <div class="v7-sheet-backdrop" onclick="v7Sheet(null)"></div>
@@ -690,6 +693,58 @@ export function createV7(api) {
         ${byCharging.map((x) => `<div class="v7-rate"><i class="v7-dot" style="background:var(--bandink-ev)"></i>${esc(x.p.supplier)} ${esc(x.p.plan)}<b>${eur(x.cost)}/yr</b></div>`).join('')}
       </div>
       <div class="v7-fine">Charging alone. The plan ranked best for your home, ${esc(plan.supplier)} ${esc(plan.plan)}, already weighs charging together with everything else you use.</div>`;
+  }
+
+  /**
+   * Upload a quote, see what was read and where on the page it came from,
+   * correct anything, then model it. Nothing is modelled until the person has
+   * looked at the figures: a misread price would become a payback someone
+   * signs a contract on.
+   */
+  function quoteSheet() {
+    const q = api.quoteRead();
+    const head = `<div class="v7-sheet-head">
+        <div class="v7-eyebrow">Installer quote</div>
+        <h2 class="v7-h">${q.status === 'review' ? 'Check what we read' : 'Model your home with a real quote'}</h2>
+      </div>`;
+    if (q.status === 'reading') {
+      return `${head}<div class="v7-quote-wait" role="status"><span class="v7-spin" aria-hidden="true"></span>Reading ${esc(q.name || 'your quote')}… this takes up to half a minute.</div>`;
+    }
+    if (q.status === 'review') {
+      const x = q.quote;
+      const field = (id, label, val, unit, ev, step) => `<label class="v7-qf">
+          <span class="v7-qf-label">${label}</span>
+          <span class="v7-qf-input"><input id="${id}" type="number" inputmode="decimal" min="0" step="${step}" value="${val ?? ''}" placeholder="not on the quote">${unit ? `<i>${unit}</i>` : ''}</span>
+          ${ev ? `<span class="v7-qf-ev">“${esc(ev)}”</span>` : val == null ? '<span class="v7-qf-ev is-missing">Not found on the quote — fill it in</span>' : ''}
+        </label>`;
+      return `${head}
+        ${x.installer ? `<div class="v7-muted">${esc(x.installer)}${x.quote_date ? ` · ${esc(x.quote_date)}` : ''}</div>` : ''}
+        ${(x.warnings || []).length ? `<div class="v7-note is-rise">${api.ic('warn', 16)}<div>${x.warnings.map((w) => esc(w)).join('<br>')}</div></div>` : ''}
+        <div class="v7-qf-grid">
+          ${field('qf-panels', 'Panels', x.panel_count, '', x.evidence?.panel_count, 1)}
+          ${field('qf-watts', 'Each panel', x.panel_watts, 'W', x.evidence?.panel_watts, 5)}
+          ${field('qf-batt', 'Battery', x.battery_kwh, 'kWh', x.evidence?.battery_kwh, 0.1)}
+          ${field('qf-price', 'Price inc VAT, before grant', x.price_total_eur, '€', x.evidence?.price_total_eur, 50)}
+          ${field('qf-grant', 'SEAI grant', x.grant_eur, '€', x.evidence?.grant_eur, 50)}
+        </div>
+        ${[x.panel_model, x.inverter_model, x.battery_model, x.orientation, ...(x.extras || [])].filter(Boolean).length
+          ? `<div class="v7-fine">Also on the quote: ${esc([x.panel_model, x.inverter_model, x.battery_model, x.orientation && `facing ${x.orientation}`, ...(x.extras || [])].filter(Boolean).join(' · '))}</div>` : ''}
+        <button class="switch-cta v7-cta" onclick="v7ApplyQuote()">Model my home with this quote ${api.ic('chevR', 18)}</button>
+        <div class="v7-sheet-links">
+          <a href="#" onclick="event.preventDefault();v7QuoteReset()">Upload a different file</a>
+        </div>
+        <div class="v7-fine">Read automatically — check each figure against your quote. We use these figures for this home only; the file is not kept.</div>`;
+    }
+    return `${head}
+      ${q.status === 'error' ? `<div class="v7-note is-rise">${api.ic('warn', 16)}<div>${esc(q.error)}</div></div>` : ''}
+      <label class="v7-drop">
+        <input type="file" accept="application/pdf,image/*" onchange="v7QuoteFile(this)">
+        ${api.ic('clip', 22)}
+        <b>Choose the quote</b>
+        <span>A PDF, or a photo of each page</span>
+      </label>
+      <div class="v7-fine">We read the panels, battery, price and grant, show you the exact words each came from, and you confirm them before anything is modelled. The file is sent to our AI reader (Anthropic's Claude) to be read and is not stored.</div>
+      <div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();v7Sheet(null);setScreen('auditor')">Type the figures in instead</a></div>`;
   }
 
   const hhmm = (h) => `${String(h % 24).padStart(2, '0')}:00`;

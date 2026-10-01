@@ -8066,6 +8066,11 @@ function renderAuditor(){
       <div class="qr-sub">Compared against 2026 Irish market benchmarks. We have no affiliations with installers.</div>
     </div>
 
+    <button class="v7-tile v7-tile-wide" style="margin-bottom:14px" onclick="v7Sheet('quote')">
+      <span class="v7-tile-ico">${ic('clip', 18)}</span>
+      <span class="v7-tile-big">Upload the quote instead</span>
+      <span class="v7-tile-sub">We read the figures from the PDF or a photo, and model your home with it</span>
+    </button>
     <div class="card" style="padding:18px">
       <div class="aud-input-row">
         <label>Total quoted price (€)</label>
@@ -9713,7 +9718,7 @@ const V7 = createV7({
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
   renderSolarBody: (part) => renderSolarDashboard({ bodyOnly: part || true }),
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,
-  getPlanById, sim, annualCost, bandAt, totalKwp, totalPanels,
+  getPlanById, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead,
   fmtCurrency, fmtCent, fmtVerifiedDate, latestVerifiedLabel, planDataFlag, planCategoryLabel,
   freshnessChip, priceChangeChip, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
   renderBillShape, renderDayShape, renderSavingsBreakdown, renderAssumptions,
@@ -9752,6 +9757,95 @@ function toggleSolarModel(){
   showToast(on
     ? `Solar ${state.solar_is_estimate ? 'modelled (estimated)' : 'back in'}: ${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ' · ' + state.battery_kwh + ' kWh battery' : ''}`
     : 'Solar left out — every figure is now without panels. Your system is kept.',
+    { type: 'accent', icon: ic('sun', 16) });
+}
+
+/* ---- Reading an installer's quote ---------------------------------------
+ * The file goes to /api/extract-quote (a Vercel function holding the API
+ * key), which returns what it read and the words it read it from. Nothing is
+ * applied until the person presses "Model my home with this quote". Kept out
+ * of `state` so a quote in progress is never written to storage. */
+let _quoteRead = { status: 'idle' };
+function quoteRead(){ return _quoteRead; }
+
+/** A photo of a page is shrunk before upload: 2000px is plenty to read and
+ *  keeps phone photos under the upload limit. */
+async function _quoteImage(file){
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.85));
+  return { media_type: 'image/jpeg', blob };
+}
+function _b64(blob){
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1] || '');
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+}
+
+async function v7QuoteFile(input){
+  const file = input && input.files && input.files[0];
+  if (!file) return;
+  _quoteRead = { status: 'reading', name: file.name };
+  renderApp();
+  try {
+    let media_type = file.type, blob = file;
+    if (file.type.startsWith('image/')) ({ media_type, blob } = await _quoteImage(file));
+    else if (file.type !== 'application/pdf') throw new Error('Send a PDF, or a photo of each page.');
+    if (blob.size > 3_200_000) throw new Error('That file is too large. Under 3 MB, please — a photo of each page works too.');
+    const res = await fetch('/api/extract-quote', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ media_type, data: await _b64(blob) }),
+    });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok || !out.quote) throw new Error(out.error || 'The quote could not be read.');
+    _quoteRead = { status: 'review', quote: out.quote };
+  } catch (e){
+    _quoteRead = { status: 'error', error: (e && e.message) || 'The quote could not be read.' };
+  }
+  renderApp();
+}
+
+function v7QuoteReset(){ _quoteRead = { status: 'idle' }; renderApp(); }
+
+/** Model the home with the confirmed quote: this becomes "your system". */
+function v7ApplyQuote(){
+  const v = (id) => { const el = document.getElementById(id); return el && el.value !== '' ? +el.value : null; };
+  const panels = v('qf-panels'), watts = v('qf-watts'), batt = v('qf-batt'), price = v('qf-price'), grant = v('qf-grant');
+  if (!(panels > 0) || !(price > 0)){
+    showToast('Panels and price are needed to model the quote.', { type: 'warn', icon: ic('warn', 16) });
+    return;
+  }
+  const q = _quoteRead.quote || {};
+  state.has_solar = true;
+  state.considering_solar = true;
+  state.solar_is_estimate = false;
+  state.count_A = Math.round(panels); state.count_B = 0;
+  if (watts > 0) state.panel_w = Math.round(watts);
+  state.battery_kwh = batt > 0 ? batt : 0;
+  state.install_cost = Math.round(price); state.cost_is_manual = true;
+  if (grant != null){ state.grant_seai = Math.round(grant); state.grant_is_manual = true; }
+  else { state.grant_is_manual = false; state.grant_seai = calcSeaiGrant(totalKwp(), state.battery_kwh).total; }
+  if (q.roof_pitch_deg > 0 && q.roof_pitch_deg < 70) state.tilt_A = Math.round(q.roof_pitch_deg);
+  const dir = String(q.orientation || '').toLowerCase();
+  const az = { south: 180, 'south-east': 135, southeast: 135, 'south-west': 225, southwest: 225, east: 90, west: 270 }[dir.trim()];
+  if (az) state.azimuth_A = az;
+  state.solar_quotes = state.solar_quotes || [];
+  state.solar_quotes.push({ id: 'q' + Date.now(), installer: q.installer || 'Installer', price: Math.round(price),
+    kwp: +(state.count_A * (state.panel_w || 440) / 1000).toFixed(2), battery: state.battery_kwh, source: 'upload' });
+  snapshotMySystem();
+  invalidate();
+  _quoteRead = { status: 'idle' };
+  state._sheet = null;
+  state.current_screen = 'solar';
+  saveState();
+  renderApp();
+  showToast(`Modelled ${q.installer || 'the quote'}: ${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh battery` : ''} · ${fmtCurrency(state.install_cost)}`,
     { type: 'accent', icon: ic('sun', 16) });
 }
 
@@ -11332,6 +11426,9 @@ window.exploreSolar = exploreSolar;
 window.handleSwitchClick = handleSwitchClick;
 window.setScreen = setScreen;
 window.v7Sheet = v7Sheet;
+window.v7QuoteFile = v7QuoteFile;
+window.v7QuoteReset = v7QuoteReset;
+window.v7ApplyQuote = v7ApplyQuote;
 window.toggleSolarModel = toggleSolarModel;
 window.v7Choose = v7Choose;
 window.v7OpenMonth = v7OpenMonth;
