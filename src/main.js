@@ -6867,160 +6867,108 @@ function renderDayInspector(){
 
   const hasBattery = state.battery_kwh > 0;
 
-  // Net grid flow: positive = importing, negative = exporting
-  const netGrid = imp.map((v, h) => v - exp[h]);
-
-  // Y scale: show both positive (solar, demand) and negative (export) values
+  // Y scale. Above zero is what feeds the home (solar, battery out, grid);
+  // below zero is what leaves it (export) or is stored (battery charging).
+  // Both sides must fit, or a charging spike runs off the chart.
   let maxPos = 0.5, maxNeg = 0.1;
   for (let h = 0; h < 24; h++){
-    if (gen[h] > maxPos) maxPos = gen[h];
-    if (cons[h] > maxPos) maxPos = cons[h];
-    if (hasBattery && dis[h] > maxPos) maxPos = dis[h];
-    if (netGrid[h] > maxPos) maxPos = netGrid[h];
-    if (netGrid[h] < -maxNeg) maxNeg = -netGrid[h];
+    maxPos = Math.max(maxPos, gen[h], cons[h], hasBattery ? dis[h] : 0, imp[h]);
+    maxNeg = Math.max(maxNeg, exp[h], hasBattery ? ch[h] : 0);
   }
   maxPos = Math.ceil(maxPos * 4) / 4;
   maxNeg = Math.ceil(maxNeg * 4) / 4;
   const totalRange = maxPos + maxNeg;
-
-  // zero line position within chart area
   const zeroY = PAD_T + (maxPos / totalRange) * CH;
   const yScale = v => zeroY - (v / totalRange) * CH;
   const xPos = h => PAD_L + h * barW;
   const xMid = h => PAD_L + (h + 0.5) * barW;
-
-  // Solar filled area (yellow, above zero only)
-  const solarAreaPts = (() => {
-    const top = gen.map((v, h) => `${xMid(h).toFixed(1)},${yScale(v).toFixed(1)}`).join(' ');
-    const bot = gen.map((_, h) => `${xMid(h).toFixed(1)},${zeroY.toFixed(1)}`).reverse().join(' ');
+  const line = (arr, sign = 1) => arr.map((v, h) => `${h === 0 ? 'M' : 'L'}${xMid(h).toFixed(1)},${yScale(sign * v).toFixed(1)}`).join(' ');
+  const area = (arr, sign = 1) => {
+    const top = arr.map((v, h) => `${xMid(h).toFixed(1)},${yScale(sign * v).toFixed(1)}`).join(' ');
+    const bot = arr.map((_, h) => `${xMid(h).toFixed(1)},${zeroY.toFixed(1)}`).reverse().join(' ');
     return top + ' ' + bot;
-  })();
+  };
 
-  // Demand line (blue, solid)
-  const demandPath = cons.map((v, h) => `${h === 0 ? 'M' : 'L'}${xMid(h).toFixed(1)},${yScale(v).toFixed(1)}`).join(' ');
+  // One colour per flow, the same everywhere it appears. Battery is one
+  // colour: solid above the line when it powers the home, dashed below when
+  // it is charging. Export is the only green.
+  const C = { solar: '#e0a800', load: 'var(--ink)', imp: '#e0503c', exp: '#1f9d55', batt: '#7c5ce0' };
 
-  // Grid net: import fill (red above zero), export fill (green below zero)
-  const gridImpPts = (() => {
-    const top = netGrid.map((v, h) => `${xMid(h).toFixed(1)},${yScale(Math.max(0, v)).toFixed(1)}`).join(' ');
-    const bot = netGrid.map((_, h) => `${xMid(h).toFixed(1)},${zeroY.toFixed(1)}`).reverse().join(' ');
-    return top + ' ' + bot;
-  })();
-  const gridExpPts = (() => {
-    const top = netGrid.map((v, h) => `${xMid(h).toFixed(1)},${yScale(Math.min(0, v)).toFixed(1)}`).join(' ');
-    const bot = netGrid.map((_, h) => `${xMid(h).toFixed(1)},${zeroY.toFixed(1)}`).reverse().join(' ');
-    return top + ' ' + bot;
-  })();
-
-  // Battery discharge line (green dashed)
-  const batPath = hasBattery ? dis.map((v, h) => `${h === 0 ? 'M' : 'L'}${xMid(h).toFixed(1)},${yScale(v).toFixed(1)}`).join(' ') : '';
-  // Battery charge (below zero, cyan)
-  const batChgPath = hasBattery ? ch.map((v, h) => `${h === 0 ? 'M' : 'L'}${xMid(h).toFixed(1)},${yScale(-v).toFixed(1)}`).join(' ') : '';
-
-  // SOC secondary axis line
-  const socPath = hasBattery ? soc.map((v, h) => {
-    const sy = PAD_T + CH - (v / 100) * CH;
-    return `${h === 0 ? 'M' : 'L'}${xMid(h).toFixed(1)},${sy.toFixed(1)}`;
-  }).join(' ') : '';
-
-  // Y axis labels
-  const yLabelVals = [];
-  for (let v = 0; v <= maxPos; v += maxPos / 2) yLabelVals.push(v);
+  const yLabelVals = [maxPos, maxPos / 2, 0];
   if (maxNeg > 0.05) yLabelVals.push(-maxNeg);
   const yLabels = yLabelVals.map(v => ({ v, y: yScale(v) }));
-
-  // X-axis hour labels
-  const xLabels = [0, 4, 8, 12, 16, 20, 23].map(h => ({ x: xMid(h), label: h + 'h' }));
-
-  // Legend items
+  const xLabels = [0, 4, 8, 12, 16, 20, 23].map(h => ({ x: xMid(h), label: String(h).padStart(2, '0') }));
   const totalH = H + 8;
   const label = season === 'summer' ? 'Summer · Jun 21' : 'Winter · Jan 19';
 
-  // Compute stats
-  const totalExport = exp.reduce((a,b)=>a+b,0);
-  const totalImport = imp.reduce((a,b)=>a+b,0);
-  const selfUse = gen.reduce((a,b)=>a+b,0) - totalExport;
+  const sum = (a) => a.reduce((x, y) => x + y, 0);
+  const totalExport = sum(exp), totalImport = sum(imp), totalGen = sum(gen);
+  const selfUse = Math.max(0, totalGen - totalExport);
 
-  // Peak/arbitrage region x positions
-  const peakX1 = xPos(17), peakX2 = xPos(19);
-  const arbX1 = xPos(2), arbX2 = xPos(5);
+  // Shade this plan's own windows, not fixed hours.
+  const w = plan.windows || {};
+  const cheap = w.ev || w.night;
+  const bands = [];
+  if (cheap) bands.push({ win: cheap, fill: 'rgba(124,92,224,.08)', text: '#7c5ce0', label: w.ev ? 'EV rate' : 'night rate' });
+  if (w.peak) bands.push({ win: w.peak, fill: 'rgba(224,80,60,.08)', text: '#e0503c', label: 'peak' });
+  const bandRects = bands.flatMap(b => {
+    const [a, z] = b.win;
+    const spans = a < z ? [[a, z]] : [[a, 24], [0, z]];
+    return spans.map(([x0, x1], i) => `<rect x="${xPos(x0).toFixed(1)}" y="${PAD_T}" width="${(xPos(x1) - xPos(x0)).toFixed(1)}" height="${CH}" fill="${b.fill}"/>
+      ${i === 0 ? `<text x="${((xPos(x0) + xPos(x1)) / 2).toFixed(1)}" y="${(PAD_T + 9).toFixed(1)}" text-anchor="middle" fill="${b.text}" font-size="10">${b.label}</text>` : ''}`);
+  }).join('');
+
+  const key = (color, text, dashed) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft)">
+      <svg width="16" height="6" aria-hidden="true"><line x1="0" y1="3" x2="16" y2="3" stroke="${color}" stroke-width="3" ${dashed ? 'stroke-dasharray="4,3"' : ''} stroke-linecap="round"/></svg>${text}</span>`;
 
   return `
   <div class="section-title" style="margin-top:20px">Day inspector</div>
   <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 12px 10px;margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--ink)">${label}</div>
+      <div style="font-size:13px;font-weight:700;color:var(--ink)">${label}</div>
       <div style="display:inline-flex;gap:4px;padding:3px;background:var(--well);border:1px solid var(--line);border-radius:999px">
         ${['summer','winter'].map(s2 => {
           const active = season === s2;
-          return `<button onclick="state._di_season='${s2}';renderApp();" style="padding:4px 11px;font-size:12px;font-weight:700;font-family:var(--mono);border:none;cursor:pointer;border-radius:999px;background:${active ? 'var(--accent)' : 'transparent'};color:${active ? '#fff' : 'var(--ink-soft)'};">${s2 === 'summer' ? '☀ Summer' : '❄ Winter'}</button>`;
+          return `<button onclick="state._di_season='${s2}';renderApp();" style="padding:4px 11px;font-size:12px;font-weight:700;border:none;cursor:pointer;border-radius:999px;background:${active ? 'var(--accent)' : 'transparent'};color:${active ? 'var(--accent-ink, #fff)' : 'var(--ink-soft)'};">${s2 === 'summer' ? 'Summer' : 'Winter'}</button>`;
         }).join('')}
       </div>
     </div>
-    <svg viewBox="0 0 ${W} ${totalH}" width="100%" style="overflow:visible;display:block">
+    <svg viewBox="0 0 ${W} ${totalH}" width="100%" style="display:block;color:var(--ink-dim)" role="img" aria-label="${label}: energy into and out of the home, hour by hour">
+      ${bandRects}
+      ${yLabels.map(l => `<line x1="${PAD_L}" y1="${l.y.toFixed(1)}" x2="${W - PAD_R}" y2="${l.y.toFixed(1)}" stroke="currentColor" stroke-opacity="${l.v === 0 ? '.45' : '.15'}" stroke-width="1"/>`).join('')}
 
-      <!-- Background shading regions -->
-      <rect x="${arbX1.toFixed(1)}" y="${PAD_T}" width="${(arbX2-arbX1).toFixed(1)}" height="${CH}" fill="rgba(140,80,220,.08)" rx="0"/>
-      <rect x="${peakX1.toFixed(1)}" y="${PAD_T}" width="${(peakX2-peakX1).toFixed(1)}" height="${CH}" fill="rgba(240,80,60,.07)" rx="0"/>
+      <polygon points="${area(gen)}" fill="${C.solar}" fill-opacity=".22"/>
+      <path d="${line(gen)}" fill="none" stroke="${C.solar}" stroke-width="1.8" stroke-linejoin="round"/>
+      <polygon points="${area(imp)}" fill="${C.imp}" fill-opacity=".18"/>
+      <polygon points="${area(exp, -1)}" fill="${C.exp}" fill-opacity=".25"/>
+      <path d="${line(exp, -1)}" fill="none" stroke="${C.exp}" stroke-width="1.6" stroke-linejoin="round"/>
+      ${hasBattery ? `<path d="${line(dis)}" fill="none" stroke="${C.batt}" stroke-width="1.8" stroke-linejoin="round"/>
+      <path d="${line(ch, -1)}" fill="none" stroke="${C.batt}" stroke-width="1.8" stroke-dasharray="4,3" stroke-linejoin="round"/>` : ''}
+      <path d="${line(cons)}" fill="none" stroke="${C.load}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
 
-      <!-- Grid lines at y-axis label positions -->
-      ${yLabels.map(l => `<line x1="${PAD_L}" y1="${l.y.toFixed(1)}" x2="${W - PAD_R}" y2="${l.y.toFixed(1)}" stroke="rgba(255,255,255,.07)" stroke-width="1"/>`).join('')}
-
-      <!-- Zero line (bold) -->
-      <line x1="${PAD_L}" y1="${zeroY.toFixed(1)}" x2="${W - PAD_R}" y2="${zeroY.toFixed(1)}" stroke="rgba(255,255,255,.18)" stroke-width="1"/>
-
-      <!-- Solar filled area (yellow, above zero) -->
-      <polygon points="${solarAreaPts}" fill="rgba(250,200,0,.25)"/>
-      <path d="${gen.map((v,h) => `${h===0?'M':'L'}${xMid(h).toFixed(1)},${yScale(v).toFixed(1)}`).join(' ')}" fill="none" stroke="#f5c800" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
-
-      <!-- Grid export fill (green below zero) -->
-      <polygon points="${gridExpPts}" fill="rgba(0,200,100,.2)"/>
-
-      <!-- Grid import fill (red above zero — only visible during import hours) -->
-      <polygon points="${gridImpPts}" fill="rgba(240,80,60,.2)"/>
-
-      <!-- Battery discharge line (green) -->
-      ${hasBattery ? `<path d="${batPath}" fill="none" stroke="rgba(0,220,130,.8)" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
-
-      <!-- Battery charge (below zero, cyan dashed) -->
-      ${hasBattery ? `<path d="${batChgPath}" fill="none" stroke="rgba(0,180,220,.6)" stroke-width="1.2" stroke-dasharray="3,2" stroke-linejoin="round"/>` : ''}
-
-      <!-- Demand line (blue, most prominent) -->
-      <path d="${demandPath}" fill="none" stroke="#4ea8f0" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
-
-      <!-- Y axis labels -->
-      ${yLabels.map(l => `<text x="${(PAD_L - 3).toFixed(1)}" y="${(l.y + 3).toFixed(1)}" text-anchor="end" fill="rgba(255,255,255,.3)" font-size="10" font-family="monospace">${l.v >= 0 ? l.v.toFixed(1) : l.v.toFixed(1)}</text>`).join('')}
-
-      <!-- X axis labels -->
-      ${xLabels.map(l => `<text x="${l.x.toFixed(1)}" y="${(PAD_T + CH + 11).toFixed(1)}" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="10" font-family="monospace">${l.label}</text>`).join('')}
-
-      <!-- Region labels -->
-      <text x="${((arbX1+arbX2)/2).toFixed(1)}" y="${(PAD_T + 9).toFixed(1)}" text-anchor="middle" fill="rgba(160,100,255,.6)" font-size="10" font-family="monospace">02–05h</text>
-      <text x="${((peakX1+peakX2)/2).toFixed(1)}" y="${(PAD_T + 9).toFixed(1)}" text-anchor="middle" fill="rgba(240,100,60,.7)" font-size="10" font-family="monospace">peak</text>
-
+      ${yLabels.map(l => `<text x="${(PAD_L - 3).toFixed(1)}" y="${(l.y + 3).toFixed(1)}" text-anchor="end" fill="currentColor" font-size="10">${Math.abs(l.v).toFixed(1)}</text>`).join('')}
+      ${xLabels.map(l => `<text x="${l.x.toFixed(1)}" y="${(PAD_T + CH + 12).toFixed(1)}" text-anchor="middle" fill="currentColor" font-size="10">${l.label}</text>`).join('')}
     </svg>
-
-    <!-- Legend strip -->
-    <div style="display:flex;flex-wrap:wrap;gap:7px 14px;margin-top:8px;padding:8px 2px 2px;border-top:1px solid var(--line-soft)">
-      <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:#f5c800;border-radius:4px;flex-shrink:0"></span>Solar</span>
-      <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:#4ea8f0;border-radius:4px;flex-shrink:0"></span>Load</span>
-      <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:rgba(240,80,60,.7);border-radius:4px;flex-shrink:0"></span>Grid import</span>
-      <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:rgba(0,200,100,.7);border-radius:4px;flex-shrink:0"></span>Export</span>
-      ${hasBattery ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-soft);font-family:var(--mono)"><span style="display:inline-block;width:16px;height:3px;background:rgba(0,220,130,.8);border-radius:4px;flex-shrink:0"></span>Battery</span>` : ''}
+    <div style="font-size:12px;color:var(--ink-dim);margin-top:2px">kWh each hour. Above the line: what powers the home. Below it: what is sold or stored.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line-soft)">
+      ${key(C.load, 'Home use')}
+      ${key(C.solar, 'Solar')}
+      ${key(C.imp, 'Bought from grid')}
+      ${key(C.exp, 'Sold to grid')}
+      ${hasBattery ? key(C.batt, 'Battery powering home') + key(C.batt, 'Battery charging', true) : ''}
     </div>
-
-    <!-- Quick stats row -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px">
       ${[
-        { label: 'Solar', val: gen.reduce((a,b)=>a+b,0).toFixed(1) + ' kWh', color: '#f5c800' },
-        { label: 'Self-used', val: selfUse.toFixed(1) + ' kWh', color: 'var(--accent)' },
-        { label: 'Exported', val: totalExport.toFixed(1) + ' kWh', color: 'rgba(0,200,100,.9)' },
+        { label: 'Solar made', val: totalGen.toFixed(1) + ' kWh', color: C.solar },
+        { label: 'Used at home', val: selfUse.toFixed(1) + ' kWh', color: 'var(--ink)' },
+        { label: 'Sold to grid', val: totalExport.toFixed(1) + ' kWh', color: C.exp },
       ].map(st => `
         <div style="background:var(--well);border-radius:8px;padding:7px 8px;text-align:center">
-          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);margin-bottom:2px">${st.label}</div>
-          <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:${st.color}">${st.val}</div>
-        </div>
-      `).join('')}
+          <div style="font-size:12px;color:var(--ink-dim);margin-bottom:2px">${st.label}</div>
+          <div style="font-size:13px;font-weight:700;color:${st.color}">${st.val}</div>
+        </div>`).join('')}
     </div>
+    <div style="font-size:12px;color:var(--ink-dim);margin-top:6px">Bought from the grid this day: ${totalImport.toFixed(1)} kWh${hasBattery ? ' — including what charged the battery in the cheap window' : ''}.</div>
   </div>`;
 }
 
