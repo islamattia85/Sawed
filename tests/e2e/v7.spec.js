@@ -498,3 +498,34 @@ test('closing My home or My system goes back to the screen it was opened from', 
   await page.locator('.hs-hit[aria-label="My home"]').click({ force: true });
   await expect(page.locator('#v7-sheet')).toContainText('My home');
 });
+
+test('alerts: a contract ending shows in My Peakless with a badge that clears once seen', async ({ page }) => {
+  const soon = new Date(Date.now() + 10 * 864e5).toISOString().slice(0, 10);
+  await boot(page, { contract_end: soon, alerts_seen: {} });
+  const kinds = await page.evaluate(() => window.computeAlerts().map((a) => a.kind));
+  expect(kinds).toContain('contract');
+  await expect(page.locator('.nav-badge')).toBeVisible();
+  await page.evaluate(() => window.setScreen('me'));
+  await expect(page.locator('.al-list')).toContainText('Your contract ends in');
+  await expect.poll(() => page.evaluate(() => Object.keys(window.state.alerts_seen || {}).length), { timeout: 5000 })
+    .toBeGreaterThan(0);
+  await page.evaluate(() => window.setScreen('result'));
+  await expect(page.locator('.nav-badge')).toHaveCount(0);
+});
+
+test('the tally: recording a switch makes it the plan, sets the contract, and counts the saving from the date', async ({ page }) => {
+  await boot(page, { current_screen: 'me', journey: [] });
+  await page.getByRole('button', { name: /I switched plan/ }).click();
+  const sheet = page.locator('#v7-sheet');
+  const to = await sheet.locator('#jr-plan').inputValue();
+  const monthAgo = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
+  await sheet.locator('#jr-date').fill(monthAgo);
+  await sheet.getByRole('button', { name: 'Add to my tally' }).click();
+  const st = await page.evaluate(() => ({ base: window.state.baseline, j: window.state.journey, end: window.state.contract_end, total: window.journeyTotal() }));
+  expect(st.base).toBe(to);
+  expect(st.j).toHaveLength(1);
+  expect(st.j[0].at).toBe(monthAgo);
+  expect(st.end > monthAgo).toBe(true);
+  expect(st.total).toBeCloseTo(st.j[0].per_year * 30 / 365, -1);
+  await expect(page.locator('.me-tally')).toContainText('saved so far');
+});

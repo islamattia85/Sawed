@@ -58,7 +58,7 @@ export function createV7(api) {
       ${V7_SURFACES.map((s) => `
         <button class="bottom-nav-item v7-nav-item ${active === s.id ? 'active' : ''}"
           onclick="setScreen('${s.id}')" aria-current="${active === s.id ? 'page' : 'false'}">
-          <span class="nav-ico">${api.ic(s.icon, 22)}</span>
+          <span class="nav-ico">${api.ic(s.icon, 22)}${s.id === 'more' && api.alertCount() ? `<i class="nav-badge" aria-label="${api.alertCount()} new alerts">${api.alertCount()}</i>` : ''}</span>
           <span class="nav-label">${s.label}</span>
         </button>`).join('')}
     </nav>`;
@@ -544,6 +544,7 @@ export function createV7(api) {
     else if (sh.kind === 'system') body = api.renderSystemSheet();
     else if (sh.kind === 'home') body = api.renderHomeSheet();
     else if (sh.kind === 'handover') body = api.renderHandoverSheet();
+    else if (sh.kind === 'journey') body = api.renderJourneySheet(sh.id);
     if (!body) return '';
     return `<div class="v7-sheet-root" id="v7-sheet">
       <div class="v7-sheet-backdrop" onclick="v7Sheet(null)"></div>

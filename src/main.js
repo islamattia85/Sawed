@@ -9362,6 +9362,185 @@ function renderCompareTable(selIds){
  * built from, what the app found, the quotes kept and the requests sent.
  * A guest gets the same page, saved on this phone, with the one thing an
  * account adds said plainly. */
+/* ── ALERTS AND THE SAVINGS TALLY ─────────────────────────────
+ * Alerts are worked out from the household and the price data whenever the
+ * app opens, so they are always current: a price change on the plan this
+ * home is on, a plan that would save real money, a contract about to end.
+ * Each has a stable id; reading it marks it seen, and a new situation (a
+ * different cheaper plan, a new price change) is a new alert.
+ *
+ * The tally is what the household has actually done — switched, installed
+ * — each with the yearly saving the model gave at that moment, counted up
+ * by the days since. It is an estimate, and says so; smart-meter data is
+ * what will check it. */
+const ALERT_MIN_SAVING = 50;   // €/yr: below this a switch is not worth a message
+
+function todayIso(){ return new Date().toISOString().slice(0, 10); }
+function fmtDay(iso){ return new Date(iso + (iso.length === 10 ? 'T12:00:00' : '')).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' }); }
+
+function computeAlerts(){
+  if (!state.onboarding_complete) return [];
+  const out = [];
+  const today = todayIso();
+  try {
+    const plan = getPlanById(state.baseline);
+    const pc = plan && plan.price_change;
+    if (pc && pc.effective_date && pc.effective_date >= addDays(today, -14)){
+      const up = pc.direction !== 'decrease';
+      const pct = Math.round(Math.max(pc.pct || 0, ...Object.values(pc.pct_bands || {})) * 100);
+      out.push({ id: `price:${plan.id}:${pc.effective_date}`, kind: 'price', level: up ? 'warn' : 'info',
+        title: `${esc(plan.supplier)} ${up ? 'raises' : 'lowers'} your plan's prices${pct ? ` by up to ${pct}%` : ''}`,
+        body: `${pc.effective_date > today ? 'From' : 'Since'} ${fmtDay(pc.effective_date)}${pc.standing_pct ? `, standing charge ${up ? '+' : '−'}${Math.round(pc.standing_pct * 100)}%` : ''}. Your figures already include it.`,
+        go: "setScreen('plans')", cta: 'Compare plans' });
+    }
+    const rec = getRecommendation();
+    const sys = state.has_solar && totalPanels() > 0 && !(state.solar_planned || state.solar_is_estimate);
+    const mine = sys ? sumF(sim(state.baseline).cost) + plan.standing + PSO_LEVY : rec.baseCost;
+    const save = mine - rec.best.net;
+    if (rec.best.plan.id !== state.baseline && save >= ALERT_MIN_SAVING){
+      out.push({ id: `cheaper:${rec.best.plan.id}`, kind: 'cheaper', level: 'gain',
+        title: `${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)} would save you ${eur(save)} a year`,
+        body: 'Against what your plan costs this home today. Switching takes about ten minutes and there is nothing to cancel.',
+        go: "setScreen('result')", cta: 'See the switch' });
+    }
+    if (state.contract_end){
+      const days = Math.round((Date.parse(state.contract_end) - Date.parse(today)) / 864e5);
+      if (days <= 45 && days >= -60) out.push({ id: `contract:${state.contract_end}`, kind: 'contract', level: 'warn',
+        title: days >= 0 ? `Your contract ends in ${days} day${days === 1 ? '' : 's'}` : 'Your contract has ended',
+        body: `${fmtDay(state.contract_end)}. ${days >= 0 ? 'After it' : 'Since then'} you are usually moved to the supplier's standard rate, which costs more. A new plan can be lined up now.`,
+        go: "setScreen('plans')", cta: 'Find a new plan' });
+    }
+  } catch (e) {}
+  return out;
+}
+
+function addDays(iso, n){ const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
+function unseenAlerts(){ const seen = state.alerts_seen || {}; return computeAlerts().filter((a) => !seen[a.id]); }
+function markAlertsSeen(){
+  const seen = state.alerts_seen = state.alerts_seen || {};
+  computeAlerts().forEach((a) => { if (!seen[a.id]) seen[a.id] = Date.now(); });
+  saveState();
+}
+
+/* The tally. */
+function journeyTotal(){
+  const now = Date.now();
+  let total = 0;
+  for (const e of state.journey || []){
+    const days = Math.max(0, (now - Date.parse(e.at + 'T00:00:00')) / 864e5);
+    total += (e.per_year || 0) * days / 365;
+  }
+  return total;
+}
+
+/** "I switched": the plan becomes the home's plan, and the saving goes on the tally. */
+function recordSwitch(planId, when){
+  const to = getPlanById(planId);
+  if (!to) return;
+  const at = when || todayIso();
+  let per = 0;
+  try {
+    const from = getPlanById(state.baseline);
+    const fromCost = sumF(sim(state.baseline).cost) + from.standing + PSO_LEVY;
+    const toCost = annualCost(sim(to.id), to).net;
+    per = Math.max(0, fromCost - toCost);
+    (state.journey = state.journey || []).push({ type: 'switch', at, from: from.id, to: to.id,
+      label: `Switched to ${to.supplier} ${to.plan}`, per_year: Math.round(per) });
+  } catch (e) {}
+  state.baseline = to.id;
+  state.baseline_known = true;
+  state.baseline_discount_pct = 0;
+  state.chosen_plan = null;
+  if (to.length > 0) state.contract_end = addDays(at, Math.round(to.length * 30.44));
+  invalidate(); saveState();
+  state._sheet = null;
+  showToast(`On the tally: ${eur(per)} a year from ${fmtDay(at)}`, { type: 'accent', icon: ic('checkC', 16) });
+  renderApp();
+}
+
+/** "It's installed": the panels' yearly saving goes on the tally. */
+function recordInstall(when){
+  const at = when || todayIso();
+  let per = 0;
+  try {
+    const plan = getPlanById(state.baseline);
+    per = Math.max(0, sumF(baselineSim(state.baseline).cost) - sumF(sim(state.baseline).cost));
+    void plan;
+  } catch (e) {}
+  (state.journey = state.journey || []).push({ type: 'install', at, label: `Installed ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` + ${state.battery_kwh} kWh` : ''}`, per_year: Math.round(per) });
+  state.solar_planned = false; state.solar_is_estimate = false;
+  if ((state.solar_view || 'mine') === 'mine') snapshotMySystem();
+  invalidate(); saveState();
+  state._sheet = null;
+  showToast(`On the tally: ${eur(per)} a year from ${fmtDay(at)}`, { type: 'accent', icon: ic('checkC', 16) });
+  renderApp();
+}
+
+function removeJourney(i){
+  (state.journey || []).splice(i, 1);
+  saveState(); renderApp();
+}
+
+function journeyCommit(kind){
+  const d = (document.getElementById('jr-date') || {}).value || todayIso();
+  if (kind === 'install') return recordInstall(d);
+  const p = (document.getElementById('jr-plan') || {}).value;
+  recordSwitch(p, d);
+}
+
+/** The sheet that asks what happened and when. */
+function renderJourneySheet(kind){
+  const today = todayIso();
+  if (kind === 'install'){
+    return `<div class="v7-sheet-head"><div class="v7-eyebrow">The tally</div><h2 class="v7-h">When were the panels switched on?</h2></div>
+      <p class="me-p">The system becomes your installed system, and its yearly saving is counted from this date.</p>
+      <label class="sy-field"><span><b>Date</b></span><input type="date" id="jr-date" value="${today}" max="${today}"></label>
+      <button class="v7-cta-2" onclick="journeyCommit('install')">Add to my tally</button>`;
+  }
+  const rec = getRecommendation();
+  return `<div class="v7-sheet-head"><div class="v7-eyebrow">The tally</div><h2 class="v7-h">Which plan did you switch to?</h2></div>
+    <p class="me-p">It becomes your plan here, and the yearly saving against your old one is counted from the date.</p>
+    <label class="sy-field"><span><b>Plan</b></span><select id="jr-plan">${activeTariffsSorted().filter((p) => p.id !== state.baseline)
+      .map((p) => `<option value="${p.id}" ${p.id === rec.best.plan.id ? 'selected' : ''}>${esc(p.supplier)} — ${esc(p.plan)}</option>`).join('')}</select></label>
+    <label class="sy-field"><span><b>Date</b></span><input type="date" id="jr-date" value="${today}" max="${today}"></label>
+    <button class="v7-cta-2" onclick="journeyCommit('switch')">Add to my tally</button>`;
+}
+
+function renderAlertsBlock(){
+  const list = computeAlerts();
+  const seen = state.alerts_seen || {};
+  const cls = { warn: 'is-warn', gain: 'is-gain', info: '' };
+  const body = list.length ? list.map((a) => `<div class="al ${cls[a.level] || ''} ${seen[a.id] ? '' : 'is-new'}">
+      <div class="al-dot" aria-hidden="true"></div>
+      <div class="al-text"><b>${a.title}</b><small>${a.body}</small>
+        <button class="al-go" onclick="${a.go}">${a.cta} ${ic('chevR', 14)}</button></div>
+    </div>`).join('') : `<div class="me-empty">Nothing needs you right now. We check every time prices change.</div>`;
+  const email = _sbUser
+    ? `<label class="sy-toggle al-email"><span><b>Email me these</b><small>Price changes on my plan and my contract ending. Never marketing.</small></span>
+        <input type="checkbox" role="switch" ${state.alerts_email ? 'checked' : ''} onchange="state.alerts_email=this.checked;saveState();renderApp()"></label>`
+    : `<div class="al-email-guest">Sign in to get these by email too.</div>`;
+  return `<section class="me-list al-list">${body}${email}</section>`;
+}
+
+function renderTallyBlock(){
+  const j = state.journey || [];
+  const sysPlanned = state.has_solar && totalPanels() > 0 && (state.solar_planned || state.solar_is_estimate);
+  const total = journeyTotal();
+  const perYear = j.reduce((a, e) => a + (e.per_year || 0), 0);
+  return `<section class="me-tally">
+    ${j.length ? `<div class="me-tally-fig">${eur(total)}<small>saved so far</small></div>
+      <div class="me-tally-sub">About ${eur(perYear)} a year from what you've done · estimated from the model</div>
+      <div class="me-tally-list">${j.map((e, i) => `<div class="me-tally-row"><span><b>${esc(e.label)}</b><small>${fmtDay(e.at)} · ${eur(e.per_year)} a year</small></span>
+        <button class="me-mini me-x" aria-label="Remove" onclick="removeJourney(${i})">${ic('x', 14)}</button></div>`).join('')}</div>`
+      : `<div class="me-tally-empty"><b>Your savings tally</b><small>Tell us when you switch plan or your panels go in, and we'll keep count of what it's saving you.</small></div>`}
+    <div class="me-tally-actions">
+      <button class="me-mini" onclick="v7Sheet('journey','switch')">${ic('swap', 14)} I switched plan</button>
+      ${sysPlanned ? `<button class="me-mini" onclick="v7Sheet('journey','install')">${ic('sun', 14)} My panels are in</button>` : ''}
+    </div>
+    ${j.length ? `<div class="me-fine">The tally uses the model's figure for each step. Importing your ESB smart-meter data will check it against what really happened.</div>` : ''}
+  </section>`;
+}
+
 /** The current system, filed as a saved entry so it can be brought back. */
 function fileCurrentSystem(){
   if (!v7HasModelledSystem()) return null;
@@ -9559,6 +9738,7 @@ function householdFindings(){
 }
 
 function renderMe(){
+  if (state.onboarding_complete && unseenAlerts().length) setTimeout(markAlertsSeen, 1500);
   const signedIn = !!_sbUser;
   if (signedIn && _myLeads === null){ _myLeads = []; loadMyLeads(); }
   const name = (_sbProfile && _sbProfile.display_name) || (signedIn ? (_sbUser.email || '').split('@')[0] : '');
@@ -9600,6 +9780,11 @@ function renderMe(){
   <div class="screen me">
     ${head}
     ${_handover ? `<button class="me-warn" onclick="v7Sheet('handover')">${ic('warn', 16)} This phone and your account have different homes. Choose which to keep. Nothing is saved to your account until you do.</button>` : ''}
+
+    ${state.onboarding_complete ? `<div class="section-title">Alerts${unseenAlerts().length ? ` <span class="al-count">${unseenAlerts().length} new</span>` : ''}</div>
+    ${renderAlertsBlock()}
+    <div class="section-title">Savings</div>
+    ${renderTallyBlock()}` : ''}
 
     <div class="section-title">My household</div>
     ${state.onboarding_complete ? householdScene() : ''}
@@ -10097,7 +10282,8 @@ const V7 = createV7({
   renderBillShape, renderDayShape, renderSavingsBreakdown, renderAssumptions,
   renderTrustPanel, renderLogicBreakdown, renderNightRateCard, renderEvSavingsCard, evEconomics,
   renderSolarComparison, renderDayInspector,
-  renderSystemSheet, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet,
+  renderSystemSheet, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet, renderJourneySheet,
+  alertCount: () => { try { return unseenAlerts().length; } catch (e) { return 0; } },
 });
 
 /**
@@ -10643,6 +10829,7 @@ function renderHomeSheet(){
              : field('Typical two-month bill', 'Including VAT.', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="1500" step="5" value="${state.bimonthly_bill_eur}" onchange="homeSet('bimonthly_bill_eur',this.value)"><i>€</i></span>`)}
            <button class="v7-link" onclick="v7Sheet(null);setScreen('csv-import')">${ic('csv', 14)} Import ESB smart-meter data for exact figures</button>`}
       ${field('Current plan', '', sel('baseline', activeTariffsSorted().map((p) => [p.id, `${p.supplier} — ${p.plan}`]), state.baseline))}
+      ${field('Contract ends', 'On your bill or welcome letter. We remind you before it does.', `<input type="date" value="${state.contract_end || ''}" onchange="homeSet('contract_end',this.value||null)">`)}
       ${field('Discount on it', 'A sign-up discount off the unit rates, if you have one.', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="60" step="1" value="${state.baseline_discount_pct || 0}" onchange="homeSet('baseline_discount_pct',this.value)"><i>%</i></span>`)}
     </section>
 
@@ -12297,6 +12484,13 @@ window.sysTypicalPrice = sysTypicalPrice;
 window.openMySystem = openMySystem;
 window.homeSet = homeSet;
 window.openMyHome = openMyHome;
+window.recordSwitch = recordSwitch;
+window.recordInstall = recordInstall;
+window.removeJourney = removeJourney;
+window.journeyCommit = journeyCommit;
+window.markAlertsSeen = markAlertsSeen;
+window.computeAlerts = computeAlerts;
+window.journeyTotal = journeyTotal;
 window.setSolarInstalled = setSolarInstalled;
 window.handoverKeep = handoverKeep;
 // Pure sync rules, exposed for the tests.

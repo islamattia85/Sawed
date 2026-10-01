@@ -54,3 +54,19 @@ Only accepted leads are billable; declined and invalid ones are not.
 ## 6. Commission partners
 
 When a supplier agreement is signed, add its plan ids to `window.__SAWED_PARTNERS` (in `index.html`) and put its tracking link in `AFFILIATE_URLS` (`src/main.js`). Partner plans are labelled in the app; a test proves the ranking is identical with and without them. Every switch click carries a `sawed_click` id, recorded in `public.events` (with analytics consent), to match against the partner's confirmed-switch report.
+
+## Email alerts (price changes, contract ending)
+
+A daily job (`/api/alerts-cron`, 08:00 UTC, set in `vercel.json`) emails signed-in
+households that turned on **Email me these** in My Peakless. It needs, in Vercel →
+Settings → Environment Variables:
+
+| Variable | What it is |
+|---|---|
+| `CRON_SECRET` | Any long random string. Vercel sends it with each cron call; without it the job refuses to run. |
+| `RESEND_API_KEY`, `MAIL_FROM` | Same as for lead emails. Without them the job runs but sends nothing. |
+| `SUPABASE_SERVICE_ROLE_KEY`, `APP_URL` | Already set. |
+
+Each email is logged in `alert_log`, so none is ever sent twice. "A cheaper plan for
+your home" needs the full model, which runs in the app, so it appears in My Peakless
+rather than by email.
