@@ -61,9 +61,16 @@ export async function boot(page, overrides = {}) {
   await isolate(page);
   const errors = collectErrors(page);
   await page.goto('/');
+  // The usage-measurement question is answered "no" unless a test is about
+  // that question (askConsent: true); its bar would otherwise sit over the
+  // buttons other tests tap.
+  const { askConsent, ...state } = overrides;
   await page.evaluate(
-    (s) => localStorage.setItem('solarAppState_v2', JSON.stringify(s)),
-    { ...SETUP, ...overrides },
+    ([s, ask]) => {
+      localStorage.setItem('solarAppState_v2', JSON.stringify(s));
+      if (ask) localStorage.removeItem('sawed_analytics'); else localStorage.setItem('sawed_analytics', 'no');
+    },
+    [{ ...SETUP, ...state }, !!askConsent],
   );
   await page.reload();
   await page.waitForFunction(() => !document.getElementById('loader'));

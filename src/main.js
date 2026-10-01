@@ -403,6 +403,7 @@ function renderAuthModal(){
       <button class="auth-secondary-btn" onclick="doSyncState()">Sync my settings to cloud</button>
       <div style="height:1px;background:var(--line);margin:16px 0"></div>
       <button class="auth-secondary-btn" onclick="doSignOut()" style="color:#ff6b6b;border-color:#ff444440">Sign out</button>
+      <button class="auth-secondary-btn" onclick="_authModalOpen=false;setScreen('privacy')" style="margin-top:8px">Delete my account…</button>
     </div>
   </div>`;
 }
@@ -3170,6 +3171,14 @@ if (!state.onboarding_complete && (state.current_screen === 'onboarding' || !sta
 if (state.onboarding_complete) state.seen_intro = true;
 
 // Helper — get affiliate URL for a tariff, fallback to a placeholder
+/*
+ * Plans whose supplier pays us for a switch. Ranking NEVER reads this — it is
+ * used only to label the plan "We may earn a commission" and to tag clicks.
+ * A test proves the ranking is identical with and without partners.
+ */
+const PARTNER_PLANS = new Set(window.__SAWED_PARTNERS || []);
+function isPartnerPlan(planId){ return PARTNER_PLANS.has(planId); }
+
 function getAffiliateUrl(planId){
   const url = AFFILIATE_URLS[planId];
   if (!url) return null;
@@ -3233,6 +3242,42 @@ function dlog(category, eventName, payload){
 // Optional helper: lets users (or us) dump the ring in DevTools by typing `dumpAnalytics()`
 if (typeof window !== 'undefined') {
   window.dumpAnalytics = () => _dlog_ring.slice();
+}
+
+/* ---- Consent-gated, first-party event tracking ---------------------------
+ * Partners are billed on counted events (quote requests, switch clicks), so
+ * they are recorded on our own server — but only when the person has said yes
+ * to anonymous usage measurement. No personal data is sent with an event. */
+const escAttr = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+function analyticsConsent(){ try { return localStorage.getItem('sawed_analytics'); } catch (e) { return null; } }
+function analyticsSession(){
+  if (analyticsConsent() !== 'yes') return null;
+  try {
+    let id = sessionStorage.getItem('sawed_sid');
+    if (!id){ id = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)).slice(0, 36); sessionStorage.setItem('sawed_sid', id); }
+    return id;
+  } catch (e) { return null; }
+}
+function setAnalyticsConsent(granted){
+  try { localStorage.setItem('sawed_analytics', granted ? 'yes' : 'no'); } catch (e) { /* private mode */ }
+  fetch('/api/consent', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kind: 'analytics', granted, text_version: 'v1', session_id: granted ? analyticsSession() : null }) }).catch(() => {});
+  renderApp();
+}
+function trackEvent(name, props, clickId){
+  fireEvent(name, props);
+  const sid = analyticsSession();
+  if (!sid) return;
+  fetch('/api/event', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, props, session_id: sid, click_id: clickId || null }) }).catch(() => {});
+}
+/** One-line consent bar, shown until answered. */
+function renderConsentBar(){
+  if (analyticsConsent()) return '';
+  return `<div class="consent-bar" role="region" aria-label="Usage measurement">
+    <span>May we count anonymous usage (which screens and buttons are used) to improve Sawed? No personal data, no ads.</span>
+    <span class="consent-btns"><button onclick="setAnalyticsConsent(false)">No thanks</button><button class="is-yes" onclick="setAnalyticsConsent(true)">Allow</button></span>
+  </div>`;
 }
 
 function fireEvent(name, props){
@@ -5470,7 +5515,11 @@ function handleSwitchClick(planId, planName, savings){
     if (state.switch_history.length > 20) state.switch_history.shift();
     saveState();
   }
-  const url = getAffiliateUrl(planId);
+  // A click ID ties this click to a confirmed switch a partner reports back.
+  const clickId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())).slice(0, 36);
+  trackEvent('switch_click', { plan_id: planId, partner: isPartnerPlan(planId), savings_eur: Math.round(savings) }, clickId);
+  const base = getAffiliateUrl(planId);
+  const url = base ? base + (base.includes('?') ? '&' : '?') + 'sawed_click=' + encodeURIComponent(clickId) : null;
   if (url && !url.includes('example.com')){
     window.open(url, '_blank');
   } else {
@@ -9262,7 +9311,11 @@ function renderMore(){
     ['Understand the numbers', [
       [ic('flask',19),'Methodology','Data sources & how the engine works','methodology'],
     ]],
+    ['For installers', [
+      [ic('home',19),'Installer portal','Leads sent to your company — accept, contact, track','installer'],
+    ]],
     ['Trust & help', [
+      [ic('shield',19),'Privacy and your data','What we keep, who sees it, delete your account','privacy'],
       [ic('shield',19),'Our independence','How we make money, in plain English','independence'],
       [ic('swap',19),'How to switch supplier','Step-by-step guide, takes ~10 minutes','how-to-switch'],
     ]],
@@ -9683,7 +9736,7 @@ const V7 = createV7({
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
   renderSolarBody: (part) => renderSolarDashboard({ bodyOnly: part || true }),
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,
-  getPlanById, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead,
+  getPlanById, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, renderConsentBar,
   fmtCurrency, fmtCent, fmtVerifiedDate, latestVerifiedLabel, planDataFlag, planCategoryLabel,
   freshnessChip, priceChangeChip, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
   renderBillShape, renderDayShape, renderSavingsBreakdown, renderAssumptions,
@@ -9815,6 +9868,115 @@ function v7ApplyQuote(){
     { type: 'accent', icon: ic('sun', 16) });
 }
 
+/* ---- Privacy and your data ---------------------------------------------
+ * Plain statement of what is kept where, plus the controls: analytics on or
+ * off, clear this device, delete the account. DRAFT wording — to be reviewed
+ * by a solicitor before launch. */
+function renderPrivacy(){
+  const a = analyticsConsent();
+  return `${topbar('Privacy', 'accent', true)}
+  <div class="screen">
+    <div class="card"><div class="privacy-copy">
+      <p><b>Your home's figures stay on this device</b> unless you sign in, when they are saved to your account so you can use them elsewhere.</p>
+      <p><b>If you ask for installer quotes</b>, and only with your agreement, we pass your name, contact details, county and the system modelled to up to three SEAI-registered installers. They pay us for the introduction.</p>
+      <p><b>If you switch plan through Sawed</b>, some suppliers may pay us a commission. Plans that do are labelled, and it never changes the order we rank plans in.</p>
+      <p><b>Uploaded quotes</b> are read by our AI reader (Anthropic's Claude) and are not stored.</p>
+      <p><b>Usage measurement</b> is anonymous and only with your permission: which screens and buttons are used. No ads, and we never sell personal data.</p>
+    </div></div>
+    <div class="secondary-card" style="cursor:default">
+      <div class="secondary-card-body"><div class="secondary-card-title">Anonymous usage measurement</div>
+        <div class="secondary-card-sub">${a === 'yes' ? 'Allowed' : a === 'no' ? 'Off' : 'Not answered'}</div></div>
+      <button class="v7-imp-btn" onclick="setAnalyticsConsent(${a === 'yes' ? 'false' : 'true'})">${a === 'yes' ? 'Turn off' : 'Allow'}</button>
+    </div>
+    <div class="secondary-card" onclick="clearThisDevice()">
+      <div class="secondary-card-body"><div class="secondary-card-title">Clear everything on this device</div>
+        <div class="secondary-card-sub">Your setup, saved quotes and settings</div></div><div class="secondary-card-arrow">›</div>
+    </div>
+    ${_sbUser ? `<div class="secondary-card" onclick="deleteMyAccount()">
+      <div class="secondary-card-body"><div class="secondary-card-title" style="color:var(--loss)">Delete my account</div>
+        <div class="secondary-card-sub">${escAttr(_sbUser.email || '')} — removes your account and saved data</div></div><div class="secondary-card-arrow">›</div>
+    </div>` : ''}
+    <p class="disclaimer">Questions about your data: contact us through the app's support page.</p>
+  </div>
+  ${bottomNav()}`;
+}
+function clearThisDevice(){
+  if (!confirm('Clear your setup, quotes and settings from this device?')) return;
+  try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
+  location.reload();
+}
+async function deleteMyAccount(){
+  if (!_sb || !_sbUser) return;
+  if (!confirm('Delete your account and everything saved to it? This cannot be undone.')) return;
+  try {
+    const { data } = await _sb.auth.getSession();
+    const token = data && data.session && data.session.access_token;
+    const res = await fetch('/api/delete-account', { method: 'POST', headers: { Authorization: 'Bearer ' + token } });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(out.error || 'Could not delete the account.');
+    await _sb.auth.signOut();
+    showToast('Your account has been deleted.', { type: 'accent', icon: ic('checkC', 16) });
+    setScreen('result');
+  } catch (e) {
+    showToast((e && e.message) || 'Could not delete the account.', { type: 'warn', icon: ic('warn', 16) });
+  }
+}
+
+/* ---- Installer portal ---------------------------------------------------
+ * For installers who buy leads. Signed in, they see the leads offered to their
+ * company: the system and its modelled economics always, the homeowner's
+ * contact details once they accept. Row-level security in the database
+ * enforces both; this screen only displays what it is allowed to read. */
+let _portal = { status: 'idle', rows: [], error: null };
+async function loadInstallerLeads(){
+  if (!_sb || !_sbUser) return;
+  _portal = { ..._portal, status: 'loading' };
+  const { data, error } = await _sb.rpc('installer_leads');
+  _portal = error ? { status: 'error', rows: [], error: error.message } : { status: 'ready', rows: data || [], error: null };
+  renderApp();
+}
+async function setLeadStatus(id, status){
+  const { error } = await _sb.rpc('set_assignment_status', { p_assignment: id, p_status: status });
+  if (error) showToast(error.message, { type: 'warn', icon: ic('warn', 16) });
+  loadInstallerLeads();
+}
+function renderInstallerPortal(){
+  if (!sbInitialized()) return `${topbar('Installer portal', 'accent', true)}<div class="screen"><p class="disclaimer">Accounts are not available.</p></div>${bottomNav()}`;
+  if (!_sbUser){
+    return `${topbar('Installer portal', 'accent', true)}
+    <div class="screen"><div class="card">
+      <p style="margin:0 0 12px;line-height:1.6">Installers partnered with Sawed see the quote requests sent to them here. Sign in with the email your company registered with us.</p>
+      <button class="switch-cta v7-cta" onclick="_authModalOpen=true;renderApp()">Sign in</button>
+    </div></div>${bottomNav()}`;
+  }
+  if (_portal.status === 'idle') setTimeout(loadInstallerLeads, 0);
+  const rows = _portal.rows;
+  const STAGES = [['accepted', 'Accept'], ['contacted', 'Contacted'], ['quoted', 'Quoted'], ['won', 'Won'], ['lost', 'Lost']];
+  const tl = { asap: 'ASAP', '3m': 'within 3 months', '6m': 'within 6 months', '12m': 'within a year', browsing: 'exploring' };
+  return `${topbar('Installer portal', 'accent', true)}
+  <div class="screen">
+    ${_portal.status === 'loading' ? '<p class="disclaimer">Loading your leads…</p>' : ''}
+    ${_portal.status === 'error' ? `<p class="disclaimer">${escAttr(_portal.error)}</p>` : ''}
+    ${_portal.status === 'ready' && !rows.length ? `<div class="card"><p style="margin:0;line-height:1.6">No leads yet for ${escAttr(_sbUser.email || 'this account')}. If your company has just joined, ask us to link this email to it.</p></div>` : ''}
+    ${rows.map((r) => {
+      const sp = r.spec || {};
+      const open = !['sent', 'declined'].includes(r.status);
+      return `<div class="card portal-lead">
+        <div class="portal-head"><b>${escAttr(r.county)}${r.eircode_area ? ' · ' + escAttr(r.eircode_area) : ''}</b><span class="portal-status is-${r.status}">${r.status}</span></div>
+        <div class="portal-spec">${sp.panels || '?'} panels · ${sp.kwp || '?'} kWp${sp.battery_kwh ? ` · ${sp.battery_kwh} kWh battery` : ''}${sp.ev ? ' · EV' : ''} · ${tl[r.timeline] || r.timeline}<br>
+          ${sp.payback_years ? `Modelled payback ${sp.payback_years} yr · ` : ''}${sp.annual_kwh ? `${sp.annual_kwh.toLocaleString('en-IE')} kWh/yr · ` : ''}quality ${r.quality_score}/100 · €${Number(r.price_eur).toFixed(0)}</div>
+        ${open ? `<div class="portal-contact">${escAttr(r.name || '')}<br><a href="mailto:${escAttr(r.email)}">${escAttr(r.email)}</a>${r.phone ? ` · <a href="tel:${escAttr(r.phone)}">${escAttr(r.phone)}</a>` : ''}</div>` : ''}
+        <div class="portal-actions">
+          ${r.status === 'sent' ? `<button class="v7-imp-btn" onclick="setLeadStatus('${r.assignment_id}','accepted')">Accept — show contact</button>
+            <button class="v7-link" onclick="setLeadStatus('${r.assignment_id}','declined')">Decline</button>`
+          : STAGES.slice(1).map(([v, t]) => `<button class="v7-link ${r.status === v ? 'is-on' : ''}" onclick="setLeadStatus('${r.assignment_id}','${v}')">${t}</button>`).join('')}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
+  ${bottomNav()}`;
+}
+
 /** Open a sheet over the current surface, or close it with null. */
 function v7Sheet(kind, id){
   state._sheet = kind ? { kind, id: id || null } : null;
@@ -9848,7 +10010,7 @@ function v7Choose(planId){
    in-app screen stack instead of leaving the app. Screens are
    pushed as hash entries; the ?s= share param is left untouched.
    ============================================================ */
-const APP_SCREENS = ['result','plans','plan-detail','solar','analytics','monitor',
+const APP_SCREENS = ['result','plans','plan-detail','solar','analytics','monitor','privacy','installer',
                      'compare','more','independence','quotes','auditor','refine',
                      'how-to-switch','methodology','csv-import'];
 
@@ -10239,6 +10401,8 @@ function renderApp(){
     case 'independence': html = renderIndependence(); break;
     case 'quotes':       html = renderQuotes(); break;
     case 'auditor':      html = renderAuditor(); break;
+    case 'privacy':      html = renderPrivacy(); break;
+    case 'installer':    html = renderInstallerPortal(); break;
     case 'refine':       html = renderRefine(); break;
     case 'how-to-switch':html = renderHowToSwitch(); break;
     case 'methodology':  html = renderMethodology(); break;
@@ -11229,61 +11393,70 @@ function renderMethodology(){
    SPRINT 4 — IMPROVED INSTALLER LEAD FORM (B3)
    Qualification fields + detailed spec capture
    ============================================================ */
+const LEAD_COUNTIES = ['Carlow', 'Cavan', 'Clare', 'Cork', 'Donegal', 'Dublin', 'Galway', 'Kerry', 'Kildare',
+  'Kilkenny', 'Laois', 'Leitrim', 'Limerick', 'Longford', 'Louth', 'Mayo', 'Meath', 'Monaghan', 'Offaly',
+  'Roscommon', 'Sligo', 'Tipperary', 'Waterford', 'Westmeath', 'Wexford', 'Wicklow'];
+// Must match CONSENT_TEXT_V1 in api/_lead.js — the server stores its own copy.
+const LEAD_CONSENT_TEXT = 'I agree that Sawed may share my name, contact details, county and the system modelled here with up to three SEAI-registered installers so they can contact me with a quote.';
+
+/** What the installers receive about the system: the spec and its modelled economics. */
+function leadSpec(){
+  const kwp = totalKwp();
+  let payback = null, benefit = null;
+  try {
+    const sc = computeSolarPaybackScenarios();
+    const cur = state.ev_active ? sc.withEv : sc.withoutEv;
+    if (cur && cur.payback < 50) payback = +cur.payback.toFixed(1);
+    if (cur) benefit = Math.round(cur.solarBenefit);
+  } catch (e) { /* the spec alone is still a lead */ }
+  return {
+    panels: totalPanels(), kwp: +kwp.toFixed(2), battery_kwh: state.battery_kwh || 0,
+    annual_kwh: Math.round(Object.values(state.bills).reduce((a, b) => a + b, 0)),
+    ev: !!state.ev_active, heating: state.heating_type || '',
+    payback_years: payback, annual_benefit_eur: benefit,
+    has_solar_now: !!state.has_solar && !state.solar_planned && !state.considering_solar,
+    uploaded_quote: (state.solar_quotes || []).some((q) => q.source === 'upload'),
+  };
+}
+
 function openLeadForm(){
   const m = document.createElement('div');
   m.id = 'lead-modal';
   m.className = 'modal-overlay';
-  const kwp = totalPanels ? totalPanels() * (state.panel_w || 460) / 1000 : 0;
-  const grant = calcSeaiGrant(kwp, state.battery_kwh || 0);
+  const sp = leadSpec();
+  const lf = state._lead_form || {};
   m.innerHTML = `
     <div class="modal" onclick="event.stopPropagation()" style="max-height:90vh;overflow-y:auto">
       <div class="modal-handle"></div>
-      <h3>Get <em>3 installer quotes</em></h3>
-      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;line-height:1.6">SEAI-registered installers only. We match based on your spec and region. No spam — promise.</p>
-
-      <div style="background:var(--accent-faint);border:1px solid var(--accent);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.8">
-        <b style="color:var(--accent)">Your spec:</b><br>
-        ${kwp > 0 ? `${kwp.toFixed(2)} kWp · ${totalPanels ? totalPanels() : '?'} panels · ` : ''}${state.battery_kwh > 0 ? state.battery_kwh + ' kWh battery · ' : ''}Region: ${state.region || 'not set'}<br>
-        SEAI grant estimate: <b style="color:var(--accent)">€${grant.total.toLocaleString()}</b>
+      <h3>Get up to <em>3 installer quotes</em></h3>
+      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px;line-height:1.6">SEAI-registered installers covering your county. They see the system below and contact you directly.</p>
+      <div style="background:var(--well);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--ink-soft);line-height:1.6">
+        <b style="color:var(--ink)">${sp.panels} panels · ${sp.kwp} kWp${sp.battery_kwh ? ` · ${sp.battery_kwh} kWh battery` : ''}</b>${sp.payback_years ? `<br>Modelled payback ${sp.payback_years} years` : ''}
       </div>
-
-      <label style="display:block;margin-bottom:8px">
-        <div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px">Email address *</div>
-        <input id="lead-email" class="modal-input" type="email" placeholder="you@example.com" autocomplete="email" value="${state.user_email || ''}">
-      </label>
-      <label style="display:block;margin-bottom:8px">
-        <div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px">Eircode or county *</div>
-        <input id="lead-eircode" class="modal-input" type="text" placeholder="e.g. D01 or Dublin" value="${state.eircode || state.address || ''}">
-      </label>
-      <label style="display:block;margin-bottom:8px">
-        <div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px">Roof type</div>
-        <select id="lead-roof" class="modal-input">
-          <option value="">Select…</option>
-          <option value="tile">Concrete/clay tile</option>
-          <option value="slate">Natural slate</option>
-          <option value="flat">Flat roof (felt/EPDM)</option>
-          <option value="metal">Metal/standing seam</option>
-          <option value="other">Other</option>
-        </select>
-      </label>
-      <label style="display:block;margin-bottom:16px">
-        <div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px">Timeline</div>
+      <label class="lead-field"><span>Email *</span>
+        <input id="lead-email" class="modal-input" type="email" autocomplete="email" value="${escAttr(lf.email || state.user_email || '')}"></label>
+      <label class="lead-field"><span>County *</span>
+        <select id="lead-county" class="modal-input"><option value="">Choose…</option>
+          ${LEAD_COUNTIES.map((c) => `<option ${lf.county === c ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+      <label class="lead-field"><span>Name</span>
+        <input id="lead-name" class="modal-input" type="text" autocomplete="name" value="${escAttr(lf.name || '')}"></label>
+      <label class="lead-field"><span>Phone</span>
+        <input id="lead-phone" class="modal-input" type="tel" autocomplete="tel" value="${escAttr(lf.phone || '')}"></label>
+      <label class="lead-field"><span>Eircode routing key (first 3 characters)</span>
+        <input id="lead-eircode" class="modal-input" type="text" maxlength="3" placeholder="e.g. T12" value="${escAttr(lf.eircode_area || '')}"></label>
+      <label class="lead-field"><span>When are you hoping to install?</span>
         <select id="lead-timeline" class="modal-input">
-          <option value="">Select…</option>
-          <option value="asap">As soon as possible</option>
-          <option value="3months">Within 3 months</option>
-          <option value="6months">Within 6 months</option>
-          <option value="exploring">Just exploring</option>
-        </select>
-      </label>
-
-      <button class="modal-btn" onclick="submitLeadForm()">Get my 3 quotes →</button>
-      <button class="modal-skip" onclick="closeLeadModal()">No thanks · skip</button>
-      <div class="modal-privacy">We never sell your data · SEAI-registered installers only · unsubscribe anytime</div>
+          ${[['asap', 'As soon as possible'], ['3m', 'Within 3 months'], ['6m', 'Within 6 months'], ['12m', 'Within a year'], ['browsing', 'Just exploring']]
+            .map(([v, t]) => `<option value="${v}" ${lf.timeline === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+      <label class="lead-consent"><input id="lead-consent" type="checkbox"> <span>${LEAD_CONSENT_TEXT}</span></label>
+      <div id="lead-error" class="lead-error" role="alert"></div>
+      <button class="modal-btn" id="lead-submit" onclick="submitLeadForm()">Send my request →</button>
+      <button class="modal-skip" onclick="closeLeadModal()">Not now</button>
+      <div class="modal-privacy">We never sell your data. Installers pay us for introductions; that never changes which plan or system we show you. <a href="#" onclick="event.preventDefault();closeLeadModal();setScreen('privacy')">Privacy</a></div>
     </div>`;
   m.onclick = closeLeadModal;
   document.body.appendChild(m);
-  setTimeout(() => { const el = document.getElementById('lead-email'); if(el && !el.value) el.focus(); }, 100);
+  setTimeout(() => { const el = document.getElementById('lead-email'); if (el && !el.value) el.focus(); }, 100);
 }
 
 function closeLeadModal(){
@@ -11291,45 +11464,38 @@ function closeLeadModal(){
   if (m) m.remove();
 }
 
-function submitLeadForm(){
-  const email = (document.getElementById('lead-email')?.value || '').trim();
-  const eircode = (document.getElementById('lead-eircode')?.value || '').trim();
-  const roof = document.getElementById('lead-roof')?.value || '';
-  const timeline = document.getElementById('lead-timeline')?.value || '';
-
-  if (!email || !email.includes('@')){
-    document.getElementById('lead-email')?.focus();
-    return;
-  }
-  if (!eircode){
-    document.getElementById('lead-eircode')?.focus();
-    return;
-  }
-
-  const kwp = totalPanels ? totalPanels() * (state.panel_w || 460) / 1000 : 0;
-  const grant = calcSeaiGrant(kwp, state.battery_kwh || 0);
-
-  captureEmail(email, 'installer_quotes');
-  state.eircode = eircode;
-  saveState();
-
-  const leadData = {
-    email, eircode, roof, timeline,
-    spec: {
-      kwp: kwp.toFixed(2),
-      panels: totalPanels ? totalPanels() : 0,
-      battery_kwh: state.battery_kwh,
-      region: state.region,
-      annual_kwh: Math.round(Object.values(state.bills).reduce((a,b)=>a+b,0)),
-      seai_grant: grant.total,
-      ev: state.ev_active,
-    }
+async function submitLeadForm(){
+  const val = (id) => (document.getElementById(id)?.value || '').trim();
+  const err = (msg) => { const e = document.getElementById('lead-error'); if (e) e.textContent = msg; };
+  const body = {
+    email: val('lead-email'), county: val('lead-county'), name: val('lead-name') || null,
+    phone: val('lead-phone') || null, eircode_area: val('lead-eircode') || null, timeline: val('lead-timeline'),
+    consent_share: !!document.getElementById('lead-consent')?.checked,
+    spec: leadSpec(), session_id: analyticsSession(),
   };
-  dlog('LEAD', 'installer_quote_v2', leadData);
-  fireEvent('installer_lead', { kwp: parseFloat(kwp.toFixed(2)), region: state.region, battery: state.battery_kwh > 0, timeline });
-
-  closeLeadModal();
-  showToast('Saved on this device. Installer matching isn\u2019t live yet.', { type:'blue', icon:ic('info',16) });
+  // Remembered on this device so a failed send never loses what was typed.
+  state._lead_form = { email: body.email, county: body.county, name: body.name, phone: body.phone, eircode_area: body.eircode_area, timeline: body.timeline };
+  saveState();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(body.email)) return err('Please enter a valid email address.');
+  if (!body.county) return err('Please choose your county.');
+  if (!body.consent_share) return err('Tick the box so we can pass your details to installers.');
+  const btn = document.getElementById('lead-submit');
+  if (btn){ btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    const res = await fetch('/api/lead', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(out.error || 'Your request could not be sent. Please try again.');
+    captureEmail(body.email, 'installer_quotes');
+    trackEvent('lead_submitted', { county: body.county, timeline: body.timeline, battery: body.spec.battery_kwh > 0 });
+    closeLeadModal();
+    showToast(out.duplicate ? 'We already have your request — installers will be in touch.'
+      : out.matched > 0 ? `Sent to ${out.matched} installer${out.matched > 1 ? 's' : ''} in ${body.county}. They'll contact you directly.`
+      : `Saved. We don't have a partner installer in ${body.county} yet — we'll email you when we do.`,
+      { type: 'accent', icon: ic('checkC', 16) });
+  } catch (e) {
+    err((e && e.message) || 'Your request could not be sent. Please try again.');
+    if (btn){ btn.disabled = false; btn.textContent = 'Send my request →'; }
+  }
 }
 
 /* ============================================================
@@ -11393,6 +11559,12 @@ window.exploreSolar = exploreSolar;
 window.handleSwitchClick = handleSwitchClick;
 window.setScreen = setScreen;
 window.v7Sheet = v7Sheet;
+window.clearThisDevice = clearThisDevice;
+window.deleteMyAccount = deleteMyAccount;
+window.setLeadStatus = setLeadStatus;
+window.setAnalyticsConsent = setAnalyticsConsent;
+window.submitLeadForm = submitLeadForm;
+window.isPartnerPlan = isPartnerPlan;
 window.v7QuoteFile = v7QuoteFile;
 window.v7QuoteReset = v7QuoteReset;
 window.v7ApplyQuote = v7ApplyQuote;

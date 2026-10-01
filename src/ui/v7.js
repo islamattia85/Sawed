@@ -28,7 +28,7 @@ export const V7_SURFACES = [
   { id: 'plans', icon: 'plans', label: 'Plans', screens: ['plans', 'plan-detail', 'compare'] },
   { id: 'solar', icon: 'sun', label: 'Solar', screens: ['solar', 'analytics'] },
   { id: 'more', icon: 'grid', label: 'More',
-    screens: ['more', 'monitor', 'refine', 'csv-import', 'auditor', 'quotes', 'methodology', 'independence', 'how-to-switch'] },
+    screens: ['more', 'monitor', 'refine', 'csv-import', 'auditor', 'quotes', 'methodology', 'independence', 'how-to-switch', 'privacy', 'installer'] },
 ];
 
 export function createV7(api) {
@@ -54,7 +54,7 @@ export function createV7(api) {
   function nav() {
     const cur = S().current_screen;
     const active = (V7_SURFACES.find((s) => s.screens.includes(cur)) || {}).id;
-    return `<nav class="bottom-nav v7-nav" role="navigation" aria-label="Sections">
+    return `${api.renderConsentBar()}<nav class="bottom-nav v7-nav" role="navigation" aria-label="Sections">
       ${V7_SURFACES.map((s) => `
         <button class="bottom-nav-item v7-nav-item ${active === s.id ? 'active' : ''}"
           onclick="setScreen('${s.id}')" aria-current="${active === s.id ? 'page' : 'false'}">
@@ -584,6 +584,7 @@ export function createV7(api) {
         <div class="v7-rate"><i class="v7-dot" style="background:var(--ink-dim)"></i>Standing<b>${api.fmtCurrency(plan.standing)}/yr</b></div>
         ${plan.export_rate ? `<div class="v7-rate"><i class="v7-dot" style="background:var(--accent)"></i>Export<b>${api.fmtCent(plan.export_rate)}</b></div>` : ''}
       </div>
+      ${api.isPartnerPlan(plan.id) ? `<div class="v7-fine">We may earn a commission if you switch to this plan. It never changes the order plans are ranked in.</div>` : ''}
       ${weekendLine(plan, label)}
       ${batteryLine(s, plan)}
       <div class="v7-fine">Every plan also carries the €19.10 PSO levy, set by the regulator; it is in the yearly figure above.</div>
