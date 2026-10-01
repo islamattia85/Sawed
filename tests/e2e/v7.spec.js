@@ -414,3 +414,50 @@ test('sheet fields never trigger the iOS focus zoom, and sheets never scroll sid
     expect(r.ox).toBe('hidden');
   }
 });
+
+test('My Peakless: a guest sees the household, the quotes and why an account helps', async ({ page }) => {
+  await boot(page, { current_screen: 'more', has_solar: true, considering_solar: true, count_A: 12, battery_kwh: 5,
+    solar_quotes: [{ id: 'q1', installer: 'Sunny Ltd', price: 9800, kwp: 6.6, battery: 10, source: 'upload' }] });
+  await page.locator('.me-entry').click();
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('me');
+  const me = page.locator('.screen.me');
+  await expect(me.locator('.me-guest')).toContainText('saved on this phone only');
+  await expect(me.locator('.me-card')).toHaveCount(3);
+  await expect(me).toContainText('Sunny Ltd');
+  // The More tab stays lit: My Peakless lives under it.
+  await expect(page.locator('.v7-nav-item.active')).toContainText('More');
+
+  // A saved quote becomes the modelled system in one tap.
+  await me.getByRole('button', { name: 'Model it' }).click();
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('solar');
+  const s = await page.evaluate(() => ({ b: window.state.battery_kwh, c: window.state.install_cost, manual: window.state.cost_is_manual }));
+  expect(s).toEqual({ b: 10, c: 9800, manual: true });
+
+  // The household cards open the sheets.
+  await page.evaluate(() => window.setScreen('me'));
+  await page.locator('.me-card', { hasText: 'My home' }).click();
+  await expect(page.locator('#v7-sheet')).toContainText('My home');
+});
+
+test('account sync: screen state stays local, quotes are never lost, the same home is recognised', async ({ page }) => {
+  await boot(page);
+  const r = await page.evaluate(() => {
+    const { cloudCopy, setupKey, mergeQuotes } = window.__sync;
+    const copy = cloudCopy({ ...window.state, _sheet: { kind: 'home' }, current_screen: 'plans' });
+    const a = { ...window.state };
+    const b = { ...window.state, current_screen: 'solar', theme: 'dark' };
+    const c = { ...window.state, battery_kwh: (window.state.battery_kwh || 0) + 5 };
+    return {
+      leaks: ['_sheet', 'current_screen', '_saved_at', '_account_id'].filter((k) => k in copy),
+      keepsHome: copy.region === window.state.region && copy.baseline === window.state.baseline,
+      sameHome: setupKey(a) === setupKey(b),
+      otherHome: setupKey(a) === setupKey(c),
+      quotes: mergeQuotes([{ id: '1' }, { id: '2' }], [{ id: '2' }, { id: '3' }]).map((q) => q.id),
+    };
+  });
+  expect(r.leaks).toEqual([]);
+  expect(r.keepsHome).toBe(true);
+  expect(r.sameHome).toBe(true);
+  expect(r.otherHome).toBe(false);
+  expect(r.quotes).toEqual(['1', '2', '3']);
+});

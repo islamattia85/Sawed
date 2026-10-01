@@ -18,6 +18,13 @@ export default async function handler(req, res) {
   const { lead, error } = validateLead(readBody(req));
   if (error) return res.status(400).json({ error });
   lead.quality_score = scoreLead(lead);
+  // Signed in: the request belongs to the account, so it shows in My Peakless.
+  // The token is checked with the auth server, never trusted as sent.
+  const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (token) {
+    const { data: who } = await db.auth.getUser(token).catch(() => ({ data: null }));
+    if (who && who.user) lead.user_id = who.user.id;
+  }
   if (lead.phone) lead.phone = lead.phone.replace(/[^\d+]/g, '');
 
   // The same person asking again within 30 days — same email, or same phone —

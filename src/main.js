@@ -72,6 +72,7 @@ async function sbInit(){
       await sbLoadProfile();
     }
     _sb.auth.onAuthStateChange(async (event, session) => {
+      if ((session ? session.user.id : null) !== (_sbUser ? _sbUser.id : null)) _myLeads = null;
       _sbUser = session ? session.user : null;
       if (_sbUser) {
         window._authEmailOpen = false;
@@ -87,32 +88,159 @@ async function sbInit(){
   }
 }
 
+/* ---- The account copy of the household -----------------------------------
+ * Signed in, every save on this phone is also written to the account a few
+ * seconds later, so the same home opens on any device. Signing in on a phone
+ * that already has a setup never silently throws one away: an empty account
+ * takes the phone's setup, an empty phone takes the account's, the same home
+ * on both is simply joined, and two different homes are put side by side for
+ * the person to choose. Saved quotes from both are always kept. */
+
+// What describes this screen rather than the household is never synced.
+const NO_SYNC = ['current_screen', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
+  '_tariff_refreshing', '_expert_open', '_account_id', '_saved_at'];
+let _sync = { status: 'idle', at: null };
+let _syncTimer = null;
+let _handover = null;          // { remote, remoteAt } while the person chooses
+let _myLeads = null;           // the account's quote requests, once fetched
+
+function cloudCopy(src){
+  const o = {};
+  for (const k in src) if (!NO_SYNC.includes(k)) o[k] = src[k];
+  return o;
+}
+function setupKey(st){
+  const keys = ['region', 'heating_type', 'usage_input_mode', 'annual_kwh', 'bimonthly_bill_eur', 'baseline',
+    'has_solar', 'count_A', 'count_B', 'panel_w', 'battery_kwh', 'ev_active'];
+  return JSON.stringify(keys.map((k) => st[k] ?? null));
+}
+function mergeQuotes(a, b){
+  const out = [...(a || [])];
+  for (const q of b || []) if (!out.some((x) => x.id === q.id)) out.push(q);
+  return out;
+}
+function queueCloudSave(){
+  if (!_sb || !_sbUser || _handover) return;
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(() => { sbSaveProfile(); }, 2500);
+}
+function takeRemote(remote){
+  const keep = {};
+  NO_SYNC.forEach((k) => { if (k in state) keep[k] = state[k]; });
+  const quotes = mergeQuotes(state.solar_quotes, remote.solar_quotes);
+  state = deepMerge(state, cloudCopy(remote));
+  Object.assign(state, keep);
+  state.solar_quotes = quotes;
+  state._account_id = _sbUser.id;
+  if (!state.onboarding_complete) state.current_screen = 'welcome';
+  else if (['welcome', 'fastpath', 'onboarding', 'intro'].includes(state.current_screen)) state.current_screen = 'result';
+  try { applyRegion(state.region || 'east'); } catch (e) {}
+  invalidate();
+  saveState();
+}
+
 async function sbLoadProfile(){
   if (!_sb || !_sbUser) return;
   try {
-    const { data } = await _sb.from('profiles').select('*').eq('id', _sbUser.id).single();
+    const { data } = await _sb.from('profiles').select('*').eq('id', _sbUser.id).maybeSingle();
     _sbProfile = data;
-    if (_sbProfile && _sbProfile.app_state) {
-      const remote = typeof _sbProfile.app_state === 'string'
-        ? JSON.parse(_sbProfile.app_state) : _sbProfile.app_state;
-      state = deepMerge(state, remote);
-      saveState();
+    let remote = data && data.app_state;
+    if (typeof remote === 'string') { try { remote = JSON.parse(remote); } catch (e) { remote = null; } }
+    const here = !!state.onboarding_complete;
+    const there = !!(remote && remote.onboarding_complete);
+    if (!there){
+      // A new account: this phone's setup becomes the account's.
+      if (here){ await sbSaveProfile(); if (data) showToast('Your setup is now saved to your account', { type: 'accent', icon: ic('checkC', 16) }); }
+      return;
     }
-  } catch(e){}
+    if (!here || setupKey(state) === setupKey(remote)){ takeRemote(remote); return; }
+    if (state._account_id === _sbUser.id){
+      // This phone has synced with this account before: the newer copy wins.
+      const remoteAt = Date.parse(data.updated_at || 0) || 0;
+      if (remoteAt > (state._saved_at || 0)) takeRemote(remote); else await sbSaveProfile();
+      return;
+    }
+    // Two different homes, and this phone has never synced with the account.
+    _handover = { remote, remoteAt: data.updated_at };
+    state._sheet = { kind: 'handover', id: null };
+  } catch (e){}
 }
 
 async function sbSaveProfile(extraFields){
   if (!_sb || !_sbUser) return;
+  _sync = { status: 'saving', at: _sync.at };
   try {
     const payload = {
       id: _sbUser.id,
       email: _sbUser.email,
-      app_state: JSON.stringify(state),
+      app_state: cloudCopy(state),
       updated_at: new Date().toISOString(),
       ...(extraFields || {}),
     };
-    await _sb.from('profiles').upsert(payload, { onConflict: 'id' });
-  } catch(e){}
+    const { error } = await _sb.from('profiles').upsert(payload, { onConflict: 'id' });
+    if (error) throw error;
+    _sync = { status: 'saved', at: Date.now() };
+    if (state._account_id !== _sbUser.id){
+      state._account_id = _sbUser.id;
+      try { localStorage.setItem('solarAppState_v2', JSON.stringify(state)); } catch (e) {}
+    }
+  } catch (e){
+    _sync = { status: 'error', at: _sync.at };
+  }
+  const line = document.getElementById('me-sync');
+  if (line) line.textContent = syncLine();
+}
+
+function syncLine(){
+  if (_sync.status === 'saving') return 'Saving to your account…';
+  if (_sync.status === 'error') return 'Not saved to your account yet. It will retry on your next change.';
+  if (_sync.at){
+    const m = Math.round((Date.now() - _sync.at) / 60000);
+    return `Saved to your account ${m < 1 ? 'just now' : m === 1 ? 'a minute ago' : m + ' minutes ago'}`;
+  }
+  return 'Saved to your account';
+}
+
+/** Two different homes: keep one as the household, keep every quote. */
+function handoverKeep(which){
+  const h = _handover;
+  _handover = null;
+  state._sheet = null;
+  if (!h) return renderApp();
+  if (which === 'cloud') takeRemote(h.remote);
+  else { state.solar_quotes = mergeQuotes(state.solar_quotes, h.remote.solar_quotes); saveState(); sbSaveProfile(); }
+  showToast(which === 'cloud' ? 'Opened the setup saved in your account' : "This phone's setup is now saved to your account",
+    { type: 'accent', icon: ic('checkC', 16) });
+  renderApp();
+}
+
+function setupSummary(st){
+  const kwh = Math.round(Object.values(st.bills || {}).reduce((a, b) => a + b, 0) || st.annual_kwh || 0);
+  const region = IRISH_REGIONS[st.region || 'east'];
+  const sys = st.has_solar && (st.count_A || 0) + (st.count_B || 0) > 0
+    ? `${(st.count_A || 0) + (st.count_B || 0)} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}` : 'no solar';
+  return `${region ? region.name : ''} · ${st.heating_type || 'gas'} heating · ${kwh.toLocaleString('en-IE')} kWh a year · ${sys}${st.ev_active ? ' · EV' : ''}`;
+}
+
+function renderHandoverSheet(){
+  const h = _handover;
+  if (!h) return '';
+  const when = h.remoteAt ? new Date(h.remoteAt).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  return `<div class="v7-sheet-head">
+      <div class="v7-eyebrow">Signed in</div>
+      <h2 class="v7-h">Which home should we keep?</h2>
+    </div>
+    <p class="me-p">This phone and your account each have a different setup. Pick the one that is your home. Saved quotes from both are kept either way.</p>
+    <button class="me-choice" onclick="handoverKeep('local')">
+      <span class="me-choice-tag">On this phone</span>
+      <b>${esc(setupSummary(state))}</b>
+      <small>Keep this one, and save it to your account</small>
+    </button>
+    <button class="me-choice" onclick="handoverKeep('cloud')">
+      <span class="me-choice-tag">In your account${when ? ` · saved ${when}` : ''}</span>
+      <b>${esc(setupSummary(h.remote))}</b>
+      <small>Open this one on this phone</small>
+    </button>`;
 }
 
 async function sbSignUp(email, password, displayName){
@@ -414,7 +542,7 @@ function renderProfileNavBtn(){
   if (_sbUser){
     const initials = (_sbProfile && _sbProfile.display_name
       ? _sbProfile.display_name : (_sbUser.email || '?')).slice(0,1).toUpperCase();
-    return `<button class="profile-nav-btn" onclick="_authModalOpen=true;renderApp()" aria-label="Your profile">
+    return `<button class="profile-nav-btn" onclick="setScreen('me')" aria-label="My ${BRAND.name}">
       <div class="profile-nav-avatar">${initials}</div>
     </button>`;
   }
@@ -953,7 +1081,11 @@ function deepMerge(target, source){
   }
   return out;
 }
-function saveState(){ try { localStorage.setItem("solarAppState_v2", JSON.stringify(state)); } catch(e){} }
+function saveState(){
+  state._saved_at = Date.now();
+  try { localStorage.setItem("solarAppState_v2", JSON.stringify(state)); } catch(e){}
+  queueCloudSave();
+}
 
 /* ============================================================
    2b. WATCHING THE BATTERY STRATEGY
@@ -9201,6 +9333,125 @@ function renderCompareTable(selIds){
   </div>`;
 }
 
+/* ── MY PEAKLESS ───────────────────────────────────────────────
+ * The household in one place: the home, the system and the car it was
+ * built from, what the app found, the quotes kept and the requests sent.
+ * A guest gets the same page, saved on this phone, with the one thing an
+ * account adds said plainly. */
+function quoteToSystem(id){
+  const q = (state.solar_quotes || []).find((x) => x.id === id);
+  if (!q) return;
+  const w = state.panel_w || 440;
+  state.has_solar = true; state.considering_solar = true; state.solar_is_estimate = false;
+  state.count_A = Math.max(1, Math.round((+q.kwp || 0) * 1000 / w)); state.count_B = 0;
+  state.battery_kwh = +q.battery || 0;
+  state.install_cost = Math.round(+q.price || 0); state.cost_is_manual = true;
+  applyEstimatedSolarCost();
+  if ((state.solar_view || 'mine') === 'mine') snapshotMySystem();
+  invalidate(); saveState();
+  showToast(`Modelling ${esc(q.installer || 'the quote')}: ${(+q.kwp).toFixed(1)} kWp${q.battery > 0 ? ` + ${q.battery} kWh` : ''}`, { type: 'accent', icon: ic('checkC', 16) });
+  setScreen('solar');
+}
+
+async function loadMyLeads(){
+  if (!_sb || !_sbUser) return;
+  try {
+    const { data, error } = await _sb.rpc('my_quote_requests');
+    _myLeads = error ? [] : (data || []);
+  } catch (e){ _myLeads = []; }
+  if (state.current_screen === 'me') renderApp();
+}
+
+function meOpenAuth(view){
+  _authModalOpen = true;
+  window._authEmailOpen = view === 'signup' || view === 'login';
+  _authEmailView = view === 'signup' ? 'signup' : 'login';
+  renderApp();
+}
+
+function renderMe(){
+  const signedIn = !!_sbUser;
+  if (signedIn && _myLeads === null){ _myLeads = []; loadMyLeads(); }
+  const name = (_sbProfile && _sbProfile.display_name) || (signedIn ? (_sbUser.email || '').split('@')[0] : '');
+  const region = IRISH_REGIONS[state.region || 'east'];
+  const kwh = Math.round(v7AnnualKwh());
+  const hasSys = state.considering_solar && totalPanels() > 0;
+  let found = null;
+  try {
+    if (state.onboarding_complete){ const rec = getRecommendation(); found = { save: rec.baseCost - rec.best.net, plan: rec.best.plan }; }
+  } catch (e) {}
+  const quotes = state.solar_quotes || [];
+  const card = (onclick, icon, title, sub, cta) => `<button class="me-card" onclick="${onclick}">
+      <span class="me-card-ico">${icon}</span><b>${title}</b><small>${sub}</small><span class="me-card-cta">${cta} ${ic('chevR', 14)}</span></button>`;
+
+  const head = signedIn
+    ? `<section class="me-head">
+        <div class="me-avatar" aria-hidden="true">${esc((name || '?').slice(0, 1).toUpperCase())}</div>
+        <div class="me-who"><b>${esc(name)}</b><small>${esc(_sbUser.email || '')}</small>
+          <small class="me-sync" id="me-sync">${ic('checkC', 12)} ${esc(syncLine())}</small></div>
+      </section>`
+    : `<section class="me-head me-guest">
+        <div class="me-guest-top">${wordmarkHtml('pk-word-top')}<span class="me-badge">Guest</span></div>
+        <p class="me-p">Everything here is saved on this phone only. An account keeps it safe and opens the same home on any device. It is free, and nothing changes in how plans are ranked.</p>
+        ${sbInitialized() ? `<div class="me-auth">
+          <button class="v7-cta-2" onclick="meOpenAuth('signup')">Create a free account</button>
+          <button class="me-ghost" onclick="meOpenAuth('login')">I have an account</button>
+        </div>` : ''}
+      </section>`;
+
+  const requests = signedIn
+    ? (_myLeads && _myLeads.length ? _myLeads.map((l) => `<div class="me-row">
+          <span><b>${esc(l.spec?.panels ? `${l.spec.panels} panels` : 'Solar')}${l.spec?.battery_kwh ? ` · ${l.spec.battery_kwh} kWh` : ''} · ${esc(l.county)}</b>
+          <small>${new Date(l.updated_at || l.created_at).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })} · ${l.installers
+            ? `sent to ${l.installers} installer${l.installers > 1 ? 's' : ''}${l.responded ? ` · ${l.responded} responded` : ''}`
+            : 'no partner installer in this county yet'}</small></span></div>`).join('')
+        : `<div class="me-empty">No quote requests yet.</div>`)
+    : (state._lead_form?.sent_at
+        ? `<div class="me-row"><span><b>Request sent ${new Date(state._lead_form.sent_at).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })}</b><small>Sign in to follow it from any device</small></span></div>`
+        : `<div class="me-empty">No quote requests yet.</div>`);
+
+  return `${topbar('My ' + BRAND.name, 'sage', true)}
+  <div class="screen me">
+    ${head}
+    ${_handover ? `<button class="me-warn" onclick="v7Sheet('handover')">${ic('warn', 16)} This phone and your account have different homes. Choose which to keep. Nothing is saved to your account until you do.</button>` : ''}
+
+    <div class="section-title">My household</div>
+    <div class="me-cards">
+      ${card('openMyHome()', ic('home', 18), 'My home', `${esc(region ? region.name : '')} · ${kwh.toLocaleString('en-IE')} kWh a year`, 'Edit')}
+      ${card('openMySystem()', ic('sun', 18), 'My system', hasSys ? `${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh` : ''}` : 'No solar yet', hasSys ? 'Edit' : 'Model one')}
+      ${card(state.ev_active ? "setScreen('result');v7Sheet('ev')" : 'openMyHome()', ic('car', 18), 'My EV', state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No EV', state.ev_active ? 'See it' : 'Add one')}
+    </div>
+
+    ${found ? `<div class="section-title">What we found</div>
+    <section class="me-found" onclick="setScreen('result')" role="button" tabindex="0">
+      <div class="me-found-fig">${found.save > 10 ? eur(found.save) : '€0'}<small>a year</small></div>
+      <p>${found.save > 10 ? `less on ${esc(found.plan.supplier)} ${esc(found.plan.plan)} than you pay today` : 'Your current plan is already the best for your home'}</p>
+      <div class="me-fine">Savings you actually make will be tracked here once you switch or add solar.</div>
+    </section>` : ''}
+
+    <div class="section-title">Saved quotes</div>
+    <section class="me-list">
+      ${quotes.length ? quotes.map((q) => { const a = assessQuote(q); const qid = escAttr(q.id); return `<div class="me-row">
+          <span><b>${esc(q.installer || 'Installer')} · ${eur(+q.price || 0)}</b>
+          <small>${(+q.kwp || 0).toFixed(1)} kWp${+q.battery > 0 ? ` · ${q.battery} kWh battery` : ''} · <span class="${a.cls}">${esc(String(a.verdict).replace(/<[^>]+>/g, ''))}</span></small></span>
+          <button class="me-mini" onclick="quoteToSystem('${qid}')">Model it</button>
+          <button class="me-mini me-x" aria-label="Remove quote" onclick="removeQuote('${qid}')">${ic('x', 14)}</button>
+        </div>`; }).join('') : `<div class="me-empty">No quotes saved yet.</div>`}
+      <button class="me-add" onclick="setScreen('solar');v7Sheet('quote')">${ic('clip', 16)} Upload an installer's quote</button>
+    </section>
+
+    <div class="section-title">Quote requests</div>
+    <section class="me-list">${requests}</section>
+
+    ${signedIn ? `<div class="section-title">Account</div>
+    <section class="me-list">
+      <button class="me-row me-link" onclick="setScreen('privacy')"><span><b>Privacy and your data</b><small>What we keep, download or delete it</small></span>${ic('chevR', 16)}</button>
+      <button class="me-row me-link" onclick="doSignOut()"><span><b>Sign out</b><small>Your setup stays on this phone and in your account</small></span>${ic('chevR', 16)}</button>
+    </section>` : ''}
+  </div>
+  ${bottomNav()}`;
+}
+
 function renderMore(){
   const nQuotes = (state.solar_quotes || []).length;
   const groups = [
@@ -9233,6 +9484,11 @@ function renderMore(){
   const th = state.theme === 'dark' ? 'dark' : 'light';
   return `${topbar('More', 'sage', true)}
   <div class="screen">
+    <button class="me-entry" onclick="setScreen('me')">
+      <span class="me-avatar" aria-hidden="true">${_sbUser ? esc(((_sbProfile && _sbProfile.display_name) || _sbUser.email || '?').slice(0, 1).toUpperCase()) : ic('home', 18)}</span>
+      <span class="me-who"><b>My ${BRAND.name}</b><small>${_sbUser ? 'Your home, system, quotes and requests' : 'Your home, system and quotes · saved on this phone'}</small></span>
+      ${ic('chevR', 16)}
+    </button>
     <div class="secondary-card" style="cursor:default">
       <div class="secondary-card-icon">${ic(th === 'dark' ? 'moon' : 'sun', 19)}</div>
       <div class="secondary-card-body">
@@ -9256,7 +9512,7 @@ function renderMore(){
       </div>`).join('')}
     `).join('')}
     <div style="font-size:13px;color:var(--ink-dim);text-align:center;margin-top:18px;line-height:1.7">
-      ${BRAND.name} · Independent · Ireland<br>Your data stays on this device.
+      ${BRAND.name} · Independent · Ireland<br>${_sbUser ? 'Your setup is saved on this phone and in your account.' : 'Your data stays on this device.'}
       <!-- Which build you are actually running. A fix can be deployed and
            verified and still not be what is on someone's phone: the installed
            app caches the page, and an offline or flaky load falls back to that
@@ -9653,7 +9909,7 @@ const V7 = createV7({
   renderBillShape, renderDayShape, renderSavingsBreakdown, renderAssumptions,
   renderTrustPanel, renderLogicBreakdown, renderNightRateCard, renderEvSavingsCard, evEconomics,
   renderSolarComparison, renderDayInspector,
-  renderSystemSheet, renderHomeSheet, renderAccuracy, modelAccuracy,
+  renderSystemSheet, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet,
 });
 
 /**
@@ -10253,7 +10509,7 @@ function v7Choose(planId){
    in-app screen stack instead of leaving the app. Screens are
    pushed as hash entries; the ?s= share param is left untouched.
    ============================================================ */
-const APP_SCREENS = ['result','plans','plan-detail','solar','analytics','monitor','privacy','installer',
+const APP_SCREENS = ['result','plans','plan-detail','solar','analytics','monitor','privacy','installer','me',
                      'compare','more','independence','quotes','auditor','refine',
                      'how-to-switch','methodology','csv-import'];
 
@@ -10645,6 +10901,7 @@ function renderApp(){
     case 'quotes':       html = renderQuotes(); break;
     case 'auditor':      html = renderAuditor(); break;
     case 'privacy':      html = renderPrivacy(); break;
+    case 'me':           html = renderMe(); break;
     case 'installer':    html = renderInstallerPortal(); break;
     case 'refine':       html = renderRefine(); break;
     case 'how-to-switch':html = renderHowToSwitch(); break;
@@ -11748,7 +12005,10 @@ async function submitLeadForm(){
   const btn = document.getElementById('lead-submit');
   if (btn){ btn.disabled = true; btn.textContent = 'Sending…'; }
   try {
-    const res = await fetch('/api/lead', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const headers = { 'Content-Type': 'application/json' };
+    // Signed in: the server links the request to the account (My Peakless lists it).
+    try { const t = _sb && (await _sb.auth.getSession()).data.session?.access_token; if (t) headers.Authorization = 'Bearer ' + t; } catch (e) {}
+    const res = await fetch('/api/lead', { method: 'POST', headers, body: JSON.stringify(body) });
     const out = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(out.error || 'Your request could not be sent. Please try again.');
     captureEmail(body.email, 'installer_quotes');
@@ -11836,6 +12096,11 @@ window.sysTypicalPrice = sysTypicalPrice;
 window.openMySystem = openMySystem;
 window.homeSet = homeSet;
 window.openMyHome = openMyHome;
+window.handoverKeep = handoverKeep;
+// Pure sync rules, exposed for the tests.
+window.__sync = { cloudCopy, setupKey, mergeQuotes };
+window.quoteToSystem = quoteToSystem;
+window.meOpenAuth = meOpenAuth;
 window.modelAccuracy = modelAccuracy;
 window.clearThisDevice = clearThisDevice;
 window.deleteMyAccount = deleteMyAccount;

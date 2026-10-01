@@ -28,7 +28,7 @@ export const V7_SURFACES = [
   { id: 'plans', icon: 'plans', label: 'Plans', screens: ['plans', 'plan-detail', 'compare'] },
   { id: 'solar', icon: 'sun', label: 'Solar', screens: ['solar', 'analytics'] },
   { id: 'more', icon: 'grid', label: 'More',
-    screens: ['more', 'monitor', 'refine', 'csv-import', 'auditor', 'quotes', 'methodology', 'independence', 'how-to-switch', 'privacy', 'installer'] },
+    screens: ['more', 'me', 'monitor', 'refine', 'csv-import', 'auditor', 'quotes', 'methodology', 'independence', 'how-to-switch', 'privacy', 'installer'] },
 ];
 
 export function createV7(api) {
@@ -544,6 +544,7 @@ export function createV7(api) {
     else if (sh.kind === 'switch') body = switchSheet(sh.id);
     else if (sh.kind === 'system') body = api.renderSystemSheet();
     else if (sh.kind === 'home') body = api.renderHomeSheet();
+    else if (sh.kind === 'handover') body = api.renderHandoverSheet();
     if (!body) return '';
     return `<div class="v7-sheet-root" id="v7-sheet">
       <div class="v7-sheet-backdrop" onclick="v7Sheet(null)"></div>
