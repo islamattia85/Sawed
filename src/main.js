@@ -9507,11 +9507,20 @@ function renderJourneySheet(kind){
       <label class="sy-field"><span><b>Date</b></span><input type="date" id="jr-date" value="${today}" max="${today}"></label>
       <button class="v7-cta-2" onclick="journeyCommit('install')">Add to my tally</button>`;
   }
+  // The plans ranked best for this home come first, the top one chosen: that
+  // is almost always the one the person just switched to. Every other plan
+  // follows. The current plan is not offered: a switch is to something else.
   const rec = getRecommendation();
+  const ranked = (rec.ranked || []).map((r) => r.plan).filter((p) => p && p.id !== state.baseline);
+  const top = ranked.slice(0, 3);
+  const rest = activeTariffsSorted().filter((p) => p.id !== state.baseline && !top.some((t) => t.id === p.id));
+  const opt = (p, i) => `<option value="${p.id}" ${i === 0 ? 'selected' : ''}>${esc(p.supplier)} — ${esc(p.plan)}</option>`;
   return `<div class="v7-sheet-head"><div class="v7-eyebrow">The tally</div><h2 class="v7-h">Which plan did you switch to?</h2></div>
     <p class="me-p">It becomes your plan here, and the yearly saving against your old one is counted from the date.</p>
-    <label class="sy-field"><span><b>Plan</b></span><select id="jr-plan">${activeTariffsSorted().filter((p) => p.id !== state.baseline)
-      .map((p) => `<option value="${p.id}" ${p.id === rec.best.plan.id ? 'selected' : ''}>${esc(p.supplier)} — ${esc(p.plan)}</option>`).join('')}</select></label>
+    <label class="sy-field sy-field-stack"><span><b>Plan</b></span><select id="jr-plan">
+      <optgroup label="Best for your home">${top.map(opt).join('')}</optgroup>
+      <optgroup label="All other plans">${rest.map((p) => opt(p, -1)).join('')}</optgroup>
+    </select></label>
     <label class="sy-field"><span><b>Date</b></span><input type="date" id="jr-date" value="${today}" max="${today}"></label>
     <button class="v7-cta-2" onclick="journeyCommit('switch')">Add to my tally</button>`;
 }

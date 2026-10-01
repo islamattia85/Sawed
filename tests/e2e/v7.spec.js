@@ -586,3 +586,10 @@ test('the alert count shows on the My Peakless card in More, not only on the tab
   await expect(page.locator('.me-entry-badge')).toBeVisible();
   await expect(page.locator('.me-entry')).toContainText('new alert');
 });
+
+test('"I switched plan" opens with the best plan for the home already chosen', async ({ page }) => {
+  await boot(page, { current_screen: 'me', journey: [] });
+  const best = await page.evaluate(() => window.getRecommendation().ranked.map((r) => r.plan.id).find((id) => id !== window.state.baseline));
+  await page.getByRole('button', { name: /I switched plan/ }).click();
+  await expect(page.locator('#jr-plan')).toHaveValue(best);
+});
