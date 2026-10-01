@@ -501,6 +501,8 @@ export function createV7(api) {
       ${hero}
       ${api.renderSolarBody('top')}
       ${months}
+      ${api.renderSolarComparison()}
+      ${api.renderDayInspector()}
       <button class="v7-tile v7-tile-wide" onclick="setScreen('analytics')">
         <span class="v7-tile-ico">${api.ic('chart', 18)}</span>
         <span class="v7-tile-big">Hour by hour</span>

@@ -5806,12 +5806,10 @@ function renderSolarDashboard(opts){
     <div class="working">
       <button class="working-toggle" aria-expanded="${!!state._solar_detail_open}" onclick="state._solar_detail_open=!state._solar_detail_open;saveState();renderApp()">
         <span class="working-toggle-label">${ic('flask',18)} Show me the working</span>
-        <span class="working-toggle-hint">${state._solar_detail_open ? 'Hide' : 'Generation, self-use, export, the 20-year maths and an hour-by-hour day'}</span>
+        <span class="working-toggle-hint">${state._solar_detail_open ? 'Hide' : 'Generation, self-use, export and the 20-year maths'}</span>
         <span class="working-toggle-chev" style="transform:rotate(${state._solar_detail_open ? '90' : '0'}deg)">›</span>
       </button>
       ${!state._solar_detail_open ? '' : `<div class="working-body">
-
-    ${renderSolarComparison()}
 
 
     <div class="grid-2">
@@ -5850,7 +5848,6 @@ function renderSolarDashboard(opts){
 
     ${state._show_npv_breakdown ? renderNpvBreakdown(currentScen.solarBenefit, sysCost, state.battery_kwh || 0, state.panel_degradation || 0.005) : ''}
 
-    ${renderDayInspector()}
 
       </div>`}
     </div>
@@ -9663,6 +9660,7 @@ const V7 = createV7({
   freshnessChip, priceChangeChip, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
   renderBillShape, renderDayShape, renderSavingsBreakdown, renderAssumptions,
   renderTrustPanel, renderLogicBreakdown, renderNightRateCard, renderEvSavingsCard, evEconomics,
+  renderSolarComparison, renderDayInspector,
 });
 
 /**
