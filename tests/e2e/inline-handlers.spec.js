@@ -76,8 +76,11 @@ test('the first run opens on the question, not a carousel or a sign-in wall', as
   // V6 goes further and opens ON the quick answer: the reader is asked for one
   // number, with every assumption shown as a chip they can change, so the
   // answer costs a single tap instead of two screens or a five-step setup.
+  // A first visit opens on the start page; its first button is the quick answer.
   const errors = await bootFresh(page);
-  expect(await page.evaluate(() => window.state.current_screen)).toBe('fastpath');
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('welcome');
+  await page.getByRole('button', { name: /Get my answer in 30 seconds/ }).click();
+  await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('fastpath');
 
   // The one question is on screen immediately, and the assumptions are stated
   // rather than hidden — that is what earns the right to skip the setup.
@@ -94,7 +97,7 @@ test('onboarding drives _ob through clicks and commits', async ({ page }) => {
   const errors = await bootFresh(page);
 
   await page.evaluate(() => { window.state.seen_intro = true; window.setScreen('welcome'); });
-  await page.getByRole('button', { name: /Full setup/ }).click();
+  await page.getByRole('button', { name: /Full guided setup/ }).click();
 
   for (let step = 1; step <= 5; step += 1) {
     await expect.poll(() => page.evaluate(() => window._ob.step)).toBe(step);

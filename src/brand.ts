@@ -7,7 +7,13 @@ export const BRAND = {
   ink: '#16343d',
   gold: '#ffd166',
   mist: '#5a7880',
+  /** The wordmark is set in two weights: the peak, then what's left of it. */
+  word: ['peak', 'less'],
 } as const;
+
+/** The wordmark as markup. Styled by .pk-word in v7.css. */
+export const wordmarkHtml = (cls = '') =>
+  `<span class="pk-word ${cls}" aria-label="${BRAND.name}"><b>${BRAND.word[0]}</b><span>${BRAND.word[1]}</span></span>`;
 
 /** The mark: the evening peak (dotted) flattened into one gold line. 24×24 viewBox. */
 export const MARK_PATHS =

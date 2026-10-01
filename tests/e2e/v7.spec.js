@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { boot } from './support.js';
+import { boot, bootFresh } from './support.js';
 
 /**
  * V7's own promises.
@@ -275,7 +275,7 @@ test('no EV, no EV tile', async ({ page }) => {
 test('the landing page is reachable from More, and leads back', async ({ page }) => {
   await boot(page, { current_screen: 'more' });
   await page.getByText('Start page').click();
-  await expect(page.locator('.welcome-page')).toBeVisible();
+  await expect(page.locator('.pk-land')).toBeVisible();
   await page.getByText('Back to my results').click();
   expect(await page.evaluate(() => window.state.current_screen)).toBe('result');
 });
@@ -314,4 +314,61 @@ test('when nothing beats the current plan, the answer is to stay — not €0 an
   // Like for like: today's bill and the same plan's cost carry the same levy.
   const r = await page.evaluate(() => window.getRecommendation());
   expect(Math.abs(r.baseCost - r.cheapest.net)).toBeLessThan(1);
+});
+
+test('My system: sliders, battery stops, grant switch and fine-tune change the model', async ({ page }) => {
+  await boot(page, { current_screen: 'solar' });
+  await page.locator('.v7-system').click();
+  const sheet = page.locator('#v7-sheet');
+  await expect(sheet).toContainText('My system');
+  await expect(sheet.locator('.sy-acc')).toContainText('±');
+
+  // Panels: drag the slider, the model follows on release.
+  await sheet.locator('#sy-total').fill('16');
+  await sheet.locator('#sy-total').dispatchEvent('change');
+  await expect.poll(() => page.evaluate(() => window.state.count_A + window.state.count_B)).toBe(16);
+
+  // Battery: a real product size in one tap, an odd one typed exactly.
+  await sheet.getByRole('button', { name: '13.5', exact: true }).click();
+  expect(await page.evaluate(() => window.state.battery_kwh)).toBe(13.5);
+  await sheet.getByLabel('Exact battery size in kWh').fill('11.5');
+  await sheet.getByLabel('Exact battery size in kWh').dispatchEvent('change');
+  expect(await page.evaluate(() => window.state.battery_kwh)).toBe(11.5);
+
+  // Grant off, then back on to the standard amount.
+  const grant = sheet.locator('.sy-toggle input').first();
+  await grant.uncheck();
+  expect(await page.evaluate(() => window.state.grant_seai)).toBe(0);
+  await grant.check();
+  expect(await page.evaluate(() => window.state.grant_seai)).toBeGreaterThan(0);
+
+  // Fine-tuning the panels marks them confirmed and tightens the estimate.
+  await sheet.getByRole('button', { name: /Fine-tune panels/ }).click();
+  const watts = sheet.locator('.sy-fine-body input').first();
+  await watts.fill('445');
+  await watts.dispatchEvent('change');
+  expect(await page.evaluate(() => window.state.panel_w)).toBe(445);
+  expect(await page.evaluate(() => window.modelAccuracy().parts.map((p) => p.label)))
+    .toContain('Panel spec confirmed');
+  await expect(sheet).toContainText('confirmed');
+});
+
+test('My home holds the house, the usage and the roof', async ({ page }) => {
+  await boot(page);
+  await page.locator('.v7-home-chips').click();
+  const sheet = page.locator('#v7-sheet');
+  await expect(sheet).toContainText('My home');
+  await sheet.locator('select').nth(1).selectOption('heatpump');
+  expect(await page.evaluate(() => window.state.heating_type)).toBe('heatpump');
+  await expect(sheet.locator('.sy-part[aria-label=Roof]')).toContainText('assumed');
+  await sheet.locator('.sy-part[aria-label=Roof] input').first().fill('40');
+  await sheet.locator('.sy-part[aria-label=Roof] input').first().dispatchEvent('change');
+  expect(await page.evaluate(() => window.state.tilt_A)).toBe(40);
+  await expect(sheet.locator('.sy-part[aria-label=Roof]')).toContainText('confirmed');
+});
+
+test('a first visit opens on the start page, with the brand', async ({ page }) => {
+  await bootFresh(page);
+  await expect(page.locator('.pk-land')).toBeVisible();
+  await expect(page.locator('.pk-land .pk-word')).toHaveAttribute('aria-label', 'Peakless');
 });

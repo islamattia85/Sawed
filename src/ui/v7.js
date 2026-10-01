@@ -46,7 +46,7 @@ export function createV7(api) {
         : `<button class="v7-brand" onclick="setScreen('result')" aria-label="Home">
             <span class="v7-brand-mark">${api.ic('logo', 22, 'stroke-width:1.6')}</span>
           </button>`}
-      ${title ? `<div class="v7-top-title">${esc(title)}</div>` : `<div class="v7-top-title v7-wordmark">${esc(api.brand)}</div>`}
+      ${title ? `<div class="v7-top-title">${esc(title)}</div>` : `<div class="v7-top-title">${api.wordmark('pk-word-top')}</div>`}
       <div class="v7-top-end">${api.renderProfileNavBtn()}</div>
     </header>`;
   }
@@ -79,7 +79,7 @@ export function createV7(api) {
       withSolar && st.battery_kwh > 0 ? `${st.battery_kwh} kWh battery` : '',
       st.ev_active ? 'EV' : '',
     ].filter(Boolean);
-    return `<button class="v7-home-chips" onclick="v7Sheet('assume')" aria-label="Your home — change">
+    return `<button class="v7-home-chips" onclick="v7Sheet('home')" aria-label="My home — change">
       ${chips.map((c) => `<span class="v7-chip">${c}</span>`).join('')}
       <span class="v7-chip v7-chip-edit">${api.ic('tune', 14)} Edit</span>
     </button>`;
@@ -462,12 +462,13 @@ export function createV7(api) {
           ${[['pessimist', 'Poor year'], ['realistic', 'Typical'], ['optimist', 'Good year']].map(([k, l]) => `
             <button class="v7-seg-btn wx-range-btn ${view === k ? 'active on' : ''}" onclick="state._scenario_view='${k}';renderApp()">${l}</button>`).join('')}
         </div>
-        <button class="v7-system" onclick="goRefineSolar()">
+        <button class="v7-system" onclick="openMySystem()">
           <span class="v7-chip">${api.totalPanels()} panels · ${api.totalKwp().toFixed(1)} kWp</span>
           <span class="v7-chip">${st.battery_kwh > 0 ? `${st.battery_kwh} kWh battery` : 'no battery'}</span>
           <span class="v7-chip">${st.ev_active ? 'with EV' : 'no EV'}</span>
           <span class="v7-chip v7-chip-edit">${api.ic('tune', 14)} Change</span>
         </button>
+        <button class="v7-acc-chip" onclick="openMySystem()">Estimate accuracy <b>±${api.modelAccuracy().pct}%</b>${api.modelAccuracy().tip ? ' · tighten it' : ''}</button>
         <button class="v7-link" onclick="v7Sheet('quote')">${api.ic('clip', 14)} Model an installer's quote instead</button>
       </section>`
       : `<section class="v7-hero v7-solar-hero">
@@ -541,6 +542,8 @@ export function createV7(api) {
     else if (sh.kind === 'ev') body = evSheet();
     else if (sh.kind === 'quote') body = quoteSheet();
     else if (sh.kind === 'switch') body = switchSheet(sh.id);
+    else if (sh.kind === 'system') body = api.renderSystemSheet();
+    else if (sh.kind === 'home') body = api.renderHomeSheet();
     if (!body) return '';
     return `<div class="v7-sheet-root" id="v7-sheet">
       <div class="v7-sheet-backdrop" onclick="v7Sheet(null)"></div>
@@ -861,11 +864,11 @@ export function createV7(api) {
         <h2 class="v7-h">What every figure is built on</h2>
       </div>
       ${api.renderAssumptions(api.setupLabel())}
-      <button class="v7-cta-2" onclick="v7Sheet(null);setScreen('refine')">Change any of it ${api.ic('chevR', 16)}</button>
+      <button class="v7-cta-2" onclick="v7Sheet('home')">Change any of it ${api.ic('chevR', 16)}</button>
       ${!st.ev_active ? `<div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();v7Sheet(null);toggleEv()">Thinking about an EV? See what it would change</a></div>` : ''}
       <div class="v7-sheet-links">
         <a href="#" onclick="event.preventDefault();v7Sheet(null);setScreen('csv-import')">Import smart-meter data for exact figures</a>
-        ${st.has_solar ? `<a href="#" onclick="event.preventDefault();v7Sheet(null);goRefineSolar()">Change the solar system</a>` : ''}
+        ${st.has_solar ? `<a href="#" onclick="event.preventDefault();openMySystem()">Change the solar system</a>` : ''}
       </div>`;
   }
 

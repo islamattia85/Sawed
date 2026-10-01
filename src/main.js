@@ -12,7 +12,7 @@ import {
 } from './engine/tariff-rules';
 import { moneyBar, dayProfile, paybackCurve, yearRibbon, bandDonut } from './ui/charts.js';
 import { createV7 } from './ui/v7.js';
-import { BRAND, MARK_PATHS, iconDataUri } from './brand';
+import { BRAND, MARK_PATHS, iconDataUri, wordmarkHtml } from './brand';
 
 /* Peakless — application entry.
  * Extracted verbatim from the former single-file index.html.
@@ -623,6 +623,9 @@ const IC = {
   radar:   '<path d="M12 4.4a7.6 7.6 0 1 1-7.6 7.6"/><path d="M12 8.2a3.8 3.8 0 1 0 3.8 3.8"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>',
   grid:    '<circle cx="7.2" cy="7.2" r="1.8" fill="currentColor" stroke="none"/><circle cx="16.8" cy="7.2" r="1.8" fill="currentColor" stroke="none"/><circle cx="7.2" cy="16.8" r="1.8" fill="currentColor" stroke="none"/><circle cx="16.8" cy="16.8" r="1.8" fill="currentColor" stroke="none"/>',
   chevL:   '<path d="M14.6 5.6 8.2 12l6.4 6.4"/>',
+  chevU: '<path d="M5.6 14.6 12 8.2l6.4 6.4"/>',
+  chevD: '<path d="M5.6 9.4 12 15.8l6.4-6.4"/>',
+  euro: '<path d="M17.5 6.5A7 7 0 1 0 17.5 17.5"/><path d="M4.5 10.2h9M4.5 13.8h9"/>',
   chevR:   '<path d="M9.4 5.6l6.4 6.4-6.4 6.4"/>',
   tune:    '<path d="M4 7.3h16M4 12h16M4 16.7h16"/><circle cx="9" cy="7.3" r="2.1" style="fill:var(--knock)"/><circle cx="15.5" cy="12" r="2.1" style="fill:var(--knock)"/><circle cx="7.5" cy="16.7" r="2.1" style="fill:var(--knock)"/>',
   bolt:    '<path d="M13.2 2.8 5.6 13.4h4.9L10.8 21.2 18.4 10.6h-4.9z" fill="currentColor" stroke="none"/>',
@@ -3166,8 +3169,11 @@ if (state.onboarding_complete && state.current_screen === 'onboarding'){
 // for the one number that matters and states every assumption as a chip on the
 // result, so the answer costs one tap. Full setup is still one tap away from
 // the welcome screen for anyone who wants to tune all of it.
+// A first visit now opens on the start page: one screen that says what the
+// app is, with the 30-second answer as its first button. The splash covers
+// launch for everyone; returning homes go straight to Home.
 if (!state.onboarding_complete && (state.current_screen === 'onboarding' || !state.current_screen)){
-  state.current_screen = 'fastpath';
+  state.current_screen = 'welcome';
   state.seen_intro = true;
 }
 // Returning user who finished onboarding — never show intro again
@@ -3694,43 +3700,35 @@ function renderIntro(){
 }
 
 function renderWelcome(){
-  return `<div class="welcome-page">
-    <div class="welcome-content">
-      <div class="welcome-brand">${BRAND.name} · Ireland</div>
-      <h1 class="welcome-title">Your personal <em>energy advisor</em>.</h1>
-      <p class="welcome-sub">With or without solar. We model your exact home against every Irish tariff to find the real saving — and the right plan to lock it in.</p>
-
-      <div class="welcome-features">
-        <div class="welcome-feature">
-          <div class="welcome-feature-icon">${ic('bolt',20)}</div>
-          <div class="welcome-feature-text">
-            <b>Find your best tariff</b>
-            <span>All ${TARIFFS.length} Irish residential plans modelled against your usage</span>
-          </div>
-        </div>
-        <div class="welcome-feature">
-          <div class="welcome-feature-icon">${ic('sun',20)}</div>
-          <div class="welcome-feature-text">
-            <b>Real solar payback</b>
-            <span>Not generic — your roof, your tariff, your numbers</span>
-          </div>
-        </div>
-        <div class="welcome-feature">
-          <div class="welcome-feature-icon">${ic('clip',20)}</div>
-          <div class="welcome-feature-text">
-            <b>Audit any installer quote</b>
-            <span>Objective benchmark vs 2026 Irish market prices</span>
-          </div>
-        </div>
+  // A day of prices: the evening peak, drawn dotted, levels into the gold line.
+  const peak = 'M0 92 C60 92 120 86 160 78 C190 72 200 14 225 14 C250 14 255 80 280 86 C300 90 310 92 320 92';
+  const flat = 'M0 84 C60 84 120 84 160 84 C190 84 200 84 225 84 C250 84 255 84 280 84 C300 84 310 84 320 84';
+  return `<div class="pk-land">
+    <div class="pk-land-hero">
+      <div class="pk-land-brand">
+        <span class="pk-land-icon">${ic('logo', 26, 'stroke-width:1.6')}</span>
+        ${wordmarkHtml('pk-word-xl pk-word-inv')}
       </div>
-
-      <div class="welcome-actions">
-        <button class="switch-cta" style="margin-bottom:0" onclick="goFastPath()">Get my quick answer → <span style="font-weight:400;font-size:13px;opacity:.85">one screen, 30 seconds</span></button>
-        <button onclick="startOnboarding()" style="width:100%;margin-top:10px;padding:16px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);font-family:var(--display);font-size:13px;font-weight:700;color:var(--ink);cursor:pointer">Full setup — guided, with solar &amp; EV →</button>
-        <button class="ob-skip-btn" onclick="navigateAuditor()">Just want to audit an installer quote? →</button>
-      </div>
-      ${state.onboarding_complete ? `<button class="ob-skip-btn" style="margin-top:10px" onclick="setScreen('result')">← Back to my results</button>` : ''}
-      <div class="welcome-trust">Free · Independent · Your data stays on this device</div>
+      <svg class="pk-land-curve" viewBox="0 0 320 120" role="img" aria-label="A day of electricity prices: the evening peak flattens into a level line">
+        <path class="pk-curve-ghost" d="${peak}"/>
+        <path class="pk-curve-live" d="${peak}">
+          <animate attributeName="d" from="${peak}" to="${flat}" begin="0.5s" dur="1.4s" fill="freeze"
+            calcMode="spline" keySplines=".5 0 .2 1" keyTimes="0;1"/>
+        </path>
+        <text x="225" y="8" text-anchor="middle" class="pk-curve-tag">6pm peak</text>
+        <text x="0" y="116" class="pk-curve-axis">midnight</text>
+        <text x="225" y="116" text-anchor="middle" class="pk-curve-axis">6pm</text>
+        <text x="320" y="116" text-anchor="end" class="pk-curve-axis">midnight</text>
+      </svg>
+      <h1 class="pk-land-title">Take the peak<br>out of your bill.</h1>
+      <p class="pk-land-sub">Every Irish electricity plan, run against your home hour by hour, with or without solar, a battery or an EV. Free and independent.</p>
+    </div>
+    <div class="pk-land-actions">
+      <button class="pk-btn-gold" onclick="goFastPath()">Get my answer in 30 seconds</button>
+      <button class="pk-btn-ghost" onclick="${state.onboarding_complete ? "setScreen('solar');v7Sheet('quote')" : 'navigateAuditor()'}">${ic('clip', 16)} Check a quote I got</button>
+      <button class="pk-land-link" onclick="startOnboarding()">Full guided setup, with solar and EV ${ic('chevR', 14)}</button>
+      ${state.onboarding_complete ? `<button class="pk-land-link" onclick="setScreen('result')">${ic('chevL', 14)} Back to my results</button>` : ''}
+      <div class="pk-land-trust">${TARIFFS.length} plans · prices checked daily · your data stays on this phone</div>
     </div>
   </div>`;
 }
@@ -5433,14 +5431,10 @@ function markSolarAsMine(){
 }
 
 function goRefineSolar(){
-  // Editing your spec makes the live values YOURS — exit preview mode first
-  if ((state.solar_view || 'mine') !== 'mine'){ state.solar_view = 'mine'; snapshotMySystem(); }
-  state._settings_open = 'solar';
-  state._return_to = 'solar';
-  state.current_screen = 'refine';
-  saveState();
-  trackPageView('refine');
-  renderApp();
+  // One place to change the system: the My system sheet, over the Solar tab.
+  if (!['result', 'plans', 'solar', 'more'].includes(state.current_screen)) state.current_screen = 'solar';
+  trackPageView('my-system');
+  openMySystem();
 }
 
 // Growth loop: a share-ready savings card. Brand-styled canvas PNG with the
@@ -9728,7 +9722,7 @@ function v7ResultEmpty(){
 }
 
 const V7 = createV7({
-  brand: BRAND.name,
+  brand: BRAND.name, wordmark: wordmarkHtml,
   state: () => state,
   ic, IRISH_REGIONS, renderProfileNavBtn,
   annualKwh: v7AnnualKwh, setupLabel: v7SetupLabel,
@@ -9746,6 +9740,7 @@ const V7 = createV7({
   renderBillShape, renderDayShape, renderSavingsBreakdown, renderAssumptions,
   renderTrustPanel, renderLogicBreakdown, renderNightRateCard, renderEvSavingsCard, evEconomics,
   renderSolarComparison, renderDayInspector,
+  renderSystemSheet, renderHomeSheet, renderAccuracy, modelAccuracy,
 });
 
 /**
@@ -9858,6 +9853,10 @@ function v7ApplyQuote(){
   const dir = String(q.orientation || '').toLowerCase();
   const az = { south: 180, 'south-east': 135, southeast: 135, 'south-west': 225, southwest: 225, east: 90, west: 270 }[dir.trim()];
   if (az) state.azimuth_A = az;
+  // What the quote states is no longer an assumption: the accuracy score says so.
+  const fine = state.fine = state.fine || {};
+  if (watts > 0) fine.panels = true;
+  if (az && q.roof_pitch_deg > 0) fine.roof = true;
   state.solar_quotes = state.solar_quotes || [];
   state.solar_quotes.push({ id: 'q' + Date.now(), installer: q.installer || 'Installer', price: Math.round(price),
     kwp: +(state.count_A * (state.panel_w || 440) / 1000).toFixed(2), battery: state.battery_kwh, source: 'upload' });
@@ -9982,6 +9981,315 @@ function renderInstallerPortal(){
 }
 
 /** Open a sheet over the current surface, or close it with null. */
+/* ============================================================
+   MY HOME · MY SYSTEM
+   ============================================================
+   Two things describe a household. The home — where it is, how it is
+   heated, how much it uses, which way the roof faces — is set once and
+   rarely changes. The system — panels, battery, price, grant — is what
+   people try different versions of. Each gets one sheet, with the few
+   controls that matter up front and the detail behind "Fine-tune" in the
+   part it belongs to, instead of one global Simple/Expert switch.
+   ============================================================ */
+
+/** Battery sizes actually sold in Ireland, offered as one-tap stops. */
+const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const eur = (n) => '€' + Math.round(n || 0).toLocaleString('en-IE');
+const BATTERY_SIZES = [5, 7, 9.5, 10, 13.5, 15, 20];
+const SYS_MAX_PANELS = 40;
+const SYS_MAX_BATTERY = 30;
+
+/**
+ * How far the yearly figures could be off, given what has been confirmed.
+ *
+ * Each unconfirmed input carries a typical error from the default it falls
+ * back on; they are combined as independent errors (root of the sum of
+ * squares) over a floor for the weather and the tariff model itself. The
+ * tip is the single change that would tighten the estimate most.
+ */
+function modelAccuracy(){
+  const fine = state.fine || {};
+  const sys = !!state.has_solar && totalPanels() > 0;
+  const parts = [
+    { label: 'Weather and the model itself', err: 3 },
+    state._csv_imported
+      ? { label: 'Usage from your smart-meter data', err: 1 }
+      : state.usage_input_mode === 'kwh'
+        ? { label: 'Usage from your yearly kWh', err: 5, tip: 'Import your ESB smart-meter file', go: "v7Sheet(null);setScreen('csv-import')" }
+        : { label: 'Usage worked out from your bill', err: 9, tip: 'Enter your yearly kWh from a bill, or import meter data', go: "v7Sheet('home')" },
+  ];
+  if (sys){
+    parts.push(fine.roof ? { label: 'Roof direction and tilt confirmed', err: 1 }
+      : { label: 'Roof direction and tilt assumed', err: 4, tip: 'Confirm which way the roof faces', go: "v7Sheet('home')" });
+    parts.push(fine.panels ? { label: 'Panel spec confirmed', err: 0.5 }
+      : { label: 'Typical panel spec assumed', err: 2, tip: 'Add the panel rating from your quote', go: "sysFine('panels',true)" });
+    if (state.battery_kwh > 0) parts.push(fine.battery ? { label: 'Battery spec confirmed', err: 0.5 }
+      : { label: 'Typical battery spec assumed', err: 2, tip: 'Confirm the battery details', go: "sysFine('battery',true)" });
+  }
+  const pct = Math.max(2, Math.round(Math.sqrt(parts.reduce((a, p) => a + p.err * p.err, 0))));
+  const open = parts.filter((p) => p.tip).sort((a, b) => b.err - a.err);
+  return { pct, parts, tip: open[0] || null, priceTypical: sys && !state.cost_is_manual };
+}
+
+function renderAccuracy(){
+  const a = modelAccuracy();
+  const fill = Math.max(8, Math.min(100, Math.round(100 - (a.pct - 2) * 6)));
+  return `<div class="sy-acc">
+    <div class="sy-acc-top"><span>Estimate accuracy</span><b>±${a.pct}%</b></div>
+    <div class="sy-acc-bar" aria-hidden="true"><i style="width:${fill}%"></i></div>
+    ${a.tip ? `<button class="sy-acc-tip" onclick="${a.tip.go}">${ic('spark', 14)} ${esc(a.tip.tip)}</button>` : `<div class="sy-acc-note">As close as a model gets without a year of your own data.</div>`}
+    ${a.priceTypical ? `<div class="sy-acc-note">Payback uses a typical price for this system. Your quote's price makes it exact.</div>` : ''}
+  </div>`;
+}
+
+/** Commit one system value: clamp, keep the price and grant in step, re-run. */
+function sysSet(key, v){
+  v = +v;
+  if (isNaN(v)) return;
+  const lim = { count_A: [0, SYS_MAX_PANELS], count_B: [0, SYS_MAX_PANELS], battery_kwh: [0, SYS_MAX_BATTERY],
+    panel_w: [200, 700], install_cost: [0, 60000], grant_seai: [0, 5000], inverter_kw: [1, 20],
+    battery_eff: [0.7, 1], battery_min: [0, 0.5], battery_discharge_kw: [1, 15], battery_charge_kw: [1, 15],
+    panel_degradation: [0, 0.015], tilt_A: [0, 90], tilt_B: [0, 90], azimuth_A: [0, 359], azimuth_B: [0, 359] }[key];
+  if (lim) v = Math.min(lim[1], Math.max(lim[0], v));
+  if (key === 'battery_kwh') v = Math.round(v * 2) / 2;
+  if (state[key] === v) return;
+  const battWas = +state.battery_kwh || 0;
+  state[key] = v;
+  const fine = state.fine = state.fine || {};
+  if (['panel_w', 'panel_degradation'].includes(key)) fine.panels = true;
+  if (['battery_eff', 'battery_min', 'battery_discharge_kw', 'battery_charge_kw', 'inverter_kw'].includes(key)) fine.battery = true;
+  if (['tilt_A', 'tilt_B', 'azimuth_A', 'azimuth_B'].includes(key)) fine.roof = true;
+  if (key === 'install_cost') state.cost_is_manual = true;
+  if (key === 'grant_seai') state.grant_is_manual = true;
+  if (['count_A', 'count_B', 'battery_kwh', 'panel_w'].includes(key)){
+    state.solar_is_estimate = false;
+    state.considering_solar = true;
+    state.has_solar = totalPanels() > 0;
+    if (key === 'battery_kwh'){
+      // The discharge rate follows the battery: a 5 kWh unit does not put out 5 kW.
+      if (!fine.battery) state.battery_discharge_kw = Math.max(2.5, Math.min(6, v * 0.5));
+      if (battWas === 0 && v > 0) state.charge_from_grid = true;
+    }
+  }
+  applyEstimatedSolarCost();
+  if ((state.solar_view || 'mine') === 'mine') snapshotMySystem();
+  invalidate();
+  saveState();
+  renderApp();
+}
+
+/** While a slider is dragged, update its readout only — the model runs on release. */
+function sysPreview(el, fmt){
+  const out = document.getElementById(el.id + '-out');
+  if (!out) return;
+  const v = +el.value;
+  if (fmt === 'panels'){
+    const other = el.id === 'sy-cA' ? (+state.count_B || 0) : el.id === 'sy-cB' ? (+state.count_A || 0) : 0;
+    const total = el.id === 'sy-total' ? v : v + other;
+    out.textContent = `${v} panels · ${(total * state.panel_w / 1000).toFixed(1)} kWp`;
+    if (el.id !== 'sy-total') out.textContent = `${v} panels`;
+  } else if (fmt === 'kwh') out.textContent = v > 0 ? `${v} kWh` : 'No battery';
+  else out.textContent = v;
+}
+
+function sysFine(part, open){
+  state._fine_open = state._fine_open || {};
+  state._fine_open[part] = open === undefined ? !state._fine_open[part] : !!open;
+  if (state._sheet?.kind !== 'system') state._sheet = { kind: 'system', id: null };
+  renderApp();
+  if (open) setTimeout(() => document.getElementById('sy-fine-' + part)?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 50);
+}
+
+function sysSplit(on){
+  if (on){
+    const t = totalPanels();
+    state.count_A = Math.ceil(t / 2); state.count_B = Math.floor(t / 2);
+    if (!state.azimuth_B || state.azimuth_B === state.azimuth_A) state.azimuth_B = (state.azimuth_A + 180) % 360;
+  } else {
+    state.count_A = totalPanels(); state.count_B = 0;
+  }
+  state._sys_split = !!on;
+  applyEstimatedSolarCost();
+  if ((state.solar_view || 'mine') === 'mine') snapshotMySystem();
+  invalidate(); saveState(); renderApp();
+}
+
+function sysGrant(on){
+  if (on){ state.grant_is_manual = false; }
+  else { state.grant_is_manual = true; state.grant_seai = 0; }
+  applyEstimatedSolarCost();
+  if ((state.solar_view || 'mine') === 'mine') snapshotMySystem();
+  invalidate(); saveState(); renderApp();
+}
+
+function sysTypicalPrice(){
+  state.cost_is_manual = false;
+  applyEstimatedSolarCost();
+  if ((state.solar_view || 'mine') === 'mine') snapshotMySystem();
+  invalidate(); saveState(); renderApp();
+}
+
+function openMySystem(){
+  if ((state.solar_view || 'mine') !== 'mine'){ state.solar_view = 'mine'; snapshotMySystem(); }
+  if (!state.considering_solar || totalPanels() === 0){
+    state.considering_solar = true; state.has_solar = true;
+    if (totalPanels() === 0) state.count_A = 10;
+    applyEstimatedSolarCost(); invalidate(); saveState();
+  }
+  v7Sheet('system');
+}
+
+const _syRange = (id, key, val, min, max, step, fmt, label) =>
+  `<div class="sy-range">
+    <div class="sy-range-top"><span>${label}</span><output id="${id}-out">${val}</output></div>
+    <input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${state[key] ?? 0}"
+      aria-label="${label}" oninput="sysPreview(this,'${fmt}')" onchange="sysSet('${key}',this.value)">
+  </div>`;
+const _syNum = (key, val, min, max, step, unit, label, help) =>
+  `<label class="sy-field"><span><b>${label}</b>${help ? `<small>${help}</small>` : ''}</span>
+    <span class="sy-num"><input type="number" inputmode="decimal" min="${min}" max="${max}" step="${step}" value="${val}"
+      onchange="sysSet('${key}',this.value)">${unit ? `<i>${unit}</i>` : ''}</span></label>`;
+const _syFine = (part, title, body) => {
+  const open = !!(state._fine_open || {})[part];
+  return `<div class="sy-fine ${open ? 'open' : ''}" id="sy-fine-${part}">
+    <button class="sy-fine-btn" onclick="sysFine('${part}')" aria-expanded="${open}">${ic('tune', 14)} Fine-tune ${title}
+      ${(state.fine || {})[part] ? '<span class="sy-ok">confirmed</span>' : '<span class="sy-def">typical values</span>'}${ic(open ? 'chevU' : 'chevD', 14)}</button>
+    ${open ? `<div class="sy-fine-body">${body}</div>` : ''}
+  </div>`;
+};
+const _dirOpts = (az) => [['S','South'],['SE','South-east'],['SW','South-west'],['E','East'],['W','West'],['NE','North-east'],['NW','North-west'],['N','North']]
+  .map(([v, l]) => `<option value="${azimuthFromSector(v)}" ${sectorFromAzimuth(az) === v ? 'selected' : ''}>${l}</option>`).join('');
+
+function renderSystemSheet(){
+  const t = totalPanels();
+  const split = state.count_B > 0 || state._sys_split;
+  const batt = +state.battery_kwh || 0;
+  const g = calcSeaiGrant(totalKwp(), batt).total;
+  const grantOn = !(state.grant_is_manual && !(state.grant_seai > 0));
+  const net = Math.max(0, (state.install_cost || 0) - (grantOn ? state.grant_seai : 0));
+  return `<div class="v7-sheet-head">
+      <div class="v7-eyebrow">My system</div>
+      <h2 class="v7-h">${t} panels · ${totalKwp().toFixed(1)} kWp${batt > 0 ? ` · ${batt} kWh` : ''}</h2>
+    </div>
+    ${renderAccuracy()}
+
+    <section class="sy-part" aria-label="Panels">
+      <div class="sy-part-title">${ic('sun', 16)} Panels</div>
+      ${split
+        ? _syRange('sy-cA', 'count_A', `${state.count_A} panels`, 0, SYS_MAX_PANELS, 1, 'panels', `Front roof · ${esc(sectorFromAzimuth(state.azimuth_A))}`)
+          + _syRange('sy-cB', 'count_B', `${state.count_B} panels`, 0, SYS_MAX_PANELS, 1, 'panels', `Back roof · ${esc(sectorFromAzimuth(state.azimuth_B))}`)
+        : `<div class="sy-range">
+            <div class="sy-range-top"><span>How many</span><output id="sy-total-out">${t} panels · ${totalKwp().toFixed(1)} kWp</output></div>
+            <input type="range" id="sy-total" min="0" max="${SYS_MAX_PANELS}" step="1" value="${t}" aria-label="Number of panels"
+              oninput="sysPreview(this,'panels')" onchange="sysSet('count_A',this.value)">
+          </div>`}
+      <label class="sy-check"><input type="checkbox" ${split ? 'checked' : ''} onchange="sysSplit(this.checked)"> Panels on two roof faces</label>
+      ${_syFine('panels', 'panels', `
+        ${_syNum('panel_w', state.panel_w, 200, 700, 5, 'W', 'Rating of one panel', 'On the quote or the panel datasheet. Most new panels: 420–480 W.')}
+        ${_syNum('panel_degradation', +(state.panel_degradation * 100).toFixed(2), 0, 1.5, 0.1, '%/yr', 'Yearly output loss', 'Typical 0.4%. The datasheet warranty gives it.').replace(`sysSet('panel_degradation',this.value)`, `sysSet('panel_degradation',this.value/100)`)}
+        <div class="sy-fine-note">Which way the roof faces and its tilt are part of <a href="#" onclick="event.preventDefault();v7Sheet('home')">My home</a>.</div>`)}
+    </section>
+
+    <section class="sy-part" aria-label="Battery">
+      <div class="sy-part-title">${ic('battery', 16)} Battery</div>
+      ${_syRange('sy-batt', 'battery_kwh', batt > 0 ? `${batt} kWh` : 'No battery', 0, SYS_MAX_BATTERY, 0.5, 'kwh', 'Usable size')}
+      <div class="sy-stops" role="group" aria-label="Common sizes">
+        <button class="sy-stop ${batt === 0 ? 'on' : ''}" onclick="sysSet('battery_kwh',0)">None</button>
+        ${BATTERY_SIZES.map((k) => `<button class="sy-stop ${batt === k ? 'on' : ''}" onclick="sysSet('battery_kwh',${k})">${k}</button>`).join('')}
+        <label class="sy-stop sy-stop-exact">Exact <input type="number" inputmode="decimal" min="0" max="${SYS_MAX_BATTERY}" step="0.1" value="${batt}" aria-label="Exact battery size in kWh" onchange="sysSet('battery_kwh',this.value)"></label>
+      </div>
+      ${batt > 0 ? _syFine('battery', 'battery', `
+        ${_syNum('battery_eff', Math.round(state.battery_eff * 100), 70, 100, 1, '%', 'Round-trip efficiency', 'Energy you get back for each unit stored. Lithium: 90–95%.').replace(`sysSet('battery_eff',this.value)`, `sysSet('battery_eff',this.value/100)`)}
+        ${_syNum('battery_min', Math.round(state.battery_min * 100), 0, 50, 5, '%', 'Kept in reserve', 'The battery never runs below this. Usually 10%.').replace(`sysSet('battery_min',this.value)`, `sysSet('battery_min',this.value/100)`)}
+        ${_syNum('battery_discharge_kw', state.battery_discharge_kw, 1, 15, 0.5, 'kW', 'Most it can supply at once', 'Continuous power on the datasheet.')}
+        ${_syNum('inverter_kw', state.inverter_kw, 1, 20, 0.5, 'kW', 'Inverter size', 'Usually 3.6–6 kW for a home.')}`) : ''}
+    </section>
+
+    <section class="sy-part" aria-label="Price">
+      <div class="sy-part-title">${ic('euro', 16)} Price</div>
+      ${state.cost_is_manual
+        ? `${_syNum('install_cost', state.install_cost, 0, 60000, 50, '€', 'Price including VAT', 'Before the grant, as on your quote.')}
+           <button class="v7-link" onclick="sysTypicalPrice()">Use a typical price instead</button>`
+        : `<div class="sy-field"><span><b>Typical price ${eur(state.install_cost)}</b><small>What a system this size costs in Ireland in 2026, including VAT.</small></span>
+           <button class="sy-stop" onclick="state.cost_is_manual=true;renderApp();setTimeout(()=>document.querySelector('.sy-part[aria-label=Price] input')?.focus(),40)">I have a price</button></div>`}
+      <label class="sy-toggle">
+        <span><b>SEAI grant</b><small>${grantOn ? `${eur(state.grant_seai)} off the price` : 'Not claimed — e.g. the home already had one'}</small></span>
+        <input type="checkbox" role="switch" ${grantOn ? 'checked' : ''} onchange="sysGrant(this.checked)">
+      </label>
+      ${grantOn && state.grant_is_manual && state.grant_seai !== g ? `<div class="sy-fine-note">Using ${eur(state.grant_seai)} from your quote. The standard grant for this size is ${eur(g)}.</div>` : ''}
+      <div class="sy-net">You pay <b>${eur(net)}</b></div>
+    </section>
+
+    <button class="v7-cta-2" onclick="v7Sheet('quote')">${ic('clip', 16)} Fill this in from an installer's quote</button>
+    <div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();v7Sheet('home')">My home — where it is, how it's heated, the roof</a></div>`;
+}
+
+function homeSet(key, v){
+  if (['bimonthly_bill_eur', 'annual_kwh', 'baseline_discount_pct'].includes(key)) v = +v;
+  if (state[key] === v) return;
+  state[key] = v;
+  if (['tilt_A', 'tilt_B', 'azimuth_A', 'azimuth_B'].includes(key)){
+    state[key] = +v; (state.fine = state.fine || {}).roof = true;
+    if ((state.solar_view || 'mine') === 'mine') snapshotMySystem();
+  }
+  if (['heating_type', 'bimonthly_bill_eur', 'annual_kwh'].includes(key) && !state._csv_imported) applyUsageInput();
+  invalidate(); saveState(); renderApp();
+}
+
+function renderHomeSheet(){
+  const kwhMode = state.usage_input_mode === 'kwh';
+  const sel = (key, opts, val) => `<select onchange="homeSet('${key}',this.value)">${opts.map(([v, l]) => `<option value="${v}" ${String(v) === String(val) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+  const field = (label, help, control) => `<label class="sy-field"><span><b>${label}</b>${help ? `<small>${help}</small>` : ''}</span>${control}</label>`;
+  return `<div class="v7-sheet-head">
+      <div class="v7-eyebrow">My home</div>
+      <h2 class="v7-h">The things that don't change</h2>
+    </div>
+    ${renderAccuracy()}
+
+    <section class="sy-part" aria-label="Where and how">
+      <div class="sy-part-title">${ic('home', 16)} The house</div>
+      ${field('Area', '', sel('region', Object.entries(IRISH_REGIONS).map(([k, r]) => [k, r.name]), state.region || 'east'))}
+      ${field('Heating', '', sel('heating_type', [['gas', 'Gas or oil boiler'], ['heatpump', 'Heat pump'], ['storage', 'Storage heaters'], ['direct', 'Direct electric']], state.heating_type))}
+    </section>
+
+    <section class="sy-part" aria-label="Electricity use">
+      <div class="sy-part-title">${ic('bolt', 16)} Electricity use</div>
+      ${state._csv_imported
+        ? `<div class="sy-field"><span><b>From your smart meter</b><small>${Math.round(v7AnnualKwh()).toLocaleString('en-IE')} kWh a year, half-hour by half-hour</small></span>
+           <button class="sy-stop" onclick="v7Sheet(null);setScreen('csv-import')">Replace</button></div>`
+        : `<div class="v7-seg" role="tablist" aria-label="Usage from">
+             <button class="v7-seg-btn ${!kwhMode ? 'active on' : ''}" onclick="setUsageMode('bill')">From my bill</button>
+             <button class="v7-seg-btn ${kwhMode ? 'active on' : ''}" onclick="setUsageMode('kwh')">kWh a year</button>
+           </div>
+           ${kwhMode
+             ? field('Yearly use', 'On your annual statement, or the last six bills added up.', `<span class="sy-num"><input type="number" inputmode="numeric" min="500" max="40000" step="100" value="${state.annual_kwh || Math.round(v7AnnualKwh())}" onchange="homeSet('annual_kwh',this.value)"><i>kWh</i></span>`)
+             : field('Typical two-month bill', 'Including VAT.', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="1500" step="5" value="${state.bimonthly_bill_eur}" onchange="homeSet('bimonthly_bill_eur',this.value)"><i>€</i></span>`)}
+           <button class="v7-link" onclick="v7Sheet(null);setScreen('csv-import')">${ic('csv', 14)} Import ESB smart-meter data for exact figures</button>`}
+      ${field('Current plan', '', sel('baseline', activeTariffsSorted().map((p) => [p.id, `${p.supplier} — ${p.plan}`]), state.baseline))}
+    </section>
+
+    <section class="sy-part" aria-label="Roof">
+      <div class="sy-part-title">${ic('sun', 16)} The roof ${(state.fine || {}).roof ? '<span class="sy-ok">confirmed</span>' : '<span class="sy-def">assumed</span>'}</div>
+      <div class="sy-pair">
+        ${field('Main face', '', `<select onchange="homeSet('azimuth_A',this.value)">${_dirOpts(state.azimuth_A)}</select>`)}
+        ${field('Tilt', '', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="90" step="1" value="${state.tilt_A}" onchange="homeSet('tilt_A',this.value)"><i>°</i></span>`)}
+      </div>
+      <div class="sy-pair">
+        ${field('Other face', '', `<select onchange="homeSet('azimuth_B',this.value)">${_dirOpts(state.azimuth_B)}</select>`)}
+        ${field('Tilt', '', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="90" step="1" value="${state.tilt_B}" onchange="homeSet('tilt_B',this.value)"><i>°</i></span>`)}
+      </div>
+      <div class="sy-fine-note">Most Irish roofs are pitched 30–40°. An east–west roof uses both faces.</div>
+    </section>
+
+    <label class="sy-toggle">
+      <span><b>Electric car</b><small>${state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'None at this home'}</small></span>
+      <input type="checkbox" role="switch" ${state.ev_active ? 'checked' : ''} onchange="toggleEv()">
+    </label>
+
+    <button class="v7-cta-2" onclick="openMySystem()">${ic('sun', 16)} My system — panels, battery, price</button>
+    <div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();v7Sheet(null);setScreen('refine')">Every setting, including the battery strategy</a></div>`;
+}
+
 function v7Sheet(kind, id){
   state._sheet = kind ? { kind, id: id || null } : null;
   renderApp();
@@ -10433,6 +10741,14 @@ function renderApp(){
     ? (window.__scrollMemory[state.current_screen] || 0)
     : here;
 
+  // A sheet re-rendered for its own edit (a slider, a toggle) stays where it
+  // was: same scroll, no second entrance.
+  const prevSheet = root.querySelector('.v7-sheet');
+  const sheetKey = state._sheet ? state._sheet.kind + ':' + (state._sheet.id || '') : '';
+  const sameSheet = !!prevSheet && root.__sheetKey === sheetKey;
+  const sheetScroll = sameSheet ? prevSheet.scrollTop : 0;
+  root.__sheetKey = sheetKey;
+
   root.setAttribute('data-chrome','app');
   root.innerHTML = html;
   // A sheet opens over whatever surface is showing. A plan's detail or the
@@ -10440,6 +10756,10 @@ function renderApp(){
   // trip and lost the context behind it.
   const sheetHtml = V7.sheet();
   if (sheetHtml) root.insertAdjacentHTML('beforeend', sheetHtml);
+  if (sheetHtml && sameSheet){
+    const sh = root.querySelector('#v7-sheet');
+    if (sh){ sh.classList.add('is-steady'); const box = sh.querySelector('.v7-sheet'); if (box) box.scrollTop = sheetScroll; }
+  }
   if (sheetHtml && state._sheet && state._sheet.kind === 'months'){
     const track = root.querySelector('.v7-months-track');
     const card = track && track.children[+state._sheet.id || 0];
@@ -10496,11 +10816,21 @@ function paintAuthModal(){
 /* ============================================================
    INIT — runs once on page load
    ============================================================ */
+/** Fade the launch splash once the first screen is under it — after long
+ *  enough for the mark to draw, never longer. Automated browsers skip it. */
+function dismissSplash(){
+  const el = document.getElementById('pk-splash');
+  if (!el) return;
+  const wait = navigator.webdriver ? 0 : Math.max(0, 1100 - performance.now());
+  setTimeout(() => { el.classList.add('is-gone'); setTimeout(() => el.remove(), 400); }, wait);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   applyTheme();
   setTimeout(() => {
     const loader = document.getElementById('loader');
     if (loader) loader.remove();
+    dismissSplash();
     // Sprint 2 H5 — try to restore shared URL state before anything else
     tryRestoreFromUrl();
     // Reopen the screen named in the URL hash (bookmark, refresh, or a Back
@@ -11566,6 +11896,15 @@ window.exploreSolar = exploreSolar;
 window.handleSwitchClick = handleSwitchClick;
 window.setScreen = setScreen;
 window.v7Sheet = v7Sheet;
+window.sysSet = sysSet;
+window.sysPreview = sysPreview;
+window.sysFine = sysFine;
+window.sysSplit = sysSplit;
+window.sysGrant = sysGrant;
+window.sysTypicalPrice = sysTypicalPrice;
+window.openMySystem = openMySystem;
+window.homeSet = homeSet;
+window.modelAccuracy = modelAccuracy;
 window.clearThisDevice = clearThisDevice;
 window.deleteMyAccount = deleteMyAccount;
 window.setLeadStatus = setLeadStatus;

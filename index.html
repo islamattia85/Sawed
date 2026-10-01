@@ -41,16 +41,30 @@
 <link rel="stylesheet" href="/src/styles/v7.css">
 </head>
 <body>
-<div class="app" id="app-root">
-  <!-- Loader shown while engine warms up -->
-  <div class="loader" id="loader">
-    <div class="splash-mark">
-      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--on-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.9"/><path d="M12 2.8v2.1M12 19.1v2.1M21.2 12h-2.1M4.9 12H2.8M18.6 5.4l-1.5 1.5M6.9 17.1l-1.5 1.5M18.6 18.6l-1.5-1.5M6.9 6.9 5.4 5.4"/></svg>
-    </div>
-    <div class="splash-word">Solar <em>Optimiser</em></div>
-    <div class="loader-text">Preparing your analysis…</div>
-  </div>
+<div class="app" id="app-root"><div id="loader" hidden></div></div>
+
+<!-- Launch splash: painted before any script runs, faded out by main.js once
+     the first screen is drawn. Never blocks a tap. -->
+<div id="pk-splash" aria-hidden="true">
+  <svg class="pk-splash-mark" viewBox="0 0 24 24" fill="none" stroke-linecap="round">
+    <path class="pk-arc" d="M3 16 C7 16 8 7 12 7 C16 7 17 16 21 16" stroke="#5a7880" stroke-width="1.3" stroke-dasharray="1.4 2.4"/>
+    <path class="pk-line" d="M3 16 H21" stroke="#ffd166" stroke-width="2"/>
+  </svg>
+  <div class="pk-splash-word"><b>peak</b>less</div>
 </div>
+<style>
+  #pk-splash{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+    background:#16343d;pointer-events:none;transition:opacity .35s ease}
+  #pk-splash.is-gone{opacity:0}
+  .pk-splash-mark{width:96px;height:96px}
+  .pk-line{stroke-dasharray:18;stroke-dashoffset:18;animation:pk-draw .7s .15s cubic-bezier(.3,.7,.2,1) forwards}
+  .pk-arc{opacity:0;animation:pk-in .4s forwards}
+  .pk-splash-word{font:500 32px/1 "Inter Tight",system-ui,sans-serif;letter-spacing:-.03em;color:#e8eef0;opacity:0;animation:pk-in .4s .45s forwards}
+  .pk-splash-word b{font-weight:800}
+  @keyframes pk-draw{to{stroke-dashoffset:0}}
+  @keyframes pk-in{to{opacity:1}}
+  @media (prefers-reduced-motion:reduce){.pk-line,.pk-arc,.pk-splash-word{animation:none;opacity:1;stroke-dashoffset:0}}
+</style>
 
 <!-- Supabase config — set these to your project's values.
      In Netlify/Vercel: add SUPABASE_URL and SUPABASE_ANON_KEY as env vars

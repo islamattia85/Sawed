@@ -181,7 +181,7 @@ test('correcting our guess is a sentence, not a gate', async ({ page }) => {
   await expect(correct).toContainText(/Already have panels/i);
 
   await correct.getByRole('link', { name: /exact spec/i }).click();
-  await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('refine');
+  await expect.poll(() => page.evaluate(() => window.state._sheet && window.state._sheet.kind)).toBe('system');
   expect(errors).toEqual([]);
 });
 
