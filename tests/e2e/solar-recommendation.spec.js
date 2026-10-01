@@ -91,16 +91,12 @@ test('the solar tab does not offer a second system alongside the reader’s own'
   expect(errors).toEqual([]);
 });
 
-test('the suggestion is on the customise screen, above the controls it changes', async ({ page }) => {
+test('the suggestion is in My system, above the controls it changes', async ({ page }) => {
   // A home that is actually modelling a system: with nothing configured the
   // section offers "add a solar system" instead, which is the right answer to
   // a different question.
   const errors = await boot(page, { has_solar: true, considering_solar: true, count_A: 12, battery_kwh: 5 });
-  await page.evaluate(() => {
-    window.setScreen('refine');
-    window.state._settings_open = 'solar';
-    window.renderApp();
-  });
+  await page.evaluate(() => window.openMySystem());
 
   const card = page.locator('.opt-card, .opt-note').first();
   await expect(card).toBeVisible({ timeout: 20_000 });
@@ -111,9 +107,8 @@ test('the suggestion is on the customise screen, above the controls it changes',
 
   const placed = await page.evaluate(() => {
     const el = document.querySelector('.opt-card, .opt-note');
-    const section = [...document.querySelectorAll('.settings-section-card')]
-      .find((c) => /Solar system/.test(c.textContent));
-    const firstControl = document.querySelector('.refine-row');
+    const section = document.querySelector('#v7-sheet');
+    const firstControl = document.querySelector('#v7-sheet .sy-part');
     return {
       inSolarSection: !!(section && section.contains(el)),
       aboveControls: firstControl
@@ -126,13 +121,9 @@ test('the suggestion is on the customise screen, above the controls it changes',
   expect(errors).toEqual([]);
 });
 
-test('a collapsed section does not start the twelve-design sweep', async ({ page }) => {
+test('the Advanced screen does not start the twelve-design sweep', async ({ page }) => {
   await boot(page, NO_SOLAR);
-  await page.evaluate(() => {
-    window.setScreen('refine');
-    window.state._settings_open = 'home';
-    window.renderApp();
-  });
+  await page.evaluate(() => window.setScreen('refine'));
   await page.waitForTimeout(800);
   // Section bodies render even when closed. Simulating twelve designs for a
   // section nobody has opened is work done for nothing.
@@ -141,11 +132,7 @@ test('a collapsed section does not start the twelve-design sweep', async ({ page
 
 test('the recommendation is a single defensible pick, and applying it works', async ({ page }) => {
   const errors = await boot(page, { has_solar: true, considering_solar: true, count_A: 12, battery_kwh: 5 });
-  await page.evaluate(() => {
-    window.setScreen('refine');
-    window.state._settings_open = 'solar';
-    window.renderApp();
-  });
+  await page.evaluate(() => window.openMySystem());
   await expect.poll(
     () => page.evaluate(() => !document.querySelector('.opt-note.is-working')),
     { timeout: 20_000 },
@@ -228,25 +215,11 @@ test('the grant card is off the solar tab and beside the field it explains', asy
   expect(onSolar, 'the system price no longer says the grant is included')
     .toMatch(/after grant/i);
 
-  await page.evaluate(() => {
-    window.setScreen('refine');
-    window.state._settings_open = 'solar';
-    window.renderApp();
-  });
-
-  const placed = await page.evaluate(() => {
-    const card = [...document.querySelectorAll('.card')]
-      .find((c) => /SEAI home solar grant/i.test(c.textContent));
-    const field = [...document.querySelectorAll('.refine-row')]
-      .find((r) => /SEAI grant/i.test(r.textContent));
-    return {
-      present: !!card,
-      afterTheField: !!(card && field
-        && card.getBoundingClientRect().top > field.getBoundingClientRect().top),
-    };
-  });
-  expect(placed.present, 'the grant card was deleted rather than moved').toBe(true);
-  expect(placed.afterTheField, 'the card is not beside the grant field').toBe(true);
+  // The grant lives with the price in My system: a switch that says the amount.
+  await page.evaluate(() => window.openMySystem());
+  const grant = page.locator('#v7-sheet .sy-part[aria-label=Price] .sy-toggle');
+  await expect(grant).toContainText('SEAI grant');
+  await expect(grant).toContainText(/€[\d,]+ off the price/);
 
   expect(errors).toEqual([]);
 });

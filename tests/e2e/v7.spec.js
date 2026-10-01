@@ -372,3 +372,27 @@ test('a first visit opens on the start page, with the brand', async ({ page }) =
   await expect(page.locator('.pk-land')).toBeVisible();
   await expect(page.locator('.pk-land .pk-word')).toHaveAttribute('aria-label', 'Peakless');
 });
+
+test('Advanced keeps only what My home and My system do not hold', async ({ page }) => {
+  await boot(page, { current_screen: 'refine', battery_kwh: 5, has_solar: true, considering_solar: true, count_A: 12 });
+  const titles = await page.locator('.settings-section-title').allTextContents();
+  const t = titles.join(' | ');
+  expect(t).toMatch(/Battery strategy/);
+  expect(t).toMatch(/consumption shape/i);
+  expect(t).not.toMatch(/Home & bills|Solar system|Electric vehicle/);
+  await expect(page.getByText('Simple', { exact: true })).toHaveCount(0);
+  // The two sheets are one tap away, and open over a surface that can show them.
+  await page.locator('.adv-link', { hasText: 'My system' }).click();
+  await expect(page.locator('#v7-sheet')).toContainText('My system');
+});
+
+test('My home carries the EV details and the plan discount', async ({ page }) => {
+  await boot(page, { ev_active: true, ev_km_per_year: 12000 });
+  await page.evaluate(() => window.openMyHome());
+  const ev = page.locator('#v7-sheet .sy-part[aria-label="Electric car"]');
+  const km = ev.locator('input[type=number]').first();
+  await km.fill('20000');
+  await km.dispatchEvent('change');
+  expect(await page.evaluate(() => window.state.ev_km_per_year)).toBe(20000);
+  await expect(page.locator('#v7-sheet')).toContainText('Discount on it');
+});

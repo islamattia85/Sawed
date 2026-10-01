@@ -8228,22 +8228,16 @@ function _refineSection(id, icon, title, summary, body){
 function sectionIf(cond, ...args){ return cond ? _refineSection(...args) : ''; }
 
 function renderRefine(){
-  if (!state._settings_open) state._settings_open = 'home';
+  // Advanced: only what My home and My system don't hold. The house, the
+  // usage, the panels, battery, price and car are edited in those two sheets;
+  // this screen keeps the settings most homes never need to touch.
+  if (!state._settings_open) state._settings_open = 'strategy';
   const open = state._settings_open;
-
   const section = _refineSection;
-
   const region = IRISH_REGIONS[state.region || 'east'];
-  const homeSummary = `${region.name} · ${state.heating_type} · €${state.bimonthly_bill_eur}/bimonth`;
-  const solarSummary = state.considering_solar
-    ? `${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ' + ' + state.battery_kwh + ' kWh' : ''} · €${state.install_cost.toLocaleString()} gross`
-    : 'No solar configured yet';
   const stratSummary = state.battery_kwh > 0
-    ? `${state.strategy_mode || 'arbitrage'}${state.charge_from_grid ? ' · grid-charge ON' : ''} · HW: ${state.hot_water_strategy || 'none'}`
-    : 'No battery — strategy not applicable';
-  const evSummary = state.ev_active
-    ? `${(state.ev_km_per_year || 0).toLocaleString()} km/yr · ${state.ev_kwh_per_100km || 17} kWh/100km · ${state.ev_charger_kw || 7} kW charger`
-    : 'No EV in household';
+    ? `${({ auto: 'Automatic', arbitrage: 'Charge cheap, use at peak', self: 'Self-consume' })[state.strategy_mode] || state.strategy_mode}${state.charge_from_grid ? ' · charges from the grid' : ''}`
+    : 'No battery modelled';
   const tariffDates = TARIFFS.map(t => t.verified_date).filter(Boolean).sort();
   const tariffSummary = tariffDates.length
     ? `${TARIFFS.length} plans · last verified ${fmtVerifiedDate(tariffDates[tariffDates.length-1])}`
@@ -8252,104 +8246,23 @@ function renderRefine(){
     ? `✓ Smart meter data imported · ${Math.round(Object.values(state.bills).reduce((a,b)=>a+b,0)).toLocaleString()} kWh/yr`
     : 'Replace bill estimate with real 30-min interval data';
   const shapeSummary = 'Edit only if you have evidence — default profile is calibrated for Irish homes';
+  const link = (onclick, icon, title, sub) => `<button class="adv-link" onclick="${onclick}">
+      <span class="adv-link-ico">${icon}</span>
+      <span class="adv-link-text"><b>${title}</b><small>${sub}</small></span>${ic('chevR', 16)}</button>`;
 
-  return `${topbar('Settings', 'sage', true)}
+  return `${topbar('Advanced', 'sage', true)}
   <div class="screen">
-    <div class="qr-hero" style="background:var(--surface-deep);border-color:var(--ink-soft);box-shadow:var(--hero-shadow)">
-      <div class="qr-eyebrow" style="color:var(--ink-soft)">Direct edit</div>
-      <div style="font-family:var(--display);font-size:15px;font-weight:600;color:var(--ink);line-height:1.4;letter-spacing:-.01em">Tap any section. Changes autosave and re-run the simulation.</div>
-      <div style="display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
-        <div style="flex:1">
-          <div style="font-size:12px;font-weight:700;color:var(--ink)">View</div>
-          <div style="font-size:12px;color:var(--ink-soft);margin-top:1px">${state.simple_mode ? 'Essential fields only' : 'All fields shown'}</div>
-        </div>
-        <div style="display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--well)">
-          <button onclick="state.simple_mode=true;saveState();renderApp();" style="padding:7px 14px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${state.simple_mode?'var(--accent)':'transparent'};color:${state.simple_mode?'#fff':'var(--ink-soft)'}">Simple</button>
-          <button onclick="state.simple_mode=false;saveState();renderApp();" style="padding:7px 14px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${!state.simple_mode?'var(--ink)':'transparent'};color:${!state.simple_mode?'#fff':'var(--ink-soft)'}">Expert</button>
-        </div>
-      </div>
+    <div class="adv-links">
+      ${link('openMyHome()', ic('home', 18), 'My home', `${esc(region ? region.name : '')} · ${esc(state.heating_type)} heating · ${Math.round(v7AnnualKwh()).toLocaleString('en-IE')} kWh a year${state.ev_active ? ' · EV' : ''}`)}
+      ${link('openMySystem()', ic('sun', 18), 'My system', state.considering_solar && totalPanels() > 0
+        ? `${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh battery` : ''} · ${eur(state.install_cost)}`
+        : 'No solar modelled yet')}
     </div>
+    <p class="adv-intro">Settings most homes never need. Each starts on a value that suits a typical Irish home.</p>
 
-    ${section('home', ic('home',17), 'Home & bills', homeSummary, `
-      <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.1em;text-transform:uppercase;font-weight:600;margin-bottom:10px">Region</div>
-      ${renderRegionPicker(state.region || 'east')}
-      <div style="margin-top:14px">
-        ${refineRow('Heating type', '', refineSel('rf-heat', state.heating_type, [['gas','Gas / Oil Boiler'],['heatpump','Heat pump'],['storage','Storage heaters'],['direct','Direct electric']]))}
-        ${state._csv_imported ? `<div style="margin-bottom:10px">${csvLockCard(true)}</div>` : `
-        ${refineRow('Usage from', 'kWh/yr beats a € bill for accuracy if you have it', `
-          <div style="display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--well);width:fit-content">
-            <button onclick="setUsageMode('bill')" style="padding:7px 13px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${state.usage_input_mode !== 'kwh' ? 'var(--accent)' : 'transparent'};color:${state.usage_input_mode !== 'kwh' ? '#fff' : 'var(--ink-soft)'}">€ Bill</button>
-            <button onclick="setUsageMode('kwh')" style="padding:7px 13px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${state.usage_input_mode === 'kwh' ? 'var(--accent)' : 'transparent'};color:${state.usage_input_mode === 'kwh' ? '#fff' : 'var(--ink-soft)'}">kWh / year</button>
-          </div>`)}
-        ${state.usage_input_mode === 'kwh'
-          ? refineRow('Yearly consumption (kWh)', 'Ground truth — we shape it across the year by heating type. Derived bill: ~€' + (state.bimonthly_bill_eur || 0) + '/2mo', refineNum('rf-kwh', state.annual_kwh || (state.bills && Object.keys(state.bills).length ? Object.values(state.bills).reduce((a,b)=>a+b,0) : 4200), 500, 40000, 100, 'kWh'))
-          : refineRow('Bimonthly bill (€)', 'Auto-derives kWh', refineNum('rf-bill', state.bimonthly_bill_eur, 0, 1500, 10, '€'))}`}
-        ${refineRow('Currently on', 'Plan to compare against', refineSel('rf-base', state.baseline, activeTariffsSorted().map(t => [t.id, t.supplier + ' — ' + t.plan])))}
-        ${refineRow('Discount on your plan (%)', 'Sign-up discount or equivalent older rates — % off unit rates on YOUR current plan only. Standing charge stays full price.', refineNum('rf-disc', state.baseline_discount_pct || 0, 0, 60, 1, '%'))}
-      </div>
-    `)}
+    ${section('strategy', ic('bolt',17), 'Battery strategy', stratSummary, renderStrategyControls())}
 
-    ${section('solar', ic('sun',17), 'Solar system', solarSummary, state.considering_solar ? `
-      <!-- The size suggestion lives here, above the controls it would change.
-           On the solar tab it sat beside the reader's own payback and turned
-           "is this worth it" into a comparison nobody asked for. Someone on
-           this screen has already decided to change the spec. -->
-      ${open === 'solar' ? renderOptimisedSuggestion() : ''}
-      ${refineRow('Front roof — panels', state.count_A > 30 ? "\u26A0 That is a large array for one roof — double-check the count" : 'Number of panels on your main roof', refineNum('rf-cA', state.count_A, 0, 40, 1, ''))}
-      ${refineRow('Front roof — orientation', sectorFromAzimuth(state.azimuth_A) + ' (' + state.azimuth_A + '°)', refineSel('rf-azA', sectorFromAzimuth(state.azimuth_A), [['S','South'],['SE','Southeast'],['SW','Southwest'],['E','East'],['W','West'],['NE','Northeast'],['NW','Northwest'],['N','North']]))}
-      ${refineRow('Front roof — tilt', '', refineNum('rf-tiltA', state.tilt_A, 0, 90, 1, '°'))}
-      ${refineRow('Back roof — panels', state.count_B > 30 ? "\u26A0 Unusually large for a second roof — sure?" : '0 if single roof', refineNum('rf-cB', state.count_B, 0, 40, 1, ''))}
-      ${state.count_B > 0 ? refineRow('Back roof — orientation', sectorFromAzimuth(state.azimuth_B) + ' (' + state.azimuth_B + '°)', refineSel('rf-azB', sectorFromAzimuth(state.azimuth_B), [['S','South'],['SE','Southeast'],['SW','Southwest'],['E','East'],['W','West'],['NE','Northeast'],['NW','Northwest'],['N','North']])) + refineRow('Back roof — tilt', '', refineNum('rf-tiltB', state.tilt_B, 0, 90, 1, '°')) : ''}
-      ${refineRow('Panel wattage (W)', 'Check your installer spec sheet — modern N-type: 420–480W, older panels: 250–350W.', refineNum('rf-pw', state.panel_w, 200, 700, 5, 'W'))}
-      ${refineRow('Battery storage (kWh)', state.battery_kwh > 30 ? "\u26A0 That is a very large home battery — double-check the size" : 'Enter 0 if no battery. A 9 kWh battery covers a typical family evening.', refineNum('rf-batt', state.battery_kwh, 0, 50, 0.5, 'kWh'))}
-      ${refineRow('Install cost (gross)', '', refineNum('rf-cost', state.install_cost, 0, 50000, 100, '€'))}
-      ${refineRow('SEAI grant', state.grant_is_manual ? "You've set this manually — clear the field to return to auto" : 'Auto-calculated from your system size — editing locks it to your value', refineNum('rf-grant', state.grant_seai, 0, 5000, 100, '€'))}
-      ${renderSeaiGrantCard(totalKwp(), state.battery_kwh)}
-      <div style="margin-top:14px;border-top:1px solid var(--line-soft);padding-top:12px">
-        <button onclick="state._expert_open=!state._expert_open;renderApp();" style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--mono);border:1px solid var(--line);background:${state._expert_open ? 'var(--well)' : 'transparent'};color:var(--ink-soft);cursor:pointer;letter-spacing:.04em">
-          ${ic('tune',12)} Expert mode ${state._expert_open ? '▲' : '▼'}
-        </button>
-        ${state._expert_open ? `
-        <div style="margin-top:10px;padding:12px 14px;background:var(--well);border:1px solid var(--line);border-radius:12px">
-          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:10px">Advanced simulation parameters</div>
-          ${refineRow('Inverter size (kW)', 'Max AC output. Typical Irish home: 4.6–6 kW. Should roughly match your total array kWp.', refineNum('rf-inv', state.inverter_kw, 1, 20, 0.5, 'kW'))}
-          ${refineRow('Battery depth of discharge (%)', 'Most lithium batteries: 90–100%. Lowering this reduces usable capacity but extends battery life.', refineNum('rf-dod', Math.round((state.battery_dod || 0.9) * 100), 50, 100, 5, '%'))}
-          ${refineRow('Panel degradation (%/yr)', 'Industry typical: 0.4%/yr. Premium N-type panels: 0.3%/yr. Older poly: 0.6%/yr.', refineNum('rf-deg', Math.round((state.panel_degradation || 0.004) * 1000) / 10, 0.1, 1.5, 0.1, '%/yr'))}
-        </div>` : ''}
-      </div>
-    ` : `
-      <div onclick="exploreSolar()" style="padding:12px;background:var(--amber-soft);border:1px solid var(--amber);border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:12px">
-        <div>${ic('sun',22)}</div>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:600;color:var(--ink)">Add a solar system to model</div>
-          <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">Currently only modelling tariff savings</div>
-        </div>
-        <div style="color:var(--ink-soft);font-size:17px">›</div>
-      </div>
-    `)}
-
-    ${sectionIf(!state.simple_mode, 'strategy', ic('bolt',17), 'Battery strategy', stratSummary, renderStrategyControls())}
-
-    ${section('ev', ic('car',17), 'Electric vehicle', evSummary, `
-      ${refineRow('EV in household', '', refineToggle('rf-ev', state.ev_active))}
-      ${state.ev_active ? `
-        ${refineRow('EV status', 'Determines whether its kWh are inside or on top of your bill', `
-          <div style="display:flex;gap:6px">
-            <button onclick="setEvMode('have')" style="flex:1;padding:8px 6px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid ${state.ev_in_bill ? 'var(--accent)' : 'var(--line)'};background:${state.ev_in_bill ? 'var(--accent-soft)' : 'transparent'};color:${state.ev_in_bill ? 'var(--accent)' : 'var(--ink-soft)'}">Have it · in bill</button>
-            <button onclick="setEvMode('plan')" style="flex:1;padding:8px 6px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid ${!state.ev_in_bill ? 'var(--accent)' : 'var(--line)'};background:${!state.ev_in_bill ? 'var(--accent-soft)' : 'transparent'};color:${!state.ev_in_bill ? 'var(--accent)' : 'var(--ink-soft)'}">Planning · on top</button>
-          </div>`)}
-        ${state._ev_just_enabled ? `
-          <div class="ev-fields-prompt">
-            <p>We've added an EV using <b style="color:var(--amber)">typical Irish defaults</b>. <b style="color:var(--ink)">Confirm or edit these fields below</b> — the simulation has already updated.</p>
-          </div>
-        ` : ''}
-        ${refineRow('Annual driving', 'Irish avg: 16,500 km/yr', refineNum('rf-evkm', state.ev_km_per_year, 0, 100000, 500, 'km'))}
-        ${refineRow('EV efficiency', 'Small ~14, mid ~17, SUV ~20', refineNum('rf-eveff', state.ev_kwh_per_100km, 5, 35, 0.5, 'kWh/100km'))}
-        ${refineRow('Home charger', '7.4 kW typical AC', refineNum('rf-evchg', state.ev_charger_kw, 1.4, 22, 0.1, 'kW'))}
-      ` : ''}
-    `)}
-
-    ${sectionIf(!state.simple_mode, 'tariffs', ic('radar',17), 'Tariff data freshness', tariffSummary, `
+    ${section('tariffs', ic('radar',17), 'Tariff data freshness', tariffSummary, `
       <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line-soft);margin-bottom:10px">
         <div style="flex:1">
           <div style="font-size:13px;font-weight:700;color:var(--ink)">Include dynamic-price plans</div>
@@ -8415,7 +8328,7 @@ function renderRefine(){
       </div>
     `)}
 
-    ${sectionIf(!state.simple_mode, 'shape', ic('chart',17), 'Advanced — consumption shape', shapeSummary, renderShapeControls())}
+    ${section('shape', ic('chart',17), 'Advanced — consumption shape', shapeSummary, renderShapeControls())}
 
     <div style="margin-top:18px;padding:12px 14px;background:var(--accent-faint);border:1px solid var(--accent);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.55;text-align:center">
       <b style="color:var(--accent);font-family:var(--mono);letter-spacing:.08em">✓ AUTOSAVE</b><br>
@@ -9293,7 +9206,7 @@ function renderMore(){
   const groups = [
     ['Your setup', [
       [ic('sun',19),'Start page','The landing page: quick answer, full setup, quote audit','welcome'],
-      [ic('tune',19),'Settings','Usage, heating, solar spec, EV & battery strategy','refine'],
+      [ic('tune',19),'Advanced','Battery strategy, tariff options, smart-meter data, usage shape','refine'],
       [ic('csv',19),'Import smart-meter data','ESB Networks CSV — the most accurate result','csv-import'],
     ]],
     ['Tools', [
@@ -9608,7 +9521,7 @@ function fastPathGo(){
   saveState();
   fireEvent('fastpath_complete', { bill: state.bimonthly_bill_eur, region: state.region });
   renderApp();
-  showToast('Here\u2019s your result — refine anything in Settings', { type:'accent', icon:ic('checkC',16) });
+  showToast('Here\u2019s your result — change anything in My home', { type:'accent', icon:ic('checkC',16) });
 }
 
 
@@ -10129,7 +10042,13 @@ function sysTypicalPrice(){
   invalidate(); saveState(); renderApp();
 }
 
+function openMyHome(){
+  if (!['result', 'plans', 'solar', 'more'].includes(state.current_screen)) state.current_screen = 'result';
+  v7Sheet('home');
+}
+
 function openMySystem(){
+  if (!['result', 'plans', 'solar', 'more'].includes(state.current_screen)) state.current_screen = 'solar';
   if ((state.solar_view || 'mine') !== 'mine'){ state.solar_view = 'mine'; snapshotMySystem(); }
   if (!state.considering_solar || totalPanels() === 0){
     state.considering_solar = true; state.has_solar = true;
@@ -10172,6 +10091,7 @@ function renderSystemSheet(){
       <h2 class="v7-h">${t} panels · ${totalKwp().toFixed(1)} kWp${batt > 0 ? ` · ${batt} kWh` : ''}</h2>
     </div>
     ${renderAccuracy()}
+    ${state.has_solar && totalPanels() > 0 ? renderOptimisedSuggestion() : ''}
 
     <section class="sy-part" aria-label="Panels">
       <div class="sy-part-title">${ic('sun', 16)} Panels</div>
@@ -10225,7 +10145,7 @@ function renderSystemSheet(){
 }
 
 function homeSet(key, v){
-  if (['bimonthly_bill_eur', 'annual_kwh', 'baseline_discount_pct'].includes(key)) v = +v;
+  if (['bimonthly_bill_eur', 'annual_kwh', 'baseline_discount_pct', 'ev_km_per_year', 'ev_kwh_per_100km', 'ev_charger_kw'].includes(key)) v = +v;
   if (state[key] === v) return;
   state[key] = v;
   if (['tilt_A', 'tilt_B', 'azimuth_A', 'azimuth_B'].includes(key)){
@@ -10266,6 +10186,7 @@ function renderHomeSheet(){
              : field('Typical two-month bill', 'Including VAT.', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="1500" step="5" value="${state.bimonthly_bill_eur}" onchange="homeSet('bimonthly_bill_eur',this.value)"><i>€</i></span>`)}
            <button class="v7-link" onclick="v7Sheet(null);setScreen('csv-import')">${ic('csv', 14)} Import ESB smart-meter data for exact figures</button>`}
       ${field('Current plan', '', sel('baseline', activeTariffsSorted().map((p) => [p.id, `${p.supplier} — ${p.plan}`]), state.baseline))}
+      ${field('Discount on it', 'A sign-up discount off the unit rates, if you have one.', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="60" step="1" value="${state.baseline_discount_pct || 0}" onchange="homeSet('baseline_discount_pct',this.value)"><i>%</i></span>`)}
     </section>
 
     <section class="sy-part" aria-label="Roof">
@@ -10281,13 +10202,23 @@ function renderHomeSheet(){
       <div class="sy-fine-note">Most Irish roofs are pitched 30–40°. An east–west roof uses both faces.</div>
     </section>
 
-    <label class="sy-toggle">
-      <span><b>Electric car</b><small>${state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'None at this home'}</small></span>
-      <input type="checkbox" role="switch" ${state.ev_active ? 'checked' : ''} onchange="toggleEv()">
-    </label>
+    <section class="sy-part" aria-label="Electric car">
+      <label class="sy-toggle sy-toggle-top">
+        <span><b>${ic('car', 16)} Electric car</b><small>${state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'None at this home'}</small></span>
+        <input type="checkbox" role="switch" ${state.ev_active ? 'checked' : ''} onchange="toggleEv()">
+      </label>
+      ${state.ev_active ? `
+        <div class="v7-seg" role="tablist" aria-label="EV status">
+          <button class="v7-seg-btn ${state.ev_in_bill ? 'active on' : ''}" onclick="setEvMode('have')">Have it — in my bill</button>
+          <button class="v7-seg-btn ${!state.ev_in_bill ? 'active on' : ''}" onclick="setEvMode('plan')">Planning one</button>
+        </div>
+        ${field('Driving a year', 'Irish average about 16,500 km.', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="100000" step="500" value="${state.ev_km_per_year}" onchange="homeSet('ev_km_per_year',this.value)"><i>km</i></span>`)}
+        ${field('Car efficiency', 'Small car about 14, family 17, SUV 20.', `<span class="sy-num"><input type="number" inputmode="decimal" min="5" max="35" step="0.5" value="${state.ev_kwh_per_100km}" onchange="homeSet('ev_kwh_per_100km',this.value)"><i>kWh/100km</i></span>`)}
+        ${field('Home charger', 'Most home chargers are 7.4 kW.', `<span class="sy-num"><input type="number" inputmode="decimal" min="1.4" max="22" step="0.1" value="${state.ev_charger_kw}" onchange="homeSet('ev_charger_kw',this.value)"><i>kW</i></span>`)}` : ''}
+    </section>
 
     <button class="v7-cta-2" onclick="openMySystem()">${ic('sun', 16)} My system — panels, battery, price</button>
-    <div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();v7Sheet(null);setScreen('refine')">Every setting, including the battery strategy</a></div>`;
+    <div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();v7Sheet(null);setScreen('refine')">Advanced — battery strategy, usage shape, tariff options</a></div>`;
 }
 
 function v7Sheet(kind, id){
@@ -11172,7 +11103,7 @@ function renderCsvImport(){
   return `${topbar('Smart meter data', 'blue', true)}
   <div class="screen">
     <div class="pd-back-bar">
-      <button class="pd-back-btn" onclick="setScreen('refine')">← Settings</button>
+      <button class="pd-back-btn" onclick="setScreen('refine')">← Advanced</button>
     </div>
 
     <div class="qr-hero" style="border-color:var(--blue)">
@@ -11642,7 +11573,7 @@ function renderMethodology(){
   return `${topbar('How it works', 'sage', true)}
   <div class="screen">
     <div class="pd-back-bar">
-      <button class="pd-back-btn" onclick="setScreen('refine')">← Settings</button>
+      <button class="pd-back-btn" onclick="setScreen('refine')">← Advanced</button>
     </div>
 
     <div class="qr-hero" style="border-color:var(--ink-soft);box-shadow:none">
@@ -11904,6 +11835,7 @@ window.sysGrant = sysGrant;
 window.sysTypicalPrice = sysTypicalPrice;
 window.openMySystem = openMySystem;
 window.homeSet = homeSet;
+window.openMyHome = openMyHome;
 window.modelAccuracy = modelAccuracy;
 window.clearThisDevice = clearThisDevice;
 window.deleteMyAccount = deleteMyAccount;
