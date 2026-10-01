@@ -20,7 +20,8 @@ import { boot } from './support.js';
 
 test('the answer and its action arrive before anything else', async ({ page }) => {
   // The first screen a person sees: the analysis folded, as it opens by default.
-  const errors = await boot(page, { _home_deep: false });
+  // A home with no solar or car: the plan card and two small invitations.
+  const errors = await boot(page, { _home_deep: false, has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, ev_active: false });
 
   const geo = await page.evaluate(() => {
     const box = (sel) => {

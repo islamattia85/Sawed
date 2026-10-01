@@ -24,11 +24,13 @@ const jsAttr = (s) => esc(jsq(s));
 
 /** Which surface a screen belongs to, so the right tab stays lit. */
 export const V7_SURFACES = [
-  { id: 'result', icon: 'home', label: 'Home', screens: ['result'] },
+  // v8: Solar is no longer a tab. Its answer is a card on Home (the 'solar'
+  // screen opens from it and keeps Home lit); its depth lives in Analytics.
+  { id: 'result', icon: 'home', label: 'Home', screens: ['result', 'solar'] },
   { id: 'plans', icon: 'plans', label: 'Plans', screens: ['plans', 'plan-detail', 'compare'] },
-  { id: 'solar', icon: 'sun', label: 'Solar', screens: ['solar', 'analytics'] },
-  { id: 'more', icon: 'grid', label: 'More',
-    screens: ['more', 'me', 'monitor', 'refine', 'csv-import', 'auditor', 'quotes', 'methodology', 'independence', 'how-to-switch', 'privacy', 'installer'] },
+  { id: 'analytics', icon: 'chart', label: 'Analytics', screens: ['analytics', 'monitor', 'csv-import'] },
+  { id: 'me', icon: 'user', label: 'Me',
+    screens: ['me', 'more', 'refine', 'auditor', 'quotes', 'methodology', 'independence', 'how-to-switch', 'privacy', 'installer'] },
 ];
 
 export function createV7(api) {
@@ -58,7 +60,7 @@ export function createV7(api) {
       ${V7_SURFACES.map((s) => `
         <button class="bottom-nav-item v7-nav-item ${active === s.id ? 'active' : ''}"
           onclick="setScreen('${s.id}')" aria-current="${active === s.id ? 'page' : 'false'}">
-          <span class="nav-ico">${api.ic(s.icon, 22)}${s.id === 'more' && api.alertCount() ? `<i class="nav-badge" aria-label="${api.alertCount()} new alerts">${api.alertCount()}</i>` : ''}</span>
+          <span class="nav-ico">${api.ic(s.icon, 22)}${s.id === 'me' && api.alertCount() ? `<i class="nav-badge" aria-label="${api.alertCount()} new alerts">${api.alertCount()}</i>` : ''}</span>
           <span class="nav-label">${s.label}</span>
         </button>`).join('')}
     </nav>`;
@@ -149,9 +151,15 @@ export function createV7(api) {
     const best = rec.best;
     if (!best || best._noPlan || !best.plan) return api.renderResultEmpty();
     const st = S();
-    const saving = rec.annualSavings;
     const chosen = st.chosen_plan === best.plan.id;
-    const { rungs, fromSwitch, fromSolar } = ladderData(rec);
+    const lad = ladderData(rec);
+    const { fromSwitch, fromSolar } = lad;
+    // v8: with solar on its own Home card, the plan card is about switching
+    // only — the same home, panels on both sides, as the Plans tab ranks it.
+    const withSolar = lad.rungs.length === 3;
+    const rungs = withSolar ? lad.rungs.slice(1) : lad.rungs;
+    const saving = withSolar ? fromSwitch : rec.annualSavings;
+    const mineNow = rungs[0].value;
     const switchName = jsAttr(`${best.plan.supplier} ${best.plan.plan}`);
     const split = fromSolar > 1
       ? `<div class="v7-split">
@@ -164,10 +172,10 @@ export function createV7(api) {
     const stay = saving <= 10 && !chosen;
     const hero = stay ? `
         <div class="v7-eyebrow">Your plan is already the best value</div>
-        <div class="qr-value v7-figure"><span>${api.fmtCurrency(rec.baseCost)}</span><span class="v7-figure-unit">a year where you are</span></div>
+        <div class="qr-value v7-figure"><span>${api.fmtCurrency(mineNow)}</span><span class="v7-figure-unit">a year where you are</span></div>
         <div class="v7-headline">No plan on the market costs less for this home. The closest is <b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}, ${eur(Math.max(0, -saving))} a year more.</div>`
       : `
-        <div class="v7-eyebrow">${saving > 10 ? 'You could pay less' : 'Your best plan'}</div>
+        <div class="v7-eyebrow">${saving > 10 ? (withSolar ? `Switching plan saves${st.solar_planned ? ', with the planned solar' : ''}` : 'You could pay less') : 'Your best plan'}</div>
         <div class="qr-value v7-figure" data-countup="${Math.round(Math.max(0, saving))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, saving))}</span><span class="v7-figure-unit">a year</span></div>
         <div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Best for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`;
 
@@ -192,12 +200,11 @@ export function createV7(api) {
       <section class="v7-hero qr-hero">
         ${hero}
         ${savingsLadder({ rungs })}
-        ${deep ? split : ''}
       </section>
 
       ${stay
         ? `<button class="switch-cta v7-cta" onclick="setScreen('plans')">See every plan compared ${api.ic('chevR', 18)}</button>`
-        : switchButton(best.plan, `${fromSolar > 1 && fromSwitch > 0 ? ` · ${eur(fromSwitch)}/yr` : ''}`)}
+        : switchButton(best.plan, '')}
 
       <button class="v7-basis-line" onclick="openMyHome()">
         Based on ${esc(basis)}${st.has_solar && api.totalPanels() > 0 ? ` · ${api.totalPanels()} solar panels` : ''}${st.ev_active ? ' · an electric car' : ''}
@@ -210,6 +217,8 @@ export function createV7(api) {
         ${st.chosen_plan ? api.renderChoiceStrip() : ''}
       </div>
 
+      ${homeCards(rec)}
+
       <button class="v7-deep ${deep ? 'open' : ''}" aria-expanded="${deep}" onclick="state._home_deep=!state._home_deep;renderApp()">
         <span class="v7-deep-top"><b>${api.ic('chart', 18)} Your analysis</b><span>${deep ? 'Hide' : 'Show'} ${api.ic(deep ? 'chevU' : 'chevD', 16)}</span></span>
         <span class="v7-deep-stats">
@@ -220,6 +229,7 @@ export function createV7(api) {
       </button>
 
       ${deep ? `
+      ${withSolar ? `<section class="v7-card v7-full-ladder"><div class="v7-card-title">The whole saving, step by step</div>${savingsLadder({ rungs: lad.rungs })}${split}</section>` : ''}
       <div class="qr-actions v7-links">
         <a href="#" onclick="event.preventDefault();openPlanPicker()">${st.chosen_plan ? 'Change plan' : 'Pick a different plan'}</a>
         ${saving > 10 ? `<span class="qr-actions-dot">·</span>
@@ -240,6 +250,49 @@ export function createV7(api) {
 
     </div>
     ${nav()}`;
+  }
+
+  /**
+   * The rest of the household, a card per part it has.
+   *
+   * A home with panels gets a solar card (installed: what they bring back;
+   * planned: the payback), a home with a car an EV card, and a home with
+   * neither two quiet invitations. The cards carry one figure each and open
+   * the detail; the depth is in Analytics.
+   */
+  function homeCards(rec) {
+    const st = S();
+    const sys = st.has_solar && api.totalPanels() > 0;
+    const planned = sys && (st.solar_planned || st.solar_is_estimate);
+    let out = '';
+    if (sys) {
+      let d = null; try { d = api.solarData(); } catch (e) {}
+      const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
+      out += `<button class="hc" onclick="setScreen('solar')">
+        <span class="hc-k"><span>${api.ic('sun', 16)} ${planned ? 'Solar for this home' : 'Your solar'}</span><i class="hc-tag ${planned ? 'is-plan' : ''}">${planned ? 'planned' : 'installed'}</i></span>
+        <span class="hc-fig">${planned ? `${pb ? pb.toFixed(1) : '—'}<small>years to pay back</small>` : `${eur(d ? d.cur.solarBenefit : 0)}<small>back a year</small>`}</span>
+        <span class="hc-facts">
+          ${planned ? `<span><b>${eur(d ? d.cur.solarBenefit : 0)}</b>back a year</span>` : `<span><b>${pb ? pb.toFixed(1) : '—'} yrs</b>to pay back</span>`}
+          <span><b>${eur(d ? d.sysCost : 0)}</b>after grant</span>
+          <span><b>${eur(d ? d.npv : 0)}</b>over 20 years</span>
+        </span>
+        <span class="hc-sub">${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''} <em>See solar ${api.ic('chevR', 14)}</em></span>
+      </button>`;
+    }
+    if (st.ev_active) {
+      let ev = null; try { ev = api.evEconomics(rec.best.plan.id); } catch (e) {}
+      const w = rec.best.plan.windows || {};
+      const win = w.ev || w.night;
+      out += `<button class="hc" onclick="v7Sheet('ev')">
+        <span class="hc-k"><span>${api.ic('car', 16)} Your EV</span><i class="hc-tag ${st.ev_in_bill ? '' : 'is-plan'}">${st.ev_in_bill ? 'yours' : 'planned'}</i></span>
+        <span class="hc-fig">${eur(ev ? ev.evElectricityCost : 0)}<small>a year to charge</small></span>
+        <span class="hc-sub">${ev ? `${eur(ev.evVsPetrolNet)} less than petrol` : ''}${win ? ` · charge ${hhmm(win[0])}–${hhmm(win[1])}` : ''} <em>See it ${api.ic('chevR', 14)}</em></span>
+      </button>`;
+    }
+    const invites = [];
+    if (!sys) invites.push(`<button class="hc-invite" onclick="startSolarGuide()">${api.ic('sun', 18)}<span><b>Thinking about solar?</b>See if it pays off, in a few taps</span></button>`);
+    if (!st.ev_active) invites.push(`<button class="hc-invite" onclick="startEvGuide()">${api.ic('car', 18)}<span><b>Thinking about an EV?</b>What it would cost to charge here</span></button>`);
+    return out + invites.join('');
   }
 
   /** Doors to the other two questions, each carrying its own answer. */

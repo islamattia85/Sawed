@@ -756,6 +756,7 @@ const IC = {
   chevU: '<path d="M5.6 14.6 12 8.2l6.4 6.4"/>',
   chevD: '<path d="M5.6 9.4 12 15.8l6.4-6.4"/>',
   euro: '<path d="M17.5 6.5A7 7 0 1 0 17.5 17.5"/><path d="M4.5 10.2h9M4.5 13.8h9"/>',
+  user: '<circle cx="12" cy="8.4" r="3.8"/><path d="M4.8 20c.9-3.6 3.8-5.6 7.2-5.6s6.3 2 7.2 5.6"/>',
   chevR:   '<path d="M9.4 5.6l6.4 6.4-6.4 6.4"/>',
   tune:    '<path d="M4 7.3h16M4 12h16M4 16.7h16"/><circle cx="9" cy="7.3" r="2.1" style="fill:var(--knock)"/><circle cx="15.5" cy="12" r="2.1" style="fill:var(--knock)"/><circle cx="7.5" cy="16.7" r="2.1" style="fill:var(--knock)"/>',
   bolt:    '<path d="M13.2 2.8 5.6 13.4h4.9L10.8 21.2 18.4 10.6h-4.9z" fill="currentColor" stroke="none"/>',
@@ -7621,6 +7622,19 @@ function ensureAnalyticsState(){
   if (!state._an_view) state._an_view = 'flows';
 }
 
+/** The Analytics tab's own menu: the depth of the model, in one place. */
+function analyticsHub(on){
+  const sys = state.has_solar && totalPanels() > 0;
+  const items = [
+    ['hours', 'Hour by hour', "setScreen('analytics')"],
+    ...(sys ? [['solar', 'Solar, month by month', "state._solar_deep=true;setScreen('solar')"]] : []),
+    ['market', 'Market', "setScreen('monitor')"],
+    ['meter', 'Meter data', "setScreen('csv-import')"],
+  ];
+  return `<nav class="an-hub" aria-label="Analytics">${items.map(([k, l, go]) =>
+    `<button class="an-hub-b ${k === on ? 'on' : ''}" onclick="${go}">${l}</button>`).join('')}</nav>`;
+}
+
 function renderAnalytics(){
   ensureAnalyticsState();
   if (CACHE.dirty) rebuildBase();
@@ -7730,7 +7744,9 @@ function renderAnalytics(){
   const recommendedId = _rec.best ? _rec.best.plan.id : null;
   const isRecommended = (recommendedId === plan.id);
 
+  const hub = analyticsHub('hours');
   return `${topbar('Analytics', 'blue', true)}
+  ${hub}
   <div class="screen">
     <div class="an-hero">
       <div class="an-hero-label">Annual flows · ${plan.supplier} ${plan.plan}${isRecommended ? ' · ★ RECOMMENDED' : ''}</div>
@@ -9398,7 +9414,8 @@ function renderMonitor(){
       <div class="mon-event-sub">${e.sub}</div>
     </div></div>`).join('');
 
-  return `${topbar('Market Monitor', 'blue', true)}
+  return `${topbar('Market', 'blue', true)}
+  ${analyticsHub('market')}
   <div class="screen">
     <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin:2px 2px 14px">We watch every Irish tariff and flag what's worth acting on.</div>
     ${contractAlert}
@@ -10470,6 +10487,11 @@ function renderMe(){
 
     <div class="section-title">Quote requests</div>
     <section class="me-list">${requests}</section>
+
+    <div class="section-title">Settings and more</div>
+    <section class="me-list">
+      <button class="me-row me-link" onclick="setScreen('more')"><span><b>Settings, help and more</b><small>Advanced settings, appearance, privacy, how to switch, methodology</small></span>${ic('chevR', 16)}</button>
+    </section>
 
     ${signedIn ? `<div class="section-title">Account</div>
     <section class="me-list">
@@ -12427,7 +12449,8 @@ function renderHowToSwitch(){
    ============================================================ */
 function renderCsvImport(){
   const hasImport = state._csv_imported;
-  return `${topbar('Smart meter data', 'blue', true)}
+  return `${topbar('Meter data', 'blue', true)}
+  ${analyticsHub('meter')}
   <div class="screen">
     <div class="pd-back-bar">
       <button class="pd-back-btn" onclick="setScreen('refine')">← Advanced</button>

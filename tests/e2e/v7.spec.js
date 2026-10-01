@@ -13,7 +13,7 @@ import { boot, bootFresh } from './support.js';
 test('the ladder adds up: switching plus solar is the whole saving', async ({ page }) => {
   const errors = await boot(page);
   const r = await page.evaluate(() => {
-    const rungs = [...document.querySelectorAll('.v7-ladder [data-rung]')]
+    const rungs = [...document.querySelectorAll('.v7-full-ladder .v7-ladder [data-rung]')]
       .map((g) => ({ label: g.dataset.label, value: +g.dataset.value }));
     const rec = window.getRecommendation();
     return { rungs, base: rec.baseCost, net: rec.best.net, saving: rec.annualSavings };
@@ -32,14 +32,13 @@ test('the ladder adds up: switching plus solar is the whole saving', async ({ pa
   expect(errors).toEqual([]);
 });
 
-test('the switch button says what the switch is worth, not what the panels earn', async ({ page }) => {
+test('on a solar home, the plan card shows what the switch is worth, not what the panels earn', async ({ page }) => {
   await boot(page);
-  const { cta, rungs } = await page.evaluate(() => ({
-    cta: document.querySelector('.switch-cta').textContent.replace(/\s+/g, ' '),
-    rungs: [...document.querySelectorAll('.v7-ladder [data-rung]')].map((g) => +g.dataset.value),
+  const { fig, rungs } = await page.evaluate(() => ({
+    fig: +document.querySelector('.v7-hero .v7-figure').textContent.replace(/[^\d]/g, ''),
+    rungs: [...document.querySelectorAll('.v7-full-ladder .v7-ladder [data-rung]')].map((g) => +g.dataset.value),
   }));
-  const fromSwitch = Math.round(rungs[1] - rungs[2]);
-  expect(cta).toContain(`€${fromSwitch.toLocaleString('en-IE')}/yr`);
+  expect(Math.abs(fig - Math.round(rungs[1] - rungs[2]))).toBeLessThanOrEqual(1);
 });
 
 test('the plans list and the home agree on what switching is worth', async ({ page }) => {
@@ -49,7 +48,7 @@ test('the plans list and the home agree on what switching is worth', async ({ pa
   // measured against a bill without the solar.
   await boot(page);
   const step = await page.evaluate(() => {
-    const v = [...document.querySelectorAll('.v7-ladder [data-rung]')].map((g) => +g.dataset.value);
+    const v = [...document.querySelectorAll('.v7-full-ladder .v7-ladder [data-rung]')].map((g) => +g.dataset.value);
     return Math.round(v[1] - v[2]);
   });
   await page.evaluate(() => window.setScreen('plans'));
@@ -62,7 +61,7 @@ test('the plans list and the home agree on what switching is worth', async ({ pa
 
 test('a home without solar gets a two-rung ladder, with nothing credited to panels', async ({ page }) => {
   await boot(page, { has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
-  const n = await page.locator('.v7-ladder [data-rung]').count();
+  const n = await page.locator('.v7-hero .v7-ladder [data-rung]').count();
   expect(n).toBe(2);
   await expect(page.locator('.v7-split')).toHaveCount(0);
 });
@@ -121,7 +120,7 @@ test('no screen shouts: nothing is set in uppercase by style', async ({ page }) 
 
 test('the four tabs are destinations: no back arrow on any of them', async ({ page }) => {
   await boot(page);
-  for (const s of ['result', 'plans', 'solar', 'more']) {
+  for (const s of ['result', 'plans', 'analytics', 'me']) {
     await page.evaluate((x) => window.setScreen(x), s);
     await expect(page.locator('.v7-top [aria-label="Back"]'), `${s} shows a back arrow`).toHaveCount(0);
   }
@@ -139,14 +138,15 @@ test('the way back into setup, and sharing, survive the redesign', async ({ page
 
 test('solar can be left out in one tap, and comes back as the same system', async ({ page }) => {
   const errors = await boot(page, { count_A: 14, battery_kwh: 10 });
-  const rungs = () => page.locator('.v7-ladder [data-rung]').count();
+  const rungs = () => page.locator('.v7-full-ladder .v7-ladder [data-rung]').count();
   const saving = () => page.evaluate(() => window.getRecommendation().annualSavings);
 
   expect(await rungs()).toBe(3);
   const withSolar = await saving();
 
   await page.getByRole('switch', { name: /Include solar/ }).click();
-  await expect.poll(rungs).toBe(2);
+  // Without solar the step-by-step ladder has nothing to split, so it goes.
+  await expect.poll(rungs).toBe(0);
   expect(await page.evaluate(() => window.state.has_solar)).toBe(false);
   expect(await saving(), 'leaving solar out did not change the figures').toBeLessThan(withSolar);
   // The system is kept, not wiped.
@@ -173,7 +173,7 @@ test('opening Solar with no solar models nothing', async ({ page }) => {
   const errors = await boot(page, { has_solar: false, considering_solar: false, battery_kwh: 0 });
   const before = await page.evaluate(() => window.getRecommendation().annualSavings);
 
-  await page.getByRole('button', { name: /^Solar$/ }).click();
+  await page.evaluate(() => window.setScreen('solar'));
   await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('solar');
   expect(await page.evaluate(() => [window.state.has_solar, !!window.state.considering_solar]))
     .toEqual([false, false]);
@@ -212,7 +212,7 @@ test('the health score judges the plan on the same home the ladder does', async 
   // solar home 23 for plan efficiency when switching was worth €148 of €551.
   await boot(page);
   const mine = await page.evaluate(() =>
-    Math.round(+document.querySelectorAll('.v7-ladder [data-rung]')[1].dataset.value));
+    Math.round(+document.querySelectorAll('.v7-full-ladder .v7-ladder [data-rung]')[1].dataset.value));
   await page.locator('.v7-tile-score').click();
   const weak = await page.locator('#v7-sheet').innerText();
   const m = weak.match(/You pay €([\d,]+)/);
@@ -427,7 +427,7 @@ test('My Peakless: a guest sees the household, the quotes and why an account hel
   await expect(me.locator('.me-card')).toHaveCount(3);
   await expect(me).toContainText('Sunny Ltd');
   // The More tab stays lit: My Peakless lives under it.
-  await expect(page.locator('.v7-nav-item.active')).toContainText('More');
+  await expect(page.locator('.v7-nav-item.active')).toContainText('Me');
 
   // A saved quote becomes the modelled system in one tap.
   await me.getByRole('button', { name: 'Model it' }).click();
@@ -753,4 +753,21 @@ test('the flow reveal: the switch saving is the switch alone, never the planned 
   const r = await page.evaluate(() => ({ split: window.plannedSolarSplit().switchNow,
     shown: +(document.querySelector('.fl-r-big')?.textContent.match(/€([\d,]+)/) || [0, '0'])[1].replace(/,/g, '') }));
   expect(Math.abs(r.shown - r.split)).toBeLessThanOrEqual(1);
+});
+
+test('v8 Home adapts: a card per part of the home, invitations for what it lacks, four tabs', async ({ page }) => {
+  await boot(page, { has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, ev_active: false, _home_deep: false });
+  await expect(page.locator('.hc')).toHaveCount(0);
+  await expect(page.locator('.hc-invite')).toHaveCount(2);
+  expect((await page.locator('.v7-nav-item .nav-label').allInnerTexts())).toEqual(['Home', 'Plans', 'Analytics', 'Me']);
+
+  await boot(page, { has_solar: true, considering_solar: true, solar_planned: true, count_A: 12, battery_kwh: 5, ev_active: true, ev_km_per_year: 15000, _home_deep: false });
+  await expect(page.locator('.hc')).toHaveCount(2);
+  await expect(page.locator('.hc').first()).toContainText('years to pay back');
+  await expect(page.locator('.hc-invite')).toHaveCount(0);
+  await page.locator('.hc').first().click();
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('solar');
+  await expect(page.locator('.v7-nav-item.active')).toContainText('Home');
+  await page.locator('.v7-nav-item', { hasText: 'Analytics' }).click();
+  await expect(page.locator('.an-hub')).toContainText('Solar, month by month');
 });
