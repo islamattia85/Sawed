@@ -42,6 +42,7 @@ export const SETUP = {
   current_screen: 'result',
   // Existing tests exercise the full analysis on Home; v8 opens it collapsed.
   _home_deep: true,
+  _solar_deep: true,
   bimonthly_bill_eur: 250,
   heating_type: 'gas',
   region: 'east',
@@ -83,7 +84,8 @@ export async function boot(page, overrides = {}) {
   // something a coin flip. Wait for boot to settle.
   await page.waitForFunction(() => window.__bootSettled === true, null, { timeout: 10_000 });
   // Home's analysis always opens closed; tests that read it open it here.
-  if ({ ...SETUP, ...state }._home_deep) await page.evaluate(() => { window.state._home_deep = true; window.renderApp(); });
+  const want = { ...SETUP, ...state };
+  if (want._home_deep || want._solar_deep) await page.evaluate(([h, so]) => { window.state._home_deep = !!h; window.state._solar_deep = !!so; window.renderApp(); }, [want._home_deep, want._solar_deep]);
   return errors;
 }
 

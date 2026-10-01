@@ -511,16 +511,26 @@ export function createV7(api) {
     // model one, and a way to check a quote already in hand. The health score,
     // the market and the plan choice are about the whole home and live there.
     if (!hasSystem) {
+      // No system yet: an invitation, not a settings screen. Someone who only
+      // wants a cheaper plan never has to read about panels.
+      if (api.hasModelledSystem()) {
+        return `${topbar('Solar')}
+        <div class="screen v7 v7-solar">${solarSwitch()}${hero}</div>${nav()}`;
+      }
       return `${topbar('Solar')}
       <div class="screen v7 v7-solar">
-        ${solarSwitch()}
-        ${hero}
-        <button class="v7-tile v7-tile-wide v7-quote-tile" onclick="v7Sheet('quote')">
-          <span class="v7-tile-ico">${api.ic('clip', 18)}</span>
-          <span class="v7-tile-big">Have an installer's quote? Upload it</span>
-          <span class="v7-tile-sub">We read the system and price from it and model your home with it</span>
-        </button>
-        <button class="v7-link" onclick="setScreen('auditor')">Or type the figures in by hand</button>
+        <section class="v7-invite">
+          <div class="v7-eyebrow">Thinking about solar?</div>
+          <h2 class="v7-h">See if it pays off for your home, before anyone sells you a system.</h2>
+          <ul class="v7-invite-list">
+            <li>${api.ic('sun', 18)} Sized for your roof and your real usage</li>
+            <li>${api.ic('chart', 18)} Years to pay back, with the SEAI grant counted</li>
+            <li>${api.ic('battery', 18)} With or without a battery, on the plan that suits it</li>
+          </ul>
+          <button class="switch-cta v7-cta" onclick="exploreSolar()">Estimate it for my roof ${api.ic('chevR', 18)}</button>
+          <button class="v7-cta-2 v7-cta-alt v7-quote-tile" onclick="v7Sheet('quote')">${api.ic('clip', 16)} I already have a quote</button>
+        </section>
+        <div class="v7-fine" style="text-align:center">Free, and nothing is shared with installers unless you ask for quotes.</div>
       </div>
       ${nav()}`;
     }
@@ -530,6 +540,15 @@ export function createV7(api) {
       ${solarSwitch()}
       ${hero}
       ${api.renderSolarBody('top')}
+      <button class="v7-deep ${st._solar_deep ? 'open' : ''}" aria-expanded="${!!st._solar_deep}" onclick="state._solar_deep=!state._solar_deep;renderApp()">
+        <span class="v7-deep-top"><b>${api.ic('chart', 18)} Your solar analysis</b><span>${st._solar_deep ? 'Hide' : 'Show'} ${api.ic(st._solar_deep ? 'chevU' : 'chevD', 16)}</span></span>
+        <span class="v7-deep-stats">
+          <span><b>12</b><small>months of panels against use</small></span>
+          <span><b>24h</b><small>summer and winter days</small></span>
+          <span><b>${pb < 50 ? pb.toFixed(1) : '—'}</b><small>years to pay back</small></span>
+        </span>
+      </button>
+      ${st._solar_deep ? `
       ${months}
       ${api.renderSolarComparison()}
       ${api.renderDayInspector()}
@@ -538,7 +557,7 @@ export function createV7(api) {
         <span class="v7-tile-big">Hour by hour</span>
         <span class="v7-tile-sub">what the panels and battery do on any day of the year</span>
       </button>
-      ${api.renderSolarBody('rest')}
+      ${api.renderSolarBody('rest')}` : ''}
     </div>
     ${nav()}`;
   }

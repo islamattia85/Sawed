@@ -33,7 +33,7 @@ import { boot } from './support.js';
 /** Open Solar on a home without panels and ask for an estimate, as a reader would. */
 async function modelFromNothing(page) {
   await page.evaluate(() => window.setScreen('solar'));
-  await page.getByRole('button', { name: /Model a system for this roof/ }).click();
+  await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
 }
 
 const NO_SOLAR = {
@@ -64,7 +64,7 @@ test('the answer is not blocked by the twelve-design sweep', async ({ page }) =>
 
   await page.evaluate(() => window.setScreen('solar'));
   const started = Date.now();
-  await page.getByRole('button', { name: /Model a system for this roof/ }).click();
+  await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
   await expect(page.locator('.qr-value')).toContainText(/yr payback/);
   const elapsed = Date.now() - started;
 

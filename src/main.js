@@ -98,7 +98,7 @@ async function sbInit(){
  * the person to choose. Saved quotes from both are always kept. */
 
 // What describes this screen rather than the household is never synced.
-const NO_SYNC = ['current_screen', '_home_deep', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
+const NO_SYNC = ['current_screen', '_home_deep', '_solar_deep', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
   '_tariff_refreshing', '_expert_open', '_account_id', '_saved_at'];
 let _sync = { status: 'idle', at: null };
 let _syncTimer = null;
@@ -11671,6 +11671,7 @@ document.addEventListener('DOMContentLoaded', () => {
   applyTheme();
   // The analysis on Home opens closed on every visit: the answer comes first.
   state._home_deep = false;
+  state._solar_deep = false;
   setTimeout(() => {
     const loader = document.getElementById('loader');
     if (loader) loader.remove();

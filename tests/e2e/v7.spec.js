@@ -177,8 +177,8 @@ test('opening Solar with no solar models nothing', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('solar');
   expect(await page.evaluate(() => [window.state.has_solar, !!window.state.considering_solar]))
     .toEqual([false, false]);
-  await expect(page.locator('.v7-solar-hero')).toContainText(/No solar is modelled/);
-  await expect(page.getByRole('switch', { name: /Include solar/ })).toContainText(/Not modelled/);
+  // v8: an invitation to estimate it, nothing modelled until asked.
+  await expect(page.locator('.v7-invite')).toContainText('Thinking about solar?');
 
   await page.evaluate(() => window.setScreen('result'));
   expect(await page.evaluate(() => window.getRecommendation().annualSavings)).toBe(before);
@@ -191,7 +191,7 @@ test('a home without panels sees only solar on the Solar tab', async ({ page }) 
   await boot(page, { has_solar: false, considering_solar: false, battery_kwh: 0, current_screen: 'solar' });
   const text = await page.evaluate(() => document.querySelector('.screen').innerText);
   expect(text).not.toMatch(/health score|Hour by hour|Market|WITH this solar/i);
-  await expect(page.getByRole('button', { name: /Model a system for this roof/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Estimate it for my roof/ })).toBeVisible();
 });
 
 test('the health sheet carries its own advice', async ({ page }) => {
@@ -284,7 +284,7 @@ test('the landing page is reachable from More, and leads back', async ({ page })
 test('modelling solar after a no-solar setup prices the system, even if a quote was once typed', async ({ page }) => {
   await boot(page, { has_solar: false, considering_solar: false, count_A: 0, count_B: 0, battery_kwh: 0,
     install_cost: 0, grant_seai: 0, cost_is_manual: true, current_screen: 'solar' });
-  await page.getByRole('button', { name: /Model a system/ }).click();
+  await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
   const st = await page.evaluate(() => ({ c: window.state.install_cost, n: window.state.count_A }));
   expect(st.n).toBeGreaterThan(0);
   expect(st.c).toBeGreaterThan(3000);
@@ -658,4 +658,14 @@ test('v8 Home: one answer first, the full analysis one tap away and nothing lost
   await expect(page.locator('.v7-hero .v7-ladder, .v7-hero [class*=ladder]').first()).toBeVisible();
   await page.reload(); await page.waitForFunction(() => window.__bootSettled === true);
   await expect(page.locator('.v7-home')).toHaveClass(/is-simple/);
+});
+
+test('v8 Solar: an invitation without a system; with one, the answer first and the analysis folded', async ({ page }) => {
+  await boot(page, { current_screen: 'solar', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, _solar_deep: false });
+  await expect(page.locator('.v7-invite')).toContainText('Thinking about solar?');
+  await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
+  await expect(page.locator('.qr-value')).toBeVisible();
+  await expect(page.locator('.v7-months-card')).toHaveCount(0);
+  await page.locator('.v7-deep').click();
+  await expect(page.locator('.v7-months-card')).toBeVisible();
 });
