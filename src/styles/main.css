@@ -127,6 +127,9 @@
   a{color:var(--accent);text-decoration:none}
   button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;-webkit-user-select:none;user-select:none}
   input,select,textarea{font-family:inherit;font-size:inherit;color:var(--ink);background:var(--well);border:1px solid var(--line);border-radius:8px;padding:12px 14px;outline:none;transition:border-color .15s,box-shadow .15s;-webkit-appearance:none}
+  /* The rule above is for text fields. On a checkbox or radio it removed the
+     native tick: on iPhone the box toggled but never showed it. */
+  input[type=checkbox],input[type=radio]{-webkit-appearance:auto;appearance:auto;padding:0;border:0;background:none;width:20px;height:20px;accent-color:var(--accent);cursor:pointer}
   input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .num,.value,input[type=number]{font-variant-numeric:tabular-nums}
   ::selection{background:var(--accent);color:var(--on-accent)}

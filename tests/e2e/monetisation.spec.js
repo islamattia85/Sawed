@@ -60,3 +60,15 @@ test('privacy page and installer portal are reachable from More', async ({ page 
   await page.evaluate(() => window.setScreen('installer'));
   await expect(page.getByText(/Installers partnered with Sawed|Accounts are not available/)).toBeVisible();
 });
+
+test('the consent box is a real, visible checkbox', async ({ page }) => {
+  await boot(page, SOLAR);
+  await page.evaluate(() => window.openLeadForm());
+  const box = page.locator('#lead-consent');
+  const look = await box.evaluate((el) => { const cs = getComputedStyle(el); return { app: cs.appearance || cs.webkitAppearance, w: el.getBoundingClientRect().width }; });
+  expect(look.app).not.toBe('none');
+  expect(look.w).toBeGreaterThan(12);
+  // Tapping the words ticks it too.
+  await page.locator('.lead-consent span').click();
+  await expect(box).toBeChecked();
+});
