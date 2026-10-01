@@ -285,6 +285,7 @@ test('modelling solar after a no-solar setup prices the system, even if a quote 
   await boot(page, { has_solar: false, considering_solar: false, count_A: 0, count_B: 0, battery_kwh: 0,
     install_cost: 0, grant_seai: 0, cost_is_manual: true, current_screen: 'solar' });
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
+  await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
   const st = await page.evaluate(() => ({ c: window.state.install_cost, n: window.state.count_A }));
   expect(st.n).toBeGreaterThan(0);
   expect(st.c).toBeGreaterThan(3000);
@@ -664,6 +665,7 @@ test('v8 Solar: an invitation without a system; with one, the answer first and t
   await boot(page, { current_screen: 'solar', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, _solar_deep: false });
   await expect(page.locator('.v7-invite')).toContainText('Thinking about solar?');
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
+  await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
   await expect(page.locator('.qr-value')).toBeVisible();
   await expect(page.locator('.v7-months-card')).toHaveCount(0);
   await page.locator('.v7-deep').click();
@@ -682,4 +684,23 @@ test('first visit: three taps to the answer, short screens, the button always in
   await expect(page.locator('.v7-hero .v7-figure')).toBeVisible();
   await expect(page.locator('.toast, .v7-toast')).toHaveCount(0);
   expect(await page.evaluate(() => document.body.scrollHeight / innerHeight)).toBeLessThan(1.3);
+});
+
+test('v8 solar guide: four steps, each on a suggestion, then the answer and the analysis', async ({ page }) => {
+  await boot(page, { current_screen: 'solar', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, _solar_deep: false });
+  await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
+  await expect(page.locator('.sg-h')).toContainText('Which way does your roof face');
+  await page.locator('.sg-tile', { hasText: 'East and west' }).click();
+  expect(await page.evaluate(() => [window.state.azimuth_A, window.state.azimuth_B, window.state.count_B > 0])).toEqual([90, 270, true]);
+  await expect(page.locator('.sg-h')).toContainText('How many panels');
+  await page.getByRole('button', { name: /^Next/ }).click();
+  await page.locator('.sg-opt', { hasText: '10 kWh' }).click();
+  expect(await page.evaluate(() => window.state.battery_kwh)).toBe(10);
+  await page.getByRole('button', { name: /^Next/ }).click();
+  await expect(page.locator('.sg-h')).toContainText('What would it cost');
+  await page.getByRole('button', { name: /Show me the answer/ }).click();
+  await expect(page.locator('.sg-reveal-fig b')).toHaveText(/\d/);
+  await page.getByRole('button', { name: /See the full analysis/ }).click();
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('solar');
+  await expect(page.locator('.v7-months-card')).toBeVisible();
 });

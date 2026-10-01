@@ -34,6 +34,7 @@ import { boot } from './support.js';
 async function modelFromNothing(page) {
   await page.evaluate(() => window.setScreen('solar'));
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
+  await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
 }
 
 const NO_SOLAR = {
@@ -65,6 +66,7 @@ test('the answer is not blocked by the twelve-design sweep', async ({ page }) =>
   await page.evaluate(() => window.setScreen('solar'));
   const started = Date.now();
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
+  await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
   await expect(page.locator('.qr-value')).toContainText(/yr payback/);
   const elapsed = Date.now() - started;
 

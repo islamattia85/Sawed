@@ -527,7 +527,7 @@ export function createV7(api) {
             <li>${api.ic('chart', 18)} Years to pay back, with the SEAI grant counted</li>
             <li>${api.ic('battery', 18)} With or without a battery, on the plan that suits it</li>
           </ul>
-          <button class="switch-cta v7-cta" onclick="exploreSolar()">Estimate it for my roof ${api.ic('chevR', 18)}</button>
+          <button class="switch-cta v7-cta" onclick="startSolarGuide()">Estimate it for my roof ${api.ic('chevR', 18)}</button>
           <button class="v7-cta-2 v7-cta-alt v7-quote-tile" onclick="v7Sheet('quote')">${api.ic('clip', 16)} I already have a quote</button>
         </section>
         <div class="v7-fine" style="text-align:center">Free, and nothing is shared with installers unless you ask for quotes.</div>

@@ -98,7 +98,7 @@ async function sbInit(){
  * the person to choose. Saved quotes from both are always kept. */
 
 // What describes this screen rather than the household is never synced.
-const NO_SYNC = ['current_screen', '_home_deep', '_solar_deep', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
+const NO_SYNC = ['_sg', 'current_screen', '_home_deep', '_solar_deep', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
   '_tariff_refreshing', '_expert_open', '_account_id', '_saved_at'];
 let _sync = { status: 'idle', at: null };
 let _syncTimer = null;
@@ -5541,6 +5541,118 @@ function applyEstimatedSolarCost(){
     state.cost_is_manual = false;
   }
   if (!state.grant_is_manual) state.grant_seai = calcSeaiGrant(kwp, state.battery_kwh || 0).total;
+}
+
+/* ── SOLAR, STEP BY STEP ──────────────────────────────────────
+ * The first look at solar is four small decisions and a reveal, not a
+ * dashboard. Each step changes one thing in the model (the same values
+ * My system edits) and starts on a sensible suggestion, so "Next" four
+ * times gives a good estimate. The reveal shows the payback, and the full
+ * analysis is one tap after it. */
+const SG_STEPS = 5;
+function startSolarGuide(){
+  // Start from the same suggested system as before: sized to the usage.
+  exploreSolar();
+  state.current_screen = 'solar-guide';
+  state._sg = 1;
+  saveState();
+  renderApp();
+}
+function sgGo(step){
+  state._sg = Math.max(1, Math.min(SG_STEPS, step));
+  renderApp();
+  window.scrollTo(0, 0);
+}
+function sgDone(){
+  state._sg = null;
+  state.current_screen = 'solar';
+  state._solar_deep = true;
+  saveState();
+  renderApp();
+}
+function sgRoof(face){
+  const map = { S: [180, 0, 0], SE: [135, 0, 0], SW: [225, 0, 0], EW: [90, 270, 1], E: [90, 0, 0], W: [270, 0, 0] };
+  const [a, b, split] = map[face] || map.S;
+  state.azimuth_A = a;
+  if (split){ const t = totalPanels(); state.count_A = Math.ceil(t / 2); state.count_B = Math.floor(t / 2); state.azimuth_B = b; }
+  else { state.count_A = totalPanels(); state.count_B = 0; }
+  state._sg_face = face;
+  if (face !== 'unsure') (state.fine = state.fine || {}).roof = true;
+  if ((state.solar_view || 'mine') === 'mine') snapshotMySystem();
+  invalidate(); saveState();
+  sgGo(2);
+}
+function sgBattery(k){ sysSet('battery_kwh', k); }
+
+function renderSolarGuide(){
+  const step = state._sg || 1;
+  const kwh = Math.round(v7AnnualKwh());
+  const suggest = Math.max(6, Math.min(16, Math.round(kwh / 450)));
+  const head = (k, title, sub) => `
+    <div class="sg-top">
+      <button class="sg-back" onclick="${step === 1 ? "state._sg=null;setScreen('solar')" : `sgGo(${step - 1})`}" aria-label="Back">${ic('chevL', 18)}</button>
+      <div class="sg-progress" aria-label="Step ${step} of ${SG_STEPS}"><i style="width:${step / SG_STEPS * 100}%"></i></div>
+      <span class="sg-count">${step}/${SG_STEPS}</span>
+    </div>
+    <div class="sg-k">${k}</div>
+    <h1 class="sg-h">${title}</h1>
+    ${sub ? `<p class="sg-sub">${sub}</p>` : ''}`;
+  const next = (label = 'Next') => `<button class="fp-cta sg-next" onclick="sgGo(${step + 1})">${label} ${ic('chevR', 18)}</button>`;
+  let body = '';
+
+  if (step === 1){
+    const faces = [['S', 'South', 'Best all day'], ['SE', 'South-east', 'Strong mornings'], ['SW', 'South-west', 'Strong afternoons'],
+      ['EW', 'East and west', 'Panels on both sides'], ['E', 'East', 'Mornings'], ['W', 'West', 'Evenings']];
+    const az = (f) => ({ S: 0, SE: -45, SW: 45, EW: 0, E: -90, W: 90 })[f];
+    body = `${head('Step 1 · Your roof', 'Which way does your roof face?', 'The side that gets the sun. A compass app helps.')}
+      <div class="sg-tiles">${faces.map(([f, l, s]) => `<button class="sg-tile ${state._sg_face === f ? 'on' : ''}" onclick="sgRoof('${f}')">
+        <svg viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="26" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="2"/>
+          ${f === 'EW' ? '<path d="M30 30 L8 30 M30 30 L52 30" stroke="var(--brand-gold)" stroke-width="5" stroke-linecap="round"/>'
+            : `<path d="M30 30 L30 13" stroke="var(--brand-gold)" stroke-width="5" stroke-linecap="round" transform="rotate(${az(f) + 180} 30 30)"/>`}
+          <text x="30" y="56" text-anchor="middle" font-size="10" fill="currentColor" opacity=".6">S</text></svg>
+        <b>${l}</b><small>${s}</small></button>`).join('')}</div>
+      <button class="sg-link" onclick="sgRoof('unsure')">Not sure: assume south</button>
+      <button class="sg-link sg-skip" onclick="state._sg=null;setScreen('solar')">Skip: just estimate it for me</button>`;
+  } else if (step === 2){
+    const n = totalPanels();
+    body = `${head('Step 2 · Panels', 'How many panels?', `For ${kwh.toLocaleString('en-IE')} kWh a year we suggest <b>${suggest}</b>. Most Irish roofs fit 8 to 16.`)}
+      <div class="sg-big"><b id="sg-n">${n}</b><span>panels</span></div>
+      <input class="sg-range" type="range" min="4" max="24" step="1" value="${n}" aria-label="Number of panels"
+        oninput="document.getElementById('sg-n').textContent=this.value" onchange="sysSet('count_A', ${state.count_B > 0 ? 'Math.ceil(this.value/2)' : 'this.value'}); ${state.count_B > 0 ? "sysSet('count_B', Math.floor(this.value/2));" : ''}">
+      <div class="sg-scale"><span>4</span><span>Suggested ${suggest}</span><span>24</span></div>
+      ${next()}`;
+  } else if (step === 3){
+    const b = +state.battery_kwh || 0;
+    const opts = [[0, 'No battery', 'Cheapest to install. Spare solar is sold to the grid.'],
+      [5, '5 kWh', 'Covers a typical evening. The usual choice.'],
+      [10, '10 kWh', 'Covers most evenings, and can charge on cheap night rates.']];
+    body = `${head('Step 3 · Battery', 'Add a battery?', 'It stores the day’s solar for the evening, when power costs most.')}
+      <div class="sg-opts">${opts.map(([k, l, s]) => `<button class="sg-opt ${b === k ? 'on' : ''}" onclick="sgBattery(${k})"><b>${l}</b><small>${s}</small></button>`).join('')}</div>
+      ${next()}`;
+  } else if (step === 4){
+    const net = Math.max(0, (state.install_cost || 0) - (state.grant_seai || 0));
+    body = `${head('Step 4 · Price', 'What would it cost?', 'A typical 2026 Irish price for this system, with the SEAI grant taken off.')}
+      <div class="sg-big"><b>${eur(net)}</b><span>after the ${eur(state.grant_seai || 0)} grant</span></div>
+      <div class="sg-note">${eur(state.install_cost || 0)} including VAT before the grant. If you have a quote, its price makes the answer exact.</div>
+      <button class="sg-link" onclick="v7Sheet('quote')">${ic('clip', 14)} I have a quote: read it for me</button>
+      ${next('Show me the answer')}`;
+  } else {
+    let d = null; try { d = v7SolarData(); } catch (e) {}
+    const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
+    body = `${head('Your answer', pb ? `It pays for itself in` : 'Here is what it does', '')}
+      <div class="sg-reveal">
+        <div class="sg-reveal-fig"><b>${pb ? pb.toFixed(1) : '—'}</b><span>years</span></div>
+        <div class="sg-facts">
+          <div><b>${eur(d ? d.cur.solarBenefit : 0)}</b><small>back every year</small></div>
+          <div><b>${eur(d ? d.sysCost : 0)}</b><small>to install, after the grant</small></div>
+          <div><b class="${d && d.npv >= 0 ? 'is-gain' : ''}">${eur(d ? d.npv : 0)}</b><small>ahead over 20 years</small></div>
+        </div>
+        <div class="sg-sys">${totalPanels()} panels${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh battery` : ' · no battery'} · ${({ S: 'south', SE: 'south-east', SW: 'south-west', EW: 'east and west', E: 'east', W: 'west' })[state._sg_face] || 'south'}-facing</div>
+      </div>
+      <button class="fp-cta sg-next" onclick="sgDone()">See the full analysis ${ic('chevR', 18)}</button>
+      <button class="sg-link" onclick="sgGo(1)">Change my answers</button>`;
+  }
+  return `<div class="fp-wrap sg">${body}</div>${V7.sheet()}`;
 }
 
 function exploreSolar(){
@@ -11511,6 +11623,11 @@ function renderApp(){
     return;
   }
   // Fast-path activation (30-second simple setup)
+  if (state.current_screen === 'solar-guide' && state._sg){
+    root.setAttribute('data-chrome','bare');
+    root.innerHTML = renderSolarGuide();
+    return;
+  }
   if (state.current_screen === 'fastpath'){
     root.innerHTML = renderFastPath();
     return;
@@ -12786,6 +12903,11 @@ window.sysTypicalPrice = sysTypicalPrice;
 window.openMySystem = openMySystem;
 window.homeSet = homeSet;
 window.openMyHome = openMyHome;
+window.startSolarGuide = startSolarGuide;
+window.sgGo = sgGo;
+window.sgDone = sgDone;
+window.sgRoof = sgRoof;
+window.sgBattery = sgBattery;
 window.getAdvice = getAdvice;
 window.householdScore = householdScore;
 window.realityChecks = realityChecks;
