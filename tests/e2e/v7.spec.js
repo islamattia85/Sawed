@@ -274,6 +274,7 @@ test('no EV, no EV tile', async ({ page }) => {
 
 test('the landing page is reachable from More, and leads back', async ({ page }) => {
   await boot(page, { current_screen: 'more' });
+  await page.locator('.more-fold summary').click();
   await page.getByText('Start page').click();
   await expect(page.locator('.pk-land')).toBeVisible();
   await page.getByText('Back to my results').click();
@@ -653,6 +654,8 @@ test('v8 Home: one answer first, the full analysis one tap away and nothing lost
   await page.locator('.v7-deep').click();
   await expect(home).toHaveClass(/is-deep/);
   for (const sel of ['.v7-carousel', '.v7-tile-score', '.working-toggle', '.v7-home-chips']) await expect(page.locator(sel).first()).toBeVisible();
-  // and stays open for the next visit
-  expect(await page.evaluate(() => window.state._home_deep)).toBe(true);
+  // The bars stay on the answer either way, and the next visit opens closed.
+  await expect(page.locator('.v7-hero .v7-ladder, .v7-hero [class*=ladder]').first()).toBeVisible();
+  await page.reload(); await page.waitForFunction(() => window.__bootSettled === true);
+  await expect(page.locator('.v7-home')).toHaveClass(/is-simple/);
 });

@@ -75,7 +75,7 @@ export function createV7(api) {
       region ? esc(region.name) : '',
       // Where the solar switch sits beside the chips, it already names the
       // system, so the chips leave it out rather than say it twice.
-      withSolar ? (st.has_solar ? `${api.totalKwp().toFixed(1)} kWp${st.solar_planned ? ' planned' : ''}` : 'no solar') : '',
+      withSolar ? (st.has_solar ? `${api.totalPanels()} solar panels${st.solar_planned ? ' (planned)' : ''}` : 'no solar') : '',
       withSolar && st.battery_kwh > 0 ? `${st.battery_kwh} kWh battery` : '',
       st.ev_active ? 'EV' : '',
     ].filter(Boolean);
@@ -95,7 +95,7 @@ export function createV7(api) {
     return `<button class="v7-switch-row" role="switch" aria-checked="${on}" onclick="toggleSolarModel()">
       <span class="v7-switch-ico">${api.ic('sun', 18)}</span>
       <span class="v7-switch-text"><b>Include solar</b><small>${on
-        ? `${api.totalPanels()} panels · ${api.totalKwp().toFixed(1)} kWp${S().battery_kwh > 0 ? ` · ${S().battery_kwh} kWh battery` : ''}`
+        ? `${api.totalPanels()} panels${S().battery_kwh > 0 ? ` and a ${S().battery_kwh} kWh battery` : ''}`
         : api.hasModelledSystem() ? 'Left out — your system is kept' : 'Not modelled — switch on to estimate one'}</small></span>
       <span class="v7-switch ${on ? 'on' : ''}" aria-hidden="true"><i></i></span>
     </button>`;
@@ -191,7 +191,8 @@ export function createV7(api) {
     <div class="screen v7 v7-home ${deep ? 'is-deep' : 'is-simple'}">
       <section class="v7-hero qr-hero">
         ${hero}
-        ${deep ? savingsLadder({ rungs }) + split : ''}
+        ${savingsLadder({ rungs })}
+        ${deep ? split : ''}
       </section>
 
       ${stay
@@ -199,7 +200,7 @@ export function createV7(api) {
         : switchButton(best.plan, `${fromSolar > 1 && fromSwitch > 0 ? ` · ${eur(fromSwitch)}/yr` : ''}`)}
 
       <button class="v7-basis-line" onclick="openMyHome()">
-        Based on ${esc(basis)}${st.has_solar && api.totalPanels() > 0 ? ` · ${api.totalKwp().toFixed(1)} kWp solar` : ''}${st.ev_active ? ' · EV' : ''}
+        Based on ${esc(basis)}${st.has_solar && api.totalPanels() > 0 ? ` · ${api.totalPanels()} solar panels` : ''}${st.ev_active ? ' · an electric car' : ''}
         <span>Change</span>
       </button>
 
@@ -209,7 +210,7 @@ export function createV7(api) {
         ${st.chosen_plan ? api.renderChoiceStrip() : ''}
       </div>
 
-      <button class="v7-deep ${deep ? 'open' : ''}" aria-expanded="${deep}" onclick="state._home_deep=!state._home_deep;saveState();renderApp()">
+      <button class="v7-deep ${deep ? 'open' : ''}" aria-expanded="${deep}" onclick="state._home_deep=!state._home_deep;renderApp()">
         <span class="v7-deep-top"><b>${api.ic('chart', 18)} Your analysis</b><span>${deep ? 'Hide' : 'Show'} ${api.ic(deep ? 'chevU' : 'chevD', 16)}</span></span>
         <span class="v7-deep-stats">
           <span><b>8,760</b><small>hours of your year modelled</small></span>
@@ -417,7 +418,7 @@ export function createV7(api) {
         </div>
         <div class="plans-sort v7-sort">
           <span class="plans-sort-label">Sort by</span>
-          ${[['cost', 'Year cost'], ['standing', 'Standing charge'], ['export', 'Export rate']].map(([k, lbl]) => `
+          ${[['cost', 'Cheapest for you'], ['standing', 'Lowest daily fee'], ['export', 'Best for selling solar']].map(([k, lbl]) => `
             <button class="plans-sort-btn ${sortBy === k ? 'on' : ''}" onclick="setPlansSort('${k}')">${lbl}</button>`).join('')}
         </div>
         <div class="v7-legend">
@@ -481,7 +482,7 @@ export function createV7(api) {
             <button class="v7-seg-btn wx-range-btn ${view === k ? 'active on' : ''}" onclick="state._scenario_view='${k}';renderApp()">${l}</button>`).join('')}
         </div>
         <button class="v7-system" onclick="openMySystem()">
-          <span class="v7-chip">${api.totalPanels()} panels · ${api.totalKwp().toFixed(1)} kWp</span>
+          <span class="v7-chip">${api.totalPanels()} panels</span>
           <span class="v7-chip">${st.battery_kwh > 0 ? `${st.battery_kwh} kWh battery` : 'no battery'}</span>
           <span class="v7-chip">${st.ev_active ? 'with EV' : 'no EV'}</span>
           <span class="v7-chip v7-chip-edit">${api.ic('tune', 14)} Change</span>

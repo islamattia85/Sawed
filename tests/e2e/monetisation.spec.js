@@ -55,6 +55,7 @@ test('commission never changes the ranking', async ({ page }) => {
 
 test('privacy page and installer portal are reachable from More', async ({ page }) => {
   await boot(page, { current_screen: 'more' });
+  await page.locator('.more-fold summary').click();
   await page.getByText('Privacy and your data').click();
   await expect(page.locator('.privacy-copy')).toContainText('installer');
   await page.evaluate(() => window.setScreen('installer'));

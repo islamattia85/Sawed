@@ -98,7 +98,7 @@ async function sbInit(){
  * the person to choose. Saved quotes from both are always kept. */
 
 // What describes this screen rather than the household is never synced.
-const NO_SYNC = ['current_screen', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
+const NO_SYNC = ['current_screen', '_home_deep', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
   '_tariff_refreshing', '_expert_open', '_account_id', '_saved_at'];
 let _sync = { status: 'idle', at: null };
 let _syncTimer = null;
@@ -3991,7 +3991,7 @@ function setObBaseline(planId){
 
 function obStep5CurrentPlan(){
   const plans = activeTariffsSorted();
-  const typeLabel = { flat: '24h Flat', tou: 'Day/Night', ev: 'EV', dynamic: 'Dynamic', dn: 'Day/Night' };
+  const typeLabel = { flat: 'One price', tou: 'Cheaper at night', ev: 'For EVs', dynamic: 'Changes hourly', dn: 'Cheaper at night' };
   // Supplier-first: pick supplier, then see just their plans
   const suppliers = [...new Set(plans.map(p => p.supplier))].sort();
   const selSup = _ob._ob5_supplier || null;
@@ -5694,7 +5694,7 @@ function planCategory(plan){
   return 'tou';
 }
 function planCategoryLabel(cat){
-  return ({ all:'All', flat:'Flat 24h', tou:'Day · Night', ev:'EV', dynamic:'Dynamic' })[cat] || cat;
+  return ({ all:'All', flat:'One price', tou:'Cheaper at night', ev:'For EVs', dynamic:'Changes hourly' })[cat] || cat;
 }
 
 /* ============================================================
@@ -6589,7 +6589,7 @@ function renderPlanDetail(){
       <div class="pd-hero-supplier">${plan.supplier}${plan.discontinued ? ' · DISCONTINUED' : ''}</div>
       <div class="pd-hero-plan">${plan.plan}</div>
       <div class="pd-hero-tags">
-        <span class="pd-hero-tag ${planType}">${planType === 'flat' ? 'Flat 24h' : planType === 'tou' ? 'Time-of-use' : planType === 'ev' ? 'EV-specific' : planType === 'dynamic' ? 'Dynamic' : planType}</span>
+        <span class="pd-hero-tag ${planType}">${planType === 'flat' ? 'One price all day' : planType === 'tou' ? 'Cheaper at night' : planType === 'ev' ? 'Cheap EV-charging hours' : planType === 'dynamic' ? 'Price changes hourly' : planType}</span>
         ${plan.green ? '<span class="pd-hero-tag tou">Green</span>' : ''}
         ${plan.length ? `<span class="pd-hero-tag">${plan.length}-month contract</span>` : ''}
         ${isCurrent ? '<span class="pd-hero-tag tou">Your baseline</span>' : ''}
@@ -10085,32 +10085,28 @@ function renderMe(){
 
 function renderMore(){
   const nQuotes = (state.solar_quotes || []).length;
+  // Up front: the analytics (the app's edge) and the two everyday actions.
+  // Everything else is one tap away under "Settings and more".
   const groups = [
-    ['Your setup', [
-      [ic('sun',19),'Start page','The landing page: quick answer, full setup, quote audit','welcome'],
-      [ic('tune',19),'Advanced','Battery strategy, tariff options, smart-meter data, usage shape','refine'],
-      [ic('csv',19),'Import smart-meter data','ESB Networks CSV — the most accurate result','csv-import'],
+    ['Your data', [
+      [ic('chart',19),'Hour by hour','Any day of the year: use, solar, battery, grid and cost','analytics'],
+      [ic('radar',19),'Market','Price changes, announced rises and alerts','monitor'],
+      [ic('csv',19),'Import smart-meter data','Your ESB file: the most accurate result','csv-import'],
     ]],
-    ['Tools', [
-      [ic('clip',19),'Audit an installer quote','Objective check against 2026 Irish market prices','auditor'],
-      [ic('scales',19),'My saved quotes', nQuotes ? nQuotes + ' quote' + (nQuotes === 1 ? '' : 's') + ' saved — compare side by side' : 'Save installer quotes and compare them side by side','quotes'],
-      // Market and the hourly view are about the whole home, with or without
-      // panels, so they are listed here. Hour by hour is also on Solar when
-      // there is a system to look at.
-      [ic('radar',19),'Market','Price moves, announced rises and alerts','monitor'],
-      [ic('chart',19),'Hour by hour','Any day of the year — use, import, export, cost','analytics'],
+    ['Do it', [
+      [ic('clip',19),"Upload an installer's quote",'We read it, check it and model it', null, "v7Sheet('quote')"],
+      [ic('swap',19),'How to switch supplier','About ten minutes, nothing to cancel','how-to-switch'],
     ]],
-    ['Understand the numbers', [
-      [ic('flask',19),'Methodology','Data sources & how the engine works','methodology'],
-    ]],
-    ['For installers', [
-      [ic('home',19),'Installer portal','Leads sent to your company — accept, contact, track','installer'],
-    ]],
-    ['Trust & help', [
-      [ic('shield',19),'Privacy and your data','What we keep, who sees it, delete your account','privacy'],
-      [ic('shield',19),'Our independence','How we make money, in plain English','independence'],
-      [ic('swap',19),'How to switch supplier','Step-by-step guide, takes ~10 minutes','how-to-switch'],
-    ]],
+  ];
+  const folded = [
+    [ic('tune',19),'Advanced','Battery strategy, tariff options, usage shape','refine'],
+    [ic('sun',19),'Start page','Quick answer, full setup, quote check','welcome'],
+    [ic('scales',19),'Saved quotes', nQuotes ? nQuotes + ' saved, compared side by side' : 'Compare quotes side by side','quotes'],
+    [ic('clip',19),'Type a quote in by hand','Check it against 2026 Irish prices','auditor'],
+    [ic('flask',19),'How the figures are worked out','Data sources and the method','methodology'],
+    [ic('shield',19),'Our independence','How we make money, in plain English','independence'],
+    [ic('shield',19),'Privacy and your data','What we keep, who sees it, delete your account','privacy'],
+    [ic('home',19),'Installer portal','For installers: leads sent to your company','installer'],
   ];
   const th = state.theme === 'dark' ? 'dark' : 'light';
   return `${topbar('More', 'sage', true)}
@@ -10121,6 +10117,19 @@ function renderMore(){
       ${unseenAlerts().length ? `<i class="me-entry-badge" aria-hidden="true">${unseenAlerts().length}</i>` : ''}
       ${ic('chevR', 16)}
     </button>
+    ${groups.map(([title, items]) => `
+      <div class="section-title" style="margin-top:14px">${title}</div>
+      ${items.map((([icon,t,sub,scr,go]) => `<div class="secondary-card" onclick="${go || `setScreen('${scr}')`}">
+        <div class="secondary-card-icon">${icon}</div>
+        <div class="secondary-card-body">
+          <div class="secondary-card-title">${t}</div>
+          <div class="secondary-card-sub">${sub}</div>
+        </div>
+        <div class="secondary-card-arrow">›</div>
+      </div>`)).join('')}
+    `).join('')}
+    <details class="more-fold">
+      <summary>Settings and more</summary>
     <div class="secondary-card" style="cursor:default">
       <div class="secondary-card-icon">${ic(th === 'dark' ? 'moon' : 'sun', 19)}</div>
       <div class="secondary-card-body">
@@ -10132,17 +10141,15 @@ function renderMore(){
         <button onclick="setTheme('dark')" style="padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid ${th==='dark'?'var(--accent)':'var(--hair)'};background:${th==='dark'?'var(--accent-soft)':'transparent'};color:${th==='dark'?'var(--accent)':'var(--ink-soft)'}">Dark</button>
       </div>
     </div>
-    ${groups.map(([title, items]) => `
-      <div class="section-title" style="margin-top:14px">${title}</div>
-      ${items.map(([icon,t,s,scr]) => `<div class="secondary-card" onclick="setScreen('${scr}')">
+      ${folded.map((([icon,t,sub,scr,go]) => `<div class="secondary-card" onclick="${go || `setScreen('${scr}')`}">
         <div class="secondary-card-icon">${icon}</div>
         <div class="secondary-card-body">
           <div class="secondary-card-title">${t}</div>
-          <div class="secondary-card-sub">${s}</div>
+          <div class="secondary-card-sub">${sub}</div>
         </div>
         <div class="secondary-card-arrow">›</div>
-      </div>`).join('')}
-    `).join('')}
+      </div>`)).join('')}
+    </details>
     <div style="font-size:13px;color:var(--ink-dim);text-align:center;margin-top:18px;line-height:1.7">
       ${BRAND.name} · Independent · Ireland<br>${_sbUser ? 'Your setup is saved on this phone and in your account.' : 'Your data stays on this device.'}
       <!-- Which build you are actually running. A fix can be deployed and
@@ -11662,6 +11669,8 @@ function dismissSplash(){
 
 document.addEventListener('DOMContentLoaded', () => {
   applyTheme();
+  // The analysis on Home opens closed on every visit: the answer comes first.
+  state._home_deep = false;
   setTimeout(() => {
     const loader = document.getElementById('loader');
     if (loader) loader.remove();

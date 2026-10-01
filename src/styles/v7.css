@@ -1007,3 +1007,10 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .v7-deep-stats b { font: 800 var(--text-lead) var(--display); color: var(--ink); font-variant-numeric: tabular-nums; }
 .v7-deep-stats small { font-size: var(--text-caption); color: var(--ink-soft); line-height: 1.35; }
 .v7-home.is-simple .v7-notices:empty { display: none; }
+.more-fold { margin-top: var(--space-4); }
+.more-fold summary { list-style: none; cursor: pointer; padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--well);
+  font: 700 var(--text-body) var(--display); color: var(--ink-soft); display: flex; justify-content: space-between; }
+.more-fold summary::after { content: "Show"; color: var(--accent); font-size: var(--text-data); }
+.more-fold[open] summary::after { content: "Hide"; }
+.more-fold summary::-webkit-details-marker { display: none; }
+.more-fold[open] summary { margin-bottom: var(--space-2); }

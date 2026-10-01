@@ -63,7 +63,8 @@ test('choosing a plan replaces the recommendation everywhere, and clearing resto
   // The strip is on the default view: that is the guarantee that matters — a
   // figure computed on a non-cheapest plan can never pass for our advice.
   await expect(page.locator('.choice-strip')).toBeVisible();
-  // The comparison names it too, one tap down in the working.
+  // The comparison names it too, inside the analysis (closed on each visit).
+  await page.locator('.v7-deep').click();
   await page.locator('.working-toggle').click();
   await expect(page.locator('.plan-compare')).toContainText('Your chosen plan');
 
@@ -354,7 +355,7 @@ test('sorting reorders the list without changing the ranking', async ({ page }) 
   const firstBy = async () => page.locator('.plan-supplier').first().innerText();
 
   const byCost = await firstBy();
-  await page.getByRole('button', { name: 'Standing charge' }).click();
+  await page.getByRole('button', { name: 'Lowest daily fee' }).click();
   const byStanding = await firstBy();
 
   // The underlying ranking is untouched — only the presentation order moved.

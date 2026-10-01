@@ -82,6 +82,8 @@ export async function boot(page, overrides = {}) {
   // real defect seen from the outside but makes every test that clicks
   // something a coin flip. Wait for boot to settle.
   await page.waitForFunction(() => window.__bootSettled === true, null, { timeout: 10_000 });
+  // Home's analysis always opens closed; tests that read it open it here.
+  if ({ ...SETUP, ...state }._home_deep) await page.evaluate(() => { window.state._home_deep = true; window.renderApp(); });
   return errors;
 }
 
