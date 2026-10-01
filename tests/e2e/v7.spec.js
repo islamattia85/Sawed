@@ -557,11 +557,11 @@ test('step 5: a recorded switch is checked against the meter, and the score show
   await boot(page, { current_screen: 'me', baseline: 'EN-SMART', meter: { days },
     journey: [{ type: 'switch', at, from: 'BG-24', to: 'EN-SMART', label: 'Switched to Energia Smart Data', per_year: 250 }] });
   const sc = await page.evaluate(() => window.householdScore());
-  expect(sc.parts.map((p) => p.key)).toEqual(['plan', 'timing']);
-  expect(sc.score).toBeGreaterThan(0);
+  expect(sc.parts.map((p) => p.key)).toEqual(expect.arrayContaining(['plan', 'know', 'timing']));
+  expect(sc.parts.find((p) => p.key === 'timing').pts).toBeGreaterThan(0);
   const chk = await page.evaluate(() => window.realityChecks()[0].r);
   expect(chk.days).toBe(30);
-  await expect(page.locator('.sc')).toContainText('Checked on 30 days of your meter');
+  await expect(page.locator('.gm')).toContainText('Checked on 30 days of your meter');
 });
 
 test('step 5: suggestions are fetched once, kept for the quarter, and carry no personal details', async ({ page }) => {
@@ -614,12 +614,20 @@ test('a second switch within two weeks corrects the first instead of adding to i
   expect(j[0].to).toBe(ids[1]);
 });
 
-test('how you are doing: the plan check leads, the score waits for meter data', async ({ page }) => {
-  await boot(page, { current_screen: 'me' });
-  const pc = page.locator('.pc');
-  await expect(pc).toContainText("You're on");
-  await expect(page.locator('.sc-ring')).toHaveCount(0);
-  await expect(page.locator('.sc-wait')).toContainText('Upload your ESB smart-meter file');
+test('the score is a game: a dial and level always, challenges worth points, and the plan gap matches the Plans tab', async ({ page }) => {
+  await boot(page, { current_screen: 'me', has_solar: true, considering_solar: true, count_A: 12, battery_kwh: 5, solar_planned: true });
+  await expect(page.locator('.gm .sc-ring')).toBeVisible();
+  await expect(page.locator('.gm-level-name')).toHaveText(/Starter|Saver|Smart saver|Peakless/);
+  const r = await page.evaluate(() => {
+    const rec = window.getRecommendation();
+    const mine = window.annualCost(window.sim(window.state.baseline), window.getPlanById(window.state.baseline)).net;
+    const q = window.householdScore().quests.find((x) => x.icon === 'swap');
+    return { gap: Math.round(mine - rec.cheapest.net), qEur: q ? Math.round(q.eur) : null };
+  });
+  // The gap is measured on the same home as the Plans tab: panels on both sides.
+  if (r.qEur != null) expect(r.qEur).toBe(r.gap);
+  await expect(page.locator('.gm-q').first()).toContainText('+');
+  await expect(page.locator('.gm-q', { hasText: 'Upload your ESB meter file' })).toBeVisible();
 });
 
 test('suggestions written for another plan are set aside, not shown as current', async ({ page }) => {

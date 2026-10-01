@@ -9364,6 +9364,14 @@ function renderCompareTable(selIds){
  * built from, what the app found, the quotes kept and the requests sent.
  * A guest gets the same page, saved on this phone, with the one thing an
  * account adds said plainly. */
+/** What the home's current plan costs it as modelled — panels, battery and
+ *  car included, export credited. The same figure the Plans tab shows, so
+ *  every comparison is like with like. */
+function myPlanCost(){
+  const plan = getPlanById(state.baseline);
+  return annualCost(sim(plan.id), plan).net;
+}
+
 /* ── ALERTS AND THE SAVINGS TALLY ─────────────────────────────
  * Alerts are worked out from the household and the price data whenever the
  * app opens, so they are always current: a price change on the plan this
@@ -9396,9 +9404,7 @@ function computeAlerts(){
         go: "setScreen('plans')", cta: 'Compare plans' });
     }
     const rec = getRecommendation();
-    const sys = state.has_solar && totalPanels() > 0 && !(state.solar_planned || state.solar_is_estimate);
-    const mine = sys ? sumF(sim(state.baseline).cost) + plan.standing + PSO_LEVY : rec.baseCost;
-    const save = mine - rec.best.net;
+    const save = myPlanCost() - rec.best.net;
     if (rec.best.plan.id !== state.baseline && save >= ALERT_MIN_SAVING){
       out.push({ id: `cheaper:${rec.best.plan.id}`, kind: 'cheaper', level: 'gain',
         title: `${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)} would save you ${eur(save)} a year`,
@@ -9610,52 +9616,79 @@ function realityChecks(){
 }
 
 /**
- * The household's score, out of 100, from up to three parts — each only
- * when it applies and can be measured:
- *   plan    — how close the plan is to the cheapest for this home (model);
- *   timing  — how much of the use falls in the plan's cheap hours (meter);
- *   panels  — grid bought against what the model expected (meter, installed).
+ * The household's score, out of 100, played as a game.
+ *
+ * Four parts, each something the household can move: being on a plan close
+ * to the cheapest (40), how much of the home the model knows rather than
+ * assumes (20), use falling in the plan's cheap hours (20, from the meter),
+ * and installed panels doing what they should (20, from the meter). A part
+ * not yet measurable scores nothing and shows as a challenge to unlock it,
+ * so the score always has somewhere to go and says how to get there.
  */
+const SCORE_LEVELS = [[0, 'Starter'], [40, 'Saver'], [65, 'Smart saver'], [85, 'Peakless']];
+const PLAN_GAP_OK = 50;   // €/yr: closer than this to the cheapest counts as the best plan
+
 function householdScore(){
-  const parts = [];
+  const parts = [], quests = [], done = [];
   try {
     const rec = getRecommendation();
     const plan = getPlanById(state.baseline);
-    const installed = state.has_solar && totalPanels() > 0 && !(state.solar_planned || state.solar_is_estimate);
-    const mine = installed ? sumF(sim(state.baseline).cost) + plan.standing + PSO_LEVY : rec.baseCost;
-    const left = Math.max(0, mine - rec.best.net);
     const cheapest = rec.cheapest || rec.best;
-    const leftCheap = Math.max(0, mine - cheapest.net);
-    parts.push({ key: 'plan', label: 'Right plan', max: 40, pts: Math.round(40 * Math.max(0, 1 - leftCheap / 1000)),
-      note: leftCheap > 10 ? `${esc(cheapest.plan.supplier)} ${esc(cheapest.plan.plan)} would cost this home ${eur(leftCheap)} a year less than your plan` : 'You are on the cheapest plan for your home',
-      action: leftCheap > 10 ? { label: `See ${esc(cheapest.plan.supplier)} ${esc(cheapest.plan.plan)}`, go: `v7Sheet('plan','${cheapest.plan.id}')` } : null });
+    const gap = Math.max(0, myPlanCost() - cheapest.net);
+    const planPts = gap <= PLAN_GAP_OK ? 40 : Math.round(40 * Math.max(0, 1 - (gap - PLAN_GAP_OK) / 550));
+    parts.push({ key: 'plan', label: 'Right plan', max: 40, pts: planPts });
+    if (gap <= PLAN_GAP_OK) done.push(gap > 1 && cheapest.plan.id !== plan.id
+      ? `On a plan within ${eur(gap)} of the cheapest` : 'On the cheapest plan for your home');
+    else quests.push({ pts: 40 - planPts, eur: gap, icon: 'swap', title: `Switch to ${esc(cheapest.plan.supplier)} ${esc(cheapest.plan.plan)}`,
+      sub: `${planKindText(cheapest.plan)} · ${eur(cheapest.net)} a year against ${eur(myPlanCost())} on yours`, go: `v7Sheet('plan','${cheapest.plan.id}')` });
+
+    const acc = modelAccuracy();
+    const knowPts = Math.round(20 * Math.max(0, Math.min(1, (15 - acc.pct) / 12)));
+    parts.push({ key: 'know', label: 'Home known', max: 20, pts: knowPts });
+    if (acc.tip && !/smart-meter|meter data/i.test(acc.tip.tip)) quests.push({ pts: Math.max(2, Math.round((20 - knowPts) / 2)), icon: 'spark',
+      title: acc.tip.tip, sub: `Tightens every figure, now ±${acc.pct}%`, go: acc.tip.go });
+    if (knowPts >= 16) done.push(`Figures accurate to ±${acc.pct}%`);
+
     const days = meterDays();
+    const hasMeter = Object.keys(days).length > 0;
     const since = (state.journey || []).filter((e) => e.type === 'switch').map((e) => e.at).sort().pop() || '0000';
-    const fit = Object.keys(days).length ? timingFit(days, plan, since) : null;
-    if (fit) parts.push({ key: 'timing', label: 'Good timing', max: 30, pts: Math.round(30 * fit.fit),
-      action: fit.fit < 0.8 && !isFlatPlan(plan) ? { label: 'See your use hour by hour', go: "setScreen('analytics')" } : null,
-      note: isFlatPlan(plan) ? 'One price all day, so timing does not matter on your plan'
-        : `You pay ${fmtCent(fit.avgRate)} a kWh on average${fit.peakShare > 0.02 ? ` · ${Math.round(fit.peakShare * 100)}% of use at peak` : ''}` });
-    const inst = realityChecks().find((c) => c.kind === 'install' && c.r);
-    if (installed && inst && inst.r.ratio){
-      parts.push({ key: 'panels', label: 'Panels working', max: 30, pts: Math.round(30 * Math.min(1, inst.r.ratio)),
-        action: inst.r.ratio < 0.85 ? { label: 'Check the battery strategy', go: "setScreen('refine')" } : null,
-        note: `Bought ${Math.round(inst.r.realKwh).toLocaleString('en-IE')} kWh from the grid; the model expected ${Math.round(inst.r.modelKwh).toLocaleString('en-IE')}` });
+    const fit = hasMeter ? timingFit(days, plan, since) : null;
+    const timePts = fit ? Math.round(20 * fit.fit) : 0;
+    parts.push({ key: 'timing', label: 'Cheap-hour habits', max: 20, pts: timePts });
+    const installed = state.has_solar && totalPanels() > 0 && !(state.solar_planned || state.solar_is_estimate);
+    const inst = installed ? realityChecks().find((c) => c.kind === 'install' && c.r && c.r.ratio) : null;
+    const panelPts = inst ? Math.round(20 * Math.min(1, inst.r.ratio)) : 0;
+    if (installed) parts.push({ key: 'panels', label: 'Panels working', max: 20, pts: panelPts });
+
+    // Meter data also replaces the usage estimate, so it lifts "home known" too.
+    const knowAfter = state._csv_imported ? knowPts : Math.round(20 * Math.max(0, Math.min(1, (15 - Math.max(2, acc.pct - 6)) / 12)));
+    if (!hasMeter) quests.push({ pts: 20 + (installed ? 20 : 0) + Math.max(0, knowAfter - knowPts), icon: 'csv', title: 'Upload your ESB meter file',
+      sub: `Unlocks cheap-hour habits${installed ? ' and panel checks' : ''}, sharpens every figure, and checks your savings for real`, go: "setScreen('csv-import')" });
+    else {
+      done.push(`Meter data in · ${Object.keys(days).length} days`);
+      if (fit && fit.fit < 0.8 && !isFlatPlan(plan)) quests.push({ pts: 20 - timePts, icon: 'clock', title: 'Move use out of the dear hours',
+        sub: `You pay ${fmtCent(fit.avgRate)} a kWh on average${fit.peakShare > 0.02 ? `, ${Math.round(fit.peakShare * 100)}% of it at peak` : ''}`, go: "setScreen('analytics')" });
+      else if (fit) done.push('Good cheap-hour habits');
+      if (installed && inst && inst.r.ratio < 0.85) quests.push({ pts: 20 - panelPts, icon: 'battery', title: 'Get more from your panels',
+        sub: `You bought ${Math.round(inst.r.realKwh).toLocaleString('en-IE')} kWh; the model expected ${Math.round(inst.r.modelKwh).toLocaleString('en-IE')}`, go: "setScreen('refine')" });
     }
+    if (!state.contract_end) quests.push({ pts: 0, icon: 'calendar', title: 'Add your contract end date', sub: "So we can remind you before you're moved to a dearer rate", go: 'openMyHome()' });
+    if ((state.journey || []).length) done.push('Keeping a savings tally');
   } catch (e) {}
   const max = parts.reduce((a, p) => a + p.max, 0);
-  return { score: max ? Math.round(parts.reduce((a, p) => a + p.pts, 0) / max * 100) : null, parts };
+  const score = max ? Math.round(parts.reduce((a, p) => a + p.pts, 0) / max * 100) : 0;
+  quests.sort((a, b) => b.pts - a.pts || (b.eur || 0) - (a.eur || 0));
+  return { score, parts, quests, done };
 }
 
-/**
- * The plan check first, the score second.
- *
- * A score out of 100 built from a single measurement, with a colour key,
- * said less than one sentence: "you are on X; Y would cost €Z less". So the
- * card leads with that sentence and its button. The score appears only once
- * the meter adds a second, independent measure (timing, or the panels), when
- * a number summarising several things is worth having.
- */
+function scoreLevel(score){
+  let i = 0;
+  SCORE_LEVELS.forEach(([min], k) => { if (score >= min) i = k; });
+  const next = SCORE_LEVELS[i + 1];
+  return { name: SCORE_LEVELS[i][1], next: next ? next[1] : null, toNext: next ? next[0] - score : 0,
+    within: next ? (score - SCORE_LEVELS[i][0]) / (next[0] - SCORE_LEVELS[i][0]) : 1 };
+}
+
 /** What kind of plan it is, in words: told apart when names look alike. */
 function planKindText(p){
   if (!p) return '';
@@ -9667,53 +9700,32 @@ function planKindText(p){
 
 function renderScoreBlock(){
   const sc = householdScore();
-  const hasMeter = Object.keys(meterDays()).length > 0;
+  const lv = scoreLevel(sc.score);
+  const tone = sc.score >= 85 ? 'is-gain' : sc.score >= 40 ? 'is-maybe' : 'is-warn';
   const checks = realityChecks();
-  let planCheck = '';
-  try {
-    const rec = getRecommendation();
-    const plan = getPlanById(state.baseline);
-    const cheapest = rec.cheapest || rec.best;
-    const installed = state.has_solar && totalPanels() > 0 && !(state.solar_planned || state.solar_is_estimate);
-    const mine = installed ? sumF(sim(state.baseline).cost) + plan.standing + PSO_LEVY : rec.baseCost;
-    const left = Math.max(0, mine - cheapest.net);
-    planCheck = left > 10 && cheapest.plan.id !== plan.id
-      ? `<div class="pc is-warn">
-          <div class="pc-label">Your plan</div>
-          <b>You're on ${esc(plan.supplier)} ${esc(plan.plan)}</b>
-          <small class="pc-kind">${planKindText(plan)} · ${eur(mine)} a year for this home</small>
-          <p><b>${esc(cheapest.plan.supplier)} ${esc(cheapest.plan.plan)}</b> would cost <b class="pc-gap">${eur(left)} a year less</b>.</p>
-          <small class="pc-kind">${planKindText(cheapest.plan)} · ${eur(cheapest.net)} a year for this home</small>
-          <button class="v7-cta-2" onclick="v7Sheet('plan','${cheapest.plan.id}')">See ${esc(cheapest.plan.supplier)} ${esc(cheapest.plan.plan)}</button>
-          <small>Chose your plan for another reason, like service or a fixed price? Then this gap is the cost of that choice.</small>
-        </div>`
-      : `<div class="pc is-gain">
-          <div class="pc-label">Your plan</div>
-          <b>${ic('checkC', 16)} You're on the cheapest plan for your home.</b>
-          <p>${esc(plan.supplier)} ${esc(plan.plan)}. We'll tell you if that changes.</p>
-        </div>`;
-  } catch (e) {}
-
-  const scored = sc.parts.length >= 2;
-  const toneOf = (v) => v >= 80 ? 'is-gain' : v >= 55 ? 'is-maybe' : 'is-warn';
-  const tone = toneOf(sc.score || 0);
-  const score = scored ? `<div class="sc-top">
-      <div class="sc-ring ${tone}" style="--p:${Math.max(3, sc.score)}"><b>${sc.score}</b><small>out of 100</small></div>
-      <div class="sc-head"><span class="sc-verdict ${tone}">${sc.score >= 80 ? 'Doing very well' : sc.score >= 55 ? 'Some room to save' : 'Money is being left on the table'}</span>
-        <small>Higher is better. Made of: ${sc.parts.map((p) => `${p.label.toLowerCase()} ${p.pts} of ${p.max}`).join(', ')}.</small></div>
+  return `<section class="gm">
+    <div class="gm-top">
+      <div class="sc-ring ${tone}" style="--p:${Math.max(3, sc.score)}"><b>${sc.score}</b><small>points</small></div>
+      <div class="gm-level">
+        <span class="gm-level-name ${tone}">${lv.name}</span>
+        ${lv.next ? `<small>${lv.toNext} point${lv.toNext === 1 ? '' : 's'} to <b>${lv.next}</b></small>
+          <div class="gm-bar"><i style="width:${Math.round(lv.within * 100)}%"></i></div>` : '<small>The top level. Keep it there.</small>'}
+      </div>
     </div>
-    ${sc.parts.filter((p) => p.key !== 'plan').map((p) => { const pc = Math.round(p.pts / p.max * 100); return `<div class="sc-part ${toneOf(pc)}"><div class="sc-part-top"><span>${p.label}</span><b>${p.pts} of ${p.max}</b></div>
-      <div class="sc-bar"><i style="width:${Math.max(3, pc)}%"></i></div><small>${p.note}</small>
-      ${p.action ? `<button class="sc-act" onclick="${p.action.go}">${p.action.label} ${ic('chevR', 14)}</button>` : ''}</div>`; }).join('')}`
-    : `<div class="sc-wait"><b>Your score</b><small>Upload your ESB smart-meter file and we'll score how well your home's use fits your plan's cheap hours${state.has_solar ? ' and how your panels are doing' : ''}, and check your savings against what really happened.</small></div>`;
+    <div class="gm-parts">${sc.parts.map((p) => `<span class="gm-part"><b>${p.pts}</b>/${p.max} ${p.label.toLowerCase()}</span>`).join('')}</div>
 
-  return `<section class="sc">
-    ${planCheck}
-    ${score}
+    ${sc.quests.length ? `<div class="gm-h">Next challenges</div>
+    ${sc.quests.map((q) => `<button class="gm-q" onclick="${q.go}">
+        <span class="gm-q-ico">${ic(q.icon, 18)}</span>
+        <span class="gm-q-text"><b>${q.title}</b><small>${q.sub}</small></span>
+        <span class="gm-q-gain">${q.pts ? `<b>+${q.pts}</b><small>points</small>` : `<small>reminder</small>`}${q.eur ? `<em>${eur(q.eur)}/yr</em>` : ''}</span>
+      </button>`).join('')}` : ''}
+
+    ${sc.done.length ? `<div class="gm-h">Done</div><div class="gm-done">${sc.done.map((d) => `<span>${ic('checkC', 14)} ${d}</span>`).join('')}</div>` : ''}
+
     ${checks.filter((c) => c.kind === 'switch').map(({ e, r }) => r
       ? `<div class="sc-check"><b>${esc(e.label)}</b><small>Checked on ${r.days} days of your meter: really ${eur(r.perYear)} a year, against ${eur(e.per_year)} expected${r.ratio != null ? ` (${Math.round(r.ratio * 100)}%)` : ''}.</small></div>`
       : `<div class="sc-check"><b>${esc(e.label)}</b><small>Not checked yet: needs two weeks of meter data from ${fmtDay(e.at)}.</small></div>`).join('')}
-    <button class="me-mini" onclick="setScreen('csv-import')">${ic('csv', 14)} ${hasMeter ? 'Upload newer meter data' : 'Upload my ESB meter data'}</button>
   </section>`;
 }
 
@@ -9739,7 +9751,7 @@ function adviceSummary(){
       ev_km_year: state.ev_active ? state.ev_km_per_year : 0,
       solar: state.has_solar && totalPanels() > 0 ? { kwp: +totalKwp().toFixed(1), battery_kwh: state.battery_kwh || 0, status: state.solar_planned || state.solar_is_estimate ? 'planned' : 'installed', battery_strategy: state.strategy_mode } : null,
       contract_end: state.contract_end || null },
-    current_plan: { ...p(plan), yearly_cost_eur: Math.round(rec.baseCost), upcoming_change: plan.price_change ? plan.price_change.note || null : null },
+    current_plan: { ...p(plan), yearly_cost_eur: Math.round(myPlanCost()), upcoming_change: plan.price_change ? plan.price_change.note || null : null },
     best_plans: rec.ranked.slice(0, 3).map((r) => ({ ...p(r.plan), yearly_cost_eur: Math.round(r.net) })),
     meter_last_90_days: keys.length ? { days: keys.length, kwh_by_hour: hourly.map((v) => Math.round(v)) } : null,
     score: sc.score, score_parts: sc.parts.map((x) => ({ part: x.label, points: x.pts, of: x.max, note: x.note })),
@@ -9969,7 +9981,7 @@ function householdFindings(){
         { label: 'If you install the planned system', sub: `On top of the switch · it costs ${eur(Math.max(0, state.install_cost - state.grant_seai))} after the grant`, value: money(sp.withPlanned), cls: 'is-maybe', go: "setScreen('solar')" },
       ] };
     }
-    const mine = sumF(sim(state.baseline).cost) + getPlanById(state.baseline).standing + PSO_LEVY;
+    const mine = myPlanCost();
     const solarNow = rec.baseCost - mine;
     const sw = mine - rec.best.net;
     return { status: `Installed system · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` + ${state.battery_kwh} kWh` : ''}`, rows: [
@@ -10027,7 +10039,7 @@ function renderMe(){
     ${renderAlertsBlock()}
     <div class="section-title">Savings</div>
     ${renderTallyBlock()}
-    <div class="section-title">How you're doing</div>
+    <div class="section-title">Your ${BRAND.name} score</div>
     ${renderScoreBlock()}
     <div class="section-title">This quarter</div>
     ${renderAdviceBlock()}` : ''}
@@ -12925,6 +12937,8 @@ window.applyRegion = applyRegion;
 window.getRecommendation = getRecommendation;
 window.getBestPlan = getBestPlan;
 window.sim = sim;
+window.annualCost = annualCost;
+window.getPlanById = getPlanById;
 window.__annual = (s, p) => annualCost(s, p).net;   // tests: a plan's comparable yearly cost
 window.bandAt = bandAt;
 window.calcNPV20 = calcNPV20;
