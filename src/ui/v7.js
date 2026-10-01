@@ -44,9 +44,9 @@ export function createV7(api) {
       ${back
         ? `<button class="icb" onclick="goBack()" aria-label="Back">${api.ic('chevL', 20)}</button>`
         : `<button class="v7-brand" onclick="setScreen('result')" aria-label="Home">
-            <span class="v7-brand-mark">${api.ic('sun', 15, 'stroke-width:2')}</span>
+            <span class="v7-brand-mark">${api.ic('logo', 22, 'stroke-width:1.6')}</span>
           </button>`}
-      <div class="v7-top-title">${esc(title || '')}</div>
+      ${title ? `<div class="v7-top-title">${esc(title)}</div>` : `<div class="v7-top-title v7-wordmark">${esc(api.brand)}</div>`}
       <div class="v7-top-end">${api.renderProfileNavBtn()}</div>
     </header>`;
   }
