@@ -12,6 +12,7 @@ import {
 } from './engine/tariff-rules';
 import { moneyBar, dayProfile, paybackCurve, yearRibbon, bandDonut } from './ui/charts.js';
 import { createV7 } from './ui/v7.js';
+import { checkSwitch, timingFit } from './engine/meter';
 import { BRAND, MARK_PATHS, iconDataUri, wordmarkHtml } from './brand';
 
 /* Peakless — application entry.
@@ -542,8 +543,9 @@ function renderProfileNavBtn(){
   if (_sbUser){
     const initials = (_sbProfile && _sbProfile.display_name
       ? _sbProfile.display_name : (_sbUser.email || '?')).slice(0,1).toUpperCase();
-    return `<button class="profile-nav-btn" onclick="setScreen('me')" aria-label="My ${BRAND.name}">
-      <div class="profile-nav-avatar">${initials}</div>
+    const nAl = state.onboarding_complete ? unseenAlerts().length : 0;
+    return `<button class="profile-nav-btn" onclick="setScreen('me')" aria-label="My ${BRAND.name}${nAl ? `, ${nAl} new alerts` : ''}">
+      <div class="profile-nav-avatar">${initials}${nAl ? `<i class="nav-badge">${nAl}</i>` : ''}</div>
     </button>`;
   }
   if (!sbInitialized()) return '';
@@ -9403,6 +9405,14 @@ function computeAlerts(){
         body: 'Against what your plan costs this home today. Switching takes about ten minutes and there is nothing to cancel.',
         go: "setScreen('result')", cta: 'See the switch' });
     }
+    const old = (state.journey || []).filter((e) => (Date.now() - Date.parse(e.at)) / 864e5 > 30);
+    const lastDay = Object.keys(meterDays()).sort().pop() || '';
+    if (old.length && old.some((e) => lastDay < addDays(e.at, 14))){
+      out.push({ id: `meter:${quarterKey()}`, kind: 'meter', level: 'info',
+        title: 'Check your savings against your meter',
+        body: 'Download your smart-meter file from esbnetworks.ie (My Account → Downloads) and upload it. We will re-price what you actually used and show what you really saved.',
+        go: "setScreen('csv-import')", cta: 'Upload meter data' });
+    }
     if (state.contract_end){
       const days = Math.round((Date.parse(state.contract_end) - Date.parse(today)) / 864e5);
       if (days <= 45 && days >= -60) out.push({ id: `contract:${state.contract_end}`, kind: 'contract', level: 'warn',
@@ -9538,6 +9548,158 @@ function renderTallyBlock(){
       ${sysPlanned ? `<button class="me-mini" onclick="v7Sheet('journey','install')">${ic('sun', 14)} My panels are in</button>` : ''}
     </div>
     ${j.length ? `<div class="me-fine">The tally uses the model's figure for each step. Importing your ESB smart-meter data will check it against what really happened.</div>` : ''}
+  </section>`;
+}
+
+/* ── WHAT REALLY HAPPENED ──────────────────────────────────────
+ * With the meter's own readings the app can check itself. Each switch on
+ * the tally is re-priced on the real recorded use — the old plan against
+ * the new, from the switch date — and the panels are checked by how much
+ * less the home bought from the grid than the same days the year before
+ * (or than the model expected, when there is no year before). */
+function meterDays(){ return (state.meter && state.meter.days) || {}; }
+
+function realityChecks(){
+  const days = meterDays();
+  if (!Object.keys(days).length) return [];
+  const out = [];
+  for (const e of state.journey || []){
+    if (e.type === 'switch'){
+      const from = getPlanById(e.from), to = getPlanById(e.to);
+      if (!from || !to) continue;
+      const r = checkSwitch(days, e, from, to);
+      out.push({ e, r, kind: 'switch' });
+    } else if (e.type === 'install'){
+      // Grid bought per day after the install, against the model's own
+      // expectation for those calendar days with the panels in.
+      const after = Object.entries(days).filter(([d]) => d >= e.at);
+      if (after.length < 14){ out.push({ e, r: null, kind: 'install' }); continue; }
+      let real = 0, modelled = 0;
+      try {
+        const s = sim(state.baseline);
+        for (const [d, v] of after){
+          const doy = Math.min(364, Math.max(0, Math.floor((Date.parse(d + 'T00:00:00Z') - Date.UTC(+d.slice(0, 4), 0, 1)) / 864e5)));
+          for (let h = 0; h < 24; h++){ real += v[h] || 0; modelled += s.grid_import[doy * 24 + h] || 0; }
+        }
+      } catch (err) {}
+      out.push({ e, r: { days: after.length, realKwh: real, modelKwh: modelled, ratio: real > 0 ? modelled / real : null }, kind: 'install' });
+    }
+  }
+  return out;
+}
+
+/**
+ * The household's score, out of 100, from up to three parts — each only
+ * when it applies and can be measured:
+ *   plan    — how close the plan is to the cheapest for this home (model);
+ *   timing  — how much of the use falls in the plan's cheap hours (meter);
+ *   panels  — grid bought against what the model expected (meter, installed).
+ */
+function householdScore(){
+  const parts = [];
+  try {
+    const rec = getRecommendation();
+    const plan = getPlanById(state.baseline);
+    const installed = state.has_solar && totalPanels() > 0 && !(state.solar_planned || state.solar_is_estimate);
+    const mine = installed ? sumF(sim(state.baseline).cost) + plan.standing + PSO_LEVY : rec.baseCost;
+    const left = Math.max(0, mine - rec.best.net);
+    parts.push({ key: 'plan', label: 'Right plan', max: 40, pts: Math.round(40 * Math.max(0, 1 - left / 300)),
+      note: left > 10 ? `${eur(left)} a year still left on the table` : 'On the best plan for your home' });
+    const days = meterDays();
+    const since = (state.journey || []).filter((e) => e.type === 'switch').map((e) => e.at).sort().pop() || '0000';
+    const fit = Object.keys(days).length ? timingFit(days, plan, since) : null;
+    if (fit) parts.push({ key: 'timing', label: 'Good timing', max: 30, pts: Math.round(30 * fit.fit),
+      note: isFlatPlan(plan) ? 'One price all day, so timing does not matter on your plan'
+        : `You pay ${fmtCent(fit.avgRate)} a kWh on average${fit.peakShare > 0.02 ? ` · ${Math.round(fit.peakShare * 100)}% of use at peak` : ''}` });
+    const inst = realityChecks().find((c) => c.kind === 'install' && c.r);
+    if (installed && inst && inst.r.ratio){
+      parts.push({ key: 'panels', label: 'Panels working', max: 30, pts: Math.round(30 * Math.min(1, inst.r.ratio)),
+        note: `Bought ${Math.round(inst.r.realKwh).toLocaleString('en-IE')} kWh from the grid; the model expected ${Math.round(inst.r.modelKwh).toLocaleString('en-IE')}` });
+    }
+  } catch (e) {}
+  const max = parts.reduce((a, p) => a + p.max, 0);
+  return { score: max ? Math.round(parts.reduce((a, p) => a + p.pts, 0) / max * 100) : null, parts };
+}
+
+function renderScoreBlock(){
+  const sc = householdScore();
+  if (sc.score == null) return '';
+  const hasMeter = Object.keys(meterDays()).length > 0;
+  const checks = realityChecks();
+  const tone = sc.score >= 80 ? 'is-gain' : sc.score >= 55 ? 'is-maybe' : 'is-warn';
+  return `<section class="sc">
+    <div class="sc-top">
+      <div class="sc-ring ${tone}" style="--p:${sc.score}"><b>${sc.score}</b><small>/100</small></div>
+      <div class="sc-head"><b>${sc.score >= 80 ? 'Doing very well' : sc.score >= 55 ? 'Doing well, with room to save' : 'Money is being left on the table'}</b>
+        <small>${hasMeter ? `From your meter readings${state.meter.days ? `, ${Object.keys(state.meter.days).length} days` : ''}, and the model` : 'From the model. Your meter data adds timing and checks your savings.'}</small></div>
+    </div>
+    ${sc.parts.map((p) => `<div class="sc-part"><div class="sc-part-top"><span>${p.label}</span><b>${p.pts}/${p.max}</b></div>
+      <div class="sc-bar"><i style="width:${Math.round(p.pts / p.max * 100)}%"></i></div><small>${p.note}</small></div>`).join('')}
+    ${checks.filter((c) => c.kind === 'switch').map(({ e, r }) => r
+      ? `<div class="sc-check"><b>${esc(e.label)}</b><small>Checked on ${r.days} days of your meter: really ${eur(r.perYear)} a year, against ${eur(e.per_year)} expected${r.ratio != null ? ` (${Math.round(r.ratio * 100)}%)` : ''}.</small></div>`
+      : `<div class="sc-check"><b>${esc(e.label)}</b><small>Not checked yet: needs two weeks of meter data from ${fmtDay(e.at)}.</small></div>`).join('')}
+    <button class="me-mini" onclick="setScreen('csv-import')">${ic('csv', 14)} ${hasMeter ? 'Upload newer meter data' : 'Upload my ESB meter data'}</button>
+  </section>`;
+}
+
+/* ── THIS QUARTER'S SUGGESTIONS ─────────────────────────────────
+ * Claude reads a short summary of the household — the plan and its prices,
+ * the alternatives, the use by hour, the score — and suggests up to three
+ * things to do, each grounded in those figures. Nothing personal is sent:
+ * no name, address, email or meter number. Kept for the quarter. */
+function quarterKey(d = new Date()){ return `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`; }
+
+function adviceSummary(){
+  const rec = getRecommendation();
+  const plan = getPlanById(state.baseline);
+  const days = meterDays();
+  const keys = Object.keys(days).sort().slice(-90);
+  const hourly = new Array(24).fill(0);
+  keys.forEach((d) => { for (let h = 0; h < 24; h++) hourly[h] += days[d][h] || 0; });
+  const sc = householdScore();
+  const p = (x) => ({ name: `${x.supplier} ${x.plan}`, type: x.type, rates_c: Object.fromEntries(Object.entries(x.rates).map(([k, v]) => [k, Math.round(v * 1000) / 10])),
+    windows: x.windows, standing_eur: x.standing, export_c: Math.round((x.export_rate || 0) * 1000) / 10 });
+  return {
+    home: { region: state.region, heating: state.heating_type, kwh_year: Math.round(v7AnnualKwh()), hot_water: state.hot_water_strategy,
+      ev_km_year: state.ev_active ? state.ev_km_per_year : 0,
+      solar: state.has_solar && totalPanels() > 0 ? { kwp: +totalKwp().toFixed(1), battery_kwh: state.battery_kwh || 0, status: state.solar_planned || state.solar_is_estimate ? 'planned' : 'installed', battery_strategy: state.strategy_mode } : null,
+      contract_end: state.contract_end || null },
+    current_plan: { ...p(plan), yearly_cost_eur: Math.round(rec.baseCost), upcoming_change: plan.price_change ? plan.price_change.note || null : null },
+    best_plans: rec.ranked.slice(0, 3).map((r) => ({ ...p(r.plan), yearly_cost_eur: Math.round(r.net) })),
+    meter_last_90_days: keys.length ? { days: keys.length, kwh_by_hour: hourly.map((v) => Math.round(v)) } : null,
+    score: sc.score, score_parts: sc.parts.map((x) => ({ part: x.label, points: x.pts, of: x.max, note: x.note })),
+    done: (state.journey || []).map((e) => ({ what: e.label, when: e.at, per_year_eur: e.per_year })),
+  };
+}
+
+let _adviceBusy = false;
+async function getAdvice(){
+  if (_adviceBusy) return;
+  _adviceBusy = true; renderApp();
+  try {
+    const res = await fetch('/api/advice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ summary: adviceSummary() }) });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok || !out.advice) throw new Error(out.error || 'Suggestions are not available just now.');
+    state.advice = { quarter: quarterKey(), at: new Date().toISOString(), items: out.advice.items || [] };
+    saveState();
+  } catch (e){
+    showToast((e && e.message) || 'Suggestions are not available just now.', { type: 'warn', icon: ic('warn', 16) });
+  }
+  _adviceBusy = false; renderApp();
+}
+
+function renderAdviceBlock(){
+  const a = state.advice;
+  const fresh = a && a.quarter === quarterKey();
+  const effort = { easy: 'Easy', some: 'Some effort', big: 'A bigger step' };
+  return `<section class="adv">
+    ${fresh && a.items.length ? a.items.map((x) => `<div class="adv-item">
+        <div class="adv-item-top"><b>${esc(x.title)}</b>${x.saving_eur ? `<em>${eur(x.saving_eur)}/yr</em>` : ''}</div>
+        <small>${esc(x.why)}</small>
+        <span class="adv-tag">${effort[x.effort] || ''}</span>
+      </div>`).join('') : `<div class="me-empty">${fresh ? 'Nothing more to suggest this quarter: you are doing what saves most.' : 'Three things worth doing this quarter, worked out from your plan, your prices and how your home uses power.'}</div>`}
+    <button class="me-add" ${_adviceBusy ? 'disabled' : ''} onclick="getAdvice()">${_adviceBusy ? 'Working it out…' : `${ic('spark', 16)} ${fresh ? 'Ask again' : "Get this quarter's suggestions"}`}</button>
+    <div class="adv-fine">Written by AI (Anthropic's Claude) from the figures here, with no personal details sent. Check anything before acting on it.</div>
   </section>`;
 }
 
@@ -9784,7 +9946,11 @@ function renderMe(){
     ${state.onboarding_complete ? `<div class="section-title">Alerts${unseenAlerts().length ? ` <span class="al-count">${unseenAlerts().length} new</span>` : ''}</div>
     ${renderAlertsBlock()}
     <div class="section-title">Savings</div>
-    ${renderTallyBlock()}` : ''}
+    ${renderTallyBlock()}
+    <div class="section-title">Your score</div>
+    ${renderScoreBlock()}
+    <div class="section-title">This quarter</div>
+    ${renderAdviceBlock()}` : ''}
 
     <div class="section-title">My household</div>
     ${state.onboarding_complete ? householdScene() : ''}
@@ -9859,7 +10025,8 @@ function renderMore(){
   <div class="screen">
     <button class="me-entry" onclick="setScreen('me')">
       <span class="me-avatar" aria-hidden="true">${_sbUser ? esc(((_sbProfile && _sbProfile.display_name) || _sbUser.email || '?').slice(0, 1).toUpperCase()) : ic('home', 18)}</span>
-      <span class="me-who"><b>My ${BRAND.name}</b><small>${_sbUser ? 'Your home, system, quotes and requests' : 'Your home, system and quotes · saved on this phone'}</small></span>
+      <span class="me-who"><b>My ${BRAND.name}</b><small>${(() => { const n = unseenAlerts().length; return n ? `${n} new alert${n > 1 ? 's' : ''} · ` : ''; })()}${_sbUser ? 'Your home, savings, alerts and quotes' : 'Your home, savings and quotes · saved on this phone'}</small></span>
+      ${unseenAlerts().length ? `<i class="me-entry-badge" aria-hidden="true">${unseenAlerts().length}</i>` : ''}
       ${ic('chevR', 16)}
     </button>
     <div class="secondary-card" style="cursor:default">
@@ -12032,6 +12199,39 @@ function parseCsvHdf(text, filename){
         hourCounts[bucketHour]++;
       }
     }
+    // The readings themselves, by date and hour, imports and exports — kept so
+    // the app can check its own figures (a switch's saving, the panels' effect)
+    // against what the meter recorded. Merged into any earlier upload, and
+    // capped at the most recent 400 days.
+    try {
+      const ledger = {};
+      for (const line of dataLines){
+        if (!line.trim()) continue;
+        const cols = line.split(',').map(c => c.replace(/^"|"$/g,'').trim());
+        const t = (cols[_typeCol] || '').toLowerCase();
+        const isImp = !t || t.includes('active import'), isExp = t.includes('active export');
+        if (!isImp && !isExp) continue;
+        const val = parseFloat(cols[_valueCol] || '');
+        if (!isFinite(val) || val < 0 || val > 50) continue;
+        const ds = cols[_dateCol] || '';
+        let day = parseDateDayKey(ds);
+        const tm = ds.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*$/);
+        if (!day || !tm) continue;
+        // ESB stamps the END of each half hour: 00:30 is 00:00–00:30, and
+        // 00:00 is the last half hour of the day before.
+        let start = (+tm[1]) * 60 + (+tm[2]) - 30;
+        if (start < 0){ const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 1); day = d.toISOString().slice(0, 10); start += 1440; }
+        const h = Math.floor(start / 60);
+        const row = ledger[day] || (ledger[day] = new Array(48).fill(0));
+        row[(isExp ? 24 : 0) + h] += val * ENERGY_FACTOR;
+      }
+      const merged = { ...((state.meter && state.meter.days) || {}) };
+      for (const [d, v] of Object.entries(ledger)) merged[d] = v.map((x) => Math.round(x * 1000) / 1000);
+      const keep = Object.keys(merged).sort().slice(-400);
+      const days = {}; keep.forEach((d) => { days[d] = merged[d]; });
+      if (keep.length) state.meter = { days, imported_at: new Date().toISOString() };
+    } catch (e) { /* the yearly figures above do not depend on this */ }
+
     // Only store the hourly shape if we have good coverage (at least 20 of 24 hours with data)
     const hoursWithData = hourCounts.filter(c => c > 0).length;
     if (hoursWithData >= 20){
@@ -12484,6 +12684,9 @@ window.sysTypicalPrice = sysTypicalPrice;
 window.openMySystem = openMySystem;
 window.homeSet = homeSet;
 window.openMyHome = openMyHome;
+window.getAdvice = getAdvice;
+window.householdScore = householdScore;
+window.realityChecks = realityChecks;
 window.recordSwitch = recordSwitch;
 window.recordInstall = recordInstall;
 window.removeJourney = removeJourney;
@@ -12627,6 +12830,7 @@ window.closePdfModal = closePdfModal;
 window.submitPdfRequest = submitPdfRequest;
 window.clearCsvImport = clearCsvImport;
 window.handleCsvFile = handleCsvFile;
+window.parseCsvHdf = parseCsvHdf;
 window.applyImportedBills = applyImportedBills;
 window.trackPlanView = trackPlanView;
 window.toggleTrust = toggleTrust;

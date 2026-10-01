@@ -529,3 +529,60 @@ test('the tally: recording a switch makes it the plan, sets the contract, and co
   expect(st.total).toBeCloseTo(st.j[0].per_year * 30 / 365, -1);
   await expect(page.locator('.me-tally')).toContainText('saved so far');
 });
+
+test('step 5: an ESB file keeps dated hourly readings, imports and exports, end-of-interval aware', async ({ page }) => {
+  await boot(page);
+  const m = await page.evaluate(() => {
+    const rows = ['MPRN,Meter Serial Number,Read Value,Read Type,Read Date and End Time'];
+    // 00:30 is 00:00–00:30 on the 5th; 00:00 on the 6th closes 23:30–24:00 of the 5th.
+    rows.push('1,2,2,Active Import Interval (kW),05-10-2026 00:30');
+    rows.push('1,2,4,Active Import Interval (kW),06-10-2026 00:00');
+    rows.push('1,2,3,Active Export Interval (kW),05-10-2026 13:30');
+    for (let i = 0; i < 20; i++) rows.push(`1,2,1,Active Import Interval (kW),05-10-2026 ${String(1 + (i % 22)).padStart(2, '0')}:30`);
+    window.parseCsvHdf(rows.join('\n'), 'esb.csv');
+    return window.state.meter.days['2026-10-05'];
+  });
+  expect(m[0]).toBeCloseTo(1);        // 2 kW for half an hour
+  expect(m[23]).toBeCloseTo(2);       // the 00:00 reading belongs to the day before
+  expect(m[24 + 13]).toBeCloseTo(1.5); // export, kept separately
+});
+
+test('step 5: a recorded switch is checked against the meter, and the score shows its parts', async ({ page }) => {
+  const days = {};
+  for (let i = 0; i < 40; i++) {
+    const d = new Date(Date.now() - (40 - i) * 864e5).toISOString().slice(0, 10);
+    days[d] = [...Array.from({ length: 24 }, (_, h) => (h < 7 ? 1.5 : h >= 17 && h < 19 ? 1 : 0.4)), ...new Array(24).fill(0)];
+  }
+  const at = Object.keys(days)[10];
+  await boot(page, { current_screen: 'me', baseline: 'EN-SMART', meter: { days },
+    journey: [{ type: 'switch', at, from: 'BG-24', to: 'EN-SMART', label: 'Switched to Energia Smart Data', per_year: 250 }] });
+  const sc = await page.evaluate(() => window.householdScore());
+  expect(sc.parts.map((p) => p.key)).toEqual(['plan', 'timing']);
+  expect(sc.score).toBeGreaterThan(0);
+  const chk = await page.evaluate(() => window.realityChecks()[0].r);
+  expect(chk.days).toBe(30);
+  await expect(page.locator('.sc')).toContainText('Checked on 30 days of your meter');
+});
+
+test('step 5: suggestions are fetched once, kept for the quarter, and carry no personal details', async ({ page }) => {
+  await boot(page, { current_screen: 'me', user_email: 'me@example.ie', address: '1 Main St' });
+  let sent = null;
+  await page.route('**/api/advice', async (route) => {
+    sent = route.request().postDataJSON();
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ advice: { items: [
+      { title: 'Run the dishwasher after 11pm', why: 'Night is 16.9c against 30.8c day.', saving_eur: 40, effort: 'easy' }] } }) });
+  });
+  await page.getByRole('button', { name: /Get this quarter's suggestions/ }).click();
+  await expect(page.locator('.adv')).toContainText('Run the dishwasher after 11pm');
+  const raw = JSON.stringify(sent);
+  expect(raw).not.toContain('example.ie');
+  expect(raw).not.toContain('Main St');
+  expect(await page.evaluate(() => window.state.advice.items.length)).toBe(1);
+});
+
+test('the alert count shows on the My Peakless card in More, not only on the tab', async ({ page }) => {
+  const soon = new Date(Date.now() + 10 * 864e5).toISOString().slice(0, 10);
+  await boot(page, { current_screen: 'more', contract_end: soon, alerts_seen: {} });
+  await expect(page.locator('.me-entry-badge')).toBeVisible();
+  await expect(page.locator('.me-entry')).toContainText('new alert');
+});
