@@ -1074,3 +1074,43 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .sg-facts > div { min-width: 0; }
 .sg-facts b { font-size: var(--text-body); overflow-wrap: anywhere; }
 .sg-sys { overflow-wrap: anywhere; }
+
+/* ---------------------------------------------------------- v8: the first-visit flow */
+.fl { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; background: var(--bg); }
+.fl-top { display: flex; align-items: center; gap: var(--space-3); padding: max(12px, env(safe-area-inset-top)) var(--space-4) var(--space-2); }
+.fl-prog { margin: 0 var(--space-4); }
+.fl-body { display: grid; gap: var(--space-3); align-content: start; padding: var(--space-4) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom)); max-width: 560px; width: 100%; margin: 0 auto; }
+.fl-q { display: grid; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-xl); background: var(--panel); border: 1px solid var(--hair); box-shadow: var(--lift); animation: flIn .45s cubic-bezier(.2,.8,.2,1); }
+.fl-q h2 { margin: 0; font: 800 var(--text-h3)/1.2 var(--display); letter-spacing: -.02em; color: var(--ink); }
+.fl-q p { margin: -6px 0 0; font-size: var(--text-data); color: var(--ink-soft); }
+.fl-branch { margin-left: var(--space-3); border-left: 3px solid var(--brand-gold); }
+.fl-done { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-lg); background: var(--well); font-size: var(--text-data); color: var(--ink-soft); animation: flIn .3s; }
+.fl-done b { color: var(--ink); font-weight: 600; }
+.fl-done button { flex: none; border: 0; background: none; padding: 4px; font: 700 var(--text-data) var(--display); color: var(--accent); cursor: pointer; }
+.fl-opts { display: grid; gap: var(--space-2); }
+.fl-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fl-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fl-opt { display: grid; gap: 2px; padding: var(--space-3); text-align: left; border-radius: var(--radius-lg); border: 1.5px solid var(--line); background: var(--panel); color: var(--ink); font-family: inherit; cursor: pointer; }
+.fl-opt b { font-size: var(--text-body); }
+.fl-opt small { font-size: var(--text-caption); color: var(--ink-soft); line-height: 1.4; }
+.fl-opt.on, .fl-opt:focus-visible { border-color: var(--accent); background: var(--accent-faint); outline: none; }
+.fl-bill { display: flex; align-items: baseline; gap: 6px; }
+.fl-bill span { font: 800 var(--text-h1) var(--display); color: var(--ink-soft); }
+.fl-bill input { flex: 1; min-width: 0; font: 800 var(--text-h1) var(--display); border: 0; border-bottom: 2px solid var(--line); border-radius: 0; background: transparent; padding: 4px 0; color: var(--ink); }
+.fl-row { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.fl-next, .fl-go { padding: 14px; border: 0; border-radius: var(--radius-xl); background: var(--accent); color: var(--on-accent); font: 700 var(--text-body) var(--display); cursor: pointer; flex: 1; }
+.fl-ghost { padding: 14px; border-radius: var(--radius-xl); border: 1.5px solid var(--accent); background: transparent; color: var(--accent); font: 700 var(--text-body) var(--display); cursor: pointer; flex: 1; }
+.fl-select { width: 100%; }
+.fl-reveal { display: grid; gap: var(--space-3); padding: var(--space-5) var(--space-4); border-radius: var(--radius-xl); background: var(--brand-ink); color: var(--brand-paper); animation: flIn .6s; }
+.fl-r-k { font-size: var(--text-data); color: var(--brand-mist); }
+.fl-r-big { font: 800 min(64px, 16vw)/1 var(--display); letter-spacing: -.045em; color: var(--brand-gold); }
+.fl-r-big span { font-size: var(--text-lead); font-weight: 600; color: var(--brand-mist); letter-spacing: 0; }
+.fl-r-line { font-size: var(--text-body); }
+.fl-r-list { display: grid; gap: 6px; font-size: var(--text-data); color: var(--brand-mist); }
+.fl-r-list b { color: var(--brand-paper); }
+.fl-go { background: var(--brand-gold); color: var(--brand-ink); }
+.fl-save { display: grid; gap: var(--space-2); padding: var(--space-4); border-radius: var(--radius-xl); border: 1.5px dashed var(--accent); font-size: var(--text-data); color: var(--ink-soft); animation: flIn .6s .3s both; }
+.fl-save b { font-size: var(--text-body); color: var(--ink); }
+@keyframes flIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .fl-q, .fl-done, .fl-reveal, .fl-save { animation: none; } }
+.fl-prog { flex: none; height: 8px; }

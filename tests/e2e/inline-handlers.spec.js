@@ -80,15 +80,11 @@ test('the first run opens on the question, not a carousel or a sign-in wall', as
   const errors = await bootFresh(page);
   expect(await page.evaluate(() => window.state.current_screen)).toBe('welcome');
   await page.getByRole('button', { name: /Get my answer in 30 seconds/ }).click();
-  await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('fastpath');
-
-  // The one question is on screen immediately, and the assumptions are stated
-  // rather than hidden — that is what earns the right to skip the setup.
-  await expect(page.locator('#fp-bill')).toBeVisible();
-  await expect(page.locator('.fp-assume-label')).toBeVisible();
-
-  // One tap to an answer.
-  await page.getByRole('button', { name: /See my savings/ }).click();
+  // v8: the first visit is one page that reveals a question at a time.
+  await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('flow');
+  await page.getByRole('button', { name: 'Next' }).click();
+  for (const pick of ['Not sure', 'Gas or oil', /^No$/, /^No$/]) await page.locator('.fl-opt', { hasText: pick }).first().click();
+  await page.getByRole('button', { name: 'See my home' }).click();
   await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('result');
   expect(errors).toEqual([]);
 });

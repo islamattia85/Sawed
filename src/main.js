@@ -98,7 +98,7 @@ async function sbInit(){
  * the person to choose. Saved quotes from both are always kept. */
 
 // What describes this screen rather than the household is never synced.
-const NO_SYNC = ['_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
+const NO_SYNC = ['_flow', '_flow_edit', '_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
   '_tariff_refreshing', '_expert_open', '_account_id', '_saved_at'];
 let _sync = { status: 'idle', at: null };
 let _syncTimer = null;
@@ -3858,7 +3858,7 @@ function renderWelcome(){
       <p class="pk-land-sub">Every Irish electricity plan, run against your home hour by hour, with or without solar, a battery or an EV. Free and independent.</p>
     </div>
     <div class="pk-land-actions">
-      <button class="pk-btn-gold" onclick="goFastPath()">Get my answer in 30 seconds</button>
+      <button class="pk-btn-gold" onclick="startFlow()">Get my answer in 30 seconds</button>
       <button class="pk-btn-ghost" onclick="${state.onboarding_complete ? "setScreen('solar');v7Sheet('quote')" : 'navigateAuditor()'}">${ic('clip', 16)} Check a quote I got</button>
       <button class="pk-land-link" onclick="startOnboarding()">Full guided setup, with solar and EV ${ic('chevR', 14)}</button>
       ${state.onboarding_complete ? `<button class="pk-land-link" onclick="setScreen('result')">${ic('chevL', 14)} Back to my results</button>` : ''}
@@ -5759,6 +5759,185 @@ function renderEvGuide(){
       <button class="sg-link" onclick="egGo(1)">Change my answers</button>`;
   }
   return `<div class="fp-wrap sg">${body}</div>`;
+}
+
+/* ── THE FIRST VISIT: ONE PAGE THAT REVEALS ITSELF ─────────────
+ * Five questions, each answered with a tap and each applied to the model
+ * at once: the bill, the current plan, heating, solar, a car. Solar and the
+ * car open their own short branch in place. An answered question folds
+ * into a line that can be reopened with "Change", so the person always sees
+ * what the answer is built on. The end is the answer itself, then one offer
+ * to keep the home in an account. */
+const FLOW_Q = ['bill', 'plan', 'heat', 'solar', 'ev'];
+function flowSteps(){
+  const f = state._flow || {}, out = [];
+  for (const q of FLOW_Q){
+    out.push(q);
+    if (q === 'solar' && (f.solar === 'have' || f.solar === 'thinking')) out.push('roof', 'panels', 'battery');
+    if (q === 'ev' && (f.ev === 'have' || f.ev === 'thinking')) out.push('km', 'car');
+  }
+  return out;
+}
+function startFlow(){
+  state._flow = {}; state._flow_edit = null;
+  if (!state.region) state.region = 'east';
+  state.usage_input_mode = 'bill';
+  if (!state.baseline){ state.baseline = 'EI-24'; state.baseline_known = false; }
+  state.current_screen = 'flow';
+  saveState(); renderApp();
+}
+const _flowSuggest = () => Math.max(6, Math.min(16, Math.round(v7AnnualKwh() / 450)));
+function flowAnswer(q, v){
+  const f = state._flow = state._flow || {};
+  const was = f[q]; f[q] = v;
+  const clear = (keys) => keys.forEach((k) => delete f[k]);
+  if (q === 'bill'){ state.usage_input_mode = 'bill'; state.bimonthly_bill_eur = Math.max(30, Math.round(+v) || 250); }
+  if (q === 'plan'){ if (v === 'unsure'){ state.baseline = 'EI-24'; state.baseline_known = false; } else { state.baseline = v; state.baseline_known = true; } }
+  if (q === 'heat'){ state.heating_type = v; state.hot_water_strategy = DEFAULT_HW_FOR_HEATING[v] || 'none'; }
+  if (q === 'bill' || q === 'heat') applyUsageInput();
+  if (q === 'solar'){
+    if (was !== v) clear(['roof', 'panels', 'battery']);
+    if (v === 'no'){ state.has_solar = false; state.considering_solar = false; state.count_A = 0; state.count_B = 0; state.battery_kwh = 0; }
+    else {
+      state.has_solar = true; state.considering_solar = true; state.solar_is_estimate = false;
+      state.solar_planned = v === 'thinking';
+      if (!(totalPanels() > 0)) { state.count_A = _flowSuggest(); state.count_B = 0; }
+      state.cost_is_manual = false; state.grant_is_manual = false;
+    }
+  }
+  if (q === 'roof'){
+    const m = { S: [180, 0], SE: [135, 0], SW: [225, 0], EW: [90, 270] }[v] || [180, 0];
+    const t = totalPanels() || _flowSuggest();
+    state.azimuth_A = m[0];
+    if (m[1]){ state.azimuth_B = m[1]; state.count_A = Math.ceil(t / 2); state.count_B = Math.floor(t / 2); } else { state.count_A = t; state.count_B = 0; }
+    if (v !== 'unsure') (state.fine = state.fine || {}).roof = true;
+  }
+  if (q === 'panels'){ const n = +v; if (state.count_B > 0){ state.count_A = Math.ceil(n / 2); state.count_B = Math.floor(n / 2); } else state.count_A = n; }
+  if (q === 'battery'){ state.battery_kwh = +v; if (+v > 0) state.charge_from_grid = true; }
+  if (q === 'ev'){
+    if (was !== v) clear(['km', 'car']);
+    state.ev_active = v !== 'no'; state.ev_in_bill = v === 'have';
+    if (state.ev_active && !(state.ev_km_per_year > 0)) state.ev_km_per_year = 16000;
+    if (!state.ev_active) state.ev_km_per_year = 0;
+  }
+  if (q === 'km') state.ev_km_per_year = +v;
+  if (q === 'car') state.ev_kwh_per_100km = +v;
+  if (state.has_solar && totalPanels() > 0) applyEstimatedSolarCost();
+  state._flow_edit = null;
+  try { applyRegion(state.region || 'east'); } catch (e) {}
+  invalidate(); saveState(); renderApp();
+  setTimeout(() => { const b = document.querySelector('.fl-body'); if (b) b.scrollTop = b.scrollHeight; window.scrollTo(0, document.body.scrollHeight); }, 30);
+}
+function flowEdit(q){ state._flow_edit = q; renderApp(); }
+function flowFinish(then){
+  state.onboarding_complete = true;
+  state.seen_intro = true;
+  state._flow = null; state._flow_edit = null;
+  if (state.has_solar && totalPanels() > 0) snapshotMySystem();
+  state.current_screen = 'result';
+  saveState();
+  fireEvent('flow_complete', { bill: state.bimonthly_bill_eur, solar: !!state.has_solar, ev: !!state.ev_active });
+  if (then === 'save') meOpenAuth('signup'); else renderApp();
+}
+
+function renderFlow(){
+  const f = state._flow || {};
+  const steps = flowSteps();
+  const open = state._flow_edit || steps.find((s) => !(s in f));
+  const plan = getPlanById(state.baseline);
+  const label = {
+    bill: ['What’s your electricity bill?', 'Every two months, electricity only.'],
+    plan: ['Who do you pay now?', 'Not sure is fine: we’ll estimate.'],
+    heat: ['How is the home heated?', ''],
+    solar: ['Solar panels?', ''],
+    roof: ['Which way does the roof face?', 'The side that gets the sun.'],
+    panels: ['How many panels?', `For your usage we suggest ${_flowSuggest()}.`],
+    battery: ['A battery?', 'It stores the day’s solar for the evening.'],
+    ev: ['An electric car?', ''],
+    km: ['How far do you drive in a year?', 'The Irish average is about 16,000 km.'],
+    car: ['What kind of car?', ''],
+  };
+  const shown = {
+    bill: (v) => `€${v} every two months`,
+    plan: (v) => v === 'unsure' ? 'Not sure, estimated' : (() => { const p = getPlanById(v); return `${p.supplier} ${p.plan}`; })(),
+    heat: (v) => ({ gas: 'Gas or oil', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heaters' })[v],
+    solar: (v) => ({ no: 'None', have: 'I have them', thinking: 'Thinking about it' })[v],
+    roof: (v) => ({ S: 'South', SE: 'South-east', SW: 'South-west', EW: 'East and west', unsure: 'Not sure, south assumed' })[v],
+    panels: (v) => `${v} panels`, battery: (v) => +v ? `${v} kWh` : 'No battery',
+    ev: (v) => ({ no: 'None', have: 'I have one', thinking: 'Thinking about one' })[v],
+    km: (v) => `${(+v).toLocaleString('en-IE')} km a year`, car: (v) => ({ 14: 'Small', 17: 'Family car', 20: 'SUV or large' })[v],
+  };
+  const opt = (q, v, title, sub = '') => `<button class="fl-opt ${String(f[q]) === String(v) ? 'on' : ''}" onclick="flowAnswer('${q}', '${v}')"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</button>`;
+  const body = (q) => {
+    if (q === 'bill') return `<div class="fl-bill"><span>€</span><input id="flow-bill" inputmode="numeric" value="${f.bill || state.bimonthly_bill_eur || 250}" aria-label="Two-month bill in euro"></div>
+      <div class="fl-row">${[150, 250, 420].map((v) => `<button class="sy-stop" onclick="document.getElementById('flow-bill').value=${v}">€${v}</button>`).join('')}</div>
+      <button class="fl-next" onclick="flowAnswer('bill', document.getElementById('flow-bill').value)">Next</button>`;
+    if (q === 'plan'){
+      const popular = ['EI-24', 'BG-24', 'EN-SMART-24-HOUR'].map(getPlanById).filter(Boolean);
+      return `<div class="fl-opts">${opt('plan', 'unsure', 'Not sure', 'We’ll assume a standard plan')}
+        ${popular.map((p) => opt('plan', p.id, esc(p.supplier), esc(p.plan))).join('')}</div>
+        <select class="fl-select" onchange="if(this.value)flowAnswer('plan', this.value)" aria-label="Another plan"><option value="">Another supplier or plan…</option>
+        ${activeTariffsSorted().map((p) => `<option value="${p.id}">${esc(p.supplier)} — ${esc(p.plan)}</option>`).join('')}</select>`;
+    }
+    if (q === 'heat') return `<div class="fl-opts fl-two">${opt('heat', 'gas', 'Gas or oil')}${opt('heat', 'heatpump', 'Heat pump')}${opt('heat', 'storage', 'Storage heaters')}${opt('heat', 'direct', 'Electric heaters')}</div>`;
+    if (q === 'solar') return `<div class="fl-opts">${opt('solar', 'no', 'No')}${opt('solar', 'have', 'I have them', 'We’ll add what they make')}${opt('solar', 'thinking', 'Thinking about it', 'We’ll show the payback')}</div>`;
+    if (q === 'roof') return `<div class="fl-opts fl-two">${opt('roof', 'S', 'South')}${opt('roof', 'EW', 'East and west')}${opt('roof', 'SE', 'South-east')}${opt('roof', 'SW', 'South-west')}</div>
+      <button class="sg-link" onclick="flowAnswer('roof', 'unsure')">Not sure: assume south</button>`;
+    if (q === 'panels'){ const s = _flowSuggest(); return `<div class="fl-opts fl-three">${[s - 4, s, s + 4].map((n) => opt('panels', n, `${n}`, n === s ? 'suggested' : '')).join('')}</div>`; }
+    if (q === 'battery') return `<div class="fl-opts fl-three">${opt('battery', 0, 'None')}${opt('battery', 5, '5 kWh', 'typical')}${opt('battery', 10, '10 kWh')}</div>`;
+    if (q === 'ev') return `<div class="fl-opts">${opt('ev', 'no', 'No')}${opt('ev', 'have', 'I have one', 'Its charging is in my bill')}${opt('ev', 'thinking', 'Thinking about one', 'We’ll show the cost and petrol saved')}</div>`;
+    if (q === 'km') return `<div class="fl-opts fl-three">${[8000, 16000, 25000].map((k) => opt('km', k, `${k / 1000}k km`)).join('')}</div>`;
+    if (q === 'car') return `<div class="fl-opts fl-three">${opt('car', 14, 'Small')}${opt('car', 17, 'Family')}${opt('car', 20, 'SUV')}</div>`;
+    return '';
+  };
+  let h = '';
+  for (const s of steps){
+    const branch = ['roof', 'panels', 'battery', 'km', 'car'].includes(s);
+    if (s === open){
+      h += `<section class="fl-q ${branch ? 'fl-branch' : ''}" aria-label="${label[s][0]}">
+        <h2>${label[s][0]}</h2>${label[s][1] ? `<p>${label[s][1]}</p>` : ''}${body(s)}</section>`;
+      break;
+    }
+    if (s in f) h += `<div class="fl-done ${branch ? 'fl-branch' : ''}"><span>${label[s][0].replace('?', '')}: <b>${esc(shown[s](f[s]))}</b></span><button onclick="flowEdit('${s}')">Change</button></div>`;
+  }
+  const finished = !open;
+  if (finished){
+    let rec = null, sd = null, ev = null;
+    try { rec = getRecommendation(); } catch (e) {}
+    try { if (state.has_solar && totalPanels() > 0) sd = v7SolarData(); } catch (e) {}
+    try { if (state.ev_active && rec) ev = evEconomics(rec.best.plan.id); } catch (e) {}
+    // The switch alone, never mixed with panels: a planned system is left out
+    // (it isn't bought), an installed one is on both sides of the comparison.
+    let save = 0;
+    try {
+      if (state.has_solar && totalPanels() > 0 && state.solar_planned) save = (plannedSolarSplit() || {}).switchNow || 0;
+      else save = rec ? Math.max(0, myPlanCost() - rec.best.net) : 0;
+    } catch (e) {}
+    const acc = modelAccuracy().pct;
+    h += `<section class="fl-reveal">
+      <div class="fl-r-k">Your answer</div>
+      ${save > 10 ? `<div class="fl-r-big">${eur(save)}<span> a year</span></div>
+        <div class="fl-r-line">by switching to <b>${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}</b></div>`
+        : `<div class="fl-r-line"><b>You’re already on a good plan.</b> Nothing on sale beats it for your home.</div>`}
+      <div class="fl-r-list">
+        ${sd ? `<span>${state.solar_planned ? 'Solar would pay back in' : 'Your panels bring back'} <b>${state.solar_planned ? `${sd.cur.payback < 50 ? sd.cur.payback.toFixed(1) : '—'} years` : `${eur(sd.cur.solarBenefit)} a year`}</b></span>` : ''}
+        ${ev ? `<span>Your car costs <b>${eur(ev.evElectricityCost)} a year</b> to charge, <b>${eur(ev.evVsPetrolNet)}</b> less than petrol</span>` : ''}
+        <span>Built on 8,760 hours of your year · ±${acc}%</span>
+      </div>
+      <button class="fl-go" onclick="flowFinish()">See my home</button>
+    </section>
+    ${sbInitialized() && !_sbUser ? `<section class="fl-save"><b>Keep this home?</b><span>Save it to a free account and it’s here next time, on any device.</span>
+      <div class="fl-row"><button class="fl-next" onclick="flowFinish('save')">Save my home</button><button class="fl-ghost" onclick="flowFinish()">Not now</button></div></section>` : ''}`;
+  }
+  const done = steps.filter((s) => s in f).length;
+  return `<div class="fl">
+    <div class="fl-top">
+      <button class="sg-back" onclick="${state.onboarding_complete ? "state._flow=null;setScreen('result')" : 'goLanding()'}" aria-label="Back">${ic('chevL', 18)}</button>
+      <span class="fl-word">${wordmarkHtml('pk-word-top')}</span>
+    </div>
+    <div class="sg-progress fl-prog"><i style="width:${finished ? 100 : Math.round(done / steps.length * 100)}%"></i></div>
+    <div class="fl-body">${h}</div>
+  </div>`;
 }
 
 function exploreSolar(){
@@ -11164,7 +11343,7 @@ function sysTypicalPrice(){
 
 // Sheets open over whatever screen is showing, so closing one goes back there.
 // Only the bare pre-setup screens, which cannot host a sheet, hand over to Home.
-const NO_SHEET_SCREENS = ['welcome', 'fastpath', 'onboarding', 'intro'];
+const NO_SHEET_SCREENS = ['welcome', 'fastpath', 'onboarding', 'intro', 'flow', 'solar-guide', 'ev-guide'];
 function openMyHome(){
   if (NO_SHEET_SCREENS.includes(state.current_screen)) state.current_screen = 'result';
   v7Sheet('home');
@@ -11729,6 +11908,12 @@ function renderApp(){
     return;
   }
   // Fast-path activation (30-second simple setup)
+  if (state.current_screen === 'flow'){
+    root.setAttribute('data-chrome','bare');
+    root.innerHTML = renderFlow();
+    paintAuthModal();
+    return;
+  }
   if (state.current_screen === 'ev-guide' && state._eg){
     root.setAttribute('data-chrome','bare');
     root.innerHTML = renderEvGuide();
@@ -13015,6 +13200,11 @@ window.openMySystem = openMySystem;
 window.homeSet = homeSet;
 window.openMyHome = openMyHome;
 window.startSolarGuide = startSolarGuide;
+window.startFlow = startFlow;
+window.plannedSolarSplit = plannedSolarSplit;
+window.flowAnswer = flowAnswer;
+window.flowEdit = flowEdit;
+window.flowFinish = flowFinish;
 window.startEvGuide = startEvGuide;
 window.egGo = egGo;
 window.egSet = egSet;

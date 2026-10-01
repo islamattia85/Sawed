@@ -672,18 +672,32 @@ test('v8 Solar: an invitation without a system; with one, the answer first and t
   await expect(page.locator('.v7-months-card')).toBeVisible();
 });
 
-test('first visit: three taps to the answer, short screens, the button always in view', async ({ page }) => {
+test('first visit: one revealing page, answers fold into lines you can change, then the answer', async ({ page }) => {
   await bootFresh(page);
-  const words = () => page.evaluate(() => document.getElementById('app-root').innerText.split(/\s+/).filter(Boolean).length);
-  await page.getByRole('button', { name: /Get my answer/ }).click();                       // tap 1
-  expect(await words(), 'the quick question has grown wordy').toBeLessThanOrEqual(70);
-  const cta = await page.evaluate(() => document.querySelector('.fp-cta').getBoundingClientRect().bottom <= innerHeight);
-  expect(cta, 'the button to see savings needs a scroll').toBe(true);
-  await page.locator('#fp-bill').fill('250');                                              // tap 2
-  await page.getByRole('button', { name: /See my savings/ }).click();                      // tap 3
-  await expect(page.locator('.v7-hero .v7-figure')).toBeVisible();
-  await expect(page.locator('.toast, .v7-toast')).toHaveCount(0);
-  expect(await page.evaluate(() => document.body.scrollHeight / innerHeight)).toBeLessThan(1.3);
+  await page.getByRole('button', { name: /Get my answer/ }).click();
+  await page.locator('#flow-bill').fill('420');
+  await page.getByRole('button', { name: 'Next' }).click();
+  await expect(page.locator('.fl-done').first()).toContainText('€420');
+  await page.locator('.fl-opt', { hasText: 'Not sure' }).click();
+  await page.locator('.fl-opt', { hasText: 'Heat pump' }).click();
+  await page.locator('.fl-opt', { hasText: 'Thinking about it' }).click();
+  await expect(page.locator('.fl-q h2')).toContainText('Which way does the roof face');
+  await page.locator('.fl-opt', { hasText: 'East and west' }).click();
+  await page.locator('.fl-opt', { hasText: 'suggested' }).click();
+  await page.locator('.fl-opt', { hasText: '5 kWh' }).click();
+  await page.locator('.fl-opt', { hasText: 'Thinking about one' }).click();
+  await page.locator('.fl-opt', { hasText: '16k km' }).click();
+  await page.locator('.fl-opt', { hasText: 'Family' }).click();
+  await expect(page.locator('.fl-reveal')).toContainText('Solar would pay back in');
+  await expect(page.locator('.fl-reveal')).toContainText('less than petrol');
+  // Change an earlier answer in place: the heating question reopens, the rest stays.
+  await page.locator('.fl-done', { hasText: 'heated' }).getByRole('button', { name: 'Change' }).click();
+  await page.locator('.fl-opt', { hasText: 'Gas or oil' }).click();
+  await expect(page.locator('.fl-reveal')).toBeVisible();
+  const st = await page.evaluate(() => ({ bill: window.state.bimonthly_bill_eur, heat: window.state.heating_type, planned: window.state.solar_planned, split: window.state.count_B > 0, batt: window.state.battery_kwh, ev: window.state.ev_active }));
+  expect(st).toEqual({ bill: 420, heat: 'gas', planned: true, split: true, batt: 5, ev: true });
+  await page.getByRole('button', { name: 'See my home' }).click();
+  expect(await page.evaluate(() => [window.state.current_screen, window.state.onboarding_complete])).toEqual(['result', true]);
 });
 
 test('v8 solar guide: four steps, each on a suggestion, then the answer and the analysis', async ({ page }) => {
@@ -723,4 +737,20 @@ test('v8 EV guide: four steps, then what it costs and saves; backing out changes
   await expect(page.locator('.sg-reveal-fig b')).toContainText('€');
   await page.getByRole('button', { name: /See my EV in full/ }).click();
   await expect(page.locator('#v7-sheet')).toContainText('Your EV');
+});
+
+test('the flow reveal: the switch saving is the switch alone, never the planned panels', async ({ page }) => {
+  await bootFresh(page);
+  await page.getByRole('button', { name: /Get my answer/ }).click();
+  await page.locator('#flow-bill').fill('420'); await page.getByRole('button', { name: 'Next' }).click();
+  await page.locator('.fl-opt', { hasText: 'Not sure' }).click();
+  await page.locator('.fl-opt', { hasText: 'Gas or oil' }).click();
+  await page.locator('.fl-opt', { hasText: 'Thinking about it' }).click();
+  await page.locator('.fl-opt', { hasText: 'South' }).first().click();
+  await page.locator('.fl-opt', { hasText: 'suggested' }).click();
+  await page.locator('.fl-opt', { hasText: '5 kWh' }).click();
+  await page.locator('.fl-opt', { hasText: /^No$/ }).click();
+  const r = await page.evaluate(() => ({ split: window.plannedSolarSplit().switchNow,
+    shown: +(document.querySelector('.fl-r-big')?.textContent.match(/€([\d,]+)/) || [0, '0'])[1].replace(/,/g, '') }));
+  expect(Math.abs(r.shown - r.split)).toBeLessThanOrEqual(1);
 });
