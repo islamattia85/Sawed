@@ -640,3 +640,19 @@ test('suggestions written for another plan are set aside, not shown as current',
   await expect(page.locator('.adv')).not.toContainText('Old tip');
   await expect(page.locator('.adv')).toContainText('no longer apply');
 });
+
+test('v8 Home: one answer first, the full analysis one tap away and nothing lost', async ({ page }) => {
+  await boot(page, { _home_deep: false });
+  const home = page.locator('.v7-home');
+  await expect(home).toHaveClass(/is-simple/);
+  await expect(page.locator('.v7-hero .v7-figure')).toBeVisible();
+  await expect(page.locator('.v7-basis-line')).toContainText('Based on');
+  await expect(page.locator('.v7-deep')).toContainText('8,760');
+  // The depth is folded, not deleted.
+  await expect(page.locator('.v7-carousel')).toHaveCount(0);
+  await page.locator('.v7-deep').click();
+  await expect(home).toHaveClass(/is-deep/);
+  for (const sel of ['.v7-carousel', '.v7-tile-score', '.working-toggle', '.v7-home-chips']) await expect(page.locator(sel).first()).toBeVisible();
+  // and stays open for the next visit
+  expect(await page.evaluate(() => window.state._home_deep)).toBe(true);
+});

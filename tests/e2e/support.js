@@ -40,6 +40,8 @@ export const SETUP = {
   onboarding_complete: true,
   seen_intro: true,
   current_screen: 'result',
+  // Existing tests exercise the full analysis on Home; v8 opens it collapsed.
+  _home_deep: true,
   bimonthly_bill_eur: 250,
   heating_type: 'gas',
   region: 'east',

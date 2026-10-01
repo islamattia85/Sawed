@@ -171,52 +171,71 @@ export function createV7(api) {
         <div class="qr-value v7-figure" data-countup="${Math.round(Math.max(0, saving))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, saving))}</span><span class="v7-figure-unit">a year</span></div>
         <div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Best for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`;
 
+    /*
+     * Simple first, deep on request.
+     *
+     * The first screen answers one question: what should I do, and what is it
+     * worth. Everything that shows the working — the ladder, the year and the
+     * day, the tiles, the sums — is one tap away under "Your analysis", which
+     * leads with what makes the answer trustworthy (every hour of the year
+     * modelled, every plan compared, how accurate it is). Nothing is removed;
+     * it is ordered. Price changes and contract ends stay up front: they are
+     * things to act on, not detail.
+     */
+    const deep = !!st._home_deep;
+    const acc = api.modelAccuracy ? api.modelAccuracy().pct : null;
+    const kwh = Math.round(api.annualKwh()).toLocaleString('en-IE');
+    const basis = st._csv_imported ? `your smart-meter data · ${kwh} kWh a year`
+      : st.usage_input_mode === 'kwh' ? `${kwh} kWh a year` : `your €${st.bimonthly_bill_eur} bill`;
     return `${topbar('')}
-    <div class="screen v7 v7-home">
+    <div class="screen v7 v7-home ${deep ? 'is-deep' : 'is-simple'}">
       <section class="v7-hero qr-hero">
         ${hero}
-        ${savingsLadder({ rungs })}
-        ${split}
+        ${deep ? savingsLadder({ rungs }) + split : ''}
       </section>
 
       ${stay
         ? `<button class="switch-cta v7-cta" onclick="setScreen('plans')">See every plan compared ${api.ic('chevR', 18)}</button>`
         : switchButton(best.plan, `${fromSolar > 1 && fromSwitch > 0 ? ` · ${eur(fromSwitch)}/yr` : ''}`)}
-      <div class="qr-actions v7-links">
-        <a href="#" onclick="event.preventDefault();openPlanPicker()">${st.chosen_plan ? 'Change plan' : 'Pick a different plan'}</a>
-        ${saving > 10 ? `<span class="qr-actions-dot">·</span>
-        <a href="#" onclick="event.preventDefault();setScreen('how-to-switch')">How switching works</a>` : ''}
-      </div>
 
-      <div class="v7-basis" aria-label="What these figures are worked out for">${homeChips({ withSolar: false })}${solarSwitch()}</div>
+      <button class="v7-basis-line" onclick="openMyHome()">
+        Based on ${esc(basis)}${st.has_solar && api.totalPanels() > 0 ? ` · ${api.totalKwp().toFixed(1)} kWp solar` : ''}${st.ev_active ? ' · EV' : ''}
+        <span>Change</span>
+      </button>
 
       <div class="v7-notices">
-        ${api.freshnessChip(best.plan)}
         ${api.priceChangeChip(best.plan)}
         ${api.renderContractAlert()}
         ${st.chosen_plan ? api.renderChoiceStrip() : ''}
       </div>
 
+      <button class="v7-deep ${deep ? 'open' : ''}" aria-expanded="${deep}" onclick="state._home_deep=!state._home_deep;saveState();renderApp()">
+        <span class="v7-deep-top"><b>${api.ic('chart', 18)} Your analysis</b><span>${deep ? 'Hide' : 'Show'} ${api.ic(deep ? 'chevU' : 'chevD', 16)}</span></span>
+        <span class="v7-deep-stats">
+          <span><b>8,760</b><small>hours of your year modelled</small></span>
+          <span><b>${rec.ranked.length}</b><small>plans priced on your home</small></span>
+          ${acc ? `<span><b>±${acc}%</b><small>estimate accuracy</small></span>` : ''}
+        </span>
+      </button>
+
+      ${deep ? `
+      <div class="qr-actions v7-links">
+        <a href="#" onclick="event.preventDefault();openPlanPicker()">${st.chosen_plan ? 'Change plan' : 'Pick a different plan'}</a>
+        ${saving > 10 ? `<span class="qr-actions-dot">·</span>
+        <a href="#" onclick="event.preventDefault();setScreen('how-to-switch')">How switching works</a>` : ''}
+      </div>
+      <div class="v7-basis" aria-label="What these figures are worked out for">${homeChips({ withSolar: false })}${solarSwitch()}</div>
+      <div class="v7-notices">${api.freshnessChip(best.plan)}</div>
       <div class="v7-carousel" role="region" aria-label="Your year and your day">
         ${api.renderBillShape(best)}
         ${api.renderDayShape(best)}
       </div>
-
       ${tiles(rec)}
-
       ${working(rec)}
-
-      <!-- Carried over from V6's home, where they were two small actions under
-           the report. V7's first cut dropped them, which removed the only way
-           back into the guided setup from the answer. -->
       <div class="v7-actions">
-        <button class="v7-action" onclick="reRunOnboarding()">
-          ${api.ic('rotate', 18)}<b>Re-run setup</b>
-        </button>
-        <button class="v7-action" onclick="copyShareUrl()">
-          ${api.ic('link', 18)}<b>Share analysis</b>
-        </button>
-      </div>
+        <button class="v7-action" onclick="reRunOnboarding()">${api.ic('rotate', 18)}<b>Re-run setup</b></button>
+        <button class="v7-action" onclick="copyShareUrl()">${api.ic('link', 18)}<b>Share analysis</b></button>
+      </div>` : ''}
 
     </div>
     ${nav()}`;

@@ -19,7 +19,8 @@ import { boot } from './support.js';
  */
 
 test('the answer and its action arrive before anything else', async ({ page }) => {
-  const errors = await boot(page);
+  // The first screen a person sees: the analysis folded, as it opens by default.
+  const errors = await boot(page, { _home_deep: false });
 
   const geo = await page.evaluate(() => {
     const box = (sel) => {
@@ -38,7 +39,7 @@ test('the answer and its action arrive before anything else', async ({ page }) =
   expect(geo.ctaBottom, 'the action is not fully visible without scrolling')
     .toBeLessThan(geo.viewport);
   expect(geo.height / geo.viewport, `the home screen is ${(geo.height / geo.viewport).toFixed(1)} screens long`)
-    .toBeLessThan(2);
+    .toBeLessThan(1.3);
 
   expect(errors).toEqual([]);
 });

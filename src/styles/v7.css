@@ -987,3 +987,23 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .gm-q-gain em { font-style: normal; font-size: var(--text-caption); font-weight: 700; color: var(--amber); margin-top: 2px; }
 .gm-done { display: flex; flex-wrap: wrap; gap: 6px; }
 .gm-done span { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-caption); font-weight: 600; color: var(--accent); padding: 4px 10px; border-radius: var(--radius-pill); background: var(--accent-soft); }
+
+/* ---------------------------------------------------------- v8: Home, simple first */
+.v7-basis-line {
+  display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; width: 100%; padding: 6px 0; border: 0; background: none;
+  font: 500 var(--text-data) var(--display); color: var(--ink-soft); cursor: pointer; text-align: center;
+}
+.v7-basis-line span { color: var(--accent); font-weight: 700; }
+.v7-deep {
+  display: grid; gap: var(--space-3); width: 100%; padding: var(--space-4); text-align: left; cursor: pointer; font-family: inherit;
+  border-radius: var(--radius-xl); border: 1px solid var(--hair); background: var(--panel); color: var(--ink); box-shadow: var(--lift);
+}
+.v7-deep-top { display: flex; justify-content: space-between; align-items: center; }
+.v7-deep-top b { display: inline-flex; align-items: center; gap: 8px; font-size: var(--text-body); }
+.v7-deep-top b svg { color: var(--accent); }
+.v7-deep-top > span { display: inline-flex; align-items: center; gap: 2px; font-size: var(--text-data); font-weight: 700; color: var(--accent); }
+.v7-deep-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.v7-deep-stats > span { display: flex; flex-direction: column; padding: var(--space-2) var(--space-3); border-radius: var(--radius-lg); background: var(--well); }
+.v7-deep-stats b { font: 800 var(--text-lead) var(--display); color: var(--ink); font-variant-numeric: tabular-nums; }
+.v7-deep-stats small { font-size: var(--text-caption); color: var(--ink-soft); line-height: 1.35; }
+.v7-home.is-simple .v7-notices:empty { display: none; }
