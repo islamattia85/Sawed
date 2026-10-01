@@ -9449,6 +9449,14 @@ function recordSwitch(planId, when){
   if (!to) return;
   const at = when || todayIso();
   let per = 0;
+  // A second switch within two weeks of the last is a correction (the first
+  // was the wrong plan, or changed before it began), not a further saving:
+  // it replaces that entry, priced from the plan before it.
+  const j = state.journey = state.journey || [];
+  const lastIdx = j.map((e) => e.type).lastIndexOf('switch');
+  const last = lastIdx >= 0 ? j[lastIdx] : null;
+  const correcting = last && Math.abs(Date.parse(at) - Date.parse(last.at)) <= 14 * 864e5;
+  if (correcting){ j.splice(lastIdx, 1); state.baseline = last.from; }
   try {
     const from = getPlanById(state.baseline);
     const fromCost = sumF(sim(state.baseline).cost) + from.standing + PSO_LEVY;
@@ -9616,17 +9624,22 @@ function householdScore(){
     const installed = state.has_solar && totalPanels() > 0 && !(state.solar_planned || state.solar_is_estimate);
     const mine = installed ? sumF(sim(state.baseline).cost) + plan.standing + PSO_LEVY : rec.baseCost;
     const left = Math.max(0, mine - rec.best.net);
-    parts.push({ key: 'plan', label: 'Right plan', max: 40, pts: Math.round(40 * Math.max(0, 1 - left / 1000)),
-      note: left > 10 ? `${eur(left)} a year still left on the table` : 'On the best plan for your home' });
+    const cheapest = rec.cheapest || rec.best;
+    const leftCheap = Math.max(0, mine - cheapest.net);
+    parts.push({ key: 'plan', label: 'Right plan', max: 40, pts: Math.round(40 * Math.max(0, 1 - leftCheap / 1000)),
+      note: leftCheap > 10 ? `${esc(cheapest.plan.supplier)} ${esc(cheapest.plan.plan)} would cost this home ${eur(leftCheap)} a year less than your plan` : 'You are on the cheapest plan for your home',
+      action: leftCheap > 10 ? { label: `See ${esc(cheapest.plan.supplier)} ${esc(cheapest.plan.plan)}`, go: `v7Sheet('plan','${cheapest.plan.id}')` } : null });
     const days = meterDays();
     const since = (state.journey || []).filter((e) => e.type === 'switch').map((e) => e.at).sort().pop() || '0000';
     const fit = Object.keys(days).length ? timingFit(days, plan, since) : null;
     if (fit) parts.push({ key: 'timing', label: 'Good timing', max: 30, pts: Math.round(30 * fit.fit),
+      action: fit.fit < 0.8 && !isFlatPlan(plan) ? { label: 'See your use hour by hour', go: "setScreen('analytics')" } : null,
       note: isFlatPlan(plan) ? 'One price all day, so timing does not matter on your plan'
         : `You pay ${fmtCent(fit.avgRate)} a kWh on average${fit.peakShare > 0.02 ? ` · ${Math.round(fit.peakShare * 100)}% of use at peak` : ''}` });
     const inst = realityChecks().find((c) => c.kind === 'install' && c.r);
     if (installed && inst && inst.r.ratio){
       parts.push({ key: 'panels', label: 'Panels working', max: 30, pts: Math.round(30 * Math.min(1, inst.r.ratio)),
+        action: inst.r.ratio < 0.85 ? { label: 'Check the battery strategy', go: "setScreen('refine')" } : null,
         note: `Bought ${Math.round(inst.r.realKwh).toLocaleString('en-IE')} kWh from the grid; the model expected ${Math.round(inst.r.modelKwh).toLocaleString('en-IE')}` });
     }
   } catch (e) {}
@@ -9645,11 +9658,14 @@ function renderScoreBlock(){
     <div class="sc-top">
       <div class="sc-ring ${tone}" style="--p:${Math.max(3, sc.score)}"><b>${sc.score}</b><small>out of 100</small></div>
       <div class="sc-head"><span class="sc-verdict ${tone}">${sc.score >= 80 ? 'Doing very well' : sc.score >= 55 ? 'Doing well, with room to save' : 'Money is being left on the table'}</span>
-        <small>${hasMeter ? `From your meter readings${state.meter.days ? `, ${Object.keys(state.meter.days).length} days` : ''}, and the model` : 'From the model. Your meter data adds timing and checks your savings.'}</small></div>
+        <small>${sc.parts.length === 1
+          ? `Only the plan is measured so far: ${sc.parts[0].pts} of ${sc.parts[0].max} points, which is ${sc.score} out of 100. Your meter data adds timing.`
+          : `${sc.parts.map((p) => `${p.label.toLowerCase()} ${p.pts} of ${p.max}`).join(' + ')}, out of ${sc.parts.reduce((a, p) => a + p.max, 0)}.`}</small></div>
     </div>
     <div class="sc-scale" aria-hidden="true"><span class="is-warn">0–54 money left</span><span class="is-maybe">55–79 room to save</span><span class="is-gain">80–100 doing very well</span></div>
     ${sc.parts.map((p) => { const pc = Math.round(p.pts / p.max * 100); return `<div class="sc-part ${toneOf(pc)}"><div class="sc-part-top"><span>${p.label}</span><b>${p.pts} of ${p.max}</b></div>
-      <div class="sc-bar"><i style="width:${Math.max(3, pc)}%"></i></div><small>${p.note}</small></div>`; }).join('')}
+      <div class="sc-bar"><i style="width:${Math.max(3, pc)}%"></i></div><small>${p.note}</small>
+      ${p.action ? `<button class="sc-act" onclick="${p.action.go}">${p.action.label} ${ic('chevR', 14)}</button>` : ''}</div>`; }).join('')}
     ${checks.filter((c) => c.kind === 'switch').map(({ e, r }) => r
       ? `<div class="sc-check"><b>${esc(e.label)}</b><small>Checked on ${r.days} days of your meter: really ${eur(r.perYear)} a year, against ${eur(e.per_year)} expected${r.ratio != null ? ` (${Math.round(r.ratio * 100)}%)` : ''}.</small></div>`
       : `<div class="sc-check"><b>${esc(e.label)}</b><small>Not checked yet: needs two weeks of meter data from ${fmtDay(e.at)}.</small></div>`).join('')}

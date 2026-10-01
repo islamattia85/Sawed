@@ -601,3 +601,22 @@ test('"I switched plan" starts on the plan the person chose, when they chose one
   await page.getByRole('button', { name: /I switched plan/ }).click();
   await expect(page.locator('#jr-plan')).toHaveValue(pick);
 });
+
+test('a second switch within two weeks corrects the first instead of adding to it', async ({ page }) => {
+  await boot(page, { current_screen: 'me', journey: [] });
+  const orig = await page.evaluate(() => window.state.baseline);
+  const ids = await page.evaluate(() => window.getRecommendation().ranked.map((r) => r.plan.id).filter((id) => id !== window.state.baseline));
+  await page.evaluate((id) => window.recordSwitch(id), ids[0]);
+  await page.evaluate((id) => window.recordSwitch(id), ids[1]);
+  const j = await page.evaluate(() => window.state.journey);
+  expect(j).toHaveLength(1);
+  expect(j[0].from).toBe(orig);
+  expect(j[0].to).toBe(ids[1]);
+});
+
+test('the score says how it is made up and how to raise it', async ({ page }) => {
+  await boot(page, { current_screen: 'me' });
+  const sc = await page.evaluate(() => window.householdScore());
+  await expect(page.locator('.sc')).toContainText(sc.parts.length === 1 ? 'Only the plan is measured so far' : 'out of');
+  if (sc.parts[0].action) await expect(page.locator('.sc-act').first()).toBeVisible();
+});

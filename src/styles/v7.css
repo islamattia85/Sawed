@@ -944,3 +944,4 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .sc-part.is-warn .sc-bar { background: color-mix(in srgb, var(--loss) 14%, transparent); }
 .sc-ring { width: 92px; height: 92px; }
 .sc-ring small { font-size: var(--text-caption); line-height: 1.2; }
+.sc-act { justify-self: start; display: inline-flex; align-items: center; gap: 2px; padding: 0; border: 0; background: none; font: 700 var(--text-data) var(--display); color: var(--accent); cursor: pointer; }
