@@ -98,7 +98,7 @@ async function sbInit(){
  * the person to choose. Saved quotes from both are always kept. */
 
 // What describes this screen rather than the household is never synced.
-const NO_SYNC = ['_sg', 'current_screen', '_home_deep', '_solar_deep', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
+const NO_SYNC = ['_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
   '_tariff_refreshing', '_expert_open', '_account_id', '_saved_at'];
 let _sync = { status: 'idle', at: null };
 let _syncTimer = null;
@@ -5655,6 +5655,112 @@ function renderSolarGuide(){
   return `<div class="fp-wrap sg">${body}</div>${V7.sheet()}`;
 }
 
+/* ── AN ELECTRIC CAR, STEP BY STEP ────────────────────────────
+ * Same shape as the solar guide: four one-tap decisions, each starting on
+ * a typical Irish value, then the reveal — what the car costs to run here,
+ * what it saves against petrol, and the cheapest hours to charge. Backing
+ * out of step one leaves the home exactly as it was. */
+const EG_STEPS = 5;
+let _egBefore = null;
+function startEvGuide(){
+  _egBefore = { ev_active: state.ev_active, ev_km_per_year: state.ev_km_per_year, ev_in_bill: state.ev_in_bill,
+    ev_kwh_per_100km: state.ev_kwh_per_100km, ev_charger_kw: state.ev_charger_kw, current_screen: state.current_screen };
+  if (!state.ev_active) toggleEv();
+  if (!(state.ev_km_per_year > 0)) state.ev_km_per_year = 16000;
+  state._sheet = null;
+  state.current_screen = 'ev-guide';
+  state._eg = 1;
+  invalidate(); saveState(); renderApp();
+}
+function egCancel(){
+  if (_egBefore){ const back = _egBefore.current_screen; delete _egBefore.current_screen; Object.assign(state, _egBefore); state.current_screen = NO_SHEET_SCREENS.includes(back) || back === 'ev-guide' ? 'result' : back; }
+  else state.current_screen = 'result';
+  state._eg = null; _egBefore = null;
+  invalidate(); saveState(); renderApp();
+}
+function egGo(step){ state._eg = Math.max(1, Math.min(EG_STEPS, step)); renderApp(); window.scrollTo(0, 0); }
+function egSet(key, v, next){
+  state[key] = typeof v === 'string' && key !== 'ev_in_bill' ? +v : v;
+  invalidate(); saveState();
+  if (next) egGo(next); else renderApp();
+}
+function egDone(){
+  state._eg = null; _egBefore = null;
+  state.current_screen = 'result';
+  state._sheet = { kind: 'ev', id: null };
+  saveState(); renderApp();
+}
+
+function renderEvGuide(){
+  const step = state._eg || 1;
+  const hhmm = (h) => `${String(h % 24).padStart(2, '0')}:00`;
+  const head = (k, title, sub) => `
+    <div class="sg-top">
+      <button class="sg-back" onclick="${step === 1 ? 'egCancel()' : `egGo(${step - 1})`}" aria-label="Back">${ic('chevL', 18)}</button>
+      <div class="sg-progress" aria-label="Step ${step} of ${EG_STEPS}"><i style="width:${step / EG_STEPS * 100}%"></i></div>
+      <span class="sg-count">${step}/${EG_STEPS}</span>
+    </div>
+    <div class="sg-k">${k}</div>
+    <h1 class="sg-h">${title}</h1>
+    ${sub ? `<p class="sg-sub">${sub}</p>` : ''}`;
+  const next = (label = 'Next') => `<button class="fp-cta sg-next" onclick="egGo(${step + 1})">${label} ${ic('chevR', 18)}</button>`;
+  const opt = (on, click, title, sub) => `<button class="sg-opt ${on ? 'on' : ''}" onclick="${click}"><b>${title}</b><small>${sub}</small></button>`;
+  let body = '';
+
+  if (step === 1){
+    body = `${head('Step 1 · Your car', 'Do you have an electric car?', 'We’ll add it to your home and find the cheapest way to charge it.')}
+      <div class="sg-opts">
+        ${opt(state.ev_in_bill, "egSet('ev_in_bill', true, 2)", 'Yes, I have one', 'Its charging is already in my electricity bill.')}
+        ${opt(!state.ev_in_bill, "egSet('ev_in_bill', false, 2)", 'I’m thinking about one', 'Show me what it would add, and what it would save on petrol.')}
+      </div>
+      <button class="sg-link sg-skip" onclick="egCancel()">Not now</button>`;
+  } else if (step === 2){
+    const km = state.ev_km_per_year || 16000;
+    body = `${head('Step 2 · Driving', 'How far do you drive in a year?', 'The Irish average is about 16,000 km. Your NCT cert or service record shows it.')}
+      <div class="sg-big"><b id="eg-km">${Math.round(km).toLocaleString('en-IE')}</b><span>km</span></div>
+      <input class="sg-range" type="range" min="3000" max="40000" step="500" value="${km}" aria-label="Kilometres a year"
+        oninput="document.getElementById('eg-km').textContent=(+this.value).toLocaleString('en-IE')" onchange="egSet('ev_km_per_year', this.value)">
+      <div class="sg-chips">${[8000, 12000, 16000, 25000].map((v) => `<button class="sy-stop ${Math.round(km) === v ? 'on' : ''}" onclick="egSet('ev_km_per_year', ${v})">${(v / 1000)}k</button>`).join('')}</div>
+      ${next()}`;
+  } else if (step === 3){
+    const e = state.ev_kwh_per_100km || 17;
+    body = `${head('Step 3 · The car', 'What kind of car?', 'Bigger cars use more electricity for each kilometre.')}
+      <div class="sg-opts">
+        ${opt(e <= 15, "egSet('ev_kwh_per_100km', 14, 4)", 'Small', 'Like a Renault Zoe or a Fiat 500e · about 14 kWh per 100 km')}
+        ${opt(e > 15 && e < 19, "egSet('ev_kwh_per_100km', 17, 4)", 'Family car', 'Like a Tesla Model 3, Kia Niro or VW ID.3 · about 17')}
+        ${opt(e >= 19, "egSet('ev_kwh_per_100km', 20, 4)", 'SUV or large', 'Like a Model Y, Enyaq or ID.4 · about 20')}
+      </div>`;
+  } else if (step === 4){
+    const kw = state.ev_charger_kw || 7;
+    body = `${head('Step 4 · Charging', 'How do you charge at home?', 'This decides how much of the charging fits into the cheapest hours.')}
+      <div class="sg-opts">
+        ${opt(kw >= 6, "egSet('ev_charger_kw', 7.4, 5)", 'A wall charger', '7.4 kW · a full charge overnight in a few cheap hours')}
+        ${opt(kw < 6, "egSet('ev_charger_kw', 2.3, 5)", 'A normal plug', '2.3 kW · slower, so some charging spills into dearer hours')}
+      </div>
+      <div class="sg-note">No charger yet? Pick the wall charger: the SEAI grant helps with one.</div>`;
+  } else {
+    let ev = null, plan = null, cheap = null;
+    try {
+      const rec = getRecommendation(); plan = rec.best.plan; ev = evEconomics(plan.id);
+      cheap = plan.windows && plan.windows.ev ? `${hhmm(plan.windows.ev[0])}–${hhmm(plan.windows.ev[1])}` : plan.windows && plan.windows.night ? `${hhmm(plan.windows.night[0])}–${hhmm(plan.windows.night[1])}` : null;
+    } catch (e) {}
+    const save = ev ? ev.evVsPetrolNet : 0;
+    body = `${head('Your answer', save > 0 ? 'Against petrol, you save' : 'Here is what it costs', '')}
+      <div class="sg-reveal">
+        <div class="sg-reveal-fig"><b>${eur(Math.abs(save))}</b><span>a year</span></div>
+        <div class="sg-facts">
+          <div><b>${eur(ev ? ev.evElectricityCost : 0)}</b><small>to charge it, a year</small></div>
+          <div><b>${eur(ev ? ev.petrolCost : 0)}</b><small>of petrol you don’t buy</small></div>
+          <div><b>${ev ? Math.round(ev.evKwh).toLocaleString('en-IE') : 0}</b><small>kWh a year</small></div>
+        </div>
+        <div class="sg-sys">${plan ? `On ${esc(plan.supplier)} ${esc(plan.plan)}${cheap ? `, charging ${cheap}` : ''}` : ''}</div>
+      </div>
+      <button class="fp-cta sg-next" onclick="egDone()">See my EV in full ${ic('chevR', 18)}</button>
+      <button class="sg-link" onclick="egGo(1)">Change my answers</button>`;
+  }
+  return `<div class="fp-wrap sg">${body}</div>`;
+}
+
 function exploreSolar(){
   state.considering_solar = true;
   state.solar_is_estimate = true;
@@ -10056,7 +10162,7 @@ function householdScene(){
     <div class="hs-actions">
       ${sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('sun', 14)} Add solar</button>`}
       ${batt || !sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('battery', 14)} Add a battery</button>`}
-      ${ev ? '' : `<button class="me-mini" onclick="openMyHome()">${ic('car', 14)} Add an EV</button>`}
+      ${ev ? '' : `<button class="me-mini" onclick="startEvGuide()">${ic('car', 14)} Add an EV</button>`}
       <span class="hs-hint">Tap any part to change it</span>
     </div>
   </section>`;
@@ -10161,7 +10267,7 @@ function renderMe(){
     <div class="me-cards">
       ${card('openMyHome()', ic('home', 18), 'My home', `${esc(region ? region.name : '')} · ${kwh.toLocaleString('en-IE')} kWh a year`, 'Edit')}
       ${card('openMySystem()', ic('sun', 18), 'My system', hasSys ? `${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh` : ''}` : 'No solar yet', hasSys ? 'Edit' : 'Model one')}
-      ${card(state.ev_active ? "v7Sheet('ev')" : 'openMyHome()', ic('car', 18), 'My EV', state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No EV', state.ev_active ? 'See it' : 'Add one')}
+      ${card(state.ev_active ? "v7Sheet('ev')" : 'startEvGuide()', ic('car', 18), 'My EV', state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No EV', state.ev_active ? 'See it' : 'Add one')}
     </div>
 
     ${found ? `<div class="section-title">What we found</div>
@@ -11227,7 +11333,7 @@ function renderHomeSheet(){
     <section class="sy-part" aria-label="Electric car">
       <label class="sy-toggle sy-toggle-top">
         <span><b>${ic('car', 16)} Electric car</b><small>${state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'None at this home'}</small></span>
-        <input type="checkbox" role="switch" ${state.ev_active ? 'checked' : ''} onchange="toggleEv()">
+        <input type="checkbox" role="switch" ${state.ev_active ? 'checked' : ''} onchange="${state.ev_active ? 'toggleEv()' : 'startEvGuide()'}">
       </label>
       ${state.ev_active ? `
         <div class="v7-seg" role="tablist" aria-label="EV status">
@@ -11623,6 +11729,11 @@ function renderApp(){
     return;
   }
   // Fast-path activation (30-second simple setup)
+  if (state.current_screen === 'ev-guide' && state._eg){
+    root.setAttribute('data-chrome','bare');
+    root.innerHTML = renderEvGuide();
+    return;
+  }
   if (state.current_screen === 'solar-guide' && state._sg){
     root.setAttribute('data-chrome','bare');
     root.innerHTML = renderSolarGuide();
@@ -12904,6 +13015,11 @@ window.openMySystem = openMySystem;
 window.homeSet = homeSet;
 window.openMyHome = openMyHome;
 window.startSolarGuide = startSolarGuide;
+window.startEvGuide = startEvGuide;
+window.egGo = egGo;
+window.egSet = egSet;
+window.egDone = egDone;
+window.egCancel = egCancel;
 window.sgGo = sgGo;
 window.sgDone = sgDone;
 window.sgRoof = sgRoof;

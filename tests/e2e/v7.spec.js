@@ -704,3 +704,23 @@ test('v8 solar guide: four steps, each on a suggestion, then the answer and the 
   expect(await page.evaluate(() => window.state.current_screen)).toBe('solar');
   await expect(page.locator('.v7-months-card')).toBeVisible();
 });
+
+test('v8 EV guide: four steps, then what it costs and saves; backing out changes nothing', async ({ page }) => {
+  await boot(page, { ev_active: false, ev_km_per_year: 0 });
+  await page.evaluate(() => window.startEvGuide());
+  await expect(page.locator('.sg-h')).toContainText('Do you have an electric car');
+  await page.getByRole('button', { name: 'Not now' }).click();
+  expect(await page.evaluate(() => [window.state.ev_active, window.state.current_screen])).toEqual([false, 'result']);
+
+  await page.evaluate(() => window.startEvGuide());
+  await page.locator('.sg-opt', { hasText: 'thinking about one' }).click();
+  await page.locator('.sy-stop', { hasText: '25k' }).click();
+  await page.getByRole('button', { name: /^Next/ }).click();
+  await page.locator('.sg-opt', { hasText: 'SUV' }).click();
+  await page.locator('.sg-opt', { hasText: 'A wall charger' }).click();
+  const st = await page.evaluate(() => ({ on: window.state.ev_active, km: window.state.ev_km_per_year, e: window.state.ev_kwh_per_100km, kw: window.state.ev_charger_kw, inBill: window.state.ev_in_bill }));
+  expect(st).toEqual({ on: true, km: 25000, e: 20, kw: 7.4, inBill: false });
+  await expect(page.locator('.sg-reveal-fig b')).toContainText('€');
+  await page.getByRole('button', { name: /See my EV in full/ }).click();
+  await expect(page.locator('#v7-sheet')).toContainText('Your EV');
+});
