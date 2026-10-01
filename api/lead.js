@@ -47,7 +47,7 @@ export default async function handler(req, res) {
   const { data: assigned } = await db.from('lead_assignments')
     .select('assigned_at, installers(company,email)').eq('lead_id', row.id);
   const fresh = (a) => Date.now() - new Date(a.assigned_at).getTime() < 60_000;
-  const portal = process.env.APP_URL ? `${process.env.APP_URL}/#installer` : 'the Sawed installer portal';
+  const portal = process.env.APP_URL ? `${process.env.APP_URL}/#installer` : 'the Peakless installer portal';
   for (const a of assigned || []) {
     const i = a.installers;
     if (!i) continue;

@@ -213,7 +213,7 @@
     }
     /* Brand lockup at the top of the sidebar (drawn with ::before) */
     .bottom-nav::before{
-      content:"Solar Optimiser"; display:block;
+      content:"Peakless"; display:block;
       font-family:var(--display); font-weight:800; font-size:15px; letter-spacing:-.02em;
       color:var(--ink); padding:2px 10px 12px; margin-bottom:4px;
       border-bottom:1px solid var(--hair);

@@ -7,6 +7,7 @@
  * by the document, not by the content.
  */
 
+import { BRAND } from '../brand';
 import {
   PAGE, TEXT_LEFT, TEXT_RIGHT, TEXT_WIDTH, TEXT_BOTTOM, BASELINE,
   TYPE, INK, INK_SOFT, RULE, RULE_SOFT as RULE_DOT, LW, type Rgb, type Spec,
@@ -218,7 +219,7 @@ export class Doc {
       const head = titleFor(p);
       if (head) {
         this.text(head, TEXT_LEFT, PAGE.headBaseline, { ...TYPE.micro!, color: INK_SOFT });
-        this.text('Solar Optimiser', TEXT_RIGHT, PAGE.headBaseline,
+        this.text(BRAND.name, TEXT_RIGHT, PAGE.headBaseline,
           { ...TYPE.micro!, color: INK_SOFT, align: 'right' });
         this.stroke(RULE).weight(LW.hair);
         this.doc.line(TEXT_LEFT, PAGE.headBaseline + 2.4, TEXT_RIGHT, PAGE.headBaseline + 2.4);
@@ -260,8 +261,8 @@ export class Doc {
       this.doc.setProperties({
         title: meta.title,
         subject: meta.subject,
-        author: 'Solar Optimiser',
-        creator: 'Solar Optimiser',
+        author: BRAND.name,
+        creator: BRAND.name,
         keywords: 'electricity, tariff, solar, battery, Ireland, SEAI, payback',
       });
     } catch { /* optional */ }

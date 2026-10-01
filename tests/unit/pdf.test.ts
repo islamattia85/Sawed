@@ -245,7 +245,7 @@ describe('document conventions', () => {
     expect(outlined.length).toBeGreaterThanOrEqual(5);
     expect(outlined).toContain('What you use');
     expect(props[0]?.title).toBeTruthy();
-    expect(props[0]?.author).toBe('Solar Optimiser');
+    expect(props[0]?.author).toBe('Peakless');
   });
 
   it('gives every chapter a distinct running head', () => {

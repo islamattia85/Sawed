@@ -7,6 +7,7 @@
  * the whole document renders in a test.
  */
 
+import { BRAND } from '../brand';
 import { Doc, type PdfDoc } from './doc.js';
 import {
   PAGE, TYPE, lines, LW, TEXT_LEFT, TEXT_RIGHT,
@@ -132,7 +133,7 @@ function cover(d: Doc, r: ReportData) {
   d.fill(INK);
   d.doc.rect(0, 0, PAGE.width, 4, 'F');
 
-  d.text('SOLAR OPTIMISER', M, 30, { ...TYPE.subhead!, color: INK_MID, tracking: 1.4 });
+  d.text(BRAND.name.toUpperCase(), M, 30, { ...TYPE.subhead!, color: INK_MID, tracking: 1.4 });
 
   d.y = 58;
   d.text('Your electricity', M, d.y, TYPE.coverTitle!);

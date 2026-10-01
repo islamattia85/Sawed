@@ -58,7 +58,7 @@ test('privacy page and installer portal are reachable from More', async ({ page 
   await page.getByText('Privacy and your data').click();
   await expect(page.locator('.privacy-copy')).toContainText('installer');
   await page.evaluate(() => window.setScreen('installer'));
-  await expect(page.getByText(/Installers partnered with Sawed|Accounts are not available/)).toBeVisible();
+  await expect(page.getByText(/Installers partnered with Peakless|Accounts are not available/)).toBeVisible();
 });
 
 test('the consent box is a real, visible checkbox', async ({ page }) => {
@@ -81,16 +81,16 @@ test('the switch button speaks in two voices, equally prominent, and both explai
   const plainBox = await btn.boundingBox();
   await btn.click();
   await expect(page.locator('#v7-sheet')).toContainText('Pick exactly this plan');
-  await expect(page.locator('#v7-sheet')).toContainText('Sawed earns nothing from this switch');
+  await expect(page.locator('#v7-sheet')).toContainText('Peakless earns nothing from this switch');
 
   await page.addInitScript((id) => { window.__SAWED_PARTNERS = [id]; }, best.id);
   await boot(page, { has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, baseline: 'BG-STANDARD-VARIABLE-SMART-ALL-DAY-ELECTRICITY' });
   const pbtn = page.locator('.v7-switch-btn').first();
-  await expect(pbtn).toContainText('Switch with Sawed');
+  await expect(pbtn).toContainText('Switch with Peakless');
   const partnerBox = await pbtn.boundingBox();
   expect(Math.abs(partnerBox.height - plainBox.height)).toBeLessThan(2);   // same prominence
   await pbtn.click();
-  await expect(page.locator('#v7-sheet')).toContainText('pays Sawed when you switch');
+  await expect(page.locator('#v7-sheet')).toContainText('pays Peakless when you switch');
 });
 
 test('sending the quote form again updates the request', async ({ page }) => {

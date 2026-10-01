@@ -12,8 +12,9 @@ import {
 } from './engine/tariff-rules';
 import { moneyBar, dayProfile, paybackCurve, yearRibbon, bandDonut } from './ui/charts.js';
 import { createV7 } from './ui/v7.js';
+import { BRAND, MARK_PATHS, iconDataUri } from './brand';
 
-/* Solar Optimiser — application entry.
+/* Peakless — application entry.
  * Extracted verbatim from the former single-file index.html.
  * Module split follows in later phases; this step only makes the
  * codebase buildable without changing a single line of behaviour.
@@ -653,7 +654,7 @@ const IC = {
   leaf:    '<path d="M5.4 18.6C6.3 9.4 12.7 4.9 19.6 4.9c0 6.9-4.5 13.3-13.7 14.2"/><path d="M5.4 18.6C8.3 14.3 12 11 16.4 8.6"/>',
   calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
   external: '<path d="M14 5h5v5"/><path d="M19 5l-8 8"/><path d="M18 14v4a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18V7.5A1.5 1.5 0 0 1 5.5 6H10"/>',
-  logo: '<circle cx="12" cy="12" r="4"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/>',
+  logo: MARK_PATHS,
   trendUp: '<path d="M4 16.5 9.5 11l3.5 3.5L20 7.5"/><path d="M14.5 7.5H20V13"/>',
   warn:    '<path d="M12 4.4 3.4 19h17.2L12 4.4Z"/><path d="M12 10.2v3.6"/><circle cx="12" cy="16.4" r=".9" fill="currentColor" stroke="none"/>',
   info:    '<circle cx="12" cy="12" r="8.2"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r="1" fill="currentColor" stroke="none"/>',
@@ -3277,7 +3278,7 @@ function trackEvent(name, props, clickId){
 function renderConsentBar(){
   if (analyticsConsent()) return '';
   return `<div class="consent-bar" role="region" aria-label="Usage measurement">
-    <span>May we count anonymous usage (which screens and buttons are used) to improve Sawed? No personal data, no ads.</span>
+    <span>May we count anonymous usage (which screens and buttons are used) to improve ${BRAND.name}? No personal data, no ads.</span>
     <span class="consent-btns"><button onclick="setAnalyticsConsent(false)">No thanks</button><button class="is-yes" onclick="setAnalyticsConsent(true)">Allow</button></span>
   </div>`;
 }
@@ -3695,7 +3696,7 @@ function renderIntro(){
 function renderWelcome(){
   return `<div class="welcome-page">
     <div class="welcome-content">
-      <div class="welcome-brand">Solar Optimiser · Ireland</div>
+      <div class="welcome-brand">${BRAND.name} · Ireland</div>
       <h1 class="welcome-title">Your personal <em>energy advisor</em>.</h1>
       <p class="welcome-sub">With or without solar. We model your exact home against every Irish tariff to find the real saving — and the right plan to lock it in.</p>
 
@@ -5462,7 +5463,7 @@ function makeShareCardCanvas(savings){
   x.beginPath(); x.arc(172, 232, 18, 0, Math.PI * 2); x.fill();
   x.fillStyle = '#111A14';
   x.font = '700 44px -apple-system, "Inter Tight", sans-serif';
-  x.fillText('Solar Optimiser', 240, 246);
+  x.fillText(BRAND.name, 240, 246);
   x.fillStyle = '#5A6A61';
   x.font = '400 30px -apple-system, sans-serif';
   x.fillText('Independent Irish energy advisor', 240, 290);
@@ -7789,7 +7790,7 @@ async function deliverPdf(doc, filename){
       const file = new File([blob], filename, { type: 'application/pdf' });
       if (navigator.canShare({ files: [file] })){
         try {
-          await navigator.share({ files: [file], title: 'Solar Optimiser report' });
+          await navigator.share({ files: [file], title: `${BRAND.name} report` });
           return 'shared';
         } catch (e) {
           // Dismissing the sheet is a decision, not a failure — do not then
@@ -7830,7 +7831,7 @@ function downloadTextReport(email){
   const saving = Math.max(0, (best.baseCost || 0) - best.net);
   const kwp = totalKwp();
   const L = [];
-  L.push('SOLAR OPTIMISER — SUMMARY REPORT');
+  L.push(`${BRAND.name.toUpperCase()} — SUMMARY REPORT`);
   L.push(new Date().toLocaleDateString('en-IE'));
   L.push('========================================');
   L.push('');
@@ -9348,7 +9349,7 @@ function renderMore(){
       </div>`).join('')}
     `).join('')}
     <div style="font-size:13px;color:var(--ink-dim);text-align:center;margin-top:18px;line-height:1.7">
-      Solar Optimiser · Independent · Ireland<br>Your data stays on this device.
+      ${BRAND.name} · Independent · Ireland<br>Your data stays on this device.
       <!-- Which build you are actually running. A fix can be deployed and
            verified and still not be what is on someone's phone: the installed
            app caches the page, and an offline or flaky load falls back to that
@@ -9727,6 +9728,7 @@ function v7ResultEmpty(){
 }
 
 const V7 = createV7({
+  brand: BRAND.name,
   state: () => state,
   ic, IRISH_REGIONS, renderProfileNavBtn,
   annualKwh: v7AnnualKwh, setupLabel: v7SetupLabel,
@@ -9881,7 +9883,7 @@ function renderPrivacy(){
     <div class="card"><div class="privacy-copy">
       <p><b>Your home's figures stay on this device</b> unless you sign in, when they are saved to your account so you can use them elsewhere.</p>
       <p><b>If you ask for installer quotes</b>, and only with your agreement, we pass your name, contact details, county and the system modelled to up to three SEAI-registered installers. They pay us for the introduction.</p>
-      <p><b>If you switch plan through Sawed</b>, some suppliers may pay us a commission. Plans that do are labelled, and it never changes the order we rank plans in.</p>
+      <p><b>If you switch plan through ${BRAND.name}</b>, some suppliers may pay us a commission. Plans that do are labelled, and it never changes the order we rank plans in.</p>
       <p><b>Uploaded quotes</b> are read by our AI reader (Anthropic's Claude) and are not stored.</p>
       <p><b>Usage measurement</b> is anonymous and only with your permission: which screens and buttons are used. No ads, and we never sell personal data.</p>
     </div></div>
@@ -9947,7 +9949,7 @@ function renderInstallerPortal(){
   if (!_sbUser){
     return `${topbar('Installer portal', 'accent', true)}
     <div class="screen"><div class="card">
-      <p style="margin:0 0 12px;line-height:1.6">Installers partnered with Sawed see the quote requests sent to them here. Sign in with the email your company registered with us.</p>
+      <p style="margin:0 0 12px;line-height:1.6">Installers partnered with ${BRAND.name} see the quote requests sent to them here. Sign in with the email your company registered with us.</p>
       <button class="switch-cta v7-cta" onclick="_authModalOpen=true;renderApp()">Sign in</button>
     </div></div>${bottomNav()}`;
   }
@@ -10643,7 +10645,7 @@ const SWITCH_GUIDES = {
     name: 'Electric Ireland',
     color: 'var(--blue)',
     steps: [
-      { icon: ic('globe',18), title: 'Go to Electric Ireland', body: 'Visit <b>electricireland.ie</b> → click "Switch" in the nav. Use the UTM-tagged link below to ensure they know you came via Solar Optimiser.' },
+      { icon: ic('globe',18), title: 'Go to Electric Ireland', body: 'Visit <b>electricireland.ie</b> → click "Switch" in the nav. Use the UTM-tagged link below to ensure they know you came via Peakless Optimiser.' },
       { icon: ic('clip',18), title: 'Get your MPRN', body: 'Your MPRN (Meter Point Reference Number) is on your current electricity bill — usually an 11-digit number starting with 10. You\'ll need it to switch.' },
       { icon: ic('clock',18), title: 'Allow 10–15 days', body: 'Electric Ireland processes switches in 10–15 working days. Your current supplier is notified automatically — you don\'t need to cancel.' },
       { icon: ic('phone',18), title: 'No engineer needed', body: 'Residential tariff switches require no engineer visit. Your meter stays the same — only the billing contract changes.' },
@@ -11314,7 +11316,7 @@ function renderMethodology(){
     </div>
 
     <div class="qr-hero" style="border-color:var(--ink-soft);box-shadow:none">
-      <div class="qr-eyebrow" style="color:var(--ink-soft)">Solar Optimiser</div>
+      <div class="qr-eyebrow" style="color:var(--ink-soft)">${BRAND.name}</div>
       <div style="font-family:var(--display);font-size:20px;font-weight:700;color:var(--ink)">Methodology &amp; About</div>
       <div class="qr-sub">How we calculate your best electricity plan and solar payback — completely transparent.</div>
     </div>
@@ -11370,7 +11372,7 @@ function renderMethodology(){
     <div class="card">
       <div class="card-label">${ic('link',13)} Independence &amp; revenue</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.75;margin-top:6px">
-        Solar Optimiser is independent and currently takes no money from suppliers, installers or anyone else. There is no referral fee behind the switch links. Rankings are calculated purely from your simulated annual cost. If we ever introduce a commercial arrangement, it will be stated here first.<br><br>
+        ${BRAND.name} is independent and currently takes no money from suppliers, installers or anyone else. There is no referral fee behind the switch links. Rankings are calculated purely from your simulated annual cost. If we ever introduce a commercial arrangement, it will be stated here first.<br><br>
         We do not sell your data. All calculations happen in your browser. Your inputs are stored only in your own device's local storage.
       </div>
     </div>
@@ -11385,7 +11387,7 @@ function renderMethodology(){
     </div>
 
     <p class="disclaimer">
-      <b>Disclaimer.</b> All figures are estimates. Actual energy bills, solar generation, and payback periods will vary depending on weather, metering, supplier changes, and individual consumption patterns. Solar Optimiser is not a regulated financial or energy advisor.
+      <b>Disclaimer.</b> All figures are estimates. Actual energy bills, solar generation, and payback periods will vary depending on weather, metering, supplier changes, and individual consumption patterns. ${BRAND.name} is not a regulated financial or energy advisor.
     </p>
   </div>
   ${bottomNav()}`;
@@ -11399,7 +11401,7 @@ const LEAD_COUNTIES = ['Carlow', 'Cavan', 'Clare', 'Cork', 'Donegal', 'Dublin', 
   'Kilkenny', 'Laois', 'Leitrim', 'Limerick', 'Longford', 'Louth', 'Mayo', 'Meath', 'Monaghan', 'Offaly',
   'Roscommon', 'Sligo', 'Tipperary', 'Waterford', 'Westmeath', 'Wexford', 'Wicklow'];
 // Must match CONSENT_TEXT_V1 in api/_lead.js — the server stores its own copy.
-const LEAD_CONSENT_TEXT = 'I agree that Sawed may share my name, contact details, county and the system modelled here with up to three SEAI-registered installers so they can contact me with a quote.';
+const LEAD_CONSENT_TEXT = `I agree that ${BRAND.name} may share my name, contact details, county and the system modelled here with up to three SEAI-registered installers so they can contact me with a quote.`;
 
 /** What the installers receive about the system: the spec and its modelled economics. */
 function leadSpec(){
@@ -11776,17 +11778,17 @@ window.toggleCompareSelect = toggleCompareSelect;
 (function(){
   // ---- 1. Inline web app manifest (data URI, no extra file needed) ----
   try {
-    var ICON_LARGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%23090D0A'/%3E%3Cg fill='none' stroke='%2300E676' stroke-width='26' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='256' cy='256' r='86'/%3E%3Cpath d='M256 80v40M256 392v40M80 256h40M392 256h40M131 131l28 28M353 353l28 28M381 131l-28 28M159 353l-28 28'/%3E%3C/g%3E%3C/svg%3E";
+    var ICON_LARGE = iconDataUri(512);
     var manifest = {
-      name: "Solar Optimiser — Irish Energy Advisor",
-      short_name: "Solar Optimiser",
+      name: BRAND.name + " — Irish Energy Advisor",
+      short_name: BRAND.name,
       description: "Find the cheapest Irish electricity plan for your home — with or without solar, battery or EV.",
       start_url: ".",
       scope: ".",
       display: "standalone",
       orientation: "portrait",
-      background_color: "#090D0A",
-      theme_color: "#090D0A",
+      background_color: BRAND.ink,
+      theme_color: BRAND.ink,
       categories: ["utilities", "finance", "productivity"],
       lang: "en-IE",
       icons: [

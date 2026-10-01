@@ -11,7 +11,7 @@ export const TIMELINES = ['asap', '3m', '6m', '12m', 'browsing'];
 
 /** The words the homeowner agreed to. Stored with the lead, versioned. */
 export const CONSENT_TEXT_V1 =
-  'I agree that Sawed may share my name, contact details, county and the system modelled here with up to three ' +
+  'I agree that Peakless may share my name, contact details, county and the system modelled here with up to three ' +
   'SEAI-registered installers so they can contact me with a quote. (consent v1)';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
