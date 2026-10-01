@@ -6855,7 +6855,9 @@ function renderDayInspector(){
     imp.push(s.grid_import[i]);
     exp.push(s.grid_export[i]);
     ch.push(s.battery_charge[i]);
-    dis.push(s.battery_discharge[i]);
+    // battery_discharge is what leaves the cells; the home receives it after
+    // the inverter's one-way loss. Draw what the home actually gets.
+    dis.push(s.battery_discharge[i] * Math.sqrt(state.battery_eff || 0.9));
     soc.push(s.soc ? s.soc[i] : 0);
   }
 
@@ -6867,49 +6869,43 @@ function renderDayInspector(){
 
   const hasBattery = state.battery_kwh > 0;
 
-  // Y scale. Above zero is what feeds the home (solar, battery out, grid);
-  // below zero is what leaves it (export) or is stored (battery charging).
-  // Both sides must fit, or a charging spike runs off the chart.
-  let maxPos = 0.5, maxNeg = 0.1;
-  for (let h = 0; h < 24; h++){
-    maxPos = Math.max(maxPos, gen[h], cons[h], hasBattery ? dis[h] : 0, imp[h]);
-    maxNeg = Math.max(maxNeg, exp[h], hasBattery ? ch[h] : 0);
-  }
-  maxPos = Math.ceil(maxPos * 4) / 4;
-  maxNeg = Math.ceil(maxNeg * 4) / 4;
-  const totalRange = maxPos + maxNeg;
-  const zeroY = PAD_T + (maxPos / totalRange) * CH;
-  const yScale = v => zeroY - (v / totalRange) * CH;
+  // Power-flow convention (as inverter apps draw it): what SUPPLIES the home
+  // is above zero, what USES or TAKES energy is below. Each flow keeps one
+  // colour; its side of the line is its direction.
+  //   solar  = +gen
+  //   battery = +discharge  / −charge
+  //   grid   = +import     / −export
+  //   home   = −use
+  // Above and below balance every hour.
+  const flows = {
+    solar: gen.map(v => v),
+    battery: hasBattery ? dis.map((v, h) => v - ch[h]) : null,
+    grid: imp.map((v, h) => v - exp[h]),
+    home: cons.map(v => -v),
+  };
+  let top = 0.5, bot = 0.5;
+  for (const k in flows){ const a = flows[k]; if (!a) continue; for (const v of a){ top = Math.max(top, v); bot = Math.max(bot, -v); } }
+  const M = Math.ceil(Math.max(top, bot) * 2) / 2;   // symmetric, like the reference
+  const zeroY = PAD_T + CH / 2;
+  const yScale = v => zeroY - (v / M) * (CH / 2);
   const xPos = h => PAD_L + h * barW;
   const xMid = h => PAD_L + (h + 0.5) * barW;
-  const line = (arr, sign = 1) => arr.map((v, h) => `${h === 0 ? 'M' : 'L'}${xMid(h).toFixed(1)},${yScale(sign * v).toFixed(1)}`).join(' ');
-  const area = (arr, sign = 1) => {
-    const top = arr.map((v, h) => `${xMid(h).toFixed(1)},${yScale(sign * v).toFixed(1)}`).join(' ');
-    const bot = arr.map((_, h) => `${xMid(h).toFixed(1)},${zeroY.toFixed(1)}`).reverse().join(' ');
-    return top + ' ' + bot;
-  };
+  const pathOf = (arr) => arr.map((v, h) => `${h === 0 ? 'M' : 'L'}${xMid(h).toFixed(1)},${yScale(v).toFixed(1)}`).join(' ');
+  const areaOf = (arr) => `${pathOf(arr)} L${xMid(23).toFixed(1)},${zeroY.toFixed(1)} L${xMid(0).toFixed(1)},${zeroY.toFixed(1)} Z`;
 
-  // One colour per flow, the same everywhere it appears. Battery is one
-  // colour: solid above the line when it powers the home, dashed below when
-  // it is charging. Export is the only green.
-  const C = { solar: '#e0a800', load: 'var(--ink)', imp: '#e0503c', exp: '#1f9d55', batt: '#7c5ce0' };
+  const C = { solar: '#e0a800', battery: '#14a3a3', grid: '#4f6fe0', home: '#9b59d0' };
+  const NAME = { solar: 'Solar', battery: 'Battery', grid: 'Grid', home: 'Home use' };
 
-  const yLabelVals = [maxPos, maxPos / 2, 0];
-  if (maxNeg > 0.05) yLabelVals.push(-maxNeg);
-  const yLabels = yLabelVals.map(v => ({ v, y: yScale(v) }));
-  const xLabels = [0, 4, 8, 12, 16, 20, 23].map(h => ({ x: xMid(h), label: String(h).padStart(2, '0') }));
-  const totalH = H + 8;
   const label = season === 'summer' ? 'Summer · Jun 21' : 'Winter · Jan 19';
-
   const sum = (a) => a.reduce((x, y) => x + y, 0);
   const totalExport = sum(exp), totalImport = sum(imp), totalGen = sum(gen);
   const selfUse = Math.max(0, totalGen - totalExport);
 
-  // Shade this plan's own windows, not fixed hours.
+  // The plan's own cheap and peak windows, shaded behind the lines.
   const w = plan.windows || {};
   const cheap = w.ev || w.night;
   const bands = [];
-  if (cheap) bands.push({ win: cheap, fill: 'rgba(124,92,224,.08)', text: '#7c5ce0', label: w.ev ? 'EV rate' : 'night rate' });
+  if (cheap) bands.push({ win: cheap, fill: 'rgba(79,111,224,.07)', text: C.grid, label: w.ev ? 'EV rate' : 'night rate' });
   if (w.peak) bands.push({ win: w.peak, fill: 'rgba(224,80,60,.08)', text: '#e0503c', label: 'peak' });
   const bandRects = bands.flatMap(b => {
     const [a, z] = b.win;
@@ -6918,57 +6914,72 @@ function renderDayInspector(){
       ${i === 0 ? `<text x="${((xPos(x0) + xPos(x1)) / 2).toFixed(1)}" y="${(PAD_T + 9).toFixed(1)}" text-anchor="middle" fill="${b.text}" font-size="10">${b.label}</text>` : ''}`);
   }).join('');
 
-  const key = (color, text, dashed) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft)">
-      <svg width="16" height="6" aria-hidden="true"><line x1="0" y1="3" x2="16" y2="3" stroke="${color}" stroke-width="3" ${dashed ? 'stroke-dasharray="4,3"' : ''} stroke-linecap="round"/></svg>${text}</span>`;
+  // Tap an hour: a marker, and the hour said in words.
+  const sel = Number.isInteger(state._di_hour) ? state._di_hour : null;
+  const hitRects = Array.from({ length: 24 }, (_, h) =>
+    `<rect x="${xPos(h).toFixed(1)}" y="${PAD_T}" width="${barW.toFixed(1)}" height="${CH}" fill="transparent" style="cursor:pointer" onclick="state._di_hour=${sel === h ? 'null' : h};renderApp()"><title>${String(h).padStart(2, '0')}:00</title></rect>`).join('');
+  const kw = (v) => `${Math.abs(v).toFixed(1)} kWh`;
+  const readout = sel == null ? `<div style="font-size:12px;color:var(--ink-dim);margin-top:6px">Tap any hour to see where the power came from and went.</div>` : (() => {
+    const h = sel, parts = [];
+    if (gen[h] > 0.05) parts.push(`solar made ${kw(gen[h])}`);
+    if (hasBattery && dis[h] > 0.05) parts.push(`the battery gave ${kw(dis[h])}`);
+    if (hasBattery && ch[h] > 0.05) parts.push(`the battery took in ${kw(ch[h])}`);
+    if (imp[h] > 0.05) parts.push(`${kw(imp[h])} was bought from the grid`);
+    if (exp[h] > 0.05) parts.push(`${kw(exp[h])} was sold to the grid`);
+    return `<div style="font-size:13px;color:var(--ink);margin-top:8px;padding:8px 10px;background:var(--well);border-radius:8px;line-height:1.5">
+      <b>${String(h).padStart(2, '0')}:00–${String((h + 1) % 24).padStart(2, '0')}:00</b> · the home used ${kw(cons[h])}${parts.length ? '; ' + parts.join(', ') : ''}.</div>`;
+  })();
+
+  const yLabels = [M, 0, -M].map(v => ({ v, y: yScale(v) }));
+  const xLabels = [0, 4, 8, 12, 16, 20].map(h => ({ x: xPos(h), label: String(h).padStart(2, '0') + ':00' }));
+  const order = ['home', 'grid', 'battery', 'solar'].filter(k => flows[k]);
+  const legend = [
+    ['solar', 'Solar', 'made by the panels'],
+    hasBattery ? ['battery', 'Battery', '↑ powering the home · ↓ charging'] : null,
+    ['grid', 'Grid', '↑ buying · ↓ selling'],
+    ['home', 'Home use', 'always below the line'],
+  ].filter(Boolean);
 
   return `
   <div class="section-title" style="margin-top:20px">Day inspector</div>
   <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 12px 10px;margin-bottom:14px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div style="font-size:13px;font-weight:700;color:var(--ink)">${label}</div>
       <div style="display:inline-flex;gap:4px;padding:3px;background:var(--well);border:1px solid var(--line);border-radius:999px">
         ${['summer','winter'].map(s2 => {
           const active = season === s2;
-          return `<button onclick="state._di_season='${s2}';renderApp();" style="padding:4px 11px;font-size:12px;font-weight:700;border:none;cursor:pointer;border-radius:999px;background:${active ? 'var(--accent)' : 'transparent'};color:${active ? 'var(--accent-ink, #fff)' : 'var(--ink-soft)'};">${s2 === 'summer' ? 'Summer' : 'Winter'}</button>`;
+          return `<button onclick="state._di_season='${s2}';state._di_hour=null;renderApp();" style="padding:4px 11px;font-size:12px;font-weight:700;border:none;cursor:pointer;border-radius:999px;background:${active ? 'var(--accent)' : 'transparent'};color:${active ? 'var(--accent-ink, #fff)' : 'var(--ink-soft)'};">${s2 === 'summer' ? 'Summer' : 'Winter'}</button>`;
         }).join('')}
       </div>
     </div>
-    <svg viewBox="0 0 ${W} ${totalH}" width="100%" style="display:block;color:var(--ink-dim)" role="img" aria-label="${label}: energy into and out of the home, hour by hour">
-      ${bandRects}
-      ${yLabels.map(l => `<line x1="${PAD_L}" y1="${l.y.toFixed(1)}" x2="${W - PAD_R}" y2="${l.y.toFixed(1)}" stroke="currentColor" stroke-opacity="${l.v === 0 ? '.45' : '.15'}" stroke-width="1"/>`).join('')}
-
-      <polygon points="${area(gen)}" fill="${C.solar}" fill-opacity=".22"/>
-      <path d="${line(gen)}" fill="none" stroke="${C.solar}" stroke-width="1.8" stroke-linejoin="round"/>
-      <polygon points="${area(imp)}" fill="${C.imp}" fill-opacity=".18"/>
-      <polygon points="${area(exp, -1)}" fill="${C.exp}" fill-opacity=".25"/>
-      <path d="${line(exp, -1)}" fill="none" stroke="${C.exp}" stroke-width="1.6" stroke-linejoin="round"/>
-      ${hasBattery ? `<path d="${line(dis)}" fill="none" stroke="${C.batt}" stroke-width="1.8" stroke-linejoin="round"/>
-      <path d="${line(ch, -1)}" fill="none" stroke="${C.batt}" stroke-width="1.8" stroke-dasharray="4,3" stroke-linejoin="round"/>` : ''}
-      <path d="${line(cons)}" fill="none" stroke="${C.load}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-
-      ${yLabels.map(l => `<text x="${(PAD_L - 3).toFixed(1)}" y="${(l.y + 3).toFixed(1)}" text-anchor="end" fill="currentColor" font-size="10">${Math.abs(l.v).toFixed(1)}</text>`).join('')}
-      ${xLabels.map(l => `<text x="${l.x.toFixed(1)}" y="${(PAD_T + CH + 12).toFixed(1)}" text-anchor="middle" fill="currentColor" font-size="10">${l.label}</text>`).join('')}
-    </svg>
-    <div style="font-size:12px;color:var(--ink-dim);margin-top:2px">kWh each hour. Above the line: what powers the home. Below it: what is sold or stored.</div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line-soft)">
-      ${key(C.load, 'Home use')}
-      ${key(C.solar, 'Solar')}
-      ${key(C.imp, 'Bought from grid')}
-      ${key(C.exp, 'Sold to grid')}
-      ${hasBattery ? key(C.batt, 'Battery powering home') + key(C.batt, 'Battery charging', true) : ''}
+    <div style="display:flex;flex-wrap:wrap;gap:4px 12px;margin-bottom:6px">
+      ${legend.map(([k, n, d]) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft)"><i style="width:9px;height:9px;border-radius:50%;background:${C[k]};display:inline-block"></i><b style="color:var(--ink);font-weight:600">${n}</b> ${d}</span>`).join('')}
     </div>
+    <svg viewBox="0 0 ${W} ${H + 14}" width="100%" style="display:block;color:var(--ink-dim)" role="img" aria-label="${label}: where the home's power came from and went, hour by hour">
+      ${bandRects}
+      ${yLabels.map(l => `<line x1="${PAD_L}" y1="${l.y.toFixed(1)}" x2="${W - PAD_R}" y2="${l.y.toFixed(1)}" stroke="currentColor" stroke-opacity="${l.v === 0 ? '.5' : '.15'}" stroke-dasharray="${l.v === 0 ? '' : '3,3'}"/>`).join('')}
+      ${order.map(k => `<path d="${areaOf(flows[k])}" fill="${C[k]}" fill-opacity=".16"/>`).join('')}
+      ${order.map(k => `<path d="${pathOf(flows[k])}" fill="none" stroke="${C[k]}" stroke-width="1.8" stroke-linejoin="round"/>`).join('')}
+      ${sel != null ? `<line x1="${xMid(sel).toFixed(1)}" y1="${PAD_T}" x2="${xMid(sel).toFixed(1)}" y2="${PAD_T + CH}" stroke="currentColor" stroke-opacity=".6"/>
+        ${order.map(k => `<circle cx="${xMid(sel).toFixed(1)}" cy="${yScale(flows[k][sel]).toFixed(1)}" r="3" fill="${C[k]}"/>`).join('')}` : ''}
+      ${yLabels.map(l => `<text x="${(PAD_L - 4).toFixed(1)}" y="${(l.y + 3).toFixed(1)}" text-anchor="end" fill="currentColor" font-size="10">${l.v === 0 ? '0' : (l.v > 0 ? '' : '−') + Math.abs(l.v)}</text>`).join('')}
+      ${xLabels.map(l => `<text x="${l.x.toFixed(1)}" y="${(PAD_T + CH + 18).toFixed(1)}" text-anchor="middle" fill="currentColor" font-size="10">${l.label}</text>`).join('')}
+      ${hitRects}
+    </svg>
+    <div style="font-size:12px;color:var(--ink-dim)">Above the line: what supplies the home. Below: what the home uses, and what is sold or stored.</div>
+    ${readout}
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px">
       ${[
         { label: 'Solar made', val: totalGen.toFixed(1) + ' kWh', color: C.solar },
-        { label: 'Used at home', val: selfUse.toFixed(1) + ' kWh', color: 'var(--ink)' },
-        { label: 'Sold to grid', val: totalExport.toFixed(1) + ' kWh', color: C.exp },
+        { label: 'Bought', val: totalImport.toFixed(1) + ' kWh', color: C.grid },
+        { label: 'Sold', val: totalExport.toFixed(1) + ' kWh', color: C.grid },
       ].map(st => `
         <div style="background:var(--well);border-radius:8px;padding:7px 8px;text-align:center">
           <div style="font-size:12px;color:var(--ink-dim);margin-bottom:2px">${st.label}</div>
           <div style="font-size:13px;font-weight:700;color:${st.color}">${st.val}</div>
         </div>`).join('')}
     </div>
-    <div style="font-size:12px;color:var(--ink-dim);margin-top:6px">Bought from the grid this day: ${totalImport.toFixed(1)} kWh${hasBattery ? ' — including what charged the battery in the cheap window' : ''}.</div>
+    <div style="font-size:12px;color:var(--ink-dim);margin-top:6px">kWh in each hour. ${selfUse.toFixed(1)} kWh of the solar was used at home${hasBattery ? ', directly or through the battery' : ''}.</div>
   </div>`;
 }
 
