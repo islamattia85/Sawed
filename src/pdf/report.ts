@@ -347,50 +347,37 @@ function chComparison(d: Doc, r: ReportData) {
         : `${r.best.name} is not the top of the ranking, but on your usage it costs effectively the same as ${r.choice.cheapestName}. Everything that follows uses your plan.`);
   }
 
-  // The recommendation, side by side with what it replaces.
-  const half = (d.width - 6) / 2;
-  const top = d.y;
-  d.text('YOU ARE ON', d.left, d.y, { ...TYPE.subhead!, color: DEBIT });
-  d.y += lines(1.3);
-  d.text(r.current.name, d.left, d.y, { ...TYPE.data!, maxWidth: half });
-  d.y += lines(1.3);
-  d.text(`${eur(r.current.annualCost)}/yr`, d.left, d.y, { ...TYPE.figureSmall!, color: DEBIT });
+  // The recommendation against what it replaces, as tiles.
+  tiles(d, [
+    { k: 'YOU ARE ON', v: `${eur(r.current.annualCost)}/yr`, sub: r.current.name, tone: DEBIT },
+    { k: planLabel(r), v: `${eur(r.best.annualCost)}/yr`, sub: r.best.name, tone: GREEN },
+    { k: r.savings.total > 1 ? 'A YEAR LESS' : 'DIFFERENCE', v: eur(r.savings.total), sub: `about ${eur(r.savings.total / 12)} a month` },
+  ], { h: 24 });
 
-  const rx = d.left + half + 6;
-  d.y = top;
-  d.text(planLabel(r), rx, d.y, { ...TYPE.subhead!, color: ACCENT });
-  d.y += lines(1.3);
-  d.text(r.best.name, rx, d.y, { ...TYPE.data!, maxWidth: half });
-  d.y += lines(1.3);
-  d.text(`${eur(r.best.annualCost)}/yr`, rx, d.y, { ...TYPE.figureSmall!, color: ACCENT });
-  d.y += lines(2);
-  d.rule(RULE_SOFT, LW.hair);
-  d.y += lines(1.4);
+  // Where it ranks: the cheapest plans, with yours marked.
+  const top = r.ranked.slice(0, 8);
+  const mine = r.ranked.find((p) => p.name === r.current.name);
+  const rows = mine && !top.includes(mine) ? [...top, mine] : top;
+  finding(d, `The cheapest ${top.length} of ${r.ranked.length} plans for your home${mine ? `, and yours (#${r.ranked.indexOf(mine) + 1})` : ''}`,
+    'A year on each plan: what you use, plus the standing charge, less any export income.');
+  hbars(d, rows.map((p) => ({ label: `${r.ranked.indexOf(p) + 1}. ${p.name}`, value: p.cost, text: eur(p.cost),
+    color: p === r.ranked[0] ? GREEN : p === mine ? DEBIT : DAY, bold: p === r.ranked[0] })), { barH: 2.6, max: Math.max(...rows.map((p) => p.cost)) });
 
   if (saved) {
-    heading(d, 'Where the difference comes from');
-    d.paragraph(
-      'Both figures are on the same basis — electricity used, plus the standing charge, minus any export income. The three lines below account for the whole difference between the two plans.',
-      TYPE.body!);
-    d.skip(0.6);
-
-    const levers = [
-      { term: 'Unit rates on the electricity you use', v: r.savings.unitRate },
-      { term: 'Standing charge', v: r.savings.standing },
-      { term: 'Export income', v: r.savings.exportIncome },
-    ].filter((l) => Math.abs(l.v) > 0.5);
-    definitions(d, levers.map((l) => ({ term: l.term, value: `${signed(l.v)}/yr` })));
-    d.rule(INK, LW.rule);
-    d.y += lines(1.3);
-    d.text('Net annual saving', d.left, d.y, { ...TYPE.body!, style: 'bold' });
-    d.text(`${eur(r.savings.total)}/yr`, d.right, d.y, { ...TYPE.dataBold!, color: ACCENT, align: 'right' });
-    d.y += lines(1.6);
+    const parts = [
+      { label: 'Unit rates on the electricity you use', value: r.savings.unitRate },
+      { label: 'Standing charge', value: r.savings.standing },
+      { label: 'Export income', value: r.savings.exportIncome },
+    ].filter((l) => Math.abs(l.value) > 0.5);
+    finding(d, `Where the ${eur(r.savings.total)} comes from`,
+      'Green adds to the saving, orange takes from it. Together they make the whole difference between the two plans.');
+    diverging(d, parts);
   }
 
   // Hour-of-day rate profile — the mechanism, not just the outcome.
   const cur = r.ranked.find((p) => p.dayProfile && p.name === r.current.name);
   if (r.best.dayProfile) {
-    heading(d, 'How the two plans price a day');
+    heading(d, 'How the two plans price a day', 55);
     rateProfile(d, [
       { name: r.best.supplier, color: ACCENT, rates: r.best.dayProfile },
       ...(cur?.dayProfile ? [{ name: 'Your current plan', color: DEBIT, rates: cur.dayProfile }] : []),
@@ -491,12 +478,17 @@ function chTransport(d: Doc, r: ReportData) {
   chapter(d, r.solar ? 'Four' : 'Three', 'Running the car',
     `Charging at home instead of buying petrol, over ${e.km.toLocaleString('en-IE')} km a year.`);
 
-  definitions(d, [
-    { term: 'Extra electricity to charge the car', value: `${signed(-e.electricityIncrease)}/yr` },
-    { term: 'Petrol no longer bought', value: `${signed(e.petrolAvoided)}/yr`, note: `At €${e.fuelPrice.toFixed(2)} per litre.` },
-    { term: 'Net saving on transport', value: `${eur(e.netSaving)}/yr` },
-    { term: 'Assumed efficiency', value: `${e.efficiency} kWh per 100 km` },
-  ]);
+  tiles(d, [
+    { k: 'TO CHARGE IT', v: `${eur(e.electricityIncrease)}/yr`, sub: `${e.efficiency} kWh per 100 km` },
+    { k: 'PETROL NOT BOUGHT', v: `${eur(e.petrolAvoided)}/yr`, sub: `at €${e.fuelPrice.toFixed(2)} a litre` },
+    { k: 'YOU KEEP', v: `${eur(e.netSaving)}/yr`, sub: 'less than petrol', tone: GREEN },
+  ], { h: 24 });
+  finding(d, `Electricity does the same driving for ${Math.round((e.electricityIncrease / Math.max(1, e.petrolAvoided)) * 100)}% of the cost of petrol`,
+    `A year of driving, ${e.km.toLocaleString('en-IE')} km, paid for each way.`);
+  hbars(d, [
+    { label: 'Petrol', sub: `${((e.petrolAvoided / Math.max(1, e.km)) * 100).toFixed(1)}c a km`, value: e.petrolAvoided, text: eur(e.petrolAvoided), color: PEAK },
+    { label: 'Charging at home', sub: `${((e.electricityIncrease / Math.max(1, e.km)) * 100).toFixed(1)}c a km`, value: e.electricityIncrease, text: eur(e.electricityIncrease), color: GREEN, bold: true },
+  ], { barH: 5 });
 
   d.paragraph(
     'This is a transport saving, not an electricity saving — it appears nowhere in the tariff comparison, which comes earlier in this report. The two add together.',
