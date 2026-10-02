@@ -111,6 +111,7 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .v7-top-end { display: flex; justify-content: flex-end; }
 
 .v7-nav {
+  will-change: transform;
   left: 50%; bottom: calc(12px + env(safe-area-inset-bottom)); transform: translateX(-50%);
   width: calc(100% - 24px); max-width: 520px; border-radius: var(--radius-xl);
   border: 1px solid var(--hair); padding: 6px; box-shadow: 0 12px 32px -16px rgba(0, 0, 0, .35);

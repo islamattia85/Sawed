@@ -781,7 +781,9 @@ export function createV7(api) {
     // Any day of the year.
     const day = st._an_day ?? 354;
     const one = api.analyticsDay(day);
-    const oh = one.hours.map((x) => (bought ? x.imp : x.use));
+    // The day draws what the home used; a sunny day buys nothing, and an empty chart says nothing.
+    const oh = one.hours.map((x) => x.use);
+    const ob = sum(one.hours.map((x) => x.imp));
     const dCost = sum(one.hours.map((x) => x.cost));
     const chip = (label, idx) => `<button class="ax-chip ${idx === one.day ? 'on' : ''}" aria-pressed="${idx === one.day}" onclick="setAnalyticsDay(${idx})">${label}</button>`;
     const open = !!st._an_day_open;
@@ -790,8 +792,8 @@ export function createV7(api) {
       <label class="ax-range"><span>Or pick a day: <b>${dayName(one.day)}</b></span>
         <input type="range" min="0" max="364" value="${one.day}" onchange="setAnalyticsDay(+this.value)" aria-label="Day of the year"></label>
       ${vbars(oh.map((v, h) => ({ v, token: flat ? '--bandink-day' : bandToken(one.hours[h].band),
-        tip: `${hhmm(h)} · ${v.toFixed(2)} kWh · ${api.fmtCent(one.hours[h].rate)}` })), { height: 96, label: `${bought ? 'Bought' : 'Used'} by hour on ${dayName(one.day)}` })}${hourAxis()}
-      <div class="ax-fact">${dayName(one.day)}: ${sum(oh).toFixed(1)} kWh ${bought ? 'bought' : 'used'}, ${dCost >= 0 ? `${dayMoney(dCost)} of electricity` : dayMoney(dCost)}</div>
+        tip: `${hhmm(h)} · ${v.toFixed(2)} kWh · ${api.fmtCent(one.hours[h].rate)}` })), { height: 96, label: `Used by hour on ${dayName(one.day)}` })}${hourAxis()}
+      <div class="ax-fact">${dayName(one.day)}: ${sum(oh).toFixed(1)} kWh used${bought ? `, ${ob.toFixed(1)} bought` : ''}, ${dCost >= 0 ? `${dayMoney(dCost)} of electricity` : dayMoney(dCost)}</div>
       <p class="ax-note">Dearest day: <button class="ax-inline" onclick="setAnalyticsDay(${T.dearest.day})">${dayName(T.dearest.day)}, ${dayMoney(T.dearest.cost)}</button>.
         Cheapest: <button class="ax-inline" onclick="setAnalyticsDay(${T.cheapest.day})">${dayName(T.cheapest.day)}, ${dayMoney(T.cheapest.cost)}</button>. ${bought ? 'Electricity less export payments.' : 'Electricity only.'}</p>
       <button class="ax-more ax-more-in ${open ? 'open' : ''}" aria-expanded="${open}" onclick="state._an_day_open=!state._an_day_open;saveState();renderApp()">

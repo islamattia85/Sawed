@@ -11366,6 +11366,12 @@ function renderApp(){
     if (track) v7MonthScrolled(track);
   }
   root.classList.toggle('has-sheet', !!sheetHtml);
+  // iOS (home-screen app especially) can leave a fixed bar where it was before
+  // the page under it was replaced and scrolled; re-lay it out on the next frame.
+  requestAnimationFrame(() => {
+    const bar = root.querySelector('.v7-nav');
+    if (bar){ bar.style.display = 'none'; void bar.offsetHeight; bar.style.display = ''; }
+  });
   if (state.current_screen === 'auditor')    bindAuditor();
   if (state.current_screen === 'refine')     bindRefine();
   if (state.current_screen === 'csv-import') bindCsvImport();
