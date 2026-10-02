@@ -7767,6 +7767,7 @@ function ensureAnalyticsState(){
   if (state._an_day === undefined) state._an_day = 172;
   // Default to user's recommended best plan so Analytics matches Solar tab.
   // User can switch via the picker — selection persists via state._an_plan.
+  if (!state._an_plan_picked) state._an_plan = null;   // follow the answer as the home changes
   if (!state._an_plan){
     try {
       const best = getBestPlan();
@@ -7912,7 +7913,7 @@ function renderAnalytics(){
       <div style="font-family:var(--display);font-size:20px;font-weight:600;color:var(--ink);line-height:1.2;letter-spacing:-.01em">${Math.round(annualCons).toLocaleString()} kWh used / yr</div>
       ${evChip()}
       ${!isRecommended && recommendedId ? `
-        <div onclick="state._an_plan='${recommendedId}'; saveState(); renderApp(); showToast('Now viewing your recommended plan.',{type:'accent',icon:'★',title:''});" style="margin-top:8px;padding:8px 12px;background:var(--accent-faint);border:1px dashed var(--accent);border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--accent);cursor:pointer;letter-spacing:.02em">
+        <div onclick="state._an_plan='${recommendedId}'; state._an_plan_picked=false; saveState(); renderApp(); showToast('Now viewing your recommended plan.',{type:'accent',icon:'★',title:''});" style="margin-top:8px;padding:8px 12px;background:var(--accent-faint);border:1px dashed var(--accent);border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--accent);cursor:pointer;letter-spacing:.02em">
           ★ Tap to view your <b>recommended</b> plan — ${getPlanById(recommendedId).supplier} — ${getPlanById(recommendedId).plan}
         </div>` : ''}
       ${annualGen < 1 ? `<div class="an-hero-grid an-hero-two">
@@ -7922,11 +7923,15 @@ function renderAnalytics(){
           <div class="an-stat-unit">kWh / yr</div>
           <div class="an-stat-sub">${state.battery_kwh > 0 && state.charge_from_grid ? 'Includes charging the battery in cheap hours' : 'All of it: no solar in this home'}</div>
         </div>
-        <button class="an-stat an-stat-go" onclick="startSolarGuide()">
+        ${v7HasModelledSystem() ? `<button class="an-stat an-stat-go" onclick="toggleSolarModel()">
+          <div class="an-stat-label">Solar is left out</div>
+          <div class="an-stat-sub">Your ${totalPanels()} panels are kept. Include them to see what they make, keep and sell</div>
+          <span class="hc-go">Include solar ${ic('chevR', 14)}</span>
+        </button>` : `<button class="an-stat an-stat-go" onclick="startSolarGuide()">
           <div class="an-stat-label">Solar</div>
           <div class="an-stat-sub">See what panels would make, keep and sell here</div>
           <span class="hc-go">Would it pay off? ${ic('chevR', 14)}</span>
-        </button>
+        </button>`}
       </div>` : `<div class="an-hero-grid">
         <div class="an-stat" title="Solar generated minus exports minus curtailed = consumed on-site (either directly or via battery)">
           <div class="an-stat-label">Solar generated</div>
@@ -7972,7 +7977,7 @@ function renderAnalytics(){
       <input type="range" class="an-day-slider" min="0" max="364" value="${dayIdx}" oninput="setAnalyticsDay(+this.value)" id="an-day-slider">
       <div class="an-day-tag">Currently showing <b>${analyticsDayLabel(dayIdx)}</b> (day ${dayIdx + 1} of 365)</div>
       <div class="an-selector-label" style="margin-top:14px">Tariff plan</div>
-      <select class="an-plan-select" onchange="state._an_plan=this.value; saveState(); renderApp();">
+      <select class="an-plan-select" onchange="state._an_plan=this.value; state._an_plan_picked=true; saveState(); renderApp();">
         ${TARIFFS.filter(t => !t.discontinued).map(t => `
           <option value="${t.id}" ${t.id === plan.id ? 'selected' : ''}>${t.supplier} — ${t.plan}</option>`).join('')}
       </select>
@@ -10676,10 +10681,11 @@ function householdFindings(){
       ] };
     }
     const mine = myPlanCost();
-    const solarNow = rec.baseCost - mine;
+    let solarNow = rec.baseCost - mine;
+    try { solarNow = v7SolarData().cur.solarBenefit; } catch (e) {}   // the same figure Home and Solar show
     const sw = mine - rec.best.net;
     return { status: `Installed system · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` + ${state.battery_kwh} kWh` : ''}`, rows: [
-      { label: 'Your panels already save', sub: 'Against the same home without them, on your plan', value: money(solarNow), cls: 'is-done', go: "setScreen('solar')" },
+      { label: 'Your panels already save', sub: 'Against the same home without them, each on its best plan', value: money(solarNow), cls: 'is-done', go: "setScreen('solar')" },
       { label: sw > 10 ? `Switch to ${planName}` : 'Stay on your plan', sub: sw > 10 ? 'Available now · on top of what the panels save' : 'Nothing on sale beats it with your panels', value: money(sw), cls: 'is-gain', go: "setScreen('result')" },
     ] };
   } catch (e){ return null; }
@@ -11824,10 +11830,10 @@ function renderHomeSheet(){
         ${field('Main face', '', `<select onchange="homeSet('azimuth_A',this.value)">${_dirOpts(state.azimuth_A)}</select>`)}
         ${field('Tilt', '', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="90" step="1" value="${state.tilt_A}" onchange="homeSet('tilt_A',this.value)"><i>°</i></span>`)}
       </div>
-      <div class="sy-pair">
+      ${state.count_B > 0 ? `<div class="sy-pair">
         ${field('Other face', '', `<select onchange="homeSet('azimuth_B',this.value)">${_dirOpts(state.azimuth_B)}</select>`)}
         ${field('Tilt', '', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="90" step="1" value="${state.tilt_B}" onchange="homeSet('tilt_B',this.value)"><i>°</i></span>`)}
-      </div>
+      </div>` : ''}
       <div class="sy-fine-note">Most Irish roofs are pitched 30–40°. An east–west roof uses both faces.</div>
     </section>
 
@@ -13735,6 +13741,7 @@ window.rebuildBase = rebuildBase;
 window.applyRegion = applyRegion;
 window.getRecommendation = getRecommendation;
 window.getBestPlan = getBestPlan;
+window.v7SolarData = v7SolarData;
 window.sim = sim;
 window.annualCost = annualCost;
 window.getPlanById = getPlanById;

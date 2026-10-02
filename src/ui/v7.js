@@ -206,7 +206,8 @@ export function createV7(api) {
       : `
         <div class="v7-eyebrow">${pl ? 'The most you could save: switch plan and add the planned solar' : saving > 10 ? (withSolar ? 'Switching plan saves, with your solar' : 'You could pay less') : 'Your best plan'}</div>
         <div class="qr-value v7-figure ${saving > 10 ? 'is-saving' : ''}" data-countup="${Math.round(Math.max(0, saving))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, saving))}</span><span class="v7-figure-unit">${saving > 10 ? 'less a year' : 'a year'}</span></div>
-        ${pl ? '' : `<div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Best for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`}`;
+        ${pl ? '' : `<div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Best for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`}
+        ${!pl && best.plan.type === 'ev' && !st.ev_active ? `<div class="v7-evnote">${api.ic('info', 14)} You don’t need an electric car for this plan. It’s named for cars, but its cheap night hours suit ${st.battery_kwh > 0 ? 'your battery' : 'your home'} too.</div>` : ''}`;
     let steps = '';
     if (pl) {
       let d = null; try { d = api.solarData(); } catch (e) {}

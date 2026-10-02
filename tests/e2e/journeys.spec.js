@@ -260,3 +260,14 @@ test('"not sure which plan" is kept as a guess, not as a known plan', async ({ p
   expect(await page.evaluate(() => window.state.baseline_known)).toBe(false);
   await expect(page.locator('.fl-chip').nth(1)).toContainText('plan not sure');
 });
+
+test('video fixes: one panels figure, Analytics follows the answer, left-out solar is offered back', async ({ page }) => {
+  await boot(page, { current_screen: 'result', has_solar: true, considering_solar: true, solar_planned: false, count_A: 10, battery_kwh: 9, _an_plan: 'BG-24' });
+  const home = await page.evaluate(() => Math.round(window.v7SolarData().cur.solarBenefit));
+  await page.evaluate(() => window.setScreen('me'));
+  const me = await page.evaluate(() => [...document.querySelectorAll('*')].find((e) => e.children.length < 6 && /Your panels already save/.test(e.innerText || ''))?.innerText || '');
+  expect(me.replace(/[^\d]/g, '')).toContain(String(home));
+  await page.evaluate(() => { window.toggleSolarModel(); window.setScreen('analytics'); });
+  expect(await page.evaluate(() => window.state._an_plan)).toBe(await page.evaluate(() => window.getBestPlan().plan.id));
+  await expect(page.locator('.an-stat-go')).toContainText('Solar is left out');
+});
