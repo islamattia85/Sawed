@@ -63,41 +63,41 @@ export const INK_FAINT: Rgb = [176, 180, 176];
 export const RULE: Rgb = [206, 208, 204];
 export const RULE_SOFT: Rgb = [230, 231, 228];
 export const PAPER: Rgb = [255, 255, 255];
-export const TINT: Rgb = [246, 246, 243];
+export const TINT: Rgb = [247, 246, 241];
 
 /** One accent, used only for the recommendation and money gained. */
-export const ACCENT: Rgb = [0, 104, 56];
-export const ACCENT_TINT: Rgb = [232, 242, 236];
+export const ACCENT: Rgb = [18, 122, 76];
+export const ACCENT_TINT: Rgb = [228, 242, 234];
 /** Money leaving the reader. Muted, so it never shouts over the accent. */
-export const DEBIT: Rgb = [150, 46, 34];
+export const DEBIT: Rgb = [196, 74, 34];
 export const DEBIT_TINT: Rgb = [250, 238, 236];
 /** Neutral data series, for charts that are not about money. */
-export const SERIES: Rgb = [58, 82, 112];
-export const SERIES_TINT: Rgb = [234, 239, 245];
-export const SERIES_ALT: Rgb = [148, 118, 42];
+export const SERIES: Rgb = [37, 106, 191];
+export const SERIES_TINT: Rgb = [232, 240, 250];
+export const SERIES_ALT: Rgb = [201, 133, 0];
 export const SERIES_ALT_TINT: Rgb = [249, 243, 228];
 
 export const TYPE: Record<string, Spec> = {
   /** Cover title. */
-  coverTitle: { face: 'times', style: 'bold', size: 30, leading: lines(2.4) },
-  coverSub: { face: 'times', style: 'italic', size: 12.5, leading: lines(1.4), color: INK_MID },
+  coverTitle: { face: 'helvetica', style: 'bold', size: 28, leading: lines(2.4) },
+  coverSub: { face: 'helvetica', style: 'normal', size: 11.5, leading: lines(1.4), color: INK_MID },
   /** The single headline figure. */
   coverFigure: { face: 'helvetica', style: 'bold', size: 42, leading: lines(3) },
 
   /** Part/chapter opener. */
   chapterNo: { face: 'helvetica', style: 'bold', size: 7.5, leading: lines(1), tracking: 0.9, color: ACCENT },
-  chapter: { face: 'times', style: 'bold', size: 17, leading: lines(1.8) },
+  chapter: { face: 'helvetica', style: 'bold', size: 18, leading: lines(1.8) },
   /** Section within a chapter. */
-  heading: { face: 'times', style: 'bold', size: 11, leading: lines(1.3) },
+  heading: { face: 'helvetica', style: 'bold', size: 10.6, leading: lines(1.3) },
   /** Sub-heading / table caption. */
   subhead: { face: 'helvetica', style: 'bold', size: 7.4, leading: lines(1), tracking: 0.6, color: INK_MID },
 
   /** Running body text. */
-  body: { face: 'times', style: 'normal', size: 9.8, leading: lines(1) },
+  body: { face: 'helvetica', style: 'normal', size: 8.8, leading: lines(1) },
   /** Opening paragraph of a chapter, set slightly larger. */
-  lead: { face: 'times', style: 'normal', size: 11, leading: lines(1.2), color: INK },
+  lead: { face: 'helvetica', style: 'normal', size: 10, leading: lines(1.2), color: INK },
   /** Marginal note and figure caption. */
-  caption: { face: 'times', style: 'italic', size: 8.2, leading: lines(0.85), color: INK_MID },
+  caption: { face: 'helvetica', style: 'normal', size: 7.4, leading: lines(0.85), color: INK_MID },
 
   /** Table and figure data. */
   data: { face: 'helvetica', style: 'normal', size: 8.4, leading: lines(1) },

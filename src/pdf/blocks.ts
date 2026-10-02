@@ -23,10 +23,15 @@ export const signed = (v: number) => `${v < 0 ? '-' : '+'}${eur(Math.abs(v))}`;
 
 /** Chapter opener: number, rule, title, and an optional standfirst. */
 export function chapter(d: Doc, no: string, title: string, standfirst?: string) {
-  d.ensure(lines(6));
+  // A chapter opens with room for its first picture, never stranded at the foot of a page.
+  d.ensure(lines(6) + 70);
   d.skip(1);
   d.openChapter(title);
-  d.text(no.toUpperCase(), d.left, d.y, TYPE.chapterNo!);
+  // A coloured tab carries the chapter number, as the app's tabs do.
+  const tw = d.measure(no.toUpperCase(), TYPE.chapterNo!) + 6;
+  d.fill(ACCENT_TINT);
+  d.doc.roundedRect(d.left, d.y - 3.6, tw, 5, 1.5, 1.5, 'F');
+  d.text(no.toUpperCase(), d.left + 3, d.y, TYPE.chapterNo!);
   d.y += lines(1.2);
   d.text(title, d.left, d.y, TYPE.chapter!);
   d.y += lines(0.9);

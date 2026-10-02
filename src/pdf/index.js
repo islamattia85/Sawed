@@ -170,6 +170,26 @@ export function buildReportData(ctx) {
     } catch (e) { /* analysis is additive; never block the report */ }
   }
   if (ctx.levers?.length) data.levers = ctx.levers;
+  if (ctx.ladder?.length) data.ladder = ctx.ladder;
+  if (ctx.accuracy) data.accuracy = ctx.accuracy;
+  if (ctx.bestBands) data.best.bands = ctx.bestBands;
+  if (ctx.currentBands) data.current.bands = ctx.currentBands;
+
+  // Every hour of the year, for the heat map and the average day.
+  if (ctx.hourly && ctx.hourly.cons) {
+    try {
+      const h = ctx.hourly;
+      const n = Math.min(8760, h.cons.length);
+      const use = new Array(n); const avg = new Array(24).fill(0); const day = new Array(365).fill(0);
+      for (let i = 0; i < n; i += 1) {
+        use[i] = h.cons[i] || 0;
+        avg[i % 24] += (h.cons[i] || 0) / 365;
+        day[Math.floor(i / 24)] += (h.cost ? h.cost[i] || 0 : 0) - (h.revenue ? h.revenue[i] || 0 : 0);
+      }
+      data.hours = { use, avg, dayCost: day,
+        gen: h.gen ? Array.from({ length: 24 }, (_, k) => { let t = 0; for (let i = k; i < n; i += 24) t += h.gen[i] || 0; return t / 365; }) : null };
+    } catch (e) { /* additive */ }
+  }
 
   // Whether a full battery is a problem depends on the spread between what
   // this plan pays to export and the least it lets you buy for.

@@ -19,6 +19,10 @@ import {
   columnChart, rateProfile, cashFlow, splitBar, eur, kwh, signed, type Column,
   monthlyEnergyChart, dayChart, dayChartLegend, barBreakdown, houseScene,
 } from './blocks.js';
+import {
+  NAVY, NAVY_2, GOLD, GREEN, CARD, NIGHT, DAY, PEAK, MADE, KEPT, FIXED, BAND_COLOR, BAND_NAME,
+  box, finding, tiles, hbars, stack, columns, heatmap, meter, diverging,
+} from './viz.js';
 
 export interface RankedPlan {
   name: string;
@@ -42,11 +46,12 @@ export interface ReportData {
   };
   usageByPeriod: { label: string; value: number }[];
   usageBasis: string;
-  current: { name: string; annualCost: number; standing: number };
+  current: { name: string; annualCost: number; standing: number; bands?: string[] };
   best: {
     name: string; supplier: string; annualCost: number; standing: number;
     rates: { label: string; value: string }[];
     dayProfile?: number[];
+    bands?: string[];
   };
   savings: { total: number; unitRate: number; standing: number; exportIncome: number };
   /**
@@ -108,6 +113,12 @@ export interface ReportData {
   arbitrage?: { exportRate: number; cheapestImport: number; cheapestBand: string };
   /** Levers the reader can pull, and what each is worth. */
   levers?: { label: string; effect: string; value: number; note?: string }[];
+  /** The comparison Home leads with: each plan, without and with the panels. */
+  ladder?: { label: string; plan: string; value: number; solar: boolean; best?: boolean }[];
+  /** How sure the figures are, and what is assumed. */
+  accuracy?: { pct: number; withMeter: number | null; parts: { label: string; err: number; open: boolean; tip: string }[] };
+  /** Every hour of the year on the plan reported, for the heat map and the average day. */
+  hours?: { use: number[]; avg: number[]; dayCost: number[]; gen: number[] | null };
   switchSteps: { title: string; body: string }[];
   supplierUrl?: string;
   methodology: { term: string; value: string }[];
@@ -126,105 +137,176 @@ const planLabel = (r: ReportData) => (r.choice ? 'YOUR CHOICE' : 'RECOMMENDED');
 
 /* ── front matter ────────────────────────────────────────────────────────── */
 
+const DATE = (r: ReportData) => r.generatedAt.toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
+const W = (txt: string, size: number, style: 'normal' | 'bold' = 'normal', color: readonly [number, number, number] = PAPER) =>
+  ({ face: 'helvetica' as const, style, size, color });
+
+/** The brand mark: the dotted peak and the flat gold line under it. */
+function mark(d: Doc, x: number, y: number, s: number) {
+  box(d, x, y, s, s, NAVY_2, s * 0.22);
+  d.stroke([143, 176, 184]).weight(0.35);
+  const pts = 14;
+  for (let i = 0; i < pts; i += 2) {
+    const t0 = i / pts, t1 = (i + 1) / pts;
+    const yy = (t: number) => y + s * (0.66 - 0.36 * Math.sin(Math.PI * t));
+    d.doc.line(x + s * (0.12 + 0.76 * t0), yy(t0), x + s * (0.12 + 0.76 * t1), yy(t1));
+  }
+  d.stroke(GOLD).weight(0.9);
+  d.doc.line(x + s * 0.12, y + s * 0.68, x + s * 0.88, y + s * 0.68);
+}
+
 function cover(d: Doc, r: ReportData) {
   d.bareePages.add(1);
-  const M = PAGE.marginInner;
+  const M = 20;
+  box(d, 0, 0, PAGE.width, PAGE.height, NAVY);
+  mark(d, M, 20, 12);
+  d.text('peakless', M + 16, 28.6, W('peakless', 15, 'bold'));
+  d.text(DATE(r), PAGE.width - M, 28.6, { ...W('', 8.5), color: [170, 190, 196], align: 'right' });
 
-  d.fill(INK);
-  d.doc.rect(0, 0, PAGE.width, 4, 'F');
+  d.text('Your home', M, 62, W('', 30, 'bold'));
+  d.text('energy report', M, 74, W('', 30, 'bold'));
+  d.text(`${r.home.annualKwh.toLocaleString('en-IE')} kWh a year · ${r.home.heating} heating · ${r.home.region}`, M, 84, { ...W('', 10), color: [190, 208, 212] });
 
-  d.text(BRAND.name.toUpperCase(), M, 30, { ...TYPE.subhead!, color: INK_MID, tracking: 1.4 });
+  const saving = r.ladder && r.ladder.length ? r.ladder[0]!.value - Math.min(...r.ladder.map((x) => x.value)) : r.savings.total;
+  d.text(r.choice ? 'ON YOUR CHOSEN PLAN' : 'THE MOST YOU COULD SAVE', M, 112, { ...W('', 8, 'bold'), color: GOLD, tracking: 0.8 });
+  d.text(eur(Math.max(0, saving)), M, 134, { ...W('', 52, 'bold'), color: saving > 1 ? [118, 222, 165] : PAPER });
+  d.text(saving > 1 ? 'less a year' : 'a year, already on the best value', M, 143, { ...W('', 11), color: [190, 208, 212] });
+  const how = r.ladder && r.ladder.some((x) => x.solar && x.best) && r.ladder.length > 3
+    ? `By switching to ${r.ladder.find((x) => x.best)!.plan} and adding the planned panels.`
+    : `By moving to ${r.best.name}.`;
+  d.y = 153;
+  d.paragraph(how, { ...W('', 10), color: PAPER, leading: 4.8 }, { x: M, width: PAGE.width - 2 * M });
 
-  d.y = 58;
-  d.text('Your electricity', M, d.y, TYPE.coverTitle!);
-  d.y += lines(2.6);
-  d.text('and solar report', M, d.y, TYPE.coverTitle!);
-  d.y += lines(2.2);
-  d.text('An independent assessment of what you pay now,', M, d.y, TYPE.coverSub!);
-  d.y += lines(1.4);
-  d.text('what you could pay, and what it would take to change.', M, d.y, TYPE.coverSub!);
+  // Four figures, the app's tiles.
+  const L = r.ladder || [];
+  const now = L[0]?.value ?? r.current.annualCost;
+  const kp: { k: string; v: string; sub?: string; tone?: readonly [number, number, number] }[] = [
+    { k: 'YOU PAY NOW', v: eur(now), sub: 'a year, as billed' },
+    { k: r.choice ? 'YOUR CHOICE' : 'BEST PLAN', v: eur(r.best.annualCost), sub: r.best.supplier, tone: [118, 222, 165] },
+    r.solar ? { k: 'SOLAR PAYS BACK', v: r.solar.paybackYears ? `${r.solar.paybackYears.toFixed(1)} yrs` : '20+ yrs', sub: `${r.solar.kwp.toFixed(1)} kWp, after grant` }
+      : { k: 'PLANS COMPARED', v: String(r.tariffCount), sub: 'every hour of the year' },
+    { k: 'ACCURACY', v: r.accuracy ? `±${r.accuracy.pct}%` : '8,760 h', sub: r.accuracy ? 'yearly figures' : 'modelled' },
+  ];
+  const save = { left: d.left, y: d.y };
+  d.y = 176;
+  const gap = 3, w = (PAGE.width - 2 * M - 3 * gap) / 4, h = 26;
+  kp.forEach((t, i) => {
+    const x = M + i * (w + gap);
+    box(d, x, d.y, w, h, NAVY_2, 3);
+    d.text(t.k, x + 4, d.y + 6.5, { ...W('', 6.6, 'bold'), color: [170, 190, 196], maxWidth: w - 8 });
+    d.text(t.v, x + 4, d.y + 15.5, { ...W('', 15, 'bold'), color: (t.tone as never) ?? PAPER, maxWidth: w - 8 });
+    if (t.sub) d.text(t.sub, x + 4, d.y + 21.5, { ...W('', 6.6), color: [170, 190, 196], maxWidth: w - 8 });
+  });
+  void save;
 
-  // Headline figure, given the whole width of the page to itself.
-  d.y = 128;
-  d.stroke(RULE).weight(LW.hair);
-  d.doc.line(M, d.y, TEXT_RIGHT, d.y);
-  d.y += lines(2.4);
-  d.text('ANNUAL SAVING AVAILABLE', M, d.y, { ...TYPE.subhead!, color: ACCENT });
-  d.y += lines(2.6);
-  d.text(eur(r.savings.total), M, d.y, { ...TYPE.coverFigure!, color: ACCENT });
-  d.y += lines(1.6);
-  d.text(r.choice ? `on your chosen plan, ${r.best.name}` : `by moving to ${r.best.name}`,
-    M, d.y, { ...TYPE.body!, color: INK_MID, maxWidth: d.width });
-  d.y += lines(1.8);
-  d.stroke(RULE).weight(LW.hair);
-  d.doc.line(M, d.y, TEXT_RIGHT, d.y);
-
-  // Prepared-for block, foot of page.
   const rows: [string, string][] = [
-    ['Prepared', r.generatedAt.toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })],
-    ['Consumption', `${r.home.annualKwh.toLocaleString('en-IE')} kWh per year · ${r.usageBasis}`],
-    ['Home', `${r.home.heating} heating · ${r.home.region}`],
+    ['Prepared', DATE(r)],
+    ['Usage', r.usageBasis],
     ['System', r.home.systemLabel],
     ['Plans compared', `${r.tariffCount}${r.verifiedDate ? ` · rates verified ${r.verifiedDate}` : ''}`],
   ];
-  d.y = 226;
+  let y = 226;
   rows.forEach(([k, v]) => {
-    d.text(k.toUpperCase(), M, d.y, { ...TYPE.micro!, color: INK_SOFT, tracking: 0.5 });
-    d.text(v, M + 34, d.y, { ...TYPE.data!, maxWidth: d.width - 34 });
-    d.y += lines(1.4);
+    d.text(k.toUpperCase(), M, y, { ...W('', 6.6, 'bold'), color: [140, 165, 172], tracking: 0.5 });
+    d.text(v, M + 34, y, { ...W('', 8.4), color: PAPER, maxWidth: PAGE.width - 2 * M - 34 });
+    y += 6.4;
   });
-
+  d.text('Independent: no supplier pays to be ranked. Not financial advice.', M, 278, { ...W('', 7), color: [140, 165, 172] });
   d.newPage();
 }
 
+/** Page two: the whole answer at a glance, then the contents. */
 function contents(d: Doc, r: ReportData) {
   d.bareePages.add(d.page);
-  d.y = PAGE.marginTop + lines(2);
-  d.text('Contents', d.left, d.y, TYPE.chapter!);
-  d.y += lines(1);
-  d.rule(INK, LW.heavy, d.left, d.left + 22);
-  d.y += lines(2.4);
-  // Filled in by finish(); a placeholder position is recorded here.
-  d.contentsAnchor = { page: d.page, y: d.y };
-
-  // The short version, so page two already answers the question.
-  d.y = 150;
-  d.text('The short version', d.left, d.y, TYPE.heading!);
+  d.y = PAGE.marginTop + 2;
+  d.text('At a glance', d.left, d.y, TYPE.chapter!);
   d.y += lines(1.6);
 
-  const pts: string[] = [];
-  pts.push(
-    r.savings.total > 1
-      ? `You are on ${r.current.name}, costing about ${eur(r.current.annualCost)} a year on your usage. ${r.best.name} would cost ${eur(r.best.annualCost)} — a saving of ${eur(r.savings.total)}.`
-      : `You are already on ${r.current.name}, and nothing in the ${r.tariffCount} plans compared beats it on your usage. No action is needed.`,
-  );
-  if (r.choice) {
-    pts.push(
-      r.choice.premium > 1
-        ? `${r.best.name} is your own choice, not the cheapest — it ranks ${r.choice.rank} of ${r.tariffCount} and costs ${eur(r.choice.premium)} a year more than ${r.choice.cheapestName}. Every figure in this report is calculated on your choice.`
-        : `${r.best.name} is your own choice rather than the top of the ranking, though it costs effectively the same. Every figure in this report is calculated on it.`,
-    );
+  if (r.ladder && r.ladder.length) {
+    const L = r.ladder;
+    finding(d, L.length > 3 ? 'What you would pay a year: your plan and the best, without and with the panels' : 'What you would pay a year, on your plan and the best one');
+    hbars(d, L.map((x) => ({ label: `${x.label}${x.solar ? '  (panels)' : ''}`, sub: x.plan, value: x.value, text: eur(x.value),
+      color: x.best ? GREEN : x.label.startsWith('Current') && !x.solar ? DAY : [141, 195, 166], bold: !!x.best })), { barH: 3 });
   }
-  if (r.solar) {
-    pts.push(
-      r.solar.paybackYears
-        ? `Your ${r.solar.kwp.toFixed(1)} kWp system generates about ${kwh(r.solar.generated)} a year, of which ${pctOf(r.solar.selfConsumed, r.solar.generated)}% is used in the house. It pays back in ${r.solar.paybackYears.toFixed(1)} years and is worth ${eur(r.solar.npv20)} over twenty.`
-        : `Your ${r.solar.kwp.toFixed(1)} kWp system generates about ${kwh(r.solar.generated)} a year. On current rates it does not pay back inside twenty years.`,
-    );
-  }
-  if (r.ev) {
-    pts.push(`Running the car on electricity rather than petrol saves about ${eur(r.ev.netSaving)} a year — separate from, and larger than, the tariff saving.`);
-  }
-  pts.push('Switching takes about ten minutes and completes in 10–15 working days. Your supply is not interrupted.');
 
+  const pts: string[] = [];
+  const L = r.ladder || [];
+  if (L.length > 3) {
+    pts.push(`Switch today to ${L[1]!.plan}: ${eur(L[0]!.value - L[1]!.value)} a year less, with nothing to buy.`);
+    pts.push(`Add the planned panels: ${eur(L[1]!.value - L[3]!.value)} a year more off, on ${L[3]!.plan}.`);
+  } else if (r.savings.total > 1) pts.push(`Switch to ${r.best.name}: ${eur(r.savings.total)} a year less than now.`);
+  else pts.push(`You are already on the best value of ${r.tariffCount} plans for your home.`);
+  if (r.choice) pts.push(`${r.best.name} is your own choice, ranked ${r.choice.rank ?? '-'}; it costs ${eur(r.choice.premium)} a year more than ${r.choice.cheapestName}.`);
+  if (r.ev) pts.push(`The car: ${eur(r.ev.electricityIncrease)} a year to charge, ${eur(r.ev.netSaving)} less than petrol.`);
+  if (r.accuracy) pts.push(`Figures within ±${r.accuracy.pct}%${r.accuracy.withMeter ? `; your smart-meter file would tighten that to ±${r.accuracy.withMeter}%` : ''}.`);
+  finding(d, 'What to do');
   pts.forEach((p, i) => {
-    d.ensure(lines(3));
-    d.text(String(i + 1), d.left, d.y, { ...TYPE.microBold!, color: ACCENT });
-    d.paragraph(p, TYPE.body!, { x: d.left + 6, width: d.width - 6 });
-    d.skip(0.5);
+    d.ensure(lines(2));
+    box(d, d.left, d.y - 3.2, 4.4, 4.4, GREEN, 2.2);
+    d.text(String(i + 1), d.left + 2.2, d.y, { face: 'helvetica', style: 'bold', size: 7, color: PAPER, align: 'center' });
+    d.paragraph(p, TYPE.body!, { x: d.left + 7, width: d.width - 7 });
+    d.y += 1.2;
   });
 
+  d.skip(1);
+  d.text('Contents', d.left, d.y, TYPE.heading!);
+  d.y += lines(1.4);
+  d.contentsAnchor = { page: d.page, y: d.y };
   d.newPage();
+}
+
+/** Your year, hour by hour: the heat map and the average day. */
+function chHours(d: Doc, r: ReportData) {
+  if (!r.hours) return;
+  const H = r.hours;
+  d.newPage();
+  chapter(d, 'Hours', 'Your year, hour by hour',
+    'Every one of the 8,760 hours in the year, as the simulation ran them. Darker means more electricity used.');
+  const M = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const DIM = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const dname = (i: number) => { let m = 0; let x = i; while (x >= DIM[m]!) { x -= DIM[m]!; m += 1; } return `${x + 1} ${M[m]}`; };
+  const top = H.avg.indexOf(Math.max(...H.avg));
+  finding(d, `The busiest hours fall around ${String(top).padStart(2, '0')}:00, and winter is the heaviest season`);
+  heatmap(d, H.use);
+
+  const bands = r.best.bands || Array.from({ length: 24 }, () => 'day');
+  const tot = H.avg.reduce((a, b) => a + b, 0) || 1;
+  const share: Record<string, number> = {};
+  H.avg.forEach((v, h) => { share[bands[h]!] = (share[bands[h]!] || 0) + v; });
+  const cheap = ['ev', 'night'].reduce((a, b) => a + (share[b] || 0), 0);
+  finding(d, `An average day on ${r.best.supplier}: ${Math.round((cheap / tot) * 100)}% of use falls in its cheap hours`,
+    'Each bar is one hour, coloured by the rate that hour is billed at.');
+  columns(d, H.avg, H.avg.map((_, h) => BAND_COLOR[bands[h]!] || DAY), { h: 32, labels: H.avg.map((_, h) => String(h).padStart(2, '0')), every: 3 });
+  const present = [...new Set(bands)];
+  let lx = d.left;
+  present.forEach((b) => {
+    box(d, lx, d.y - 2.4, 2.6, 2.6, BAND_COLOR[b] || DAY, 0.6);
+    lx += 4 + d.text(`${BAND_NAME[b] || b}  ${Math.round(((share[b] || 0) / tot) * 100)}%`, lx + 4, d.y, { face: 'helvetica', style: 'normal', size: 7, color: INK_MID }) + 6;
+  });
+  d.y += 6;
+
+  if (H.dayCost.length >= 365) {
+    let hi = 0, lo = 0;
+    H.dayCost.forEach((v, i) => { if (v > H.dayCost[hi]!) hi = i; if (v < H.dayCost[lo]!) lo = i; });
+    finding(d, 'The dearest and the cheapest day of the year');
+    tiles(d, [
+      { k: 'DEAREST DAY', v: `€${H.dayCost[hi]!.toFixed(2)}`, sub: dname(hi), tone: PEAK },
+      { k: 'CHEAPEST DAY', v: H.dayCost[lo]! < 0 ? `+€${(-H.dayCost[lo]!).toFixed(2)}` : `€${H.dayCost[lo]!.toFixed(2)}`, sub: `${dname(lo)}${H.dayCost[lo]! < 0 ? ', earned' : ''}`, tone: GREEN },
+      { k: 'AVERAGE DAY', v: `€${(H.dayCost.reduce((a, b) => a + b, 0) / 365).toFixed(2)}`, sub: `${(tot).toFixed(1)} kWh used` },
+    ]);
+  }
+}
+
+/** How sure the figures are: one meter and its parts. */
+function chAccuracy(d: Doc, r: ReportData) {
+  if (!r.accuracy) return;
+  const a = r.accuracy;
+  finding(d, `Yearly figures are within ±${a.pct}% either way`,
+    a.withMeter ? `The biggest unknown is your usage. Your ESB smart-meter file would bring it to ±${a.withMeter}%.` : 'Built on your real meter readings: only the weather and the system specs are left to vary.');
+  meter(d, Math.max(0.08, Math.min(1, 1 - (a.pct - 2) * 0.06)));
+  hbars(d, a.parts.slice().sort((x, y) => y.err - x.err).map((p) => ({
+    label: p.label, sub: p.open ? `To tighten: ${p.tip}` : (/confirmed|meter/i.test(p.label) ? 'Measured or confirmed' : 'Always present'),
+    value: p.err, text: `±${p.err}%`, color: p.open ? MADE : GREEN })), { barH: 2.6 });
 }
 
 /* ── chapters ────────────────────────────────────────────────────────────── */
@@ -454,6 +536,8 @@ function chMethod(d: Doc, r: ReportData) {
   chapter(d, n, 'Method and assumptions',
     'Every figure in this report can be traced to an input. Those inputs are listed here so you can judge how much weight to put on the result.');
 
+  chAccuracy(d, r);
+  heading(d, 'What the model assumes');
   definitions(d, r.methodology.map((m) => ({ term: m.term, value: m.value })));
 
   d.skip(0.6);
@@ -599,12 +683,23 @@ function chWhereMoneyGoes(d: Doc, r: ReportData) {
   chapter(d, 'Analysis', 'Where the money actually goes',
     `Not every kilowatt-hour costs the same. This is your annual import cost split by the rate band it fell in, on ${planWord(r)}.`);
 
-  barBreakdown(d, r.bands.map((b) => ({
-    label: b.band === 'day' ? 'Day rate' : b.band === 'night' ? 'Night rate'
-      : b.band === 'peak' ? 'Peak rate' : b.band === 'ev' ? 'EV window' : 'Working hours',
-    value: b.cost,
-    note: `${Math.round(b.kwh).toLocaleString('en-IE')} kWh at an effective ${(b.effectiveRate * 100).toFixed(1)}c`,
-  })), { color: DEBIT, caption: 'Annual import cost by rate band, excluding the standing charge.' });
+  const fixed = r.best.standing + 19.1;
+  const tot = r.bands.reduce((a, b) => a + b.cost, 0) + fixed;
+  const top = r.bands.slice().sort((x, y) => y.cost - x.cost)[0]!;
+  finding(d, `${BAND_NAME[top.band] || top.band} electricity is the biggest part of the bill: ${Math.round((top.cost / tot) * 100)}%`,
+    `Annual import cost by the rate band it fell in, plus the fixed charges, on ${r.best.supplier}.`);
+  stack(d, [...r.bands.map((b) => ({
+    label: BAND_NAME[b.band] || b.band, value: b.cost, color: BAND_COLOR[b.band] || DAY, text: eur(b.cost),
+    sub: `${Math.round(b.kwh).toLocaleString('en-IE')} kWh at an effective ${(b.effectiveRate * 100).toFixed(1)}c`,
+  })), { label: 'Fixed charges', value: fixed, color: FIXED, text: eur(fixed), sub: 'Standing charge and PSO levy' }]);
+
+  if (r.months?.length) {
+    const net = r.months.map((m) => m.cost - m.revenue);
+    const hi = net.indexOf(Math.max(...net));
+    finding(d, `${r.months[hi]!.month} costs the most${net.some((v) => v < 0) ? '; the green months the panels earn more than you buy' : ''}`,
+      'Electricity each month, less export payments. Fixed charges come on top.');
+    columns(d, net, net.map(() => PEAK), { h: 30, labels: r.months.map((m) => m.month.slice(0, 3)), neg: GREEN });
+  }
 
   if (r.peakConcentration != null && r.peakConcentration > 0) {
     d.paragraph(
@@ -633,19 +728,11 @@ function chLevers(d: Doc, r: ReportData) {
   chapter(d, 'Variables', 'What would change these numbers',
     'Every figure in this report rests on assumptions. These are the ones that move the answer most, each re-simulated rather than estimated.');
 
-  const cols: Column[] = [
-    { head: 'Change', width: 0, cell: (row: never) => (row as { label: string }).label },
-    { head: 'What changes', width: 68, cell: (row: never) => (row as { effect: string }).effect },
-    {
-      head: 'Worth', width: 26, align: 'right',
-      cell: (row: never) => signed((row as { value: number }).value),
-      color: (row: never) => ((row as { value: number }).value >= 0 ? ACCENT : DEBIT),
-      bold: () => true,
-    },
-  ];
-  table(d, r.levers, cols, {
-    note: 'Each row re-runs the full 8,760-hour simulation with one input changed and everything else held constant. A positive figure means you would be better off after the change; energy effects only, before the cost of any equipment.',
-  });
+  const best = r.levers.slice().sort((x, y) => y.value - x.value)[0]!;
+  finding(d, best.value > 0 ? `${best.label}: worth ${eur(best.value)} a year` : 'None of these changes would leave you better off',
+    'Each bar re-runs the full 8,760-hour year with one input changed. Green leaves you better off, orange worse; energy only, before the cost of any equipment.');
+  diverging(d, r.levers.map((l) => ({ label: l.label, sub: l.note ? `${l.effect}. ${l.note}` : l.effect, value: l.value })));
+  d.skip(0.6);
 
   d.paragraph(
     'One lever costs nothing and is not in the table because it depends on habit rather than hardware: running the immersion, dishwasher, washing machine or car charger while the panels are producing. Every unit used at the moment it is generated avoids buying that unit entirely, which is worth more than the export rate you would otherwise receive for it.',
@@ -662,6 +749,7 @@ export function renderReport(pdf: PdfDoc, data: ReportData): void {
   cover(d, r);
   contents(d, r);
   chUsage(d, r);
+  chHours(d, r);
   chComparison(d, r);
   chWhereMoneyGoes(d, r);
   chSolar(d, r);

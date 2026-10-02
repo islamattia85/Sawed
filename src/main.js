@@ -7567,7 +7567,34 @@ async function doGeneratePdf(email){
       }
     } catch(e){ /* levers are additive; a failure must not block the report */ }
 
+    // The same four-step comparison Home shows, so the report opens on it.
+    let ladder = null;
+    try {
+      const pl = (state.solar_planned || state.solar_is_estimate) ? plannedLadder() : null;
+      const mine = getPlanById(state.baseline);
+      if (pl) ladder = [
+        { label: 'Current plan', plan: `${mine.supplier} · ${mine.plan}`, value: pl.today, solar: false },
+        { label: 'Best plan', plan: `${pl.noSolar.plan.supplier} · ${pl.noSolar.plan.plan}`, value: pl.noSolar.net, solar: false },
+        { label: 'Current plan + panels', plan: `${mine.supplier} · ${mine.plan}`, value: pl.mine, solar: true },
+        { label: 'Best plan + panels', plan: `${pl.best.plan.supplier} · ${pl.best.plan.plan}`, value: pl.best.net, solar: true, best: true },
+      ];
+      else ladder = [
+        { label: 'Current plan', plan: `${mine.supplier} · ${mine.plan}`, value: baseCost, solar: false },
+        ...(state.has_solar && totalPanels() > 0 ? [{ label: 'Current plan, with your panels', plan: `${mine.supplier} · ${mine.plan}`, value: annualCost(sim(mine.id), mine).net, solar: true }] : []),
+        { label: rec.isManualChoice ? 'Your chosen plan' : 'Best plan', plan: `${best.plan.supplier} · ${best.plan.plan}`, value: best.net, solar: !!(state.has_solar && totalPanels() > 0), best: true },
+      ];
+    } catch(e){ ladder = null; }
+    let accuracy = null;
+    try {
+      const a = modelAccuracy();
+      accuracy = { pct: a.pct, withMeter: state._csv_imported ? null : accuracyWithMeter(),
+        parts: a.parts.map(p => ({ label: p.label, err: p.err, open: !!p.tip, tip: p.tip || '' })) };
+    } catch(e){ accuracy = null; }
+    const bandsFor = (plan) => { try { return Array.from({ length: 24 }, (_, h) => bandAt(h, plan)); } catch(e){ return null; } };
+
     const data = buildReportData({
+      ladder, accuracy,
+      bestBands: bandsFor(best.plan), currentBands: bandsFor(baselinePlan),
       hourly: (best.sim || sim(best.plan.id)),
       levers: levers.filter(l => Number.isFinite(l.value) && Math.abs(l.value) >= 1)
                     .map(l => ({ ...l, value: Math.round(l.value) })),
