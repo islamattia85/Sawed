@@ -14,7 +14,7 @@ name: Capture supplier prices and verify the registry
 
 on:
   push:
-    branches: ['feat/price-**', 'v7']
+    branches: ['feat/price-**', 'v7', 'v8']
     paths: ['scraper/audit_dump.py', '.github/workflows/audit_evidence.yml']
   workflow_dispatch:
     inputs:
@@ -99,12 +99,20 @@ jobs:
           git commit -q -m "evidence: supplier prices as published on $(date -u +%F)" || echo "no change"
           git push origin audit/evidence
 
+  # Each maintained line of the app carries its own copy of the registry, so
+  # each is checked against the same evidence and gets its own pull request.
   verify:
     needs: capture
     if: always()
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        line: [v8, v7]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.line }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -143,14 +151,16 @@ jobs:
           add-paths: |
             public/tariffs.json
             src/main.js
-          branch: tariffs/verified-update
+          base: ${{ matrix.line }}
+          branch: tariffs/verified-update-${{ matrix.line }}
           commit-message: "tariffs: prices as published by the suppliers"
-          title: "Tariff update from the suppliers' own pages"
+          title: "Tariff update for ${{ matrix.line }} from the suppliers' own pages"
           labels: tariffs
           delete-branch: true
           body-path: verify_report.md
       - name: Raise an issue when a plan could not be read or is missing
-        if: steps.verify.outputs.status != '0'
+        # One issue, not one per line: the evidence is the same for both.
+        if: steps.verify.outputs.status != '0' && matrix.line == 'v8'
         uses: actions/github-script@v7
         with:
           script: |
