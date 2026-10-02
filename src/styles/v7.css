@@ -1368,16 +1368,19 @@ section.hc { cursor: default; }
 .v7-ev-ctl > svg { color: var(--accent); }
 .v7-step-go { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); }
 
-/* Planned solar: two questions crossed */
-.v7-grid4 { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px; align-items: stretch; margin-top: var(--space-1); }
-.g4-h { display: grid; align-content: end; font-size: var(--text-caption); font-weight: 700; color: var(--ink-soft); }
-.g4-h small { font-weight: 600; color: var(--ink-dim); }
-.g4-r { display: flex; align-items: center; max-width: 92px; font-size: var(--text-caption); font-weight: 600; color: var(--ink-soft); line-height: 1.3; }
-.g4-c { display: grid; align-content: center; gap: 2px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--well); border: 1px solid var(--line); }
-.g4-c b { font-size: var(--text-lead); font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
-.g4-c small { font-size: var(--text-caption); color: var(--ink-soft); }
-.g4-c.is-mid { background: var(--accent-faint); }
-.g4-c.is-best { background: var(--accent-soft); border-color: var(--accent); }
-.g4-c.is-best b { color: var(--accent); }
+/* Planned solar: four bars, short names, the plan underneath */
+.v7-grid4 { display: grid; gap: 10px; margin-top: var(--space-1); }
+.g4-bar { display: grid; gap: 5px; }
+.g4-k { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--space-2); }
+.g4-k span { display: grid; min-width: 0; }
+.g4-k b { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-data); color: var(--ink); }
+.g4-k small { font-size: var(--text-caption); color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g4-k em { flex: none; font-style: normal; font-weight: 800; font-size: var(--text-body); color: var(--ink); font-variant-numeric: tabular-nums; }
+.g4-sun { display: inline-flex; color: var(--ax-made); }
+.g4-t { height: 12px; border-radius: 999px; background: var(--track-soft); overflow: hidden; }
+.g4-t i { display: block; height: 100%; border-radius: 999px; background: var(--ink-dim); }
+.g4-bar.is-mid .g4-t i { background: var(--v7-mid); }
+.g4-bar.is-best .g4-t i { background: var(--accent); }
+.g4-bar.is-best em { color: var(--accent); }
 .g4-steps { display: grid; gap: 4px; margin-top: var(--space-2); font-size: var(--text-data); color: var(--ink-soft); }
 .g4-steps b { color: var(--accent); }

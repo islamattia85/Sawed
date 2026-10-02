@@ -156,15 +156,20 @@ export function createV7(api) {
    */
   function grid4(pl, stair) {
     const st = S();
-    const cell = (i, sub, cls = '') => `<div class="g4-c ${cls}" data-rung="${i}" data-label="${esc(stair[i].label)}" data-value="${stair[i].value}">
-        <b>${eur(stair[i].value)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
+    const mine = api.getPlanById(st.baseline);
+    const max = Math.max(...stair.map((r) => r.value), 1);
+    const sun = `<i class="g4-sun">${api.ic('sun', 14)}</i>`;
+    const bar = (i, name, plan, solar, cls) => `<div class="g4-bar ${cls}" data-rung="${i}" data-label="${esc(stair[i].label)}" data-value="${stair[i].value}">
+        <div class="g4-k"><span><b>${name}${solar ? ` + ${sun}` : ''}</b><small>${esc(plan)}${solar ? ', with the planned panels' : ''}</small></span><em>${eur(stair[i].value)}</em></div>
+        <div class="g4-t"><i style="width:${Math.max(3, stair[i].value / max * 100).toFixed(1)}%"></i></div>
+      </div>`;
     const sw = pl.today - pl.noSolar.net;
     const panels = pl.noSolar.net - pl.best.net;
-    const mine = api.getPlanById(st.baseline);
-    return `<div class="v7-ladder v7-grid4" role="table" aria-label="What you'd pay a year">
-        <span></span><span class="g4-h">Your plan<small>${esc(mine ? mine.supplier : '')}</small></span><span class="g4-h">Cheapest plan</span>
-        <span class="g4-r">Without the panels</span>${cell(0, '')}${cell(1, pl.noSolar.plan.supplier, 'is-mid')}
-        <span class="g4-r">With the planned panels</span>${cell(2, '', 'is-mid')}${cell(3, pl.best.plan.supplier, 'is-best')}
+    return `<div class="v7-ladder v7-grid4" role="list" aria-label="What you'd pay a year">
+        ${bar(0, 'Current plan', mine ? mine.supplier : '', false, 'is-now')}
+        ${bar(1, 'Best plan', pl.noSolar.plan.supplier, false, 'is-mid')}
+        ${bar(2, 'Current plan', mine ? mine.supplier : '', true, 'is-mid')}
+        ${bar(3, 'Best plan', pl.best.plan.supplier, true, 'is-best')}
       </div>
       <div class="g4-steps">
         <span><b>${sw > 1 ? eur(sw) : '€0'}</b> from switching plan, today</span>
