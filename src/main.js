@@ -2535,7 +2535,24 @@ function analyticsDay(dayIdx){
       ch: t.ch ? t.ch[i] || 0 : 0, dis: t.dis ? t.dis[i] || 0 : 0,
       cost: (t.cost[i] || 0) - (t.revenue ? t.revenue[i] || 0 : 0) });
   }
-  return { day, hours, yearMax: d._yearMax };
+  // With panels (installed, or planned on the plan that suits them), the day as the
+  // panels and battery would run it: v7's day inspector, hour by hour.
+  let solar = null;
+  if (d.sys){
+    const best = d.installed ? { plan: d.plan, sim: sim(d.plan.id) } : getBestPlan();
+    const s = best.sim, p = best.plan;
+    solar = { plan: p, planned: !d.installed, cap: +state.battery_kwh || 0, hours: [] };
+    for (let h = 0; h < 24; h++){
+      const i = day * 24 + h;
+      const band = (s.band && s.band[i]) || bandAt(h, p);
+      solar.hours.push({ h, band, rate: p.rates[band] ?? p.rates.day,
+        gen: s.gen[i] || 0, use: s.cons[i] || 0, imp: s.grid_import[i] || 0, exp: s.grid_export[i] || 0,
+        ch: s.battery_charge ? s.battery_charge[i] || 0 : 0, dis: s.battery_discharge ? s.battery_discharge[i] || 0 : 0,
+        soc: s.soc ? s.soc[i] || 0 : 0,
+        cost: (s.cost[i] || 0) - (s.revenue ? s.revenue[i] || 0 : 0) });
+    }
+  }
+  return { day, hours, yearMax: d._yearMax, solar };
 }
 
 /**

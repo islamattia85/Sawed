@@ -798,10 +798,10 @@ export function createV7(api) {
       <p class="ax-note">Dearest day: <button class="ax-inline" onclick="setAnalyticsDay(${T.dearest.day})">${dayName(T.dearest.day)}, ${dayMoney(T.dearest.cost)}</button>.
         Cheapest: <button class="ax-inline" onclick="setAnalyticsDay(${T.cheapest.day})">${dayName(T.cheapest.day)}, ${dayMoney(T.cheapest.cost)}</button>. ${bought ? 'Electricity less export payments.' : 'Electricity only.'}</p>
       <button class="ax-more ax-more-in ${open ? 'open' : ''}" aria-expanded="${open}" onclick="state._an_day_open=!state._an_day_open;saveState();renderApp()">
-        <span><b>Every hour of ${dayName(one.day)}</b><small>The rate, the cost${bought ? ', and the solar and battery' : ''}, hour by hour</small></span>
+        <span><b>Every hour of ${dayName(one.day)}</b><small>${one.solar ? `Made, used, bought, sold${S().battery_kwh > 0 ? ', the battery' : ''} and the money, ${one.solar.planned ? 'with the planned panels' : 'hour by hour'}` : 'Used, bought and what each hour cost'}</small></span>
         <span class="ax-more-s">${open ? 'Hide' : 'Show'} ${api.ic(open ? 'chevU' : 'chevD', 16)}</span>
       </button>
-      ${open ? dayDetail(one, bought) : ''}`);
+      ${open ? dayDetail(one) : ''}`);
 
     return `${anHead('hours')}
       ${anAnswer(ans)}
@@ -811,36 +811,51 @@ export function createV7(api) {
       ${st._csv_imported ? cta('Plans that suit these hours', "setScreen('plans')") : cta('Upload your meter file for your real hours', "v7Sheet('meter')")}`;
   }
 
-  /** One day, every hour: the rate it was bought at and what it cost, and with panels what they did. */
-  function dayDetail(one, bought) {
-    const H = one.hours;
+  /**
+   * One day, every hour: v7's day inspector, redrawn. The day's money first
+   * (green when it earned, red when it cost), then each flow with its own
+   * total, the battery, the rate and what each hour cost. With panels it is
+   * the day the panels would run, planned ones on the plan that suits them.
+   */
+  function dayDetail(one) {
+    const S0 = one.solar;
+    const H = S0 ? S0.hours : one.hours;
+    const tot = (k) => sum(H.map((x) => x[k]));
+    const net = tot('cost');
+    const flowMax = Math.max(0.0001, ...H.map((x) => Math.max(x.gen || 0, x.use, x.imp, x.exp || 0)));
+    const flow = (k, label, token) => `<div class="ax-flow">
+        <div class="ax-flow-k"><span><i class="v7-dot" style="background:var(${token})"></i>${label}</span><b>${tot(k).toFixed(1)} kWh</b></div>
+        ${vbars(H.map((x) => ({ v: x[k], token, tip: `${hhmm(x.h)} · ${x[k].toFixed(2)} kWh` })), { height: 40, max: flowMax, label: `${label}, hour by hour` })}
+      </div>`;
     const maxC = Math.max(0.0001, ...H.map((x) => Math.abs(x.cost)));
-    const solar = bought && sum(H.map((x) => x.gen)) > 0.05;
-    const ch = sum(H.map((x) => x.ch));
-    const dis = sum(H.map((x) => x.dis));
-    const runs = (key) => {
-      const on = H.map((x) => x[key] > 0.05);
-      const out = [];
-      for (let h = 0; h < 24; h++) {
-        if (!on[h] || (h > 0 && on[h - 1])) continue;
-        let k = h;
-        while (k < 23 && on[k + 1]) k += 1;
-        out.push(`${hhmm(h)}–${hhmm(k + 1)}`);
-      }
-      return out.slice(0, 3).join(', ');
-    };
+    const batt = S0 && S0.cap > 0;
+    const bMax = Math.max(0.0001, ...H.map((x) => Math.max(x.ch, x.dis)));
+    const socPts = batt ? H.map((x, i) => `${(i / 23 * 100).toFixed(1)},${(38 - (x.soc / S0.cap) * 36).toFixed(1)}`).join(' ') : '';
+    const full = batt ? H.reduce((m, x) => (x.soc > m.soc ? x : m), H[0]) : null;
     return `<div class="ax-day">
+      ${S0 && S0.planned ? `<div class="ax-day-tag">${api.ic('sun', 14)} With the planned panels, on ${esc(S0.plan.supplier)}</div>` : ''}
+      <div class="ax-day-net ${net < 0 ? 'is-gain' : 'is-loss'}"><b>${net < 0 ? `+€${(-net).toFixed(2)}` : `€${net.toFixed(2)}`}</b><span>${net < 0 ? 'earned this day' : 'cost this day'}${S0 ? ', export payments taken off' : ''}</span></div>
+      ${S0 ? flow('gen', 'Made by the panels', '--ax-made') : ''}
+      ${flow('use', 'Used by the home', '--bandink-day')}
+      ${flow('imp', 'Bought from the grid', '--bandink-peak')}
+      ${S0 ? flow('exp', 'Sold to the grid', '--ax-sold') : ''}
+      ${batt ? `<div class="ax-flow">
+        <div class="ax-flow-k"><span><i class="v7-dot" style="background:var(--ax-kept)"></i>Battery</span><b>in ${tot('ch').toFixed(1)} · out ${tot('dis').toFixed(1)} kWh</b></div>
+        <div class="ax-batt">
+          ${vbars(H.map((x) => ({ v: x.ch, token: '--ax-kept', tip: `${hhmm(x.h)} · charging ${x.ch.toFixed(2)} kWh` })), { height: 40, max: bMax, label: 'Battery charging by hour' })}
+          <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><polyline points="${socPts}" fill="none" stroke="var(--ink)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>
+        </div>
+        ${vbars(H.map((x) => ({ v: x.dis, token: '--ax-sold', tip: `${hhmm(x.h)} · giving back ${x.dis.toFixed(2)} kWh` })), { height: 32, max: bMax, label: 'Battery giving back by hour' })}
+        <p class="ax-note">Bars above: charging. Below: giving back. The line is how full it is${full && full.soc > 0.05 ? `, fullest at ${hhmm(full.h)} (${full.soc.toFixed(1)} of ${S0.cap} kWh)` : ''}.</p>
+      </div>` : ''}
       <div class="ax-day-k">The rate, hour by hour</div>
       ${rateStrip({ bands: H.map((x) => x.band), rates: H.reduce((o, x) => ({ ...o, [x.band]: x.rate }), {}), height: 18 })}
       ${hourAxis()}
       <div class="ax-day-k">What each hour cost</div>
       <div class="ax-vbars ax-cost" style="height:72px" role="img" aria-label="Cost by hour on ${dayName(one.day)}">${H.map((x) =>
-        `<i class="${x.cost < 0 ? 'is-credit' : ''}" style="height:${Math.max(x.cost ? 3 : 0, (Math.abs(x.cost) / maxC) * 100).toFixed(1)}%" title="${hhmm(x.h)} · ${x.cost < 0 ? 'earned' : 'cost'} €${Math.abs(x.cost).toFixed(2)}"></i>`).join('')}</div>
+        `<i class="${x.cost < 0 ? 'is-credit' : ''}" style="height:${(x.cost ? Math.max(3, (Math.abs(x.cost) / maxC) * 100) : 0).toFixed(1)}%" title="${hhmm(x.h)} · ${x.cost < 0 ? 'earned' : 'cost'} €${Math.abs(x.cost).toFixed(2)}"></i>`).join('')}</div>
       ${hourAxis()}
-      ${solar ? `<div class="ax-day-k">Made by the panels, used by the home</div>
-        ${dayProfile({ hours: H.map((x) => ({ cons: x.use, gen: x.gen, imp: x.imp, band: x.band })), height: 110 })}
-        <p class="ax-note">Made ${sum(H.map((x) => x.gen)).toFixed(1)} kWh, sold ${sum(H.map((x) => x.exp)).toFixed(1)} kWh, bought ${sum(H.map((x) => x.imp)).toFixed(1)} kWh.</p>` : ''}
-      ${bought && (ch > 0.05 || dis > 0.05) ? `<p class="ax-note">${api.ic('battery', 14)} The battery took in ${ch.toFixed(1)} kWh${runs('ch') ? ` (${runs('ch')})` : ''} and gave back ${dis.toFixed(1)} kWh${runs('dis') ? ` (${runs('dis')})` : ''}.</p>` : ''}
+      <div class="v7-legend"><span><i class="v7-dot" style="background:var(--loss)"></i>cost</span><span><i class="v7-dot" style="background:var(--gain)"></i>earned (sold more than bought)</span></div>
     </div>`;
   }
 
