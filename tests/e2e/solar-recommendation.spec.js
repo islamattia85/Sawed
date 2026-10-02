@@ -155,14 +155,15 @@ test('the recommendation is a single defensible pick, and applying it works', as
   const nearTies = sweep.designs.filter((x) => x.npv >= top * 0.95);
   expect(d.net).toBe(Math.min(...nearTies.map((x) => x.net)));
 
-  const btn = page.getByRole('button', { name: /Switch to the suggested system/i });
+  // The best-value tile is chosen first; using it adopts exactly that design.
+  const btn = page.getByRole('button', { name: /Use this system/i });
   if (await btn.count()) {
     await btn.click();
     await expect.poll(() => page.evaluate(() => window.state.count_A)).toBe(d.panels);
     expect(await page.evaluate(() => window.state.battery_kwh)).toBe(d.batt);
-    // Now that we are on it, the offer becomes a one-line confirmation.
+    // Now that we are on it, the tile says so and there is nothing to apply.
     await expect(page.locator('.opt-note')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Switch to the suggested system/i })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Use this system/i })).toHaveCount(0);
   }
   expect(errors).toEqual([]);
 });

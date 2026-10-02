@@ -5398,52 +5398,70 @@ function renderOptimisedSuggestion(){
       ${ic('spark',14)} <span>Checking whether a different size would suit you better…</span>
     </div>`;
   }
-  const d = bestDesign();
-  if (!d) return '';
-  const onIt = state.count_A === d.panels && (state.battery_kwh || 0) === d.batt;
-
-  if (onIt){
-    return `<div class="opt-note">
-      ${ic('checkC',14)} <span>Best value of every size we simulated for your home.
-      <a href="#" onclick="event.preventDefault();goRefineSolar()">Change the spec</a></span>
-    </div>`;
-  }
+  const goals = designGoals();
+  if (!goals.length) return '';
+  const sel = goals.find((g) => g.keys.includes(state._opt_sel)) || goals[0];
+  const mine = (d) => totalPanels() === d.panels && (state.battery_kwh || 0) === d.batt;
+  const hasNow = state.has_solar && totalPanels() > 0;
+  let curPb = null;
+  try { const scen = computeSolarPaybackScenarios(); const c = state.ev_active ? scen.withEv : scen.withoutEv; if (c && c.payback < 50) curPb = c.payback; } catch (e) {}
 
   /*
-   * Two systems, side by side and labelled.
-   *
-   * This was one sentence carrying both of them — "You're modelling 5.3 kWp +
-   * 5 kWh. 6.6 kWp, no battery — €1,136/yr saved, 5.9 year payback, €6,700
-   * after the grant" — with the only clue to which was which being that one
-   * half was bold. "no battery" read as a description of the reader's own
-   * setup, and the three figures sat adjacent to both systems while belonging
-   * to only one. Whatever a comparison is, it is not one run-on sentence.
+   * Systems by what they're for. One suggestion against yours hid the choice
+   * people actually make: spend less, get it back sooner, make the most over
+   * the years, or rely least on the grid. Each tile is one of the twelve
+   * designs simulated for this home, labelled by the goal it wins.
    */
-  const spec = (kwp, batt) => `${(+kwp).toFixed(1)} kWp<span class="opt-cmp-batt">${batt ? `${batt} kWh battery` : 'no battery'}</span>`;
-  const scen = computeSolarPaybackScenarios();
-  const cur = state.ev_active ? scen.withEv : scen.withoutEv;
-  const curPayback = state.has_solar && totalPanels() > 0 && cur && cur.payback < 50
-    ? `${cur.payback.toFixed(1)} yr payback` : '';
-  const hasNow = state.has_solar && totalPanels() > 0;
-
-  return `<div class="opt-card">
-    <div class="opt-card-head">${ic('spark',15)} <span>A better size for your roof</span></div>
-    <div class="opt-cmp">
-      <div class="opt-cmp-col">
-        <div class="opt-cmp-label">${hasNow ? 'Yours' : 'No solar'}</div>
-        <div class="opt-cmp-spec">${hasNow ? spec(totalKwp(), state.battery_kwh || 0) : '—'}</div>
-        ${curPayback ? `<div class="opt-cmp-out">${curPayback}</div>` : ''}
-      </div>
-      <div class="opt-cmp-arrow" aria-hidden="true">→</div>
-      <div class="opt-cmp-col is-suggested">
-        <div class="opt-cmp-label">Suggested</div>
-        <div class="opt-cmp-spec">${spec(d.kwp, d.batt)}</div>
-        <div class="opt-cmp-out">${d.payback.toFixed(1)} yr payback</div>
-      </div>
+  return `<div class="opt-card opt-goals">
+    <div class="opt-card-head">${ic('spark',15)} <span>Systems for your roof, by what matters to you</span></div>
+    ${hasNow ? `<div class="opt-yours">Yours now: <b>${totalPanels()} panels${state.battery_kwh ? ` · ${state.battery_kwh} kWh battery` : ' · no battery'}</b>${curPb ? ` · ${curPb.toFixed(1)} yr payback` : ''}</div>` : ''}
+    <div class="opt-tiles" role="radiogroup" aria-label="Choose a system">
+      ${goals.map((g) => `<button class="opt-tile ${g === sel ? 'on' : ''}" role="radio" aria-checked="${g === sel}" onclick="state._opt_sel='${g.keys[0]}';renderApp()">
+        <span class="opt-tile-k">${ic(g.icon, 16)} ${g.labels.join(' · ')}${mine(g.d) ? '<i>yours</i>' : ''}</span>
+        <span class="opt-tile-why">${g.why}</span>
+        <span class="opt-tile-spec">${g.d.panels} panels · ${g.d.batt ? `${g.d.batt} kWh battery` : 'no battery'}</span>
+        <span class="opt-tile-figs"><span><b>${fmtCurrency(g.d.net)}</b>after grant</span><span><b>${g.d.payback.toFixed(1)} yrs</b>payback</span><span><b>${fmtCurrency(g.d.npv)}</b>over 20 yrs</span></span>
+      </button>`).join('')}
     </div>
-    <div class="opt-card-body">Saves ${fmtCurrency(d.benefit)} a year · ${fmtCurrency(d.net)} to install after the grant.</div>
-    <button class="opt-card-btn" onclick="applyBestDesign()">Switch to the suggested system</button>
+    ${mine(sel.d) ? `<div class="opt-note">${ic('checkC',14)} <span>That’s the system you have now.</span></div>`
+      : `<button class="opt-card-btn" onclick="useGoalDesign('${sel.keys[0]}')">Use this system: ${sel.d.panels} panels${sel.d.batt ? ` + ${sel.d.batt} kWh` : ''}</button>`}
   </div>`;
+}
+
+/** The simulated designs, one per goal; a design that wins two goals is shown once. */
+function designGoals(){
+  const sweep = sweepGoalDesigns();
+  if (!sweep || !sweep.designs || !sweep.designs.length) return [];
+  const ok = sweep.designs.filter((d) => d.npv > 0 && d.payback < 25);
+  const pool = ok.length ? ok : sweep.designs;
+  const pick = [
+    { key: 'value', icon: 'trendUp', label: 'Best value', why: 'Most back over 20 years, without overspending', d: bestDesign() },
+    { key: 'payback', icon: 'clock', label: 'Fastest payback', why: 'Pays for itself soonest', d: pool.slice().sort((a, b) => a.payback - b.payback || a.net - b.net)[0] },
+    { key: 'cost', icon: 'euro', label: 'Lowest cost', why: 'Smallest outlay that still pays off', d: pool.slice().sort((a, b) => a.net - b.net || a.payback - b.payback)[0] },
+    { key: 'own', icon: 'battery', label: 'Most of your own power', why: 'Biggest system: least bought from the grid', d: sweep.designs.slice().sort((a, b) => (b.panels - a.panels) || (b.batt - a.batt))[0] },
+  ].filter((g) => g.d);
+  const out = [];
+  for (const g of pick){
+    const same = out.find((o) => o.d.panels === g.d.panels && o.d.batt === g.d.batt);
+    if (same){ same.labels.push(g.label); same.keys.push(g.key); }
+    else out.push({ keys: [g.key], labels: [g.label], icon: g.icon, why: g.why, d: g.d });
+  }
+  return out;
+}
+
+/** Adopt the design shown for a goal as the household's own system. */
+function useGoalDesign(key){
+  const g = designGoals().find((x) => x.keys.includes(key));
+  if (!g) return;
+  const d = g.d;
+  state.solar_view = 'mine';
+  applySystemConfig(designToConfig(d));
+  state.considering_solar = true;
+  state.solar_is_estimate = true;
+  snapshotMySystem();
+  saveState();
+  renderApp();
+  showToast(`${d.panels} panels${d.batt ? ' + ' + d.batt + ' kWh battery' : ''}: ${d.payback.toFixed(1)} yr payback`, { type: 'accent', icon: ic('checkC', 16) });
 }
 
 function startGoalDesign(goal){
@@ -11467,7 +11485,7 @@ function renderAccuracy(){
   return `<div class="sy-acc">
     <div class="sy-acc-top"><span>Estimate accuracy</span><b>±${a.pct}%</b></div>
     <div class="sy-acc-bar" aria-hidden="true"><i style="width:${fill}%"></i></div>
-    ${a.tip ? `<button class="sy-acc-tip" onclick="${a.tip.go}">${ic('spark', 14)} ${esc(a.tip.tip)}</button>` : `<div class="sy-acc-note">As close as a model gets without a year of your own data.</div>`}
+    ${a.tip ? `<button class="sy-acc-tip" onclick="${a.tip.go}">${ic('spark', 14)} ${esc(a.tip.tip)}</button>` : `<div class="sy-acc-note">${state._csv_imported ? 'Built on your real meter readings: only the weather is left to vary.' : 'As close as a model gets without a year of your own data.'}</div>`}
     ${a.priceTypical ? `<div class="sy-acc-note">Payback uses a typical price for this system. Your quote's price makes it exact.</div>` : ''}
   </div>`;
 }
@@ -13463,6 +13481,7 @@ window.sgCancel = sgCancel;
 window.flowSupplier = flowSupplier;
 window.sgKeep = sgKeep;
 window.sgGrant = sgGrant;
+window.useGoalDesign = useGoalDesign;
 window.startSolarGuide = startSolarGuide;
 window.startFlow = startFlow;
 window.plannedSolarSplit = plannedSolarSplit;

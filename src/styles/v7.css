@@ -1227,3 +1227,18 @@ section.hc { cursor: default; }
 .hc-go { justify-self: start; display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--accent); background: var(--accent-faint); color: var(--accent); font: 700 var(--text-data) var(--display); cursor: pointer; }
 .hc-invite > svg:last-child { margin-left: auto; color: var(--ink-soft); }
 .hc-tag { pointer-events: none; }
+/* Systems by goal */
+.opt-yours { font-size: var(--text-data); color: var(--ink-soft); }
+.opt-yours b { color: var(--ink); }
+.opt-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.opt-tile { display: grid; gap: 6px; align-content: start; min-width: 0; padding: var(--space-3); text-align: left; border-radius: var(--radius-lg); border: 1.5px solid var(--line); background: var(--panel); color: var(--ink); font-family: inherit; cursor: pointer; }
+.opt-tile.on { border-color: var(--accent); background: var(--accent-faint); }
+.opt-tile-k { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font: 700 var(--text-data) var(--display); color: var(--accent); }
+.opt-tile-k i { font-style: normal; padding: 1px 8px; border-radius: 999px; background: var(--well); color: var(--ink-soft); font-size: var(--text-caption); }
+.opt-tile-why { font-size: var(--text-caption); color: var(--ink-soft); line-height: 1.35; }
+.opt-tile-spec { font-weight: 700; font-size: var(--text-body); }
+.opt-tile-figs { display: grid; gap: 2px; font-size: var(--text-caption); color: var(--ink-soft); }
+.opt-tile-figs b { color: var(--ink); margin-right: 4px; }
+/* "‹ Home  Solar": keep them apart */
+.v7-top-sub { gap: var(--space-3); }
+.v7-top.v7-top-sub { grid-template-columns: auto 1fr auto; }

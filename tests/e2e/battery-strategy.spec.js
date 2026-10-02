@@ -89,17 +89,15 @@ test('the suggested system is told apart from the one being modelled', async ({ 
   ).toBe(true);
 
   const card = page.locator('.opt-card');
-  if (!(await card.count())) return;      // already on the best design
+  await expect(card).toBeVisible();
 
-  // Both systems are labelled and each carries its own figures. This was one
-  // sentence holding both, told apart only by one half being bold.
-  await expect(card.locator('.opt-cmp-col').first()).toContainText(/Yours|No solar/i);
-  await expect(card.locator('.opt-cmp-col.is-suggested')).toContainText(/Suggested/i);
-
-  const cols = await card.locator('.opt-cmp-col').allInnerTexts();
-  expect(cols.length, 'the comparison is not two columns').toBe(2);
-  expect(cols[0], 'the reader’s own system is not stated').toMatch(/kWp|—/);
-  expect(cols[1], 'the suggested system carries no outcome of its own').toMatch(/yr payback/);
-  // The two must actually differ, or the card should not be offering anything.
-  expect(cols[0]).not.toEqual(cols[1]);
+  // The reader's own system is stated on its own line, and every option is a
+  // tile named by the goal it wins, with its own spec and figures.
+  await expect(card.locator('.opt-yours')).toContainText(/12 panels · 5 kWh battery/);
+  const tiles = await card.locator('.opt-tile').allInnerTexts();
+  expect(tiles.length).toBeGreaterThanOrEqual(2);
+  for (const t of tiles) expect(t).toMatch(/panels[\s\S]*after grant[\s\S]*payback[\s\S]*over 20 yrs/);
+  // No two tiles offer the same system.
+  const specs = await card.locator('.opt-tile-spec').allInnerTexts();
+  expect(new Set(specs).size).toBe(specs.length);
 });
