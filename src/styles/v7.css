@@ -1137,3 +1137,11 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .an-hub::-webkit-scrollbar { display: none; }
 .an-hub-b { flex: none; padding: 8px 14px; border-radius: var(--radius-pill); border: 1.5px solid var(--line); background: var(--panel); font: 700 var(--text-data) var(--display); color: var(--ink-soft); cursor: pointer; }
 .an-hub-b.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+/* ---------------------------------------------------------- v8: one card style on every screen */
+.card, .secondary-card, .refine-panel, .settings-section-card, .quote-card {
+  background: var(--panel); border: 1px solid var(--hair); box-shadow: var(--lift);
+}
+.qs-worth { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.qs-worth > span { display: flex; flex-direction: column; padding: var(--space-3); border-radius: var(--radius-lg); background: var(--accent-faint); font-size: var(--text-caption); color: var(--ink-soft); min-width: 96px; }
+.qs-worth b { font: 800 var(--text-h3) var(--display); color: var(--accent); }

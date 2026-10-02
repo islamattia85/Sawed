@@ -5556,11 +5556,14 @@ function startSolarGuide(){
   exploreSolar();
   state.current_screen = 'solar-guide';
   state._sg = 1;
+  guidePush('solar-guide', 1);
   saveState();
   renderApp();
 }
-function sgGo(step){
+function sgGo(step, fromHistory){
+  const was = state._sg;
   state._sg = Math.max(1, Math.min(SG_STEPS, step));
+  if (!fromHistory && state._sg > (was || 0)) guidePush('solar-guide', state._sg);
   renderApp();
   window.scrollTo(0, 0);
 }
@@ -5671,6 +5674,7 @@ function startEvGuide(){
   state._sheet = null;
   state.current_screen = 'ev-guide';
   state._eg = 1;
+  guidePush('ev-guide', 1);
   invalidate(); saveState(); renderApp();
 }
 function egCancel(){
@@ -5679,7 +5683,12 @@ function egCancel(){
   state._eg = null; _egBefore = null;
   invalidate(); saveState(); renderApp();
 }
-function egGo(step){ state._eg = Math.max(1, Math.min(EG_STEPS, step)); renderApp(); window.scrollTo(0, 0); }
+function egGo(step, fromHistory){
+  const was = state._eg;
+  state._eg = Math.max(1, Math.min(EG_STEPS, step));
+  if (!fromHistory && state._eg > (was || 0)) guidePush('ev-guide', state._eg);
+  renderApp(); window.scrollTo(0, 0);
+}
 function egSet(key, v, next){
   state[key] = typeof v === 'string' && key !== 'ev_in_bill' ? +v : v;
   invalidate(); saveState();
@@ -5779,7 +5788,12 @@ function flowSteps(){
   }
   return out;
 }
+/* Guides keep their own history entries, so the phone's Back gesture steps
+   back through them instead of leaving the app or skipping two screens. */
+function guidePush(kind, step){ try { history.pushState({ guide: kind, step }, '', '#' + kind); } catch (e) {} }
+
 function startFlow(){
+  guidePush('flow', 0);
   state._flow = {}; state._flow_edit = null;
   if (!state.region) state.region = 'east';
   state.usage_input_mode = 'bill';
@@ -6675,7 +6689,7 @@ function renderSolarDashboard(opts){
         </div>
       </div>
     ` : `
-      <div class="secondary-card amber" onclick="toggleEv()">
+      <div class="secondary-card amber" onclick="startEvGuide()">
         <div class="secondary-card-icon">${ic('car',19)}</div>
         <div class="secondary-card-body">
           <div class="secondary-card-title">Considering an EV?</div>
@@ -6847,7 +6861,7 @@ function renderPlanChoiceBlock(best, annualSavings, opts = {}){
     <div class="section-title">${opts.title || 'Best plan'}</div>
     ${state.chosen_plan ? renderChoiceStrip() : ''}
     <div class="plan-compare">
-      <div class="plan-row best" onclick="openTariffPopup('${best.plan.id}')" style="cursor:pointer">
+      <div class="plan-row best" onclick="v7Sheet('plan','${best.plan.id}')" style="cursor:pointer">
         <div>
           <div class="plan-label">${isChosen ? '→ Your chosen plan' : '→ Recommended'} · <span style="text-decoration:underline">tap for tariff</span></div>
           <div class="plan-value">${best.plan.supplier} — ${best.plan.plan}</div>
@@ -6858,7 +6872,7 @@ function renderPlanChoiceBlock(best, annualSavings, opts = {}){
     <button class="btn-secondary" style="margin-top:10px" onclick="openPlanPicker()">
       ${ic('tune',14)} ${state.chosen_plan ? 'Change plan' : 'Use a different plan'}
     </button>
-    <button class="switch-cta" style="margin-top:8px" onclick="handleSwitchClick('${best.plan.id}', '${(best.plan.supplier + ' ' + best.plan.plan).replace(/'/g,"\\'")}', ${annualSavings.toFixed(0)})">
+    <button class="switch-cta" style="margin-top:8px" onclick="v7Sheet('switch','${best.plan.id}')">
       Switch to ${best.plan.supplier} →
     </button>`;
 }
@@ -7078,7 +7092,7 @@ function renderPlanDetail(){
     <div class="pd-section-title"><span>Actions</span></div>
     <div style="display:flex;flex-direction:column;gap:8px">
       ${!isCurrent && !plan.discontinued ? `
-        <button class="switch-cta" style="margin-bottom:0" onclick="handleSwitchClick('${planId}', '${(plan.supplier + ' ' + plan.plan).replace(/'/g,"\\\\'")}', ${Math.max(0, (sumF(baselineSim(state.baseline).cost) + getPlanById(state.baseline).standing) - c.net).toFixed(0)})">
+        <button class="switch-cta" style="margin-bottom:0" onclick="v7Sheet('switch','${planId}')">
           Switch to ${plan.supplier} →
         </button>
       ` : ''}
@@ -7958,7 +7972,7 @@ function renderAnalytics(){
     <div class="an-chart">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <div class="an-chart-title" style="margin-bottom:0">Tariff bands &amp; rates</div>
-        <div onclick="openPlanDetail('${plan.id}')" style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.06em;cursor:pointer;padding:5px 9px;border:1px solid var(--accent);border-radius:4px">EDIT ↗</div>
+        <div onclick="v7Sheet('plan','${plan.id}')" style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.06em;cursor:pointer;padding:5px 9px;border:1px solid var(--accent);border-radius:4px">Plan details</div>
       </div>
       ${isFlatPlan(plan) ? `
         <div class="an-bands">
@@ -9355,7 +9369,7 @@ function renderMonitor(){
            interpolating it after "of" produced "ranks #20 of 22 of 25". -->
       <div class="mon-status-meta">Your current plan ranks #${rank || '–'} of ${rec.rankedCount} for your usage</div>
       <button class="switch-cta" style="margin-top:13px;margin-bottom:0;font-size:13px;padding:13px"
-        onclick="handleSwitchClick('${best.plan.id}','${(best.plan.supplier+' '+best.plan.plan).replace(/'/g,"\\'")}',${savings.toFixed(0)})">
+        onclick="v7Sheet('switch','${best.plan.id}')">
         Review the switch →</button>
     </div>`;
   }
@@ -10095,6 +10109,40 @@ function householdScore(){
   return { score, parts, quests, done };
 }
 
+/** A challenge, explained before it is started: what, why, what it is worth. */
+function renderQuestSheet(i){
+  const sc = householdScore();
+  const q = sc.quests[+i];
+  if (!q) return '';
+  const lv = scoreLevel(sc.score), after = scoreLevel(Math.min(100, sc.score + (q.pts || 0)));
+  return `<div class="v7-sheet-head"><div class="v7-eyebrow">Challenge</div><h2 class="v7-h">${q.title}</h2></div>
+    <p class="me-p">${q.sub}</p>
+    <div class="qs-worth">
+      ${q.pts ? `<span><b>+${q.pts}</b>points</span>` : ''}
+      ${q.eur ? `<span><b>${eur(q.eur)}</b>a year</span>` : ''}
+      ${q.pts && after.name !== lv.name ? `<span><b>${after.name}</b>new level</span>` : ''}
+      ${!q.pts && !q.eur ? `<span><b>Reminder</b>no points, just peace of mind</span>` : ''}
+    </div>
+    <button class="v7-cta-2" onclick="v7Sheet(null);${q.go}">Do it now ${ic('chevR', 16)}</button>
+    <div class="v7-fine">Your score updates as soon as it’s done.</div>`;
+}
+
+/* Reward feedback: when something the person did raises the score, say so. */
+let _scoreSeen = null, _scoreTimer = null;
+function checkScoreRise(){
+  if (!state.onboarding_complete || NO_SHEET_SCREENS.includes(state.current_screen)) return;
+  clearTimeout(_scoreTimer);
+  _scoreTimer = setTimeout(() => {
+    let sc; try { sc = householdScore().score; } catch (e) { return; }
+    if (_scoreSeen != null && sc > _scoreSeen){
+      const a = scoreLevel(_scoreSeen), b = scoreLevel(sc);
+      showToast(b.name !== a.name ? `Level up: ${b.name}. Your score is ${sc}.` : `Your score is now ${sc}.`,
+        { type: 'accent', icon: ic('spark', 16), title: `+${sc - _scoreSeen} points` });
+    }
+    _scoreSeen = sc;
+  }, 600);
+}
+
 function scoreLevel(score){
   let i = 0;
   SCORE_LEVELS.forEach(([min], k) => { if (score >= min) i = k; });
@@ -10129,7 +10177,7 @@ function renderScoreBlock(){
     <div class="gm-parts">${sc.parts.map((p) => `<span class="gm-part"><b>${p.pts}</b>/${p.max} ${p.label.toLowerCase()}</span>`).join('')}</div>
 
     ${sc.quests.length ? `<div class="gm-h">Next challenges</div>
-    ${sc.quests.map((q) => `<button class="gm-q" onclick="${q.go}">
+    ${sc.quests.map((q, qi) => `<button class="gm-q" onclick="v7Sheet('quest','${qi}')">
         <span class="gm-q-ico">${ic(q.icon, 18)}</span>
         <span class="gm-q-text"><b>${q.title}</b><small>${q.sub}</small></span>
         <span class="gm-q-gain">${q.pts ? `<b>+${q.pts}</b><small>points</small>` : `<small>reminder</small>`}${q.eur ? `<em>${eur(q.eur)}/yr</em>` : ''}</span>
@@ -10967,7 +11015,7 @@ const V7 = createV7({
   renderBillShape, renderDayShape, renderSavingsBreakdown, renderAssumptions,
   renderTrustPanel, renderLogicBreakdown, renderNightRateCard, renderEvSavingsCard, evEconomics,
   renderSolarComparison, renderDayInspector,
-  renderSystemSheet, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet, renderJourneySheet,
+  renderSystemSheet, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet, renderJourneySheet, renderQuestSheet,
   alertCount: () => { try { return unseenAlerts().length; } catch (e) { return 0; } },
 });
 
@@ -11613,6 +11661,21 @@ function syncScreenHistory(){
 }
 
 window.addEventListener('popstate', function(e){
+  // Inside a guide or the first-visit flow, Back steps back through it, and
+  // past its first step closes it, landing where it was opened from.
+  const g = state.current_screen;
+  if (g === 'solar-guide' || g === 'ev-guide' || g === 'flow'){
+    const st = e.state || {};
+    if (st.guide === g && st.step >= 1){
+      if (g === 'solar-guide') sgGo(st.step, true); else if (g === 'ev-guide') egGo(st.step, true);
+      return;
+    }
+    if (g === 'flow' && st.guide === 'flow'){ renderApp(); return; }
+    if (g === 'ev-guide') egCancel();
+    else if (g === 'solar-guide'){ state._sg = null; state.current_screen = 'solar'; saveState(); renderApp(); }
+    else { state._flow = null; state.current_screen = state.onboarding_complete ? 'result' : 'welcome'; saveState(); renderApp(); }
+    return;
+  }
   // An open overlay is the top-most thing on screen — Back should close it
   // rather than navigate the screen behind it. Re-push so the entry we just
   // consumed is restored and the user stays put.
@@ -12061,6 +12124,7 @@ function renderApp(){
   }
   paintAuthModal();
   syncScreenHistory();
+  checkScoreRise();
 }
 
 /**
@@ -12393,7 +12457,7 @@ function renderHowToSwitch(){
   return `${topbar('How to switch', 'blue', true)}
   <div class="screen">
     <div class="pd-back-bar">
-      <button class="pd-back-btn" onclick="${backFn}">← Back</button>
+      <button class="pd-back-btn" onclick="goBack()">← Back</button>
     </div>
 
     <div class="qr-hero" style="border-color:var(--blue);box-shadow:var(--hero-shadow),0 0 32px -10px var(--blue-glow)">
