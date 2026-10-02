@@ -95,3 +95,41 @@ test('no tap on the four tabs throws an error or leaves the app', async ({ page 
   }
   expect(errors).toEqual([]);
 });
+
+test('"Do it now" acts where you are: no challenge sends you to another tab', async ({ page }) => {
+  const days = {};
+  for (let i = 0; i < 30; i++) { const d = new Date(Date.now() - (30 - i) * 864e5).toISOString().slice(0, 10);
+    days[d] = [...Array.from({ length: 24 }, (_, h) => (h >= 17 && h < 19 ? 2 : 0.5)), ...new Array(24).fill(0)]; }
+  for (const st of [{}, { baseline: 'EN-SMART', meter: { days } }]) {
+    await boot(page, { current_screen: 'me', contract_end: '2027-06-01', ...st });
+    const quests = await page.locator('.gm-q').count();
+    for (let i = 0; i < quests; i++) {
+      await page.evaluate(() => { window.state._sheet = null; window.state.current_screen = 'me'; window.renderApp(); });
+      await page.locator('.gm-q').nth(i).click();
+      await page.locator('#v7-sheet').getByRole('button', { name: /Do it now/ }).click();
+      await page.waitForTimeout(150);
+      const where = await page.evaluate(() => [window.state.current_screen, window.state._sheet && window.state._sheet.kind]);
+      expect(where[0], `challenge ${i} left My Peakless for ${where[0]}`).toBe('me');
+      expect(where[1], `challenge ${i} opened nothing`).toBeTruthy();
+    }
+  }
+});
+
+test('the meter challenge uploads in place and stays on My Peakless', async ({ page }) => {
+  await boot(page, { current_screen: 'me' });
+  await page.locator('.gm-q', { hasText: 'ESB meter file' }).click();
+  await page.locator('#v7-sheet').getByRole('button', { name: /Do it now/ }).click();
+  await expect(page.locator('#v7-sheet')).toContainText('myaccount.esbnetworks.ie');
+  await expect(page.locator('#v7-sheet #csv-file-input')).toHaveCount(1);
+});
+
+test('a file uploaded from the challenge is applied, and you are still on My Peakless', async ({ page }) => {
+  await boot(page, { current_screen: 'me' });
+  await page.evaluate(() => window.v7Sheet('meter'));
+  const rows = ['MPRN,Meter Serial Number,Read Value,Read Type,Read Date and End Time'];
+  for (let d = 1; d <= 28; d++) for (let h = 0; h < 24; h++)
+    rows.push(`1,2,${h >= 17 && h < 19 ? 2 : 0.6},Active Import Interval (kW),${String(d).padStart(2, '0')}-09-2026 ${String(h).padStart(2, '0')}:30`);
+  await page.locator('#csv-file-input').setInputFiles({ name: 'esb.csv', mimeType: 'text/csv', buffer: Buffer.from(rows.join('\n')) });
+  await page.getByRole('button', { name: /Use this data/ }).click();
+  await expect.poll(() => page.evaluate(() => [window.state.current_screen, !!window.state._sheet, !!window.state._csv_imported])).toEqual(['me', false, true]);
+});

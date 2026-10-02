@@ -638,6 +638,8 @@ export function createV7(api) {
     else if (sh.kind === 'handover') body = api.renderHandoverSheet();
     else if (sh.kind === 'journey') body = api.renderJourneySheet(sh.id);
     else if (sh.kind === 'quest') body = api.renderQuestSheet(sh.id);
+    else if (sh.kind === 'meter') body = api.renderMeterSheet();
+    else if (sh.kind === 'habits') body = api.renderHabitsSheet();
     if (!body) return '';
     return `<div class="v7-sheet-root" id="v7-sheet">
       <div class="v7-sheet-backdrop" onclick="v7Sheet(null)"></div>

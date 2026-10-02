@@ -9845,7 +9845,7 @@ function computeAlerts(){
       out.push({ id: `meter:${quarterKey()}`, kind: 'meter', level: 'info',
         title: 'Check your savings against your meter',
         body: 'Download your smart-meter file from esbnetworks.ie (My Account → Downloads) and upload it. We will re-price what you actually used and show what you really saved.',
-        go: "setScreen('csv-import')", cta: 'Upload meter data' });
+        go: "v7Sheet('meter')", cta: 'Upload meter data' });
     }
     if (state.contract_end){
       const days = Math.round((Date.parse(state.contract_end) - Date.parse(today)) / 864e5);
@@ -10091,14 +10091,14 @@ function householdScore(){
     // Meter data also replaces the usage estimate, so it lifts "home known" too.
     const knowAfter = state._csv_imported ? knowPts : Math.round(20 * Math.max(0, Math.min(1, (15 - Math.max(2, acc.pct - 6)) / 12)));
     if (!hasMeter) quests.push({ pts: 20 + (installed ? 20 : 0) + Math.max(0, knowAfter - knowPts), icon: 'csv', title: 'Upload your ESB meter file',
-      sub: `Unlocks cheap-hour habits${installed ? ' and panel checks' : ''}, sharpens every figure, and checks your savings for real`, go: "setScreen('csv-import')" });
+      sub: `Unlocks cheap-hour habits${installed ? ' and panel checks' : ''}, sharpens every figure, and checks your savings for real`, go: "v7Sheet('meter')" });
     else {
       done.push(`Meter data in · ${Object.keys(days).length} days`);
       if (fit && fit.fit < 0.8 && !isFlatPlan(plan)) quests.push({ pts: 20 - timePts, icon: 'clock', title: 'Move use out of the dear hours',
-        sub: `You pay ${fmtCent(fit.avgRate)} a kWh on average${fit.peakShare > 0.02 ? `, ${Math.round(fit.peakShare * 100)}% of it at peak` : ''}`, go: "setScreen('analytics')" });
+        sub: `You pay ${fmtCent(fit.avgRate)} a kWh on average${fit.peakShare > 0.02 ? `, ${Math.round(fit.peakShare * 100)}% of it at peak` : ''}`, go: "v7Sheet('habits')" });
       else if (fit) done.push('Good cheap-hour habits');
       if (installed && inst && inst.r.ratio < 0.85) quests.push({ pts: 20 - panelPts, icon: 'battery', title: 'Get more from your panels',
-        sub: `You bought ${Math.round(inst.r.realKwh).toLocaleString('en-IE')} kWh; the model expected ${Math.round(inst.r.modelKwh).toLocaleString('en-IE')}`, go: "setScreen('refine')" });
+        sub: `You bought ${Math.round(inst.r.realKwh).toLocaleString('en-IE')} kWh; the model expected ${Math.round(inst.r.modelKwh).toLocaleString('en-IE')}`, go: 'openMySystem()' });
     }
     if (!state.contract_end) quests.push({ pts: 0, icon: 'calendar', title: 'Add your contract end date', sub: "So we can remind you before you're moved to a dearer rate", go: 'openMyHome()' });
     if ((state.journey || []).length) done.push('Keeping a savings tally');
@@ -10123,8 +10123,59 @@ function renderQuestSheet(i){
       ${q.pts && after.name !== lv.name ? `<span><b>${after.name}</b>new level</span>` : ''}
       ${!q.pts && !q.eur ? `<span><b>Reminder</b>no points, just peace of mind</span>` : ''}
     </div>
-    <button class="v7-cta-2" onclick="v7Sheet(null);${q.go}">Do it now ${ic('chevR', 16)}</button>
+    <button class="v7-cta-2" onclick="${/^v7Sheet\(/.test(q.go) ? q.go : `v7Sheet(null);${q.go}`}">Do it now ${ic('chevR', 16)}</button>
     <div class="v7-fine">Your score updates as soon as it’s done.</div>`;
+}
+
+/** Upload the ESB file without leaving the screen: the steps, the button, the result. */
+function renderMeterSheet(){
+  return `<div class="v7-sheet-head"><div class="v7-eyebrow">Your meter data</div><h2 class="v7-h">Upload your ESB smart-meter file</h2></div>
+    <ol class="ms-steps">
+      <li>Sign in at <b>myaccount.esbnetworks.ie</b> (free; your MPRN is on your bill).</li>
+      <li>Open <b>My Meter</b>, then <b>Downloads</b>, and download <b>30-minute readings (kW)</b>.</li>
+      <li>Come back and choose the file below.</li>
+    </ol>
+    <label class="v7-cta-2 ms-pick">${ic('csv', 16)} Choose the file
+      <input id="csv-file-input" type="file" accept=".csv,.CSV" onchange="handleCsvFile(event)" hidden></label>
+    <div id="csv-parse-result"></div>
+    <div class="v7-fine">The file stays on this phone (and in your account if you're signed in). Less than a year of readings still works.</div>`;
+}
+
+/**
+ * The cheap-hours habit, as moves with a price on each: what to run when,
+ * on this home's own plan, and what moving it is worth over a year.
+ */
+function renderHabitsSheet(){
+  const plan = getPlanById(state.baseline);
+  const r = plan.rates, w = plan.windows || {};
+  const hh = (h) => `${String(h % 24).padStart(2, '0')}:00`;
+  const cheapBand = r.ev != null && w.ev ? 'ev' : r.night != null && w.night ? 'night' : null;
+  const cheap = cheapBand ? r[cheapBand] : r.day;
+  const dear = r.peak != null && w.peak ? r.peak : r.day;
+  const cheapWin = cheapBand ? `${hh(w[cheapBand][0])}–${hh(w[cheapBand][1])}` : null;
+  const dearWin = w.peak ? `${hh(w.peak[0])}–${hh(w.peak[1])}` : 'the day';
+  const gap = Math.max(0, dear - cheap);
+  if (!cheapBand || gap < 0.02){
+    return `<div class="v7-sheet-head"><div class="v7-eyebrow">Cheap hours</div><h2 class="v7-h">Your plan has one price all day</h2></div>
+      <p class="me-p">On ${esc(plan.supplier)} ${esc(plan.plan)} it doesn't matter when you use power, so there is nothing to move. A plan with cheap night hours could pay you to move it.</p>
+      <button class="v7-cta-2" onclick="v7Sheet(null);setScreen('plans')">See plans with cheap hours ${ic('chevR', 16)}</button>`;
+  }
+  const moves = [
+    ['Dishwasher', 'Set its delay timer', 1.1 * 5 * 52],
+    ['Washing machine', 'Start it on a timer', 0.9 * 4 * 52],
+    ['Tumble dryer', 'Run it overnight', 2.5 * 3 * 52],
+    ...(state.ev_active ? [['Car charging', 'Schedule it in the car or charger app', (state.ev_km_per_year || 0) * (state.ev_kwh_per_100km || 17) / 100 * 0.5]] : []),
+    ...(['storage', 'direct', 'heatpump'].includes(state.heating_type) || state.hot_water_strategy !== 'none' ? [['Hot water', 'Set the immersion timer', 3 * 365]] : []),
+  ].map(([what, how, kwh]) => ({ what, how, kwh, eur: kwh * gap }));
+  const total = moves.reduce((a, m) => a + m.eur, 0);
+  return `<div class="v7-sheet-head"><div class="v7-eyebrow">Cheap hours</div><h2 class="v7-h">Move these to ${cheapWin}</h2></div>
+    <div class="ms-rates">
+      <span class="is-cheap"><b>${fmtCent(cheap)}</b>${cheapWin}</span>
+      <span class="is-dear"><b>${fmtCent(dear)}</b>${dearWin}</span>
+    </div>
+    <div class="me-list">${moves.map((m) => `<div class="me-row"><span><b>${m.what}</b><small>${m.how}</small></span><b class="ms-eur">${eur(m.eur)}/yr</b></div>`).join('')}</div>
+    <p class="me-p">All of them together: about <b>${eur(total)} a year</b>, on ${esc(plan.supplier)} ${esc(plan.plan)}. Your next meter upload shows how much moved, and your score goes up with it.</p>
+    <button class="v7-cta-2" onclick="v7Sheet(null)">Done: I've set my timers</button>`;
 }
 
 /* Reward feedback: when something the person did raises the score, say so. */
@@ -11015,7 +11066,7 @@ const V7 = createV7({
   renderBillShape, renderDayShape, renderSavingsBreakdown, renderAssumptions,
   renderTrustPanel, renderLogicBreakdown, renderNightRateCard, renderEvSavingsCard, evEconomics,
   renderSolarComparison, renderDayInspector,
-  renderSystemSheet, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet, renderJourneySheet, renderQuestSheet,
+  renderSystemSheet, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet, renderJourneySheet, renderQuestSheet, renderMeterSheet, renderHabitsSheet,
   alertCount: () => { try { return unseenAlerts().length; } catch (e) { return 0; } },
 });
 
@@ -11288,7 +11339,7 @@ function modelAccuracy(){
     state._csv_imported
       ? { label: 'Usage from your smart-meter data', err: 1 }
       : state.usage_input_mode === 'kwh'
-        ? { label: 'Usage from your yearly kWh', err: 5, tip: 'Import your ESB smart-meter file', go: "v7Sheet(null);setScreen('csv-import')" }
+        ? { label: 'Usage from your yearly kWh', err: 5, tip: 'Import your ESB smart-meter file', go: "v7Sheet('meter')" }
         : { label: 'Usage worked out from your bill', err: 9, tip: 'Enter your yearly kWh from a bill, or import meter data', go: "v7Sheet('home')" },
   ];
   if (sys){
@@ -12926,6 +12977,14 @@ function applyImportedBills(){
     // yanking the user out to the result screen.
     state._fp_csv_mode = false;
     showToast('Smart meter data locked in — continue your setup');
+    renderApp();
+    return;
+  }
+  if (state._sheet && state._sheet.kind === 'meter'){
+    // Uploaded from a challenge or an alert: stay where you were; the score
+    // and the figures update around you.
+    state._sheet = null;
+    showToast('Meter data in: your figures now use your real readings', { type: 'accent', icon: ic('checkC', 16) });
     renderApp();
     return;
   }
