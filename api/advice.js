@@ -7,7 +7,7 @@
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
-import { guard, readBody } from './_server.js';
+import { guard, rateLimited, readBody } from './_server.js';
 import { AdviceSchema, ADVICE_PROMPT, checkSummary } from './_advice.js';
 
 export const config = { maxDuration: 60 };
@@ -16,6 +16,7 @@ const client = new Anthropic();
 
 export default async function handler(req, res) {
   if (guard(req, res)) return;
+  if (await rateLimited(req, res, 'advice', 10)) return;
   if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'Suggestions are not switched on yet.' });
   const body = readBody(req);
   const bad = checkSummary(body);

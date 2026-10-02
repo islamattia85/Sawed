@@ -1,5 +1,12 @@
 import { defineConfig } from 'vite';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
+
+// The tests run on vite preview: serve them the production headers from
+// vercel.json, so a Content-Security-Policy that breaks the app fails a test
+// rather than the live site.
+const prodHeaders = Object.fromEntries(JSON.parse(readFileSync(new URL('./vercel.json', import.meta.url), 'utf8'))
+  .headers.flatMap((h) => h.headers).filter((h) => h.key !== 'Strict-Transport-Security').map((h) => [h.key, h.value]));
 
 const { version } = createRequire(import.meta.url)('./package.json');
 
@@ -30,4 +37,5 @@ export default defineConfig({
     target: 'es2020',
   },
   server: { port: 5173 },
+  preview: { headers: prodHeaders },
 });

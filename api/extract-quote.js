@@ -13,22 +13,16 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
+import { guard, rateLimited } from './_server.js';
 import { QuoteSchema, SYSTEM_PROMPT, checkUpload, reconcile } from './_quote.js';
 
 export const config = { maxDuration: 60 };
 
-// Only the app itself may spend the key. Browsers always send Origin on a
-// cross-site POST, so this stops other sites; it is not a lock against a
-// determined script, which Vercel's firewall rate limit covers.
-const ALLOWED = [/^https:\/\/([a-z0-9-]+\.)*vercel\.app$/, /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/];
-if (process.env.APP_ORIGIN) ALLOWED.push(new RegExp(`^${process.env.APP_ORIGIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
-
 const client = new Anthropic();
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only.' });
-  const origin = req.headers.origin || '';
-  if (origin && !ALLOWED.some((r) => r.test(origin))) return res.status(403).json({ error: 'Not allowed.' });
+  if (guard(req, res)) return;
+  if (await rateLimited(req, res, 'quote', 10)) return;
   if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'Quote reading is not switched on yet.' });
 
   const body = typeof req.body === 'string' ? safeJson(req.body) : req.body;

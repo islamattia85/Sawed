@@ -7,11 +7,12 @@
  * accepting, in the portal. Needs SUPABASE_SERVICE_ROLE_KEY; email needs
  * RESEND_API_KEY and MAIL_FROM.
  */
-import { guard, readBody, adminDb, sendEmail } from './_server.js';
+import { guard, rateLimited, readBody, adminDb, sendEmail } from './_server.js';
 import { validateLead, scoreLead } from './_lead.js';
 
 export default async function handler(req, res) {
   if (guard(req, res)) return;
+  if (await rateLimited(req, res, 'lead', 5)) return;
   const db = adminDb();
   if (!db) return res.status(503).json({ error: 'Quote requests are not switched on yet.' });
 
@@ -33,9 +34,13 @@ export default async function handler(req, res) {
   // twice: assignments are unique per lead and installer. If the county
   // changed, installers there are offered it too.
   const since = new Date(Date.now() - 30 * 864e5).toISOString();
-  let q = db.from('leads').select('id').gte('created_at', since).neq('status', 'invalid').order('created_at', { ascending: false }).limit(1);
-  q = lead.phone ? q.or(`email.eq.${lead.email},phone.eq.${lead.phone.replace(/[^\d+]/g, '')}`) : q.eq('email', lead.email);
-  const { data: prior } = await q;
+  // Each match is its own query with the value passed as a value: a filter
+  // string built from what someone typed could be made to say something else.
+  const recent = () => db.from('leads').select('id, created_at').gte('created_at', since).neq('status', 'invalid')
+    .order('created_at', { ascending: false }).limit(1);
+  const found = [(await recent().eq('email', lead.email)).data];
+  if (lead.phone) found.push((await recent().eq('phone', lead.phone)).data);
+  const prior = found.flat().filter(Boolean).sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
   let row, updated = false;
   if (prior && prior.length) {
     const { data, error: upErr } = await db.from('leads')

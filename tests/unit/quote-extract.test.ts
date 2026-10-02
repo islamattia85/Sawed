@@ -46,7 +46,7 @@ describe('reconcile', () => {
 function call(req: any) {
   return new Promise<{ status: number; body: any }>((resolve) => {
     const res: any = { status(c: number) { this.c = c; return this; }, json(b: any) { resolve({ status: this.c, body: b }); } };
-    handler({ headers: {}, ...req }, res);
+    handler({ ...req, headers: { origin: 'http://localhost:5173', ...req.headers } }, res);
   });
 }
 

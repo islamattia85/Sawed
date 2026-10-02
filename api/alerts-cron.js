@@ -52,5 +52,7 @@ export default async function handler(req, res) {
       else await db.from('alert_log').delete().eq('user_id', p.id).eq('alert_key', a.key);
     }
   }
-  return res.status(200).json({ ok: true, households: (rows || []).length, sent, skipped });
+  // Retention: data past its keeping period goes (supabase/security_2026_10.sql).
+  const { data: purged } = await db.rpc('purge_expired').then((r) => r, () => ({ data: null }));
+  return res.status(200).json({ ok: true, households: (rows || []).length, sent, skipped, purged });
 }

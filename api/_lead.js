@@ -14,7 +14,9 @@ export const CONSENT_TEXT_V1 =
   'I agree that Peakless may share my name, contact details, county and the system modelled here with up to three ' +
   'SEAI-registered installers so they can contact me with a quote. (consent v1)';
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+// Letters, digits and the few marks real addresses use. Nothing a database
+// filter could read as syntax (commas, brackets, quotes, spaces).
+const EMAIL = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
 const clampNum = (v, lo, hi) => (typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : null);
 
 /** Returns { lead } ready to store, or { error } in plain words. */
