@@ -83,7 +83,8 @@ test('the first run opens on the question, not a carousel or a sign-in wall', as
   // v8: the first visit is one page that reveals a question at a time.
   await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('flow');
   await page.getByRole('button', { name: 'Next' }).click();
-  for (const pick of ['Not sure', 'Gas or oil', /^No$/, /^No$/]) await page.locator('.fl-opt', { hasText: pick }).first().click();
+  await page.getByRole('button', { name: /not sure: assume a standard plan/i }).click();
+  for (const pick of ['Gas or oil', /^No$/, /^No$/]) await page.locator('.fl-opt', { hasText: pick }).first().click();
   await page.getByRole('button', { name: 'See my home' }).click();
   await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('result');
   expect(errors).toEqual([]);

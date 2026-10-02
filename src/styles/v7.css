@@ -1109,8 +1109,11 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .fl-r-list { display: grid; gap: 6px; font-size: var(--text-data); color: var(--brand-mist); }
 .fl-r-list b { color: var(--brand-paper); }
 .fl-go { background: var(--brand-gold); color: var(--brand-ink); }
-.fl-save { display: grid; gap: var(--space-2); padding: var(--space-4); border-radius: var(--radius-xl); border: 1.5px dashed var(--accent); font-size: var(--text-data); color: var(--ink-soft); animation: flIn .6s .3s both; }
+.fl-save { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-4); border-radius: var(--radius-xl); border: 1px solid var(--line); background: var(--panel); font-size: var(--text-data); color: var(--ink-soft); animation: flIn .6s .3s both; }
+.fl-save > div { display: grid; gap: 4px; }
 .fl-save b { font-size: var(--text-body); color: var(--ink); }
+.fl-save-ico { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--radius-lg); background: var(--accent-faint); color: var(--accent); }
+.fl-save-link { justify-self: start; display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; padding: 0; border: 0; background: none; color: var(--accent); font: 700 var(--text-data) var(--display); cursor: pointer; }
 @keyframes flIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .fl-q, .fl-done, .fl-reveal, .fl-save { animation: none; } }
 .fl-prog { flex: none; height: 8px; }
@@ -1130,7 +1133,7 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .hc-sub { display: flex; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; font-size: var(--text-data); color: var(--ink-soft); }
 .hc-sub em { font-style: normal; display: inline-flex; align-items: center; color: var(--accent); font-weight: 700; }
 .hc-invite { display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3) var(--space-4); text-align: left; cursor: pointer;
-  border-radius: var(--radius-xl); border: 1.5px dashed var(--line); background: transparent; color: var(--ink-soft); font: 500 var(--text-data) var(--display); }
+  border-radius: var(--radius-xl); border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft); font: 500 var(--text-data) var(--display); }
 .hc-invite svg { flex: none; color: var(--accent); }
 .hc-invite b { display: block; color: var(--ink); font-size: var(--text-body); }
 .an-hub { display: flex; gap: 6px; overflow-x: auto; padding: var(--space-2) var(--space-4); scrollbar-width: none; }
@@ -1156,3 +1159,48 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 /* The highlighted challenge is the one you last opened (the first, until you choose). */
 .gm-q:first-of-type { border-color: var(--hair-strong); background: var(--panel); }
 .gm-q.is-sel { border-color: var(--accent); background: var(--accent-faint); }
+
+/* First-visit flow: answers as chips, icons on choices, supplier then plan. */
+.fl-chips { display: flex; flex-wrap: wrap; gap: 6px; animation: flIn .3s; }
+.fl-chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--well); color: var(--ink); font: 600 var(--text-caption) var(--display); cursor: pointer; }
+.fl-chip::after { content: ' ✎'; color: var(--accent); }
+.fl-opt.has-ico { grid-template-columns: auto 1fr; align-items: center; gap: var(--space-3); }
+.fl-opt > span { display: grid; gap: 2px; }
+.fl-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--radius-lg); background: var(--accent-faint); color: var(--accent); }
+.fl-tiles .fl-opt.has-ico { grid-template-columns: 1fr; justify-items: start; padding: var(--space-4) var(--space-3); }
+.fl-compass { width: 40px; height: 40px; color: var(--ink); }
+.fl-sups { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.fl-sup { display: flex; align-items: center; gap: var(--space-2); min-width: 0; padding: var(--space-3); border-radius: var(--radius-lg); border: 1.5px solid var(--line); background: var(--panel); color: var(--ink); font: 600 var(--text-data) var(--display); text-align: left; cursor: pointer; }
+.fl-sup.on { border-color: var(--accent); background: var(--accent-faint); }
+.fl-sup-mark { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--well); color: var(--accent); font-size: var(--text-caption); font-weight: 800; }
+.fl-crumb { justify-self: start; display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: var(--accent); font: 700 var(--text-data) var(--display); cursor: pointer; }
+.fl-k { font-size: var(--text-data); color: var(--ink-soft); }
+.fl-or { display: flex; align-items: center; gap: var(--space-2); color: var(--ink-dim); font-size: var(--text-caption); }
+.fl-or::before, .fl-or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.fl-upload { display: flex; gap: var(--space-3); align-items: center; padding: var(--space-3); border-radius: var(--radius-lg); border: 1.5px solid var(--line); background: var(--panel); cursor: pointer; }
+.fl-upload > svg { flex: none; color: var(--accent); }
+.fl-upload b { display: block; color: var(--ink); font-size: var(--text-body); }
+.fl-upload small { color: var(--ink-soft); font-size: var(--text-caption); line-height: 1.4; }
+.fl-bars { display: grid; gap: var(--space-2); margin-top: var(--space-2); }
+.fl-bars > div { display: grid; grid-template-columns: 1fr auto; gap: 4px var(--space-2); font-size: var(--text-data); color: var(--ink-soft); }
+.fl-bars i { grid-column: 1 / -1; height: 10px; border-radius: 999px; background: rgba(255, 255, 255, .25); }
+.fl-bars i.is-best { background: var(--brand-gold); }
+.fl-bars b { color: var(--ink); }
+/* Solar guide intro */
+.sg-intro-ico { display: grid; place-items: center; width: 64px; height: 64px; margin-top: var(--space-4); border-radius: var(--radius-xl); background: var(--accent-faint); color: var(--brand-gold); }
+.sg-promise { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); color: var(--ink-soft); font-size: var(--text-data); }
+.sg-promise li { display: flex; gap: var(--space-2); align-items: center; }
+.sg-promise svg { color: var(--accent); flex: none; }
+/* Solar: a labelled way back to Home */
+.v7-home-back { display: inline-flex; align-items: center; gap: 2px; padding: 8px 10px 8px 4px; border: 0; background: none; color: var(--accent); font: 700 var(--text-data) var(--display); cursor: pointer; }
+/* Why the accuracy figure is what it is */
+.v7-acc-why { display: flex; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-lg); background: var(--well); font-size: var(--text-data); color: var(--ink-soft); }
+.v7-acc-why > svg { flex: none; color: var(--accent); margin-top: 2px; }
+.v7-acc-why b { color: var(--ink); }
+.v7-acc-why button { display: inline-flex; align-items: center; gap: 2px; margin-top: 4px; padding: 0; border: 0; background: none; color: var(--accent); font: 700 var(--text-data) var(--display); cursor: pointer; }
+/* Start page: the quote check is a quiet link, not a second door */
+.pk-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; border: 0; background: none; color: rgba(255, 255, 255, .7); font: 600 var(--text-data) var(--display); cursor: pointer; }
+.fl-q, .fl-q > * { min-width: 0; }
+.fl-upload > span { min-width: 0; overflow-wrap: anywhere; }
+.v7-top-sub .v7-top-title { flex: 1; margin-left: var(--space-2); }
+.v7-home-back { margin-right: var(--space-3); }

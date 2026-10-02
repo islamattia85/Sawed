@@ -168,15 +168,13 @@ test('the plan can be chosen from the solar screen, near the top', async ({ page
   expect(errors).toEqual([]);
 });
 
-test('the picker is reachable from the result screen too', async ({ page }) => {
+test('every plan, ranked, is one plain link from the result screen', async ({ page }) => {
   const errors = await boot(page);
-  // A link now, not a second button: two buttons of equal weight made the
-  // reader choose between choosing and acting.
-  await page.getByRole('link', { name: /different plan|Change plan/i }).first().click();
-  await expect(page.locator('#plan-picker')).toBeVisible();
-  const rows = await page.locator('.pp-row').count();
+  // v8: "Pick a different plan" left people asking why it was there. The link
+  // now says what it does and opens the ranked list.
   const ranked = await page.evaluate(() => window.getRecommendation().ranked.length);
-  expect(rows).toBe(ranked);
+  await page.getByRole('link', { name: new RegExp(`See all ${ranked} plans ranked for you`) }).click();
+  await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('plans');
   expect(errors).toEqual([]);
 });
 

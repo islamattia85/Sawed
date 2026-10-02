@@ -21,13 +21,16 @@ test('the phone Back gesture steps back through the first-visit flow and never l
 test('Back inside the solar guide goes one step back, then closes it where it was opened', async ({ page }) => {
   await boot(page, { current_screen: 'solar', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
+  await page.getByRole('button', { name: /^Start/ }).click();                       // past the intro
   await page.locator('.sg-tile', { hasText: 'South' }).first().click();            // step 2
   await page.getByRole('button', { name: /^Next/ }).click();                        // step 3
   expect(await page.evaluate(() => window.state._sg)).toBe(3);
   await page.goBack();
   await expect.poll(() => page.evaluate(() => window.state._sg)).toBe(2);
-  await page.goBack(); await page.goBack();
+  await page.goBack(); await page.goBack(); await page.goBack();                    // 1, the intro, out
   await expect.poll(() => screen(page)).toBe('solar');
+  // Leaving the guide leaves no system behind.
+  expect(await page.evaluate(() => window.state.has_solar)).toBe(false);
 });
 
 test('Back inside the EV guide steps back, and out of it leaves the home as it was', async ({ page }) => {
@@ -132,4 +135,29 @@ test('a file uploaded from the challenge is applied, and you are still on My Pea
   await page.locator('#csv-file-input').setInputFiles({ name: 'esb.csv', mimeType: 'text/csv', buffer: Buffer.from(rows.join('\n')) });
   await page.getByRole('button', { name: /Use this data/ }).click();
   await expect.poll(() => page.evaluate(() => [window.state.current_screen, !!window.state._sheet, !!window.state._csv_imported])).toEqual(['me', false, true]);
+});
+
+test('opening solar from Home and backing out leaves Home exactly as it was', async ({ page }) => {
+  await boot(page, { current_screen: 'result', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
+  const before = await page.locator('.v7-basis-line').textContent();
+  await page.getByRole('button', { name: /Thinking about solar/ }).click();
+  await expect(page.locator('.sg-h')).toContainText('Would solar pay off here');   // an intro, not the roof
+  await page.getByRole('button', { name: /^Start/ }).click();
+  await page.locator('.sg-tile', { hasText: 'South' }).first().click();
+  await page.goBack(); await page.goBack(); await page.goBack();
+  await expect.poll(() => screen(page)).toBe('result');
+  expect(await page.evaluate(() => [window.state.has_solar, window.state.count_A])).toEqual([false, 0]);
+  expect(await page.locator('.v7-basis-line').textContent()).toBe(before);
+});
+
+test('the first visit asks for the supplier, then that supplier\'s plan', async ({ page }) => {
+  await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
+  await page.getByRole('button', { name: /Get my answer/ }).click();
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.locator('.fl-sup', { hasText: 'Energia' }).click();
+  const plans = await page.locator('.fl-opt').allTextContents();
+  expect(plans.length).toBeGreaterThan(2);                                            // its plans…
+  expect(plans.at(-1)).toContain('Not sure which plan');                              // …and a way out
+  await page.locator('.fl-opt').first().click();
+  expect(await page.evaluate(() => [getPlanById(window.state.baseline).supplier, window.state.baseline_known])).toEqual(['Energia', true]);
 });

@@ -3865,7 +3865,7 @@ function renderWelcome(){
     </div>
     <div class="pk-land-actions">
       <button class="pk-btn-gold" onclick="startFlow()">Get my answer in 30 seconds</button>
-      <button class="pk-btn-ghost" onclick="${state.onboarding_complete ? "setScreen('solar');v7Sheet('quote')" : 'navigateAuditor()'}">${ic('clip', 16)} Check a quote I got</button>
+      <button class="pk-link" onclick="${state.onboarding_complete ? "setScreen('solar');v7Sheet('quote')" : 'navigateAuditor()'}">${ic('clip', 14)} Already have a solar quote? Check it</button>
       <button class="pk-land-link" onclick="startOnboarding()">Full guided setup, with solar and EV ${ic('chevR', 14)}</button>
       ${state.onboarding_complete ? `<button class="pk-land-link" onclick="setScreen('result')">${ic('chevL', 14)} Back to my results</button>` : ''}
       <div class="pk-land-trust">${TARIFFS.length} plans · prices checked daily · your data stays on this phone</div>
@@ -5556,28 +5556,46 @@ function applyEstimatedSolarCost(){
  * times gives a good estimate. The reveal shows the payback, and the full
  * analysis is one tap after it. */
 const SG_STEPS = 5;
+let _sgBefore = null;
 function startSolarGuide(){
+  // Nothing the guide changes counts until its answer is accepted: leaving
+  // early puts the home back exactly as it was.
+  _sgBefore = structuredClone(state);
   // Start from the same suggested system as before: sized to the usage.
   exploreSolar();
   state.current_screen = 'solar-guide';
-  state._sg = 1;
-  guidePush('solar-guide', 1);
+  state._sg = 0;
+  guidePush('solar-guide', 0);
   saveState();
   renderApp();
 }
+function sgCancel(){
+  if (_sgBefore){ for (const k of Object.keys(state)) if (!(k in _sgBefore)) delete state[k]; Object.assign(state, _sgBefore); }
+  _sgBefore = null;
+  state._sg = null; state._sheet = null;
+  // Back where it was opened (Home, or the Solar screen), never a bare screen.
+  if (NO_SHEET_SCREENS.includes(state.current_screen) || !state.current_screen) state.current_screen = 'result';
+  invalidate(); saveState(); renderApp(); window.scrollTo(0, 0);
+}
 function sgGo(step, fromHistory){
   const was = state._sg;
-  state._sg = Math.max(1, Math.min(SG_STEPS, step));
+  state._sg = Math.max(0, Math.min(SG_STEPS, step));
   if (!fromHistory && state._sg > (was || 0)) guidePush('solar-guide', state._sg);
   renderApp();
   window.scrollTo(0, 0);
 }
 function sgDone(){
-  state._sg = null;
+  state._sg = null; _sgBefore = null;
   state.current_screen = 'solar';
   state._solar_deep = true;
   saveState();
   renderApp();
+}
+function sgKeep(){
+  state._sg = null; _sgBefore = null;
+  state.current_screen = 'result';
+  saveState(); renderApp(); window.scrollTo(0, 0);
+  showToast('Solar added to your Home as a plan', { type: 'accent', icon: ic('sun', 16) });
 }
 function sgRoof(face){
   const map = { S: [180, 0, 0], SE: [135, 0, 0], SW: [225, 0, 0], EW: [90, 270, 1], E: [90, 0, 0], W: [270, 0, 0] };
@@ -5594,12 +5612,12 @@ function sgRoof(face){
 function sgBattery(k){ sysSet('battery_kwh', k); }
 
 function renderSolarGuide(){
-  const step = state._sg || 1;
+  const step = state._sg ?? 1;
   const kwh = Math.round(v7AnnualKwh());
   const suggest = Math.max(6, Math.min(16, Math.round(kwh / 450)));
   const head = (k, title, sub) => `
     <div class="sg-top">
-      <button class="sg-back" onclick="${step === 1 ? "state._sg=null;setScreen('solar')" : `sgGo(${step - 1})`}" aria-label="Back">${ic('chevL', 18)}</button>
+      <button class="sg-back" onclick="${step === 0 ? 'sgCancel()' : `sgGo(${step - 1})`}" aria-label="Back">${ic('chevL', 18)}</button>
       <div class="sg-progress" aria-label="Step ${step} of ${SG_STEPS}"><i style="width:${step / SG_STEPS * 100}%"></i></div>
       <span class="sg-count">${step}/${SG_STEPS}</span>
     </div>
@@ -5609,7 +5627,15 @@ function renderSolarGuide(){
   const next = (label = 'Next') => `<button class="fp-cta sg-next" onclick="sgGo(${step + 1})">${label} ${ic('chevR', 18)}</button>`;
   let body = '';
 
-  if (step === 1){
+  if (step === 0){
+    body = `<div class="sg-top"><button class="sg-back" onclick="sgCancel()" aria-label="Back">${ic('chevL', 18)}</button></div>
+      <div class="sg-intro-ico">${ic('sun', 34)}</div>
+      <h1 class="sg-h">Would solar pay off here?</h1>
+      <p class="sg-sub">Four quick questions: which way your roof faces, how many panels, a battery, and the price. Each starts on a sensible guess, so you can just tap Next.</p>
+      <ul class="sg-promise"><li>${ic('check', 14)} About a minute</li><li>${ic('check', 14)} Nothing changes on your Home unless you keep the answer</li><li>${ic('check', 14)} Leave any time with Back</li></ul>
+      <button class="fp-cta sg-next" onclick="sgGo(1)">Start ${ic('chevR', 18)}</button>
+      <button class="sg-link sg-skip" onclick="sgCancel()">Not now</button>`;
+  } else if (step === 1){
     const faces = [['S', 'South', 'Best all day'], ['SE', 'South-east', 'Strong mornings'], ['SW', 'South-west', 'Strong afternoons'],
       ['EW', 'East and west', 'Panels on both sides'], ['E', 'East', 'Mornings'], ['W', 'West', 'Evenings']];
     const az = (f) => ({ S: 0, SE: -45, SW: 45, EW: 0, E: -90, W: 90 })[f];
@@ -5621,7 +5647,7 @@ function renderSolarGuide(){
           <text x="30" y="56" text-anchor="middle" font-size="10" fill="currentColor" opacity=".6">S</text></svg>
         <b>${l}</b><small>${s}</small></button>`).join('')}</div>
       <button class="sg-link" onclick="sgRoof('unsure')">Not sure: assume south</button>
-      <button class="sg-link sg-skip" onclick="state._sg=null;setScreen('solar')">Skip: just estimate it for me</button>`;
+      <button class="sg-link sg-skip" onclick="sgGo(5)">Skip: just estimate it for me</button>`;
   } else if (step === 2){
     const n = totalPanels();
     body = `${head('Step 2 · Panels', 'How many panels?', `For ${kwh.toLocaleString('en-IE')} kWh a year we suggest <b>${suggest}</b>. Most Irish roofs fit 8 to 16.`)}
@@ -5658,8 +5684,10 @@ function renderSolarGuide(){
         </div>
         <div class="sg-sys">${totalPanels()} panels${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh battery` : ' · no battery'} · ${({ S: 'south', SE: 'south-east', SW: 'south-west', EW: 'east and west', E: 'east', W: 'west' })[state._sg_face] || 'south'}-facing</div>
       </div>
-      <button class="fp-cta sg-next" onclick="sgDone()">See the full analysis ${ic('chevR', 18)}</button>
-      <button class="sg-link" onclick="sgGo(1)">Change my answers</button>`;
+      <button class="fp-cta sg-next" onclick="sgKeep()">Keep this on my Home ${ic('checkC', 18)}</button>
+      <button class="sg-link" onclick="sgDone()">See the full solar analysis</button>
+      <button class="sg-link" onclick="sgGo(1)">Change my answers</button>
+      <button class="sg-link sg-skip" onclick="sgCancel()">Don’t keep it</button>`;
   }
   return `<div class="fp-wrap sg">${body}</div>${V7.sheet()}`;
 }
@@ -5812,6 +5840,7 @@ function flowAnswer(q, v){
   const was = f[q]; f[q] = v;
   const clear = (keys) => keys.forEach((k) => delete f[k]);
   if (q === 'bill'){ state.usage_input_mode = 'bill'; state.bimonthly_bill_eur = Math.max(30, Math.round(+v) || 250); }
+  if (q === 'plan') state._flow_sup = null;
   if (q === 'plan'){ if (v === 'unsure'){ state.baseline = 'EI-24'; state.baseline_known = false; } else { state.baseline = v; state.baseline_known = true; } }
   if (q === 'heat'){ state.heating_type = v; state.hot_water_strategy = DEFAULT_HW_FOR_HEATING[v] || 'none'; }
   if (q === 'bill' || q === 'heat') applyUsageInput();
@@ -5848,6 +5877,10 @@ function flowAnswer(q, v){
   invalidate(); saveState(); renderApp();
   setTimeout(() => { const b = document.querySelector('.fl-body'); if (b) b.scrollTop = b.scrollHeight; window.scrollTo(0, document.body.scrollHeight); }, 30);
 }
+function flowSupplier(i){
+  const sups = [...new Set(activeTariffsSorted().map((p) => p.supplier))].sort((a, b) => a.localeCompare(b));
+  state._flow_sup = sups[i] || null; renderApp();
+}
 function flowEdit(q){ state._flow_edit = q; renderApp(); }
 function flowFinish(then){
   state.onboarding_complete = true;
@@ -5878,30 +5911,49 @@ function renderFlow(){
     car: ['What kind of car?', ''],
   };
   const shown = {
-    bill: (v) => `€${v} every two months`,
-    plan: (v) => v === 'unsure' ? 'Not sure, estimated' : (() => { const p = getPlanById(v); return `${p.supplier} ${p.plan}`; })(),
+    bill: (v) => v === 'meter' ? 'Smart-meter data' : `€${v} / 2 months`,
+    plan: (v) => v === 'unsure' ? 'Plan not sure' : (() => { const p = getPlanById(v); return `${p.supplier} ${p.plan}`; })(),
     heat: (v) => ({ gas: 'Gas or oil', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heaters' })[v],
-    solar: (v) => ({ no: 'None', have: 'I have them', thinking: 'Thinking about it' })[v],
+    solar: (v) => ({ no: 'No solar', have: 'Solar', thinking: 'Solar planned' })[v],
     roof: (v) => ({ S: 'South', SE: 'South-east', SW: 'South-west', EW: 'East and west', unsure: 'Not sure, south assumed' })[v],
     panels: (v) => `${v} panels`, battery: (v) => +v ? `${v} kWh` : 'No battery',
-    ev: (v) => ({ no: 'None', have: 'I have one', thinking: 'Thinking about one' })[v],
+    ev: (v) => ({ no: 'No EV', have: 'EV', thinking: 'EV planned' })[v],
     km: (v) => `${(+v).toLocaleString('en-IE')} km a year`, car: (v) => ({ 14: 'Small', 17: 'Family car', 20: 'SUV or large' })[v],
   };
-  const opt = (q, v, title, sub = '') => `<button class="fl-opt ${String(f[q]) === String(v) ? 'on' : ''}" onclick="flowAnswer('${q}', '${v}')"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</button>`;
+  const optIco = { heat: { gas: 'flame', heatpump: 'waves', storage: 'layers', direct: 'bolt' }, solar: { no: 'x', have: 'sun', thinking: 'spark' },
+    ev: { no: 'x', have: 'car', thinking: 'spark' }, battery: { 0: 'x', 5: 'battery', 10: 'battery' }, car: { 14: 'car', 17: 'car', 20: 'car' }, km: { 8000: 'pin', 16000: 'pin', 25000: 'pin' } };
+  const compass = (v) => `<svg class="fl-compass" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="2"/>${v === 'EW'
+    ? '<path d="M20 20H6M20 20h14" stroke="var(--brand-gold)" stroke-width="4" stroke-linecap="round"/>'
+    : `<path d="M20 20V8" stroke="var(--brand-gold)" stroke-width="4" stroke-linecap="round" transform="rotate(${({ S: 180, SE: 135, SW: 225 })[v] || 180} 20 20)"/>`}</svg>`;
+  const opt = (q, v, title, sub = '') => {
+    const icn = q === 'roof' ? compass(v) : optIco[q] && optIco[q][v] ? `<span class="fl-ico">${ic(optIco[q][v], 20)}</span>` : '';
+    return `<button class="fl-opt ${icn ? 'has-ico' : ''} ${String(f[q]) === String(v) ? 'on' : ''}" onclick="flowAnswer('${q}', '${v}')">${icn}<span><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span></button>`;
+  };
   const body = (q) => {
     if (q === 'bill') return `<div class="fl-bill"><span>€</span><input id="flow-bill" inputmode="numeric" value="${f.bill || state.bimonthly_bill_eur || 250}" aria-label="Two-month bill in euro"></div>
       <div class="fl-row">${[150, 250, 420].map((v) => `<button class="sy-stop" onclick="document.getElementById('flow-bill').value=${v}">€${v}</button>`).join('')}</div>
-      <button class="fl-next" onclick="flowAnswer('bill', document.getElementById('flow-bill').value)">Next</button>`;
+      <button class="fl-next" onclick="flowAnswer('bill', document.getElementById('flow-bill').value)">Next</button>
+      <div class="fl-or"><span>or, most accurate</span></div>
+      <label class="fl-upload">${ic('csv', 20)}<span><b>Upload your ESB smart-meter file</b><small>Every half hour of your real year. Download it free at esbnetworks.ie → My account → Download data.</small></span>
+        <input type="file" accept=".csv,.CSV" onchange="handleCsvFile(event)" hidden></label>
+      <div id="csv-parse-result"></div>`;
     if (q === 'plan'){
-      const popular = ['EI-24', 'BG-24', 'EN-SMART-24-HOUR'].map(getPlanById).filter(Boolean);
-      return `<div class="fl-opts">${opt('plan', 'unsure', 'Not sure', 'We’ll assume a standard plan')}
-        ${popular.map((p) => opt('plan', p.id, esc(p.supplier), esc(p.plan))).join('')}</div>
-        <select class="fl-select" onchange="if(this.value)flowAnswer('plan', this.value)" aria-label="Another plan"><option value="">Another supplier or plan…</option>
-        ${activeTariffsSorted().map((p) => `<option value="${p.id}">${esc(p.supplier)} — ${esc(p.plan)}</option>`).join('')}</select>`;
+      const plans = activeTariffsSorted();
+      const sups = [...new Set(plans.map((p) => p.supplier))].sort((a, b) => a.localeCompare(b));
+      const sup = state._flow_sup;
+      if (sup){
+        const mine = plans.filter((p) => p.supplier === sup);
+        return `<button class="fl-crumb" onclick="state._flow_sup=null;renderApp()">${ic('chevL', 14)} All suppliers</button>
+          <div class="fl-k">${esc(sup)}: which plan? It’s on your bill, near the top.</div>
+          <div class="fl-opts">${mine.map((p) => opt('plan', p.id, esc(p.plan))).join('')}
+          ${opt('plan', mine[0].id, 'Not sure which plan', `We’ll use ${esc(mine[0].plan)}`)}</div>`;
+      }
+      return `<div class="fl-sups">${sups.map((n, i) => `<button class="fl-sup ${f.plan && f.plan !== 'unsure' && (getPlanById(f.plan) || {}).supplier === n ? 'on' : ''}" onclick="flowSupplier(${i})"><span class="fl-sup-mark">${esc(n.split(/\s+/).map((w) => w[0]).join('').slice(0, 2))}</span>${esc(n)}</button>`).join('')}</div>
+        <button class="sg-link" onclick="flowAnswer('plan', 'unsure')">I’m not sure: assume a standard plan</button>`;
     }
-    if (q === 'heat') return `<div class="fl-opts fl-two">${opt('heat', 'gas', 'Gas or oil')}${opt('heat', 'heatpump', 'Heat pump')}${opt('heat', 'storage', 'Storage heaters')}${opt('heat', 'direct', 'Electric heaters')}</div>`;
+    if (q === 'heat') return `<div class="fl-opts fl-two fl-tiles">${opt('heat', 'gas', 'Gas or oil')}${opt('heat', 'heatpump', 'Heat pump')}${opt('heat', 'storage', 'Storage heaters')}${opt('heat', 'direct', 'Electric heaters')}</div>`;
     if (q === 'solar') return `<div class="fl-opts">${opt('solar', 'no', 'No')}${opt('solar', 'have', 'I have them', 'We’ll add what they make')}${opt('solar', 'thinking', 'Thinking about it', 'We’ll show the payback')}</div>`;
-    if (q === 'roof') return `<div class="fl-opts fl-two">${opt('roof', 'S', 'South')}${opt('roof', 'EW', 'East and west')}${opt('roof', 'SE', 'South-east')}${opt('roof', 'SW', 'South-west')}</div>
+    if (q === 'roof') return `<div class="fl-opts fl-two fl-tiles">${opt('roof', 'S', 'South')}${opt('roof', 'EW', 'East and west')}${opt('roof', 'SE', 'South-east')}${opt('roof', 'SW', 'South-west')}</div>
       <button class="sg-link" onclick="flowAnswer('roof', 'unsure')">Not sure: assume south</button>`;
     if (q === 'panels'){ const s = _flowSuggest(); return `<div class="fl-opts fl-three">${[s - 4, s, s + 4].map((n) => opt('panels', n, `${n}`, n === s ? 'suggested' : '')).join('')}</div>`; }
     if (q === 'battery') return `<div class="fl-opts fl-three">${opt('battery', 0, 'None')}${opt('battery', 5, '5 kWh', 'typical')}${opt('battery', 10, '10 kWh')}</div>`;
@@ -5918,8 +5970,10 @@ function renderFlow(){
         <h2>${label[s][0]}</h2>${label[s][1] ? `<p>${label[s][1]}</p>` : ''}${body(s)}</section>`;
       break;
     }
-    if (s in f) h += `<div class="fl-done ${branch ? 'fl-branch' : ''}"><span>${label[s][0].replace('?', '')}: <b>${esc(shown[s](f[s]))}</b></span><button onclick="flowEdit('${s}')">Change</button></div>`;
   }
+  // What's answered so far, as one row of chips: tap one to change it.
+  const answered = steps.filter((s) => s in f && s !== open);
+  if (answered.length) h = `<div class="fl-chips" aria-label="Your answers, tap to change">${answered.map((s) => `<button class="fl-chip" onclick="flowEdit('${s}')" aria-label="Change ${esc(label[s][0])}">${esc(shown[s](f[s]))}</button>`).join('')}</div>` + h;
   const finished = !open;
   if (finished){
     let rec = null, sd = null, ev = null;
@@ -5928,16 +5982,22 @@ function renderFlow(){
     try { if (state.ev_active && rec) ev = evEconomics(rec.best.plan.id); } catch (e) {}
     // The switch alone, never mixed with panels: a planned system is left out
     // (it isn't bought), an installed one is on both sides of the comparison.
-    let save = 0;
+    // The same figure Home shows: the switch alone, on the home as it is.
+    let save = 0, mine = 0;
     try {
-      if (state.has_solar && totalPanels() > 0 && state.solar_planned) save = (plannedSolarSplit() || {}).switchNow || 0;
-      else save = rec ? Math.max(0, myPlanCost() - rec.best.net) : 0;
+      mine = state.has_solar && totalPanels() > 0 ? myPlanCost() : rec.baseCost;
+      save = Math.max(0, mine - rec.best.net);
     } catch (e) {}
+    const bp = getPlanById(state.baseline);
+    const bars = rec && save > 10 ? `<div class="fl-bars">
+        <div><span>Now${state.baseline_known && bp ? `, ${esc(bp.supplier)}` : ''}</span><b>${eur(mine)}</b><i style="width:100%"></i></div>
+        <div><span>On ${esc(rec.best.plan.supplier)}</span><b>${eur(rec.best.net)}</b><i class="is-best" style="width:${Math.max(8, Math.round(rec.best.net / mine * 100))}%"></i></div>
+      </div>` : '';
     const acc = modelAccuracy().pct;
     h += `<section class="fl-reveal">
       <div class="fl-r-k">Your answer</div>
       ${save > 10 ? `<div class="fl-r-big">${eur(save)}<span> a year</span></div>
-        <div class="fl-r-line">by switching to <b>${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}</b></div>`
+        <div class="fl-r-line">by switching to <b>${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}</b></div>${bars}`
         : `<div class="fl-r-line"><b>You’re already on a good plan.</b> Nothing on sale beats it for your home.</div>`}
       <div class="fl-r-list">
         ${sd ? `<span>${state.solar_planned ? 'Solar would pay back in' : 'Your panels bring back'} <b>${state.solar_planned ? `${sd.cur.payback < 50 ? sd.cur.payback.toFixed(1) : '—'} years` : `${eur(sd.cur.solarBenefit)} a year`}</b></span>` : ''}
@@ -5946,8 +6006,11 @@ function renderFlow(){
       </div>
       <button class="fl-go" onclick="flowFinish()">See my home</button>
     </section>
-    ${sbInitialized() && !_sbUser ? `<section class="fl-save"><b>Keep this home?</b><span>Save it to a free account and it’s here next time, on any device.</span>
-      <div class="fl-row"><button class="fl-next" onclick="flowFinish('save')">Save my home</button><button class="fl-ghost" onclick="flowFinish()">Not now</button></div></section>` : ''}`;
+    ${sbInitialized() && !_sbUser ? `<section class="fl-save">
+      <span class="fl-save-ico">${ic('shield', 20)}</span>
+      <div><b>Optional: a free account</b>
+        <span>Right now your home is saved on this phone only. An account keeps it safe, opens it on any device, and tells you when a cheaper plan appears.</span>
+        <button class="fl-save-link" onclick="flowFinish('save')">Create a free account ${ic('chevR', 14)}</button></div></section>` : ''}`;
   }
   const done = steps.filter((s) => s in f).length;
   return `<div class="fl">
@@ -11745,13 +11808,13 @@ window.addEventListener('popstate', function(e){
   const g = state.current_screen;
   if (g === 'solar-guide' || g === 'ev-guide' || g === 'flow'){
     const st = e.state || {};
-    if (st.guide === g && st.step >= 1){
+    if (st.guide === g && (st.step >= 1 || (g === 'solar-guide' && st.step === 0))){
       if (g === 'solar-guide') sgGo(st.step, true); else if (g === 'ev-guide') egGo(st.step, true);
       return;
     }
     if (g === 'flow' && st.guide === 'flow'){ renderApp(); return; }
     if (g === 'ev-guide') egCancel();
-    else if (g === 'solar-guide'){ state._sg = null; state.current_screen = 'solar'; saveState(); renderApp(); }
+    else if (g === 'solar-guide') sgCancel();
     else { state._flow = null; state.current_screen = state.onboarding_complete ? 'result' : 'welcome'; saveState(); renderApp(); }
     return;
   }
@@ -12083,7 +12146,7 @@ function renderApp(){
     root.innerHTML = renderEvGuide();
     return;
   }
-  if (state.current_screen === 'solar-guide' && state._sg){
+  if (state.current_screen === 'solar-guide' && state._sg != null){
     root.setAttribute('data-chrome','bare');
     root.innerHTML = renderSolarGuide();
     return;
@@ -13008,6 +13071,13 @@ function applyImportedBills(){
     renderApp();
     return;
   }
+  if (state.current_screen === 'flow'){
+    (state._flow = state._flow || {}).bill = 'meter';
+    state._flow_edit = null;
+    showToast('Meter data in: built on your real year', { type: 'accent', icon: ic('checkC', 16) });
+    renderApp();
+    return;
+  }
   if (state._sheet && state._sheet.kind === 'meter'){
     // Uploaded from a challenge or an alert: stay where you were; the score
     // and the figures update around you.
@@ -13374,6 +13444,9 @@ window.openMySystem = openMySystem;
 window.homeSet = homeSet;
 window.openMyHome = openMyHome;
 window.questDone = questDone;
+window.sgCancel = sgCancel;
+window.flowSupplier = flowSupplier;
+window.sgKeep = sgKeep;
 window.startSolarGuide = startSolarGuide;
 window.startFlow = startFlow;
 window.plannedSolarSplit = plannedSolarSplit;

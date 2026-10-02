@@ -38,9 +38,16 @@ export function createV7(api) {
 
   /* ------------------------------------------------------------ chrome */
 
-  function topbar(title, { back = false } = {}) {
+  function topbar(title, { back = false, home = false } = {}) {
     const root = V7_SURFACES.some((x) => x.id === S().current_screen);
     if (root) back = false;
+    // A screen opened from Home (Solar) says where it came from and goes back there.
+    if (home) return `<header class="topbar v7-top v7-top-sub" role="banner">
+      <h1 class="sr-only">${esc(title)}</h1>
+      <button class="v7-home-back" onclick="setScreen('result')" aria-label="Back to Home">${api.ic('chevL', 18)} Home</button>
+      <div class="v7-top-title">${esc(title)}</div>
+      <div class="v7-top-end">${api.renderProfileNavBtn()}</div>
+    </header>`;
     return `<header class="topbar v7-top" role="banner">
       <h1 class="sr-only">${esc(title || api.brand)}</h1>
       ${back
@@ -115,6 +122,13 @@ export function createV7(api) {
    * then with them — so the reader can see which part of the saving comes from
    * which decision before acting on either.
    */
+  /** Where the home is now, by name, so the comparison says what it compares. */
+  function nowLabel() {
+    const st = S();
+    const p = api.getPlanById(st.baseline);
+    return st.baseline_known && p ? `Now, ${p.supplier}` : 'Now, a standard plan';
+  }
+
   function ladderData(rec) {
     const st = S();
     const today = rec.baseCost;
@@ -127,7 +141,7 @@ export function createV7(api) {
     if (!withSolar) {
       return {
         rungs: [
-          { label: 'Your bill today', value: today, token: '--ink-dim' },
+          { label: nowLabel(), value: today, token: '--ink-dim' },
           { label: `On ${best.plan.supplier}`, value: best.net, token: '--accent' },
         ],
         fromSwitch: today - best.net, fromSolar: 0,
@@ -138,7 +152,7 @@ export function createV7(api) {
     return {
       rungs: [
         { label: 'Your plan, without solar', value: today, token: '--ink-dim' },
-        { label: `Your plan, with ${solarWord}`, value: mineWithSolar, token: '--v7-mid' },
+        { label: `${nowLabel()}, with ${solarWord}`, value: mineWithSolar, token: '--v7-mid' },
         { label: `On ${best.plan.supplier}, with ${solarWord}`, value: best.net, token: '--accent' },
       ],
       fromSolar: today - mineWithSolar,
@@ -207,7 +221,7 @@ export function createV7(api) {
         : switchButton(best.plan, '')}
 
       <button class="v7-basis-line" onclick="openMyHome()">
-        Based on ${esc(basis)}${st.has_solar && api.totalPanels() > 0 ? ` · ${api.totalPanels()} solar panels` : ''}${st.ev_active ? ' · an electric car' : ''}
+        ${(() => { const p = api.getPlanById(st.baseline); return st.baseline_known && p ? `You’re on <b>${esc(p.supplier)} ${esc(p.plan)}</b><br>` : 'Your plan: not given, a standard one assumed<br>'; })()}Based on ${esc(basis)}${st.has_solar && api.totalPanels() > 0 ? ` · ${api.totalPanels()} solar panels` : ''}${st.ev_active ? ' · an electric car' : ''}
         <span>Change</span>
       </button>
 
@@ -228,10 +242,12 @@ export function createV7(api) {
         </span>
       </button>
 
+      ${deep && acc ? (() => { const a = api.modelAccuracy(); return `<div class="v7-acc-why">${api.ic('info', 16)}<span><b>Why ±${acc}%?</b> It allows for: ${esc(a.parts.filter((x) => x.err >= 2).map((x) => x.label.toLowerCase()).join('; '))}.
+        ${a.tip ? `<button onclick="${a.tip.go}">${esc(a.tip.tip)} to tighten it ${api.ic('chevR', 14)}</button>` : ''}</span></div>`; })() : ''}
       ${deep ? `
       ${withSolar ? `<section class="v7-card v7-full-ladder"><div class="v7-card-title">The whole saving, step by step</div>${savingsLadder({ rungs: lad.rungs })}${split}</section>` : ''}
       <div class="qr-actions v7-links">
-        <a href="#" onclick="event.preventDefault();openPlanPicker()">${st.chosen_plan ? 'Change plan' : 'Pick a different plan'}</a>
+        <a href="#" onclick="event.preventDefault();setScreen('plans')">See all ${rec.ranked.length} plans ranked for you</a>
         ${saving > 10 ? `<span class="qr-actions-dot">·</span>
         <a href="#" onclick="event.preventDefault();setScreen('how-to-switch')">How switching works</a>` : ''}
       </div>
@@ -567,10 +583,10 @@ export function createV7(api) {
       // No system yet: an invitation, not a settings screen. Someone who only
       // wants a cheaper plan never has to read about panels.
       if (api.hasModelledSystem()) {
-        return `${topbar('Solar')}
+        return `${topbar('Solar', { home: true })}
         <div class="screen v7 v7-solar">${solarSwitch()}${hero}</div>${nav()}`;
       }
-      return `${topbar('Solar')}
+      return `${topbar('Solar', { home: true })}
       <div class="screen v7 v7-solar">
         <section class="v7-invite">
           <div class="v7-eyebrow">Thinking about solar?</div>
@@ -588,7 +604,7 @@ export function createV7(api) {
       ${nav()}`;
     }
 
-    return `${topbar('Solar')}
+    return `${topbar('Solar', { home: true })}
     <div class="screen v7 v7-solar">
       ${solarSwitch()}
       ${hero}
