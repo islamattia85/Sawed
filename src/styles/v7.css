@@ -1242,3 +1242,4 @@ section.hc { cursor: default; }
 /* "‹ Home  Solar": keep them apart */
 .v7-top-sub { gap: var(--space-3); }
 .v7-top.v7-top-sub { grid-template-columns: auto 1fr auto; }
+.v7-brand-static { cursor: default; background: var(--well); color: var(--accent); }

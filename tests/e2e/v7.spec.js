@@ -785,5 +785,5 @@ test('v8 Home adapts: a card per part of the home, invitations for what it lacks
   await page.locator('.v7-home-back', { hasText: 'Home' }).click();
   expect(await page.evaluate(() => window.state.current_screen)).toBe('result');
   await page.locator('.v7-nav-item', { hasText: 'Analytics' }).click();
-  await expect(page.locator('.an-hub')).toContainText('Solar, month by month');
+  await expect(page.locator('.an-hub')).toContainText('Solar');
 });

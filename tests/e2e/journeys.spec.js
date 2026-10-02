@@ -188,3 +188,15 @@ test('solar explored in the guide is "planned", and the card only moves on its l
   await page.locator('.hc .hc-tag').click({ force: true });
   expect(await screen(page)).toBe('result');                                                   // a label goes nowhere
 });
+
+test('Solar is a section of Analytics, and tapping the lit tab keeps you there', async ({ page }) => {
+  await boot(page, { current_screen: 'analytics', has_solar: true, considering_solar: true, solar_planned: true, count_A: 10, battery_kwh: 5 });
+  await page.locator('.an-hub-b', { hasText: /^Solar$/ }).click();
+  await expect.poll(() => screen(page)).toBe('solar');
+  await expect(page.locator('.an-hub-b.on')).toHaveText('Solar');
+  await expect(page.locator('.v7-nav-item.active')).toContainText('Analytics');
+  await page.locator('.v7-nav-item.active').click();
+  expect(await screen(page)).toBe('solar');
+  await page.locator('.an-hub-b', { hasText: 'Hour by hour' }).click();
+  await expect.poll(() => screen(page)).toBe('analytics');
+});

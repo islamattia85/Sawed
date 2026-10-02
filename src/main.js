@@ -7739,7 +7739,9 @@ function analyticsHub(on){
   const sys = state.has_solar && totalPanels() > 0;
   const items = [
     ['hours', 'Hour by hour', "setScreen('analytics')"],
-    ...(sys ? [['solar', 'Solar, month by month', "state._solar_deep=true;setScreen('solar')"]] : []),
+    // Solar is always a section here: the analysis when there's a system, the
+    // short "would it pay off?" guide when there isn't.
+    ['solar', 'Solar', sys ? "state._solar_from=null;state._solar_deep=true;setScreen('solar')" : 'startSolarGuide()'],
     ['market', 'Market', "setScreen('monitor')"],
     ['meter', 'Meter data', "setScreen('csv-import')"],
   ];
@@ -11171,6 +11173,7 @@ const V7 = createV7({
   renderResultEmpty: v7ResultEmpty,
   hasModelledSystem: v7HasModelledSystem,
   // What a plan costs this home as simulated — solar, battery and EV included.
+  analyticsHub: (on) => analyticsHub(on),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
   renderSolarBody: (part) => renderSolarDashboard({ bodyOnly: part || true }),
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,

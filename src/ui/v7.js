@@ -46,8 +46,9 @@ export function createV7(api) {
     // A screen opened from Home (Solar) says where it came from and goes back there.
     if (home) return `<header class="topbar v7-top v7-top-sub" role="banner">
       <h1 class="sr-only">${esc(title)}</h1>
-      ${(() => { const from = S()._solar_from === 'result' ? ['result', 'Home'] : ['analytics', 'Analytics'];
-        return `<button class="v7-home-back" onclick="state._solar_from=null;setScreen('${from[0]}')" aria-label="Back to ${from[1]}">${api.ic('chevL', 18)} ${from[1]}</button>`; })()}
+      ${S()._solar_from === 'result'
+        ? `<button class="v7-home-back" onclick="state._solar_from=null;setScreen('result')" aria-label="Back to Home">${api.ic('chevL', 18)} Home</button>`
+        : `<span class="v7-brand v7-brand-static">${api.ic('chart', 18)}</span>`}
       <div class="v7-top-title">${esc(title)}</div>
       <div class="v7-top-end">${api.renderProfileNavBtn()}</div>
     </header>`;
@@ -69,7 +70,7 @@ export function createV7(api) {
     return `${api.renderConsentBar()}<nav class="bottom-nav v7-nav" role="navigation" aria-label="Sections">
       ${V7_SURFACES.map((s) => `
         <button class="bottom-nav-item v7-nav-item ${active === s.id ? 'active' : ''}"
-          onclick="setScreen('${s.id}')" aria-current="${active === s.id ? 'page' : 'false'}">
+          onclick="${active === s.id ? 'window.scrollTo({top:0,behavior:\'smooth\'})' : `setScreen('${s.id}')`}" aria-current="${active === s.id ? 'page' : 'false'}">
           <span class="nav-ico">${api.ic(s.icon, 22)}${s.id === 'me' && api.alertCount() ? `<i class="nav-badge" aria-label="${api.alertCount()} new alerts">${api.alertCount()}</i>` : ''}</span>
           <span class="nav-label">${s.label}</span>
         </button>`).join('')}
@@ -588,10 +589,10 @@ export function createV7(api) {
       // No system yet: an invitation, not a settings screen. Someone who only
       // wants a cheaper plan never has to read about panels.
       if (api.hasModelledSystem()) {
-        return `${topbar('Solar', { home: true })}
+        return `${topbar('Solar', { home: true })}${api.analyticsHub('solar')}
         <div class="screen v7 v7-solar">${solarSwitch()}${hero}</div>${nav()}`;
       }
-      return `${topbar('Solar', { home: true })}
+      return `${topbar('Solar', { home: true })}${api.analyticsHub('solar')}
       <div class="screen v7 v7-solar">
         <section class="v7-invite">
           <div class="v7-eyebrow">Thinking about solar?</div>
@@ -609,7 +610,7 @@ export function createV7(api) {
       ${nav()}`;
     }
 
-    return `${topbar('Solar', { home: true })}
+    return `${topbar('Solar', { home: true })}${api.analyticsHub('solar')}
     <div class="screen v7 v7-solar">
       ${solarSwitch()}
       ${hero}
