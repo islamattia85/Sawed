@@ -202,9 +202,9 @@ test('the health sheet carries its own advice', async ({ page }) => {
   await expect(page.locator('#v7-sheet')).toContainText(/Weakest:|Little left on the table/);
 });
 
-test('Market and Hour by hour are reachable from More', async ({ page }) => {
+test('Price watch and Hour by hour are reachable from More', async ({ page }) => {
   await boot(page, { current_screen: 'more' });
-  await expect(page.getByText('Market', { exact: true })).toBeVisible();
+  await expect(page.getByText('Price watch', { exact: true })).toBeVisible();
   await expect(page.getByText('Hour by hour', { exact: true })).toBeVisible();
 });
 

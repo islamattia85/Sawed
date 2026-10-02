@@ -286,7 +286,7 @@ test('the health score names its weakest factor instead of just scoring you', as
   const errors = await boot(page);
   await page.locator('.v7-tile-score').click();
   const card = page.locator('#v7-sheet');
-  await expect(card).toContainText(/Energy health score/);
+  await expect(card).toContainText(/Plan health/);
   await expect(card).toContainText(/Weakest:|Little left on the table/);
   expect(errors).toEqual([]);
 });

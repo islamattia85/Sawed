@@ -274,7 +274,7 @@ export function createV7(api) {
       ${deep && acc ? (() => { const a = api.modelAccuracy(); return `<div class="v7-acc-why">${api.ic('info', 16)}<span><b>Why ±${acc}%?</b> ${a.tip ? `It allows for: ${esc(a.parts.filter((x) => x.err >= 2).map((x) => x.label.toLowerCase()).join('; '))}.` : 'This is as close as a model gets: it’s built on your real meter readings, and only the weather is left to vary.'}
         ${a.tip ? `<button onclick="${a.tip.go}">${esc(a.tip.tip)} to tighten it ${api.ic('chevR', 14)}</button>` : ''}</span></div>`; })() : ''}
       ${deep ? `
-      ${withSolar && !pl ? `<section class="v7-card v7-full-ladder"><div class="v7-card-title">The whole saving, step by step</div>${savingsLadder({ rungs: lad.rungs })}${split}</section>` : ''}
+      ${withSolar && !pl ? `<section class="v7-card v7-full-ladder"><div class="v7-card-title">The whole saving, step by step</div>${savingsLadder({ rungs: lad.rungs })}</section>` : ''}
       <div class="qr-actions v7-links">
         <a href="#" onclick="event.preventDefault();setScreen('plans')">See all ${rec.ranked.length} plans ranked for you</a>
         ${saving > 10 ? `<a href="#" onclick="event.preventDefault();setScreen('how-to-switch')">How switching works</a>` : ''}
@@ -348,6 +348,8 @@ export function createV7(api) {
   function tiles(rec) {
     const st = S();
     const n = rec.ranked.length;
+    let health = null;
+    try { health = api.computeEnergyScore(rec.best, rec.baseCost); } catch (e) { health = null; }
     const rank = rec.ranked.findIndex((r) => r.plan.id === st.baseline) + 1;
     let solar = { big: 'Solar', sub: 'not modelled' };
     if (st.has_solar && api.totalPanels() > 0) {
@@ -357,8 +359,6 @@ export function createV7(api) {
         solar = { big: s.payback < 50 ? `${s.payback.toFixed(1)} yr` : '—', sub: 'payback' };
       } catch (e) { /* the tile is a door; a failed estimate must not block the answer */ }
     }
-    let health = null;
-    try { health = api.computeEnergyScore(rec.best, rec.baseCost); } catch (e) { health = null; }
     let ev = null;
     if (st.ev_active) { try { ev = api.evEconomics(rec.best.plan.id); } catch (e) { ev = null; } }
     if (ev && !(ev.evKwh > 0)) ev = null;  // an EV with no driving set has nothing to say
@@ -373,10 +373,10 @@ export function createV7(api) {
         <span class="v7-tile-big">${solar.big}</span>
         <span class="v7-tile-sub">${solar.sub}</span>
       </button>
-      ${health ? `<button class="v7-tile v7-tile-score" onclick="v7Sheet('score')" aria-label="Energy health score ${health.overall} of 100">
+      ${health ? `<button class="v7-tile v7-tile-score" onclick="v7Sheet('score')" aria-label="Plan health ${health.overall} of 100">
         ${scoreRing({ value: health.overall, size: 44 })}
-        <span class="v7-tile-big">Health</span>
-        <span class="v7-tile-sub">score, and fixes</span>
+        <span class="v7-tile-big">Plan health</span>
+        <span class="v7-tile-sub">how well your plan fits</span>
       </button>` : ''}
       ${ev ? `<button class="v7-tile v7-tile-ev" onclick="v7Sheet('ev')">
         <span class="v7-tile-ico">${api.ic('car', 18)}</span>
@@ -520,7 +520,7 @@ export function createV7(api) {
         </div>
         <div class="plans-sort v7-sort">
           <span class="plans-sort-label">Sort by</span>
-          ${[['cost', 'Cheapest for you'], ['standing', 'Lowest daily fee'], ['export', 'Best for selling solar']].map(([k, lbl]) => `
+          ${[['cost', 'Cheapest for you'], ['standing', 'Lowest daily fee'], ...(S().has_solar && api.totalPanels() > 0 ? [['export', 'Best for selling solar']] : [])].map(([k, lbl]) => `
             <button class="plans-sort-btn ${sortBy === k ? 'on' : ''}" onclick="setPlansSort('${k}')">${lbl}</button>`).join('')}
         </div>
         <div class="v7-legend">
@@ -860,7 +860,8 @@ export function createV7(api) {
     const weakest = score.parts.slice().sort((a, b) => a.score - b.score)[0];
     return `<div class="v7-sheet-head">
         <div class="v7-eyebrow">Your home</div>
-        <h2 class="v7-h">Energy health score</h2>
+        <h2 class="v7-h">Plan health</h2>
+        <p class="v7-muted">How well your plan and habits fit this home, scored on the figures here. Your ${api.brand} score (in Me) is separate: it tracks what you've done.</p>
       </div>
       <section class="v7-score">
         ${scoreRing({ value: score.overall })}

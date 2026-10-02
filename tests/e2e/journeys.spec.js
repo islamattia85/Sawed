@@ -229,3 +229,12 @@ test('no score pop-ups for someone who has never seen the score', async ({ page 
   await page.waitForTimeout(1200);
   await expect(page.locator('.toast', { hasText: /points/ })).toHaveCount(0);
 });
+
+test('"not sure which plan" assumes a standard plan, never an EV or dynamic one', async ({ page }) => {
+  await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
+  await page.getByRole('button', { name: /Get my answer/ }).click();
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.locator('.fl-sup', { hasText: 'Energia' }).click();
+  await page.locator('.fl-opt', { hasText: 'Not sure which plan' }).click();
+  expect(await page.evaluate(() => getPlanById(window.state.baseline).type)).not.toMatch(/ev|dynamic/);
+});

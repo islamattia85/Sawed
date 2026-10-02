@@ -2507,6 +2507,8 @@ function renderBandMix(s, plan){
   const slices = Object.keys(byBand)
     .sort((a, b) => byBand[b] - byBand[a])
     .map(b => ({ label: BAND_LABEL[b] || b, value: byBand[b], token: `--bandink-${b}` }));
+  // A one-price plan has a single band: a full ring draws nothing and says nothing.
+  if (slices.length < 2) return '';
   const chart = bandDonut({ slices });
   if (!chart) return '';
   const total = slices.reduce((a, x) => a + x.value, 0);
@@ -2569,8 +2571,17 @@ function plannedSolarSplit(){
 
 /** The four costs behind Home's staircase when solar is planned: now and
  *  best, each without and with the panels. */
+let _plMemo = { k: null, v: null };
 function plannedLadder(){
   if (!state.has_solar || !(totalPanels() > 0)) return null;
+  // The no-solar run re-simulates the year; do it once per household, not per render.
+  const k = JSON.stringify([goalSweepCk(), state.baseline, state.count_A, state.count_B, state.battery_kwh,
+    state.azimuth_B, state.chosen_plan, state.include_dynamic, state.charge_from_grid, state.solar_planned]);
+  if (_plMemo.k === k && _plMemo.v) return _plMemo.v;
+  _plMemo = { k, v: _plannedLadder() };
+  return _plMemo.v;
+}
+function _plannedLadder(){
   if (CACHE.dirty) rebuildBase();
   const basePlan = getPlanById(state.baseline);
   const today = sumF(baselineSim(state.baseline).cost) + basePlan.standing + PSO_LEVY;
@@ -5985,7 +5996,10 @@ function renderFlow(){
       const sups = [...new Set(plans.map((p) => p.supplier))].sort((a, b) => a.localeCompare(b));
       const sup = state._flow_sup;
       if (sup){
-        const mine = plans.filter((p) => p.supplier === sup);
+        // Most homes are on a standard plan: list those first, and "not sure"
+        // assumes one. EV and dynamic plans only suit some homes, so they go last.
+        const order = { flat: 0, tou: 1, ev: 2, dynamic: 3 };
+        const mine = plans.filter((p) => p.supplier === sup).sort((a, b) => (order[a.type] ?? 1) - (order[b.type] ?? 1));
         return `<button class="fl-crumb" onclick="state._flow_sup=null;renderApp()">${ic('chevL', 14)} All suppliers</button>
           <div class="fl-k">${esc(sup)}: which plan? It’s on your bill, near the top.</div>
           <div class="fl-opts">${mine.map((p) => opt('plan', p.id, esc(p.plan))).join('')}
@@ -6041,7 +6055,7 @@ function renderFlow(){
     const acc = modelAccuracy().pct;
     h += `<section class="fl-reveal">
       <div class="fl-r-k">Your answer</div>
-      ${save > 10 ? `<div class="fl-r-big">${eur(save)}<span> a year</span></div>
+      ${save > 10 ? `<div class="fl-r-big is-saving">${eur(save)}<span> less a year</span></div>
         <div class="fl-r-line">${pl ? `switching plan and adding the solar: <b>${eur(Math.max(0, pl.today - pl.noSolar.net))}</b> from switching now, <b>${eur(Math.max(0, pl.noSolar.net - pl.best.net))}</b> more once the panels are in` : `by switching to <b>${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}</b>`}</div>${bars}`
         : `<div class="fl-r-line"><b>You’re already on a good plan.</b> Nothing on sale beats it for your home.</div>`}
       <div class="fl-r-list">
@@ -6532,7 +6546,7 @@ function renderSolarDashboard(opts){
       <a href="#" onclick="event.preventDefault();goRefineSolar()">Set your exact spec</a>
     </div>` : ''}
 
-    ${renderPlanChoiceBlock(best, annualSavings, { title: 'Best plan WITH this solar' })}
+    ${renderPlanChoiceBlock(best, annualSavings, { title: state.solar_planned ? 'Best plan once the panels are in' : 'Best plan with your solar' })}
     <div class="solar-note">Same plan whether or not you install solar</div>
 
     <!-- The SEAI grant card lived here, permanently. It is a fixed €1,800 for
@@ -6699,7 +6713,7 @@ function renderSolarDashboard(opts){
       <a href="#" onclick="event.preventDefault();goRefineSolar()">Set your exact spec</a>
     </div>` : ''}
 
-    ${renderPlanChoiceBlock(best, annualSavings, { title: 'Best plan WITH this solar' })}
+    ${renderPlanChoiceBlock(best, annualSavings, { title: state.solar_planned ? 'Best plan once the panels are in' : 'Best plan with your solar' })}
     <div class="solar-note">Same plan whether or not you install solar</div>
 
     <!-- The SEAI grant card lived here, permanently. It is a fixed €1,800 for
@@ -6985,9 +6999,13 @@ function renderPlanChoiceBlock(best, annualSavings, opts = {}){
     <button class="btn-secondary" style="margin-top:10px" onclick="openPlanPicker()">
       ${ic('tune',14)} ${state.chosen_plan ? 'Change plan' : 'Use a different plan'}
     </button>
-    <button class="switch-cta" style="margin-top:8px" onclick="v7Sheet('switch','${best.plan.id}')">
+    ${state.has_solar && state.solar_planned && opts.title
+      ? (() => { const pl = plannedLadder(); const now = pl && pl.noSolar.plan; return now && now.id !== best.plan.id
+          ? `<div class="opt-note">${ic('info',14)} <span>That’s the plan for once the panels are in. Until then, <b>${esc(now.supplier)} ${esc(now.plan)}</b> is cheapest, and it’s the switch on Home.</span></div>`
+          : `<button class="switch-cta" style="margin-top:8px" onclick="v7Sheet('switch','${best.plan.id}')">Switch to ${best.plan.supplier} →</button>`; })()
+      : `<button class="switch-cta" style="margin-top:8px" onclick="v7Sheet('switch','${best.plan.id}')">
       Switch to ${best.plan.supplier} →
-    </button>`;
+    </button>`}`;
 }
 
 function toggleSolarEvModel(){
@@ -9502,7 +9520,7 @@ function renderMonitor(){
       <div class="mon-status-line">Switching to <b>${best.plan.supplier} — ${best.plan.plan}</b> would save you about <b style="color:var(--amber)">${fmtCurrency(savings)}/yr</b> versus your current plan.</div>
       <!-- countLabel already reads "22 of 25 — 3 dynamic plans excluded", so
            interpolating it after "of" produced "ranks #20 of 22 of 25". -->
-      <div class="mon-status-meta">Your current plan ranks #${rank || '–'} of ${rec.rankedCount} for your usage</div>
+      <div class="mon-status-meta">${rank ? `Your current plan ranks #${rank} of ${rec.rankedCount} for your usage` : `Your current plan isn’t in the ranking (dynamic plans are left out unless you turn them on in Settings)`}</div>
       <button class="switch-cta" style="margin-top:13px;margin-bottom:0;font-size:13px;padding:13px"
         onclick="v7Sheet('switch','${best.plan.id}')">
         Review the switch →</button>
@@ -9544,7 +9562,7 @@ function renderMonitor(){
     sub: onBest ? `${countLabel} plans simulated against your usage — you're still best off where you are.`
                 : `${best.plan.supplier} ${best.plan.plan} now leads for your home.` });
   events.push({ c:'var(--blue)', when:'Your ranking',
-    title:`Your plan sits #${rank || '–'} of ${countLabel}`,
+    title: rank ? `Your plan sits #${rank} of ${countLabel}` : `Your plan is outside the ranking of ${countLabel}`,
     sub:`Top 3 for your profile: ${top3.map(t => { const p = getPlanById(t.id); return `${p.supplier} ${p.plan}`; }).join('; ')}.` });
   if (state.switched_to){
     const sp = getPlanById(state.switched_to);
@@ -9598,7 +9616,7 @@ function renderMonitor(){
       <div class="mon-watch-item"><span class="mon-watch-ic">${ic('sun',14)}</span><div><b>Seasonal solar insight.</b> If you have panels, how your roof performed and what it saved.</div></div>
     </div>
     <div style="font-size:12px;color:var(--ink-soft);text-align:center;margin-top:12px;line-height:1.6;padding:0 6px">
-      These checks run here, in the app — we don't email you or send push notifications, and there's no account required. Open Monitor whenever you want a fresh read.
+      These checks run here, in the app — we don't email you or send push notifications, and there's no account required. Open Price watch whenever you want a fresh read.
     </div>
 
     <div class="secondary-card blue" onclick="setScreen('independence')" style="margin-top:16px">
@@ -10762,7 +10780,7 @@ function renderMore(){
   const groups = [
     ['Your data', [
       [ic('chart',19),'Hour by hour','Any day of the year: use, solar, battery, grid and cost','analytics'],
-      [ic('radar',19),'Market','Price changes, announced rises and alerts','monitor'],
+      [ic('radar',19),'Price watch','Price changes, announced rises and alerts','monitor'],
       [ic('csv',19),'Import smart-meter data','Your ESB file: the most accurate result','csv-import'],
     ]],
     ['Do it', [
@@ -11213,6 +11231,7 @@ const V7 = createV7({
   // What a plan costs this home as simulated — solar, battery and EV included.
   analyticsHub: (on) => analyticsHub(on),
   plannedLadder: () => plannedLadder(),
+  householdScore: () => householdScore(),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
   renderSolarBody: (part) => renderSolarDashboard({ bodyOnly: part || true }),
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,

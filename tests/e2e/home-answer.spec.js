@@ -108,7 +108,7 @@ test('nothing was deleted — the working and the health sheet hold all of it', 
   // …and the health score, which left the working, is one tap away on Home.
   await page.locator('.v7-tile-score').click();
   const sheet = await page.evaluate(() => document.getElementById('v7-sheet')?.innerText || '');
-  expect(sheet, 'the health score is gone, not moved').toMatch(/Energy health score/i);
+  expect(sheet, 'the health score is gone, not moved').toMatch(/Plan health/i);
 
   expect(errors).toEqual([]);
 });
