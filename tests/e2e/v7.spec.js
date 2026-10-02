@@ -749,7 +749,7 @@ test('v8 EV guide: four steps, then what it costs and saves; backing out changes
   await expect(page.locator('#v7-sheet')).toContainText('Your EV');
 });
 
-test('the flow reveal: the switch saving is the switch alone, and the same figure Home shows', async ({ page }) => {
+test('the flow reveal: planned solar leads with the most you could save, the same figure Home shows', async ({ page }) => {
   await bootFresh(page);
   await page.getByRole('button', { name: /Get my answer/ }).click();
   await page.locator('#flow-bill').fill('420'); await page.getByRole('button', { name: 'Next' }).click();
@@ -775,8 +775,9 @@ test('v8 Home adapts: a card per part of the home, invitations for what it lacks
   expect((await page.locator('.v7-nav-item .nav-label').allInnerTexts())).toEqual(['Home', 'Plans', 'Analytics', 'Me']);
 
   await boot(page, { has_solar: true, considering_solar: true, solar_planned: true, count_A: 12, battery_kwh: 5, ev_active: true, ev_km_per_year: 15000, _home_deep: false });
-  await expect(page.locator('.hc')).toHaveCount(2);
-  await expect(page.locator('.hc').first()).toContainText('years to pay for itself');
+  // Planned solar is part of the answer's staircase; the car keeps its card.
+  await expect(page.locator('.hc')).toHaveCount(1);
+  await expect(page.locator('.v7-hero .v7-steps')).toContainText('paid back in');
   await expect(page.locator('.hc-invite')).toHaveCount(0);
   await page.locator('.hc-go', { hasText: 'Solar analysis' }).click();
   expect(await page.evaluate(() => window.state.current_screen)).toBe('solar');

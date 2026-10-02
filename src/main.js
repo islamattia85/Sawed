@@ -2567,6 +2567,19 @@ function plannedSolarSplit(){
   return { switchNow, withPlanned: Math.max(0, total - switchNow), total };
 }
 
+/** The four costs behind Home's staircase when solar is planned: now and
+ *  best, each without and with the panels. */
+function plannedLadder(){
+  if (!state.has_solar || !(totalPanels() > 0)) return null;
+  if (CACHE.dirty) rebuildBase();
+  const basePlan = getPlanById(state.baseline);
+  const today = sumF(baselineSim(state.baseline).cost) + basePlan.standing + PSO_LEVY;
+  const noSolar = withSimState({ count_A: 0, count_B: 0, battery_kwh: 0, has_solar: false }, () => { const b = getBestPlan(); return { net: b.net, plan: b.plan }; });
+  const withS = getBestPlan();
+  const mine = annualCost(sim(basePlan.id), basePlan).net;
+  return { today, noSolar, mine, best: { net: withS.net, plan: withS.plan } };
+}
+
 // The savings figure that's honest to publish (share card / PDF): for planned
 // solar, switch-now only; otherwise the full figure.
 function publishableSavings(){
@@ -6013,21 +6026,23 @@ function renderFlow(){
     // The switch alone, never mixed with panels: a planned system is left out
     // (it isn't bought), an installed one is on both sides of the comparison.
     // The same figure Home shows: the switch alone, on the home as it is.
-    let save = 0, mine = 0;
+    let save = 0, mine = 0, pl = null;
     try {
-      mine = state.has_solar && totalPanels() > 0 ? myPlanCost() : rec.baseCost;
+      // Planned solar: the most this home could save, as Home leads with it.
+      pl = state.has_solar && totalPanels() > 0 && state.solar_planned ? plannedLadder() : null;
+      mine = pl ? pl.today : state.has_solar && totalPanels() > 0 ? myPlanCost() : rec.baseCost;
       save = Math.max(0, mine - rec.best.net);
     } catch (e) {}
     const bp = getPlanById(state.baseline);
     const bars = rec && save > 10 ? `<div class="fl-bars">
         <div><span>Now${state.baseline_known && bp ? `, ${esc(bp.supplier)}` : ''}</span><b>${eur(mine)}</b><i style="width:100%"></i></div>
-        <div><span>On ${esc(rec.best.plan.supplier)}</span><b>${eur(rec.best.net)}</b><i class="is-best" style="width:${Math.max(8, Math.round(rec.best.net / mine * 100))}%"></i></div>
+        <div><span>On ${esc(rec.best.plan.supplier)}${pl ? ', with the solar' : ''}</span><b>${eur(rec.best.net)}</b><i class="is-best" style="width:${Math.max(8, Math.round(rec.best.net / mine * 100))}%"></i></div>
       </div>` : '';
     const acc = modelAccuracy().pct;
     h += `<section class="fl-reveal">
       <div class="fl-r-k">Your answer</div>
       ${save > 10 ? `<div class="fl-r-big">${eur(save)}<span> a year</span></div>
-        <div class="fl-r-line">by switching to <b>${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}</b></div>${bars}`
+        <div class="fl-r-line">${pl ? `switching plan and adding the solar: <b>${eur(Math.max(0, pl.today - pl.noSolar.net))}</b> from switching now, <b>${eur(Math.max(0, pl.noSolar.net - pl.best.net))}</b> more once the panels are in` : `by switching to <b>${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}</b>`}</div>${bars}`
         : `<div class="fl-r-line"><b>You’re already on a good plan.</b> Nothing on sale beats it for your home.</div>`}
       <div class="fl-r-list">
         ${sd ? `<span>${state.solar_planned ? 'Solar would pay back in' : 'Your panels bring back'} <b>${state.solar_planned ? `${sd.cur.payback < 50 ? sd.cur.payback.toFixed(1) : '—'} years` : `${eur(sd.cur.solarBenefit)} a year`}</b></span>` : ''}
@@ -7743,8 +7758,8 @@ function analyticsHub(on){
     // short "would it pay off?" guide when there isn't.
     ['solar', 'Solar', sys ? "state._solar_from=null;state._solar_deep=true;setScreen('solar')" : 'startSolarGuide()'],
     ['market', 'Market', "setScreen('monitor')"],
-    ['meter', 'Meter data', "setScreen('csv-import')"],
   ];
+  if (on === 'meter') items.push(['meter', 'Meter data', "setScreen('csv-import')"]);
   return `<nav class="an-hub" aria-label="Analytics">${items.map(([k, l, go]) =>
     `<button class="an-hub-b ${k === on ? 'on' : ''}" onclick="${go}">${l}</button>`).join('')}</nav>`;
 }
@@ -7870,7 +7885,19 @@ function renderAnalytics(){
         <div onclick="state._an_plan='${recommendedId}'; saveState(); renderApp(); showToast('Now viewing your recommended plan.',{type:'accent',icon:'★',title:''});" style="margin-top:8px;padding:8px 12px;background:var(--accent-faint);border:1px dashed var(--accent);border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--accent);cursor:pointer;letter-spacing:.02em">
           ★ Tap to view your <b>recommended</b> plan — ${getPlanById(recommendedId).supplier} — ${getPlanById(recommendedId).plan}
         </div>` : ''}
-      <div class="an-hero-grid">
+      ${annualGen < 1 ? `<div class="an-hero-grid an-hero-two">
+        <div class="an-stat">
+          <div class="an-stat-label">Bought from the grid</div>
+          <div class="an-stat-value amber">${Math.round(annualImp).toLocaleString()}</div>
+          <div class="an-stat-unit">kWh / yr</div>
+          <div class="an-stat-sub">${state.battery_kwh > 0 && state.charge_from_grid ? 'Includes charging the battery in cheap hours' : 'All of it: no solar in this home'}</div>
+        </div>
+        <button class="an-stat an-stat-go" onclick="startSolarGuide()">
+          <div class="an-stat-label">Solar</div>
+          <div class="an-stat-sub">See what panels would make, keep and sell here</div>
+          <span class="hc-go">Would it pay off? ${ic('chevR', 14)}</span>
+        </button>
+      </div>` : `<div class="an-hero-grid">
         <div class="an-stat" title="Solar generated minus exports minus curtailed = consumed on-site (either directly or via battery)">
           <div class="an-stat-label">Solar generated</div>
           <div class="an-stat-value accent">${Math.round(annualGen).toLocaleString()}</div>
@@ -7895,9 +7922,10 @@ function renderAnalytics(){
           <div class="an-stat-unit">kWh / yr</div>
           <div class="an-stat-sub">€${(annualExp * plan.export_rate).toFixed(0)} CEG revenue</div>
         </div>
-      </div>
+      </div>`}
     </div>
 
+    ${state._csv_imported ? '' : `<button class="an-meter-hint" onclick="v7Sheet('meter')">${ic('csv', 18)}<span><b>These hours are estimated from your bill</b>Upload your ESB meter file to see your real ones</span>${ic('chevR', 16)}</button>`}
     ${renderYearShape(s, plan)}
     ${renderBandMix(s, plan)}
 
@@ -11174,6 +11202,7 @@ const V7 = createV7({
   hasModelledSystem: v7HasModelledSystem,
   // What a plan costs this home as simulated — solar, battery and EV included.
   analyticsHub: (on) => analyticsHub(on),
+  plannedLadder: () => plannedLadder(),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
   renderSolarBody: (part) => renderSolarDashboard({ bodyOnly: part || true }),
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,

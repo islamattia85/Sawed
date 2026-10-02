@@ -184,9 +184,11 @@ test('solar explored in the guide is "planned", and the card only moves on its l
   await page.getByRole('button', { name: /Show me the answer/ }).click();
   await expect(page.locator('.sg-found')).toContainText('Found for you');
   await page.getByRole('button', { name: /Add to my Home/ }).click();
-  await expect(page.locator('.hc .hc-tag')).toHaveText('planned');
-  await page.locator('.hc .hc-tag').click({ force: true });
-  expect(await screen(page)).toBe('result');                                                   // a label goes nowhere
+  // Planned solar joins the one staircase on Home; nothing calls it installed.
+  await expect(page.locator('.v7-hero')).toContainText('with the planned solar');
+  await expect(page.locator('.v7-hero')).not.toContainText(/installed/i);
+  await page.locator('.v7-hero .v7-step').first().click();
+  expect(await screen(page)).toBe('result');                                                   // information goes nowhere
 });
 
 test('Solar is a section of Analytics, and tapping the lit tab keeps you there', async ({ page }) => {

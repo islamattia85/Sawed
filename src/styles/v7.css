@@ -1243,3 +1243,14 @@ section.hc { cursor: default; }
 .v7-top-sub { gap: var(--space-3); }
 .v7-top.v7-top-sub { grid-template-columns: auto 1fr auto; }
 .v7-brand-static { cursor: default; background: var(--well); color: var(--accent); }
+.an-hero-two { grid-template-columns: 1fr 1fr; }
+.an-stat-go { display: grid; gap: 6px; align-content: start; text-align: left; font-family: inherit; color: inherit; cursor: pointer; }
+.an-meter-hint { display: flex; align-items: center; gap: var(--space-3); width: 100%; margin: var(--space-3) 0; padding: var(--space-3) var(--space-4); text-align: left; border-radius: var(--radius-xl); border: 1px solid var(--line); background: var(--panel); color: var(--ink-soft); font: 500 var(--text-data) var(--display); cursor: pointer; }
+.an-meter-hint b { display: block; color: var(--ink); font-size: var(--text-body); }
+.an-meter-hint > svg:first-child { flex: none; color: var(--accent); }
+.an-meter-hint > svg:last-child { margin-left: auto; flex: none; }
+/* Planned solar: what each step is worth */
+.v7-steps { display: grid; gap: var(--space-2); margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--line); }
+.v7-step { display: grid; grid-template-columns: auto 1fr; gap: var(--space-3); align-items: baseline; font-size: var(--text-data); color: var(--ink-soft); line-height: 1.45; }
+.v7-step > b { font: 800 var(--text-body) var(--display); color: var(--accent); font-variant-numeric: tabular-nums; }
+.v7-step span b { color: var(--ink); font-weight: 600; }

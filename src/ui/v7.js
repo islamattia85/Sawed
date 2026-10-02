@@ -175,8 +175,19 @@ export function createV7(api) {
     // v8: with solar on its own Home card, the plan card is about switching
     // only — the same home, panels on both sides, as the Plans tab ranks it.
     const withSolar = lad.rungs.length === 3;
-    const rungs = withSolar ? lad.rungs.slice(1) : lad.rungs;
-    const saving = withSolar ? fromSwitch : rec.annualSavings;
+    // Planned solar: one staircase, worst to best. Now; the best plan without
+    // panels; now with the panels; the best plan with them. The big figure is
+    // the whole of it, and each step says what it is worth and what it takes.
+    const plannedSolar = withSolar && (st.solar_planned || st.solar_is_estimate);
+    const pl = plannedSolar ? api.plannedLadder() : null;
+    const stair = pl ? [
+      { label: `${nowLabel()}, no solar`, value: pl.today, token: '--ink-dim' },
+      { label: `On ${pl.noSolar.plan.supplier}, no solar`, value: pl.noSolar.net, token: '--v7-mid' },
+      { label: `${nowLabel()}, with the planned solar`, value: pl.mine, token: '--v7-mid' },
+      { label: `On ${pl.best.plan.supplier}, with the planned solar`, value: pl.best.net, token: '--accent' },
+    ] : null;
+    const rungs = stair || (withSolar ? lad.rungs.slice(1) : lad.rungs);
+    const saving = pl ? pl.today - pl.best.net : withSolar ? fromSwitch : rec.annualSavings;
     const mineNow = rungs[0].value;
     const switchName = jsAttr(`${best.plan.supplier} ${best.plan.plan}`);
     const split = fromSolar > 1
@@ -193,9 +204,19 @@ export function createV7(api) {
         <div class="qr-value v7-figure"><span>${api.fmtCurrency(mineNow)}</span><span class="v7-figure-unit">a year where you are</span></div>
         <div class="v7-headline">No plan on the market costs less for this home. The closest is <b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}, ${eur(Math.max(0, -saving))} a year more.</div>`
       : `
-        <div class="v7-eyebrow">${saving > 10 ? (withSolar ? `Switching plan saves${st.solar_planned ? ', with the planned solar' : ''}` : 'You could pay less') : 'Your best plan'}</div>
+        <div class="v7-eyebrow">${pl ? 'The most you could save: switch plan and add the planned solar' : saving > 10 ? (withSolar ? 'Switching plan saves, with your solar' : 'You could pay less') : 'Your best plan'}</div>
         <div class="qr-value v7-figure" data-countup="${Math.round(Math.max(0, saving))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, saving))}</span><span class="v7-figure-unit">a year</span></div>
-        <div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Best for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`;
+        ${pl ? '' : `<div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Best for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`}`;
+    let steps = '';
+    if (pl) {
+      let d = null; try { d = api.solarData(); } catch (e) {}
+      const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
+      steps = `<div class="v7-steps">
+        <div class="v7-step"><b>${eur(Math.max(0, pl.today - pl.noSolar.net))}</b><span>a year from switching to <b>${esc(pl.noSolar.plan.supplier)}</b> ${esc(pl.noSolar.plan.plan)}. Free, and you can do it today.</span></div>
+        <div class="v7-step"><b>${eur(Math.max(0, pl.noSolar.net - pl.best.net))}</b><span>more a year once the panels are in${pl.best.plan.id !== pl.noSolar.plan.id ? `, on <b>${esc(pl.best.plan.supplier)}</b> ${esc(pl.best.plan.plan)}` : ''}. ${d ? `${eur(d.sysCost)} after the grant${pb ? `, paid back in ${pb.toFixed(1)} years` : ''}.` : ''}</span></div>
+        <button class="hc-go" onclick="state._solar_from='result';setScreen('solar')">Solar analysis ${api.ic('chevR', 14)}</button>
+      </div>`;
+    }
 
     /*
      * Simple first, deep on request.
@@ -218,11 +239,12 @@ export function createV7(api) {
       <section class="v7-hero qr-hero">
         ${hero}
         ${savingsLadder({ rungs })}
+        ${steps}
       </section>
 
       ${stay
         ? `<button class="switch-cta v7-cta" onclick="setScreen('plans')">See every plan compared ${api.ic('chevR', 18)}</button>`
-        : switchButton(best.plan, '')}
+        : switchButton(pl ? pl.noSolar.plan : best.plan, '')}
 
       <button class="v7-basis-line" onclick="openMyHome()">
         Based on ${esc(basis)}${st.has_solar && api.totalPanels() > 0 ? ` · ${api.totalPanels()} solar panels` : ''}${st.ev_active ? ' · an electric car' : ''}
@@ -284,7 +306,7 @@ export function createV7(api) {
     const sys = st.has_solar && api.totalPanels() > 0;
     const planned = sys && (st.solar_planned || st.solar_is_estimate);
     let out = '';
-    if (sys) {
+    if (sys && !planned) {
       let d = null; try { d = api.solarData(); } catch (e) {}
       const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
       out += `<section class="hc">
@@ -566,8 +588,13 @@ export function createV7(api) {
         <button class="v7-link" onclick="v7Sheet('quote')">${api.ic('clip', 14)} Model an installer's quote instead</button>
       </section>`
       : `<section class="v7-hero v7-solar-hero">
-        <div class="v7-headline">${api.hasModelledSystem() ? 'Solar is left out of every figure. Switch it back on above — your system is kept.' : 'No solar is modelled for this home, so every figure is without panels.'}</div>
-        ${api.hasModelledSystem() ? '' : `<button class="switch-cta v7-cta" onclick="exploreSolar()">Model a system for this roof ${api.ic('chevR', 18)}</button>`}
+        <div class="v7-eyebrow">${api.ic('sun', 16)} Solar is switched off</div>
+        <div class="v7-headline">${api.hasModelledSystem()
+          ? `Your system (${api.totalPanels()} panels${st.battery_kwh > 0 ? `, ${st.battery_kwh} kWh battery` : ''}) is kept, but left out of every figure.`
+          : 'No solar is modelled for this home, so every figure is without panels.'}</div>
+        ${api.hasModelledSystem()
+          ? `<button class="switch-cta v7-cta" onclick="toggleSolarModel()">Switch solar back on ${api.ic('sun', 18)}</button>`
+          : `<button class="switch-cta v7-cta" onclick="startSolarGuide()">Would solar pay off here? ${api.ic('chevR', 18)}</button>`}
       </section>`;
 
     const months = hasSystem ? (() => {
