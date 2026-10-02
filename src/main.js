@@ -2579,14 +2579,19 @@ function accuracyWithMeter(){
   return Math.max(2, Math.round(Math.sqrt(parts.reduce((x, p) => x + p.err * p.err, 0))));
 }
 
-/** Take the car out of every figure. Its distance and car are kept, so the guide brings it back as it was. */
-function removeEv(){
-  if (!confirm('Take the car out of every figure? You can add it back any time.')) return;
-  state.ev_active = false;
+/**
+ * Take the car in or out of every figure, as solar's "Leave out" does: the
+ * car itself (distance, size, charger) is kept, so it comes back as it was.
+ */
+function toggleEvModel(){
+  if (!state.ev_active && !state._ev_left_out) return startEvGuide();
+  state.ev_active = !state.ev_active;
+  state._ev_left_out = !state.ev_active;
+  if (!state.ev_active && state._an_tab === 'car') state._an_tab = 'bill';
   invalidate(); saveState();
-  if (state._an_tab === 'car') state._an_tab = 'bill';
-  if (state.current_screen === 'analytics') renderApp(); else setScreen(state.current_screen);
+  if (state.current_screen === 'analytics' || state.current_screen === 'solar') renderApp(); else setScreen(state.current_screen);
 }
+const removeEv = toggleEvModel;
 
 /** Analytics' own tabs. Solar keeps its screen id ('solar') so every link
  *  into it — Home, the solar guide — still lands on it. */
@@ -5766,6 +5771,7 @@ function egSet(key, v, next){
   if (next) egGo(next); else renderApp();
 }
 function egDone(){
+  delete state._ev_left_out;
   state._eg = null; _egBefore = null;
   state._an_from = 'result';
   state._an_tab = 'car';
@@ -12522,6 +12528,7 @@ window.sgKeep = sgKeep;
 window.sgGrant = sgGrant;
 window.anTab = anTab;
 window.removeEv = removeEv;
+window.toggleEvModel = toggleEvModel;
 window.tryUpgrade = tryUpgrade;
 window.useGoalDesign = useGoalDesign;
 window.startSolarGuide = startSolarGuide;

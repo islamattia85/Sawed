@@ -41,9 +41,9 @@ test('the Car tab is there only for a home with a car', async ({ page }) => {
 
   // With one, Home's car card opens it, and both say the same yearly cost.
   await boot(page, { current_screen: 'result', ev_active: true, ev_in_bill: true, ev_km_per_year: 16000 });
-  const card = page.locator('section.hc', { hasText: 'Your EV' });
-  const onHome = euros(await card.locator('.hc-fig').textContent());
-  await card.getByRole('button', { name: /Your EV in detail/ }).click();
+  const row = page.locator('.v7-ev-ctl');
+  const onHome = euros(await row.locator('small').textContent());
+  await page.getByRole('button', { name: /Car analysis/ }).click();
   await expect(page.locator('.ax-tab.on')).toHaveText('Car');
   await expect(page.locator('.ax-ans-k')).toHaveText('To charge it');
   expect(euros(await page.locator('.ax-ans .ax-big').textContent())).toBe(onHome);

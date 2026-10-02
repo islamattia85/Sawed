@@ -265,9 +265,9 @@ test('the EV has its own question, not a corner of the Solar tab', async ({ page
   const errors = await boot(page, { ev_active: true, current_screen: 'solar', _solar_more: true });
   await expect(page.getByText('EV petrol displacement')).toHaveCount(0);
   await boot(page, { ev_active: true, ev_km_per_year: 15000 });
-  const card = page.locator('section.hc', { hasText: 'Your EV' });
-  await expect(card).toContainText('less than petrol');
-  await card.getByRole('button', { name: /Your EV in detail/ }).click();
+  const row = page.locator('.v7-ev-ctl');
+  await expect(row).toContainText('less than petrol');
+  await page.getByRole('button', { name: /Car analysis/ }).click();
   await expect(page.locator('h1.ax-h')).toHaveText('What does the car cost to run here?');
   await expect(page.locator('.ax-tab.on')).toHaveText('Car');
   await expect(page.locator('.screen')).toContainText('less than petrol');
@@ -789,8 +789,14 @@ test('v8 Home adapts: a card per part of the home, invitations for what it lacks
   expect((await page.locator('.v7-nav-item .nav-label').allInnerTexts())).toEqual(['Home', 'Plans', 'Analytics', 'Me']);
 
   await boot(page, { has_solar: true, considering_solar: true, solar_planned: true, count_A: 12, battery_kwh: 5, ev_active: true, ev_km_per_year: 15000 });
-  // Planned solar is part of the answer's staircase; the car keeps its card.
-  await expect(page.locator('.hc')).toHaveCount(1);
+  // Planned solar and the car are both lines on the answer, each with Leave out.
+  await expect(page.locator('.hc')).toHaveCount(0);
+  await expect(page.locator('.v7-hero .v7-ev-ctl')).toContainText('Leave out');
+  // The car leaves out and comes back like the panels do.
+  await page.locator('.v7-ev-ctl button').click();
+  await expect(page.locator('.hc-invite', { hasText: 'left out' })).toBeVisible();
+  await page.locator('.hc-invite', { hasText: 'left out' }).click();
+  await expect(page.locator('.v7-ev-ctl')).toBeVisible();
   await expect(page.locator('.v7-hero .v7-steps')).toContainText('pays back in');
   await expect(page.locator('.hc-invite')).toHaveCount(0);
   await page.locator('.hc-go', { hasText: 'Solar analysis' }).click();

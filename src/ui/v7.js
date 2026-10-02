@@ -193,18 +193,31 @@ export function createV7(api) {
         <div class="qr-value v7-figure ${saving > 10 ? 'is-saving' : ''}" data-countup="${Math.round(Math.max(0, saving))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, saving))}</span><span class="v7-figure-unit">${saving > 10 ? 'less a year' : 'a year'}</span></div>
         ${pl ? '' : `<div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Best for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`}
         ${!pl && best.plan.type === 'ev' && !st.ev_active ? `<div class="v7-evnote">${api.ic('info', 14)} You don’t need an electric car for this plan. It’s named for cars, but its cheap night hours suit ${st.battery_kwh > 0 ? 'your battery' : 'your home'} too.</div>` : ''}`;
-    let steps = '';
+    // The parts of the home that are choices, each on one line with its own
+    // "Leave out": planned solar, and the car. Same row, same switch.
+    let evRow = '';
+    if (st.ev_active) {
+      let ev = null; try { ev = api.evEconomics(rec.best.plan.id); } catch (e) {}
+      const w = rec.best.plan.windows || {};
+      const win = w.ev || w.night;
+      evRow = `<div class="v7-solar-ctl v7-ev-ctl">${api.ic('car', 18)}<span><b>${st.ev_in_bill ? 'Your EV' : 'Planned EV'}</b><small>${ev ? `${eur(ev.evElectricityCost)} a year to charge · ${eur(ev.evVsPetrolNet)} less than petrol` : ''}${win ? ` · charge ${hhmm(win[0])}–${hhmm(win[1])}` : ''}</small></span>
+        <button onclick="toggleEvModel()">Leave out</button></div>`;
+    }
+    let solarRow = '';
     if (pl) {
       let d = null; try { d = api.solarData(); } catch (e) {}
       const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
-      steps = `<div class="v7-steps">
-        ${pl.noSolar.plan.id === st.baseline ? `<div class="v7-step"><b>${api.ic('checkC', 16)}</b><span>You’re already on the cheapest plan until the panels are in.</span></div>` : ''}
-        ${(() => { let d = null; try { d = api.solarData(); } catch (e) {} const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
-          return `<div class="v7-solar-ctl">${api.ic('sun', 18)}<span><b>Planned solar</b><small>${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}${d ? ` · ${eur(d.sysCost)} after grant` : ''}${pb ? ` · pays back in ${pb.toFixed(1)} yrs` : ''}</small></span>
-          <button onclick="toggleSolarModel()">Leave out</button></div>`; })()}
-        <button class="hc-go" onclick="anTab('solar','result')">Solar analysis ${api.ic('chevR', 14)}</button>
-      </div>`;
+      solarRow = `<div class="v7-solar-ctl">${api.ic('sun', 18)}<span><b>Planned solar</b><small>${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}${d ? ` · ${eur(d.sysCost)} after grant` : ''}${pb ? ` · pays back in ${pb.toFixed(1)} yrs` : ''}</small></span>
+        <button onclick="toggleSolarModel()">Leave out</button></div>`;
     }
+    const steps = solarRow || evRow ? `<div class="v7-steps">
+        ${pl && pl.noSolar.plan.id === st.baseline ? `<div class="v7-step"><b>${api.ic('checkC', 16)}</b><span>You’re already on the cheapest plan until the panels are in.</span></div>` : ''}
+        ${solarRow}${evRow}
+        <div class="v7-step-go">
+          ${solarRow ? `<button class="hc-go" onclick="anTab('solar','result')">Solar analysis ${api.ic('chevR', 14)}</button>` : ''}
+          ${evRow ? `<button class="hc-go" onclick="anTab('car','result')">Car analysis ${api.ic('chevR', 14)}</button>` : ''}
+        </div>
+      </div>` : '';
 
     /*
      * Simple first, deep on request.
@@ -318,22 +331,12 @@ export function createV7(api) {
         <button class="hc-go" onclick="anTab('solar','result')">Solar analysis ${api.ic('chevR', 14)}</button>
       </section>`;
     }
-    if (st.ev_active) {
-      let ev = null; try { ev = api.evEconomics(rec.best.plan.id); } catch (e) {}
-      const w = rec.best.plan.windows || {};
-      const win = w.ev || w.night;
-      out += `<section class="hc">
-        <span class="hc-k"><span>${api.ic('car', 16)} Your EV</span><i class="hc-tag ${st.ev_in_bill ? '' : 'is-plan'}">${st.ev_in_bill ? 'yours' : 'planned'}</i></span>
-        <span class="hc-fig">${eur(ev ? ev.evElectricityCost : 0)}<small>a year to charge</small></span>
-        <span class="hc-sub">${ev ? `${eur(ev.evVsPetrolNet)} less than petrol` : ''}${win ? ` · charge ${hhmm(win[0])}–${hhmm(win[1])}` : ''}</span>
-        <button class="hc-go" onclick="anTab('car','result')">Your EV in detail ${api.ic('chevR', 14)}</button>
-      </section>`;
-    }
     const invites = [];
     if (!sys) invites.push(api.hasModelledSystem()
       ? `<button class="hc-invite" onclick="toggleSolarModel()">${api.ic('sun', 18)}<span><b>Your ${st.solar_planned ? 'planned ' : ''}solar is left out</b>${api.totalPanels()} panels${st._kept_battery ? ` and a ${st._kept_battery} kWh battery` : ''}, kept for you. Tap to include it again</span>${api.ic('chevR', 18)}</button>`
       : `<button class="hc-invite" onclick="startSolarGuide()">${api.ic('sun', 18)}<span><b>Thinking about solar?</b>See if it pays off, in a few taps</span>${api.ic('chevR', 18)}</button>`);
-    if (!st.ev_active) invites.push(`<button class="hc-invite" onclick="startEvGuide()">${api.ic('car', 18)}<span><b>Thinking about an EV?</b>What it would cost to charge here</span>${api.ic('chevR', 18)}</button>`);
+    if (!st.ev_active && st._ev_left_out) invites.push(`<button class="hc-invite" onclick="toggleEvModel()">${api.ic('car', 18)}<span><b>Your ${st.ev_in_bill ? '' : 'planned '}EV is left out</b>${(st.ev_km_per_year || 0).toLocaleString('en-IE')} km a year, kept for you. Tap to include it again</span>${api.ic('chevR', 18)}</button>`);
+    else if (!st.ev_active) invites.push(`<button class="hc-invite" onclick="startEvGuide()">${api.ic('car', 18)}<span><b>Thinking about an EV?</b>What it would cost to charge here</span>${api.ic('chevR', 18)}</button>`);
     return out + invites.join('');
   }
 
@@ -1007,7 +1010,7 @@ export function createV7(api) {
       ${anCard('Cheapest plans to charge on', `${hbars(byCharging.map((x, i) => ({ name: `${esc(x.p.supplier)} ${esc(x.p.plan)}`, val: eur(x.cost), v: x.cost, token: i === 0 ? '--accent' : '--bandink-day' })))}
         ${note(`Charging alone. Your best plan overall, ${esc(plan.supplier)} ${esc(plan.plan)}, weighs the car with everything else you use.`)}`)}
       ${cta('Compare EV plans', "state._plans_filter='ev';setScreen('plans')")}
-      ${cta2('Take the car out of the figures', 'removeEv()', 'x')}`;
+      ${cta2('Leave the car out of the figures', 'toggleEvModel()', 'x')}`;
   }
 
   /* --- Accuracy: how sure are these figures? --- */

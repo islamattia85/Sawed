@@ -1364,3 +1364,6 @@ section.hc { cursor: default; }
 .ax-door b { display: grid; justify-items: center; gap: 4px; font-size: var(--text-data); }
 .ax-door b svg { color: var(--accent); }
 .ax-door small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-caption); color: var(--ink-soft); }
+
+.v7-ev-ctl > svg { color: var(--accent); }
+.v7-step-go { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); }
