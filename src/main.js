@@ -2523,6 +2523,8 @@ function analyticsDay(dayIdx){
   const d = analyticsData();
   const t = d._t;
   const day = Math.max(0, Math.min(364, Math.round(+dayIdx || 0)));
+  // One scale for the whole year, so a winter day looks bigger than a summer one.
+  if (d._yearMax == null){ let m = 0; for (let i = 0; i < HOURS_IN_YEAR; i++) if ((t.use[i] || 0) > m) m = t.use[i]; d._yearMax = m; }
   const hours = [];
   for (let h = 0; h < 24; h++){
     const i = day * 24 + h;
@@ -2533,7 +2535,7 @@ function analyticsDay(dayIdx){
       ch: t.ch ? t.ch[i] || 0 : 0, dis: t.dis ? t.dis[i] || 0 : 0,
       cost: (t.cost[i] || 0) - (t.revenue ? t.revenue[i] || 0 : 0) });
   }
-  return { day, hours };
+  return { day, hours, yearMax: d._yearMax };
 }
 
 /**
@@ -2558,6 +2560,15 @@ function solarRange(){
 function accuracyWithMeter(){
   const parts = modelAccuracy().parts.map((p) => (/^Usage/.test(p.label) ? { ...p, err: 1 } : p));
   return Math.max(2, Math.round(Math.sqrt(parts.reduce((x, p) => x + p.err * p.err, 0))));
+}
+
+/** Take the car out of every figure. Its distance and car are kept, so the guide brings it back as it was. */
+function removeEv(){
+  if (!confirm('Take the car out of every figure? You can add it back any time.')) return;
+  state.ev_active = false;
+  invalidate(); saveState();
+  if (state._an_tab === 'car') state._an_tab = 'bill';
+  if (state.current_screen === 'analytics') renderApp(); else setScreen(state.current_screen);
 }
 
 /** Analytics' own tabs. Solar keeps its screen id ('solar') so every link
@@ -12493,6 +12504,7 @@ window.flowSupplier = flowSupplier;
 window.sgKeep = sgKeep;
 window.sgGrant = sgGrant;
 window.anTab = anTab;
+window.removeEv = removeEv;
 window.tryUpgrade = tryUpgrade;
 window.useGoalDesign = useGoalDesign;
 window.startSolarGuide = startSolarGuide;

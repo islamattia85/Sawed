@@ -603,8 +603,8 @@ export function createV7(api) {
       </div>`).join('')}</div>`;
   }
   /** Columns from a baseline: a month, or an hour. */
-  function vbars(items, { height = 110, label = '' } = {}) {
-    const max = Math.max(0.0001, ...items.map((x) => x.v));
+  function vbars(items, { height = 110, label = '', max: top = 0 } = {}) {
+    const max = Math.max(0.0001, top, ...items.map((x) => x.v));
     return `<div class="ax-vbars" style="height:${height}px" role="img" aria-label="${esc(label)}">${items.map((x) =>
       `<i style="height:${(x.v > 0 ? Math.max(3, (x.v / max) * 100) : 0).toFixed(1)}%;background:var(${x.token})" title="${esc(x.tip)}"></i>`).join('')}</div>`;
   }
@@ -792,8 +792,9 @@ export function createV7(api) {
       <label class="ax-range"><span>Or pick a day: <b>${dayName(one.day)}</b></span>
         <input type="range" min="0" max="364" value="${one.day}" onchange="setAnalyticsDay(+this.value)" aria-label="Day of the year"></label>
       ${vbars(oh.map((v, h) => ({ v, token: flat ? '--bandink-day' : bandToken(one.hours[h].band),
-        tip: `${hhmm(h)} · ${v.toFixed(2)} kWh · ${api.fmtCent(one.hours[h].rate)}` })), { height: 96, label: `Used by hour on ${dayName(one.day)}` })}${hourAxis()}
+        tip: `${hhmm(h)} · ${v.toFixed(2)} kWh · ${api.fmtCent(one.hours[h].rate)}` })), { height: 96, max: one.yearMax, label: `Used by hour on ${dayName(one.day)}` })}${hourAxis()}
       <div class="ax-fact">${dayName(one.day)}: ${sum(oh).toFixed(1)} kWh used${bought ? `, ${ob.toFixed(1)} bought` : ''}, ${dCost >= 0 ? `${dayMoney(dCost)} of electricity` : dayMoney(dCost)}</div>
+      ${st._csv_imported ? note('Drawn on one scale for the whole year. Each day follows the average daily shape in your meter file, scaled to that month; the file’s individual days are not replayed yet.') : note('Drawn on one scale for the whole year. Each day follows a typical home’s daily shape, scaled to the month.')}
       <p class="ax-note">Dearest day: <button class="ax-inline" onclick="setAnalyticsDay(${T.dearest.day})">${dayName(T.dearest.day)}, ${dayMoney(T.dearest.cost)}</button>.
         Cheapest: <button class="ax-inline" onclick="setAnalyticsDay(${T.cheapest.day})">${dayName(T.cheapest.day)}, ${dayMoney(T.cheapest.cost)}</button>. ${bought ? 'Electricity less export payments.' : 'Electricity only.'}</p>
       <button class="ax-more ax-more-in ${open ? 'open' : ''}" aria-expanded="${open}" onclick="state._an_day_open=!state._an_day_open;saveState();renderApp()">
@@ -990,7 +991,8 @@ export function createV7(api) {
         : anCard('This plan charges the same at any hour', note(`${api.fmtCent(cheapRate)} a kWh whenever you plug in. Plans with a cheap night or EV window would charge it for less.`))}
       ${anCard('Cheapest plans to charge on', `${hbars(byCharging.map((x, i) => ({ name: `${esc(x.p.supplier)} ${esc(x.p.plan)}`, val: eur(x.cost), v: x.cost, token: i === 0 ? '--accent' : '--bandink-day' })))}
         ${note(`Charging alone. Your best plan overall, ${esc(plan.supplier)} ${esc(plan.plan)}, weighs the car with everything else you use.`)}`)}
-      ${cta('Compare EV plans', "state._plans_filter='ev';setScreen('plans')")}`;
+      ${cta('Compare EV plans', "state._plans_filter='ev';setScreen('plans')")}
+      ${cta2('Take the car out of the figures', 'removeEv()', 'x')}`;
   }
 
   /* --- Accuracy: how sure are these figures? --- */
