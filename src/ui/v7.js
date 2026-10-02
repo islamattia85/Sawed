@@ -149,6 +149,30 @@ export function createV7(api) {
     };
   }
 
+  /**
+   * Planned solar: the four figures are two questions crossed, not a list.
+   * Rows: without the panels, with them. Columns: the plan you're on, the
+   * cheapest plan. A list of four bars read as four rival options.
+   */
+  function grid4(pl, stair) {
+    const st = S();
+    const cell = (i, sub, cls = '') => `<div class="g4-c ${cls}" data-rung="${i}" data-label="${esc(stair[i].label)}" data-value="${stair[i].value}">
+        <b>${eur(stair[i].value)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
+    const sw = pl.today - pl.noSolar.net;
+    const panels = pl.noSolar.net - pl.best.net;
+    const mine = api.getPlanById(st.baseline);
+    return `<div class="v7-ladder v7-grid4" role="table" aria-label="What you'd pay a year">
+        <span></span><span class="g4-h">Your plan<small>${esc(mine ? mine.supplier : '')}</small></span><span class="g4-h">Cheapest plan</span>
+        <span class="g4-r">Without the panels</span>${cell(0, '')}${cell(1, pl.noSolar.plan.supplier, 'is-mid')}
+        <span class="g4-r">With the planned panels</span>${cell(2, '', 'is-mid')}${cell(3, pl.best.plan.supplier, 'is-best')}
+      </div>
+      <div class="g4-steps">
+        <span><b>${sw > 1 ? eur(sw) : '€0'}</b> from switching plan, today</span>
+        <span><b>${eur(Math.max(0, panels))}</b> more from the panels, once they're in</span>
+      </div>
+      ${st.ev_active && !st.ev_in_bill ? `<div class="v7-evnote">${api.ic('car', 14)} All four include the planned car.</div>` : ''}`;
+  }
+
   function home() {
     const rec = api.getRecommendation();
     const best = rec.best;
@@ -166,7 +190,7 @@ export function createV7(api) {
     const plannedSolar = withSolar && (st.solar_planned || st.solar_is_estimate);
     const pl = plannedSolar ? api.plannedLadder() : null;
     const stair = pl ? [
-      { label: `${nowLabel()}, no solar${st.ev_active && !st.ev_in_bill ? ', with the planned car' : ''}`, value: pl.today, token: '--ink-dim' },
+      { label: `${nowLabel()}, no solar`, value: pl.today, token: '--ink-dim' },
       { label: `On ${pl.noSolar.plan.supplier}, no solar`, value: pl.noSolar.net, token: '--v7-mid' },
       { label: `${nowLabel()}, with the planned solar`, value: pl.mine, token: '--v7-mid' },
       { label: `On ${pl.best.plan.supplier}, with the planned solar`, value: pl.best.net, token: '--accent' },
@@ -238,7 +262,7 @@ export function createV7(api) {
       <section class="v7-hero qr-hero">
         ${hero}
         <div class="v7-ladder-k">What you’d pay a year</div>
-        ${savingsLadder({ rungs })}
+        ${pl ? grid4(pl, stair) : savingsLadder({ rungs })}
         ${steps}
       </section>
 
