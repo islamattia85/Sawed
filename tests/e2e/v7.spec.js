@@ -144,15 +144,16 @@ test('solar can be left out in one tap, and comes back as the same system', asyn
   expect(await rungs()).toBe(3);
   const withSolar = await saving();
 
-  await page.getByRole('switch', { name: /Include solar/ }).click();
+  // The switch lives with solar (the Solar page); Home offers it back in one tap.
+  await page.evaluate(() => window.toggleSolarModel());
   // Without solar the step-by-step ladder has nothing to split, so it goes.
   await expect.poll(rungs).toBe(0);
   expect(await page.evaluate(() => window.state.has_solar)).toBe(false);
   expect(await saving(), 'leaving solar out did not change the figures').toBeLessThan(withSolar);
-  // The system is kept, not wiped.
-  expect(await page.evaluate(() => [window.state.count_A, window.state.battery_kwh])).toEqual([14, 10]);
+  // The system is kept, not wiped: the battery is set aside with the panels.
+  expect(await page.evaluate(() => [window.state.count_A, window.state.battery_kwh, window.state._kept_battery])).toEqual([14, 0, 10]);
 
-  await page.getByRole('switch', { name: /Include solar/ }).click();
+  await page.locator('.hc-invite', { hasText: 'left out' }).click();
   await expect.poll(rungs).toBe(3);
   expect(Math.round(await saving())).toBe(Math.round(withSolar));
   expect(errors).toEqual([]);

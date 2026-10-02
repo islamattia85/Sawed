@@ -81,7 +81,7 @@ test('setup wizard and landing @shots', async ({ page }) => {
 });
 
 test('solar switch, on and off @shots', async ({ page }) => {
-  await boot(page);
+  await boot(page, { current_screen: 'solar' });
   await page.locator('.v7-switch-row').scrollIntoViewIfNeeded();
   await page.screenshot({ path: 'screenshots/17-switch-on.png' });
   await page.locator('.v7-switch-row').click();

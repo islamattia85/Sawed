@@ -1254,3 +1254,13 @@ section.hc { cursor: default; }
 .v7-step { display: grid; grid-template-columns: auto 1fr; gap: var(--space-3); align-items: baseline; font-size: var(--text-data); color: var(--ink-soft); line-height: 1.45; }
 .v7-step > b { font: 800 var(--text-body) var(--display); color: var(--accent); font-variant-numeric: tabular-nums; }
 .v7-step span b { color: var(--ink); font-weight: 600; }
+/* What you pay is plain; what you save is green and says "less". */
+.v7-figure.is-saving { color: var(--accent); }
+.v7-ladder-k { margin: var(--space-3) 0 4px; font-size: var(--text-caption); font-weight: 700; color: var(--ink-soft); }
+.v7-step > b { white-space: nowrap; }
+.v7-solar-ctl { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-lg); background: var(--well); font-size: var(--text-data); color: var(--ink-soft); }
+.v7-solar-ctl > svg { flex: none; color: var(--brand-gold); }
+.v7-solar-ctl span { flex: 1; min-width: 0; }
+.v7-solar-ctl b { color: var(--ink); }
+.v7-solar-ctl button { flex: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 700 var(--text-caption) var(--display); cursor: pointer; }
+.me-pricewatch { margin-top: var(--space-2); }

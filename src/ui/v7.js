@@ -30,9 +30,9 @@ export const V7_SURFACES = [
   { id: 'plans', icon: 'plans', label: 'Plans', screens: ['plans', 'plan-detail', 'compare'] },
   // The full solar analysis (the payback curve) is depth, so it sits under
   // Analytics: the lit tab always says where you are, and Home is only Home.
-  { id: 'analytics', icon: 'chart', label: 'Analytics', screens: ['analytics', 'monitor', 'csv-import', 'solar'] },
+  { id: 'analytics', icon: 'chart', label: 'Analytics', screens: ['analytics', 'csv-import', 'solar'] },
   { id: 'me', icon: 'user', label: 'Me',
-    screens: ['me', 'more', 'refine', 'auditor', 'quotes', 'methodology', 'independence', 'how-to-switch', 'privacy', 'installer'] },
+    screens: ['me', 'monitor', 'more', 'refine', 'auditor', 'quotes', 'methodology', 'independence', 'how-to-switch', 'privacy', 'installer'] },
 ];
 
 export function createV7(api) {
@@ -205,15 +205,17 @@ export function createV7(api) {
         <div class="v7-headline">No plan on the market costs less for this home. The closest is <b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}, ${eur(Math.max(0, -saving))} a year more.</div>`
       : `
         <div class="v7-eyebrow">${pl ? 'The most you could save: switch plan and add the planned solar' : saving > 10 ? (withSolar ? 'Switching plan saves, with your solar' : 'You could pay less') : 'Your best plan'}</div>
-        <div class="qr-value v7-figure" data-countup="${Math.round(Math.max(0, saving))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, saving))}</span><span class="v7-figure-unit">a year</span></div>
+        <div class="qr-value v7-figure ${saving > 10 ? 'is-saving' : ''}" data-countup="${Math.round(Math.max(0, saving))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, saving))}</span><span class="v7-figure-unit">${saving > 10 ? 'less a year' : 'a year'}</span></div>
         ${pl ? '' : `<div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Best for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`}`;
     let steps = '';
     if (pl) {
       let d = null; try { d = api.solarData(); } catch (e) {}
       const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
       steps = `<div class="v7-steps">
-        <div class="v7-step"><b>${eur(Math.max(0, pl.today - pl.noSolar.net))}</b><span>a year from switching to <b>${esc(pl.noSolar.plan.supplier)}</b> ${esc(pl.noSolar.plan.plan)}. Free, and you can do it today.</span></div>
-        <div class="v7-step"><b>${eur(Math.max(0, pl.noSolar.net - pl.best.net))}</b><span>more a year once the panels are in${pl.best.plan.id !== pl.noSolar.plan.id ? `, on <b>${esc(pl.best.plan.supplier)}</b> ${esc(pl.best.plan.plan)}` : ''}. ${d ? `${eur(d.sysCost)} after the grant${pb ? `, paid back in ${pb.toFixed(1)} years` : ''}.` : ''}</span></div>
+        <div class="v7-step"><b>${eur(Math.max(0, pl.today - pl.noSolar.net))} less</b><span>a year from switching to <b>${esc(pl.noSolar.plan.supplier)}</b> ${esc(pl.noSolar.plan.plan)}. Free, and you can do it today.</span></div>
+        <div class="v7-step"><b>${eur(Math.max(0, pl.noSolar.net - pl.best.net))} less</b><span>again, a year, once the panels are in${pl.best.plan.id !== pl.noSolar.plan.id ? `, on <b>${esc(pl.best.plan.supplier)}</b> ${esc(pl.best.plan.plan)}` : ''}. ${d ? `${eur(d.sysCost)} after the grant${pb ? `, paid back in ${pb.toFixed(1)} years` : ''}.` : ''}</span></div>
+        <div class="v7-solar-ctl">${api.ic('sun', 16)}<span><b>Planned solar</b> · ${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}</span>
+          <button onclick="toggleSolarModel()">Leave out</button></div>
         <button class="hc-go" onclick="state._solar_from='result';setScreen('solar')">Solar analysis ${api.ic('chevR', 14)}</button>
       </div>`;
     }
@@ -238,6 +240,7 @@ export function createV7(api) {
     <div class="screen v7 v7-home ${deep ? 'is-deep' : 'is-simple'}">
       <section class="v7-hero qr-hero">
         ${hero}
+        <div class="v7-ladder-k">What you’d pay a year</div>
         ${savingsLadder({ rungs })}
         ${steps}
       </section>
@@ -271,12 +274,12 @@ export function createV7(api) {
       ${deep && acc ? (() => { const a = api.modelAccuracy(); return `<div class="v7-acc-why">${api.ic('info', 16)}<span><b>Why ±${acc}%?</b> ${a.tip ? `It allows for: ${esc(a.parts.filter((x) => x.err >= 2).map((x) => x.label.toLowerCase()).join('; '))}.` : 'This is as close as a model gets: it’s built on your real meter readings, and only the weather is left to vary.'}
         ${a.tip ? `<button onclick="${a.tip.go}">${esc(a.tip.tip)} to tighten it ${api.ic('chevR', 14)}</button>` : ''}</span></div>`; })() : ''}
       ${deep ? `
-      ${withSolar ? `<section class="v7-card v7-full-ladder"><div class="v7-card-title">The whole saving, step by step</div>${savingsLadder({ rungs: lad.rungs })}${split}</section>` : ''}
+      ${withSolar && !pl ? `<section class="v7-card v7-full-ladder"><div class="v7-card-title">The whole saving, step by step</div>${savingsLadder({ rungs: lad.rungs })}${split}</section>` : ''}
       <div class="qr-actions v7-links">
         <a href="#" onclick="event.preventDefault();setScreen('plans')">See all ${rec.ranked.length} plans ranked for you</a>
         ${saving > 10 ? `<a href="#" onclick="event.preventDefault();setScreen('how-to-switch')">How switching works</a>` : ''}
       </div>
-      <div class="v7-basis" aria-label="What these figures are worked out for">${homeChips({ withSolar: false })}${solarSwitch()}</div>
+      <div class="v7-basis" aria-label="What these figures are worked out for">${homeChips({ withSolar: false })}</div>
       <div class="v7-notices">${api.freshnessChip(best.plan)}</div>
       <div class="v7-carousel" role="region" aria-label="Your year and your day">
         ${api.renderBillShape(best)}
@@ -334,7 +337,9 @@ export function createV7(api) {
       </section>`;
     }
     const invites = [];
-    if (!sys) invites.push(`<button class="hc-invite" onclick="startSolarGuide()">${api.ic('sun', 18)}<span><b>Thinking about solar?</b>See if it pays off, in a few taps</span>${api.ic('chevR', 18)}</button>`);
+    if (!sys) invites.push(api.hasModelledSystem()
+      ? `<button class="hc-invite" onclick="toggleSolarModel()">${api.ic('sun', 18)}<span><b>Your ${st.solar_planned ? 'planned ' : ''}solar is left out</b>${api.totalPanels()} panels${st._kept_battery ? ` and a ${st._kept_battery} kWh battery` : ''}, kept for you. Tap to include it again</span>${api.ic('chevR', 18)}</button>`
+      : `<button class="hc-invite" onclick="startSolarGuide()">${api.ic('sun', 18)}<span><b>Thinking about solar?</b>See if it pays off, in a few taps</span>${api.ic('chevR', 18)}</button>`);
     if (!st.ev_active) invites.push(`<button class="hc-invite" onclick="startEvGuide()">${api.ic('car', 18)}<span><b>Thinking about an EV?</b>What it would cost to charge here</span>${api.ic('chevR', 18)}</button>`);
     return out + invites.join('');
   }

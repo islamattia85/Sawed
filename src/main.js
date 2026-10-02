@@ -7759,7 +7759,6 @@ function analyticsHub(on){
     // Always its own page: the analysis, or a calm "no solar yet" with the
     // guide one deliberate tap away — never a jump straight into questions.
     ['solar', 'Solar', `state._solar_from=null;state._solar_deep=${sys};setScreen('solar')`],
-    ['market', 'Market', "setScreen('monitor')"],
   ];
   if (on === 'meter') items.push(['meter', 'Meter data', "setScreen('csv-import')"]);
   return `<nav class="an-hub" aria-label="Analytics">${items.map(([k, l, go]) =>
@@ -7954,16 +7953,16 @@ function renderAnalytics(){
       <div class="an-stat-label">Day total cost</div>
       <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:4px">
         <div class="an-stat-value ${dayCost > 0 ? 'amber' : 'accent'}">${dayCost > 0 ? '€' + dayCost.toFixed(2) : '+€' + (-dayCost).toFixed(2) + ' credit'}</div>
-        <div class="an-stat-sub" style="margin:0">${dayImp.toFixed(1)} kWh imported · ${dayExp.toFixed(1)} kWh exported</div>
+        <div class="an-stat-sub" style="margin:0">${dayImp.toFixed(1)} kWh imported${annualGen >= 1 ? ` · ${dayExp.toFixed(1)} kWh exported` : ''}</div>
       </div>
     </div>
 
     <div class="an-chart">
       <div class="an-chart-title">Energy flows (kWh per hour)</div>
-      ${flowRow('gen')}
+      ${annualGen >= 1 ? flowRow('gen') : ''}
       ${flowRow('cons')}
       ${flowRow('imp')}
-      ${flowRow('exp')}
+      ${annualGen >= 1 ? flowRow('exp') : ''}
     </div>
 
     ${state.battery_kwh > 0 ? (() => {
@@ -8146,11 +8145,17 @@ function renderAnalytics(){
       <div class="an-hours">
         ${Array.from({length:24},(_,h) => `<div>${h % 6 === 0 || h === 23 ? h + 'h' : ''}</div>`).join('')}
       </div>
-      <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;line-height:1.6">Red = paid · Green = credit (export revenue exceeds import cost)</div>
+      ${annualGen >= 1 ? `<div style="font-size:13px;color:var(--ink-soft);margin-top:6px;line-height:1.6">Red = paid · Green = credit (export revenue exceeds import cost)</div>` : ''}
     </div>
 
     <div class="section-title">Monthly breakdown</div>
-    <div class="an-flow-tabs">
+    ${annualGen < 1 ? `<div class="an-chart">
+        <div style="font-size:13px;color:var(--ink-soft);margin-bottom:10px">Electricity used each month</div>
+        <div class="an-month-bars">
+          ${m.cons.map((c) => `<div class="an-month-bar cons" style="height:${Math.max(2, Math.round(c / Math.max(1, ...m.cons) * 100))}%" title="Use ${Math.round(c)} kWh"></div>`).join('')}
+        </div>
+        <div class="an-month-labels">${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((x) => `<div>${x}</div>`).join('')}</div>
+      </div>` : `<div class="an-flow-tabs">
       <div class="an-flow-tab ${state._an_view === 'flows' ? 'active' : ''}" onclick="setAnalyticsView('flows')">Gen vs Use</div>
       <div class="an-flow-tab ${state._an_view === 'monthly' ? 'active' : ''}" onclick="setAnalyticsView('monthly')">Import vs Export</div>
     </div>
@@ -8182,7 +8187,7 @@ function renderAnalytics(){
       <div class="an-month-labels">
         ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map(mo => `<div>${mo}</div>`).join('')}
       </div>
-    </div>
+    </div>`}
 
     <p class="disclaimer">Simulated, not metered — hourly figures vary ±5–8% with the weather.</p>
   </div>
@@ -9540,7 +9545,7 @@ function renderMonitor(){
                 : `${best.plan.supplier} ${best.plan.plan} now leads for your home.` });
   events.push({ c:'var(--blue)', when:'Your ranking',
     title:`Your plan sits #${rank || '–'} of ${countLabel}`,
-    sub:`Top 3 for your profile: ${top3.map(t => getPlanById(t.id).supplier).join(', ')}.` });
+    sub:`Top 3 for your profile: ${top3.map(t => { const p = getPlanById(t.id); return `${p.supplier} ${p.plan}`; }).join('; ')}.` });
   if (state.switched_to){
     const sp = getPlanById(state.switched_to);
     events.push({ c:'var(--accent)', when: state.switched_date ? fmtShortDate(state.switched_date) : 'Earlier',
@@ -9558,8 +9563,7 @@ function renderMonitor(){
       <div class="mon-event-sub">${e.sub}</div>
     </div></div>`).join('');
 
-  return `${topbar('Market', 'blue', true)}
-  ${analyticsHub('market')}
+  return `${topbar('Price watch', 'blue', true)}
   <div class="screen">
     <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin:2px 2px 14px">We watch every Irish tariff and flag what's worth acting on.</div>
     ${contractAlert}
@@ -10330,7 +10334,9 @@ function checkScoreRise(){
   clearTimeout(_scoreTimer);
   _scoreTimer = setTimeout(() => {
     let sc; try { sc = householdScore().score; } catch (e) { return; }
-    if (_scoreSeen != null && sc > _scoreSeen){
+    // Only for someone who knows there is a score: a newcomer tapping around
+    // was getting "+1 points" with no idea what it meant.
+    if (_scoreSeen != null && sc > _scoreSeen && state.score_seen){
       const a = scoreLevel(_scoreSeen), b = scoreLevel(sc);
       showToast(b.name !== a.name ? `Level up: ${b.name}. Your score is ${sc}.` : `Your score is now ${sc}.`,
         { type: 'accent', icon: ic('spark', 16), title: `+${sc - _scoreSeen} points` });
@@ -10357,6 +10363,7 @@ function planKindText(p){
 }
 
 function renderScoreBlock(){
+  state.score_seen = true;   // from here on, a rise in the score is news worth a toast
   const sc = householdScore();
   const lv = scoreLevel(sc.score);
   const tone = sc.score >= 85 ? 'is-gain' : sc.score >= 40 ? 'is-maybe' : 'is-warn';
@@ -10695,6 +10702,7 @@ function renderMe(){
 
     ${state.onboarding_complete ? `<div class="section-title">Alerts${unseenAlerts().length ? ` <span class="al-count">${unseenAlerts().length} new</span>` : ''}</div>
     ${renderAlertsBlock()}
+    <button class="me-row me-link me-pricewatch" onclick="setScreen('monitor')"><span><b>Price watch</b><small>Every Irish plan, watched daily: price rises, better plans, your contract end</small></span>${ic('chevR', 16)}</button>
     <div class="section-title">Savings</div>
     ${renderTallyBlock()}
     <div class="section-title">Your ${BRAND.name} score</div>
@@ -11235,6 +11243,11 @@ function toggleSolarModel(){
   if (!state.has_solar && !v7HasModelledSystem()) return startSolarGuide();
   const on = !state.has_solar;
   state.has_solar = on;
+  // The battery is part of the solar system: leaving solar out leaves it out
+  // too (it kept charging on night rates and inflated the switching saving),
+  // and bringing solar back brings it back.
+  if (!on){ state._kept_battery = +state.battery_kwh || 0; state.battery_kwh = 0; }
+  else if (state._kept_battery != null){ state.battery_kwh = state._kept_battery; delete state._kept_battery; }
   if (on && !v7HasModelledSystem()){
     // Nothing of theirs to restore. The panel count sitting in state is the
     // default placeholder, not a system anyone chose — so size one from usage,
@@ -11252,7 +11265,7 @@ function toggleSolarModel(){
   renderApp();
   showToast(on
     ? `Solar ${state.solar_is_estimate ? 'modelled (estimated)' : 'back in'}: ${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ' · ' + state.battery_kwh + ' kWh battery' : ''}`
-    : 'Solar left out — every figure is now without panels. Your system is kept.',
+    : 'Solar left out: every figure is now without panels or battery. Your system is kept.',
     { type: 'accent', icon: ic('sun', 16) });
 }
 
