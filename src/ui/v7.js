@@ -695,9 +695,9 @@ export function createV7(api) {
    * already there, as it would be for a home past its first year.
    */
   function monthBills(T, mo, sys, fallbackTitle, hiI) {
-    const fixedM = (T.standing + T.pso + (T.outlook || 0)) / 12;
+    const fixedM = (T.standing + T.pso) / 12, riseM = (T.outlook || 0) / 12;
     const buy = T.monthBuy || mo, sell = T.monthSell || mo.map(() => 0);
-    const charge = mo.map((v) => v + fixedM);
+    const charge = mo.map((v) => v + fixedM + riseM);
     let bal = 0;
     const out = [];
     for (let k = 0; k < 24; k++) {
@@ -729,6 +729,7 @@ export function createV7(api) {
         <div class="ax-mb-head"><span>${MONTH[m.i]}</span><b>${m.c < 0 ? 'No bill' : eur(m.pay)}</b></div>
         ${row('Electricity bought', eur(buy[m.i]))}
         ${row('Fixed charges', eur(fixedM))}
+        ${riseM > 0.05 ? row('Price rise already announced', eur(riseM)) : ''}
         ${sys ? row('Paid for what you sell back', `−${eur(sell[m.i])}`, 'is-gain') : ''}
         ${m.used > 0.5 ? row(`Credit from earlier months`, `−${eur(m.used)}`, 'is-gain') : ''}
         ${m.c < 0 ? row('Added to your credit', eur(-m.c), 'is-gain') : ''}
