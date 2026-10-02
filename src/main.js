@@ -2431,7 +2431,11 @@ function plannedLadder(){
 function _plannedLadder(){
   if (CACHE.dirty) rebuildBase();
   const basePlan = getPlanById(state.baseline);
-  const today = sumF(baselineSim(state.baseline).cost) + basePlan.standing + PSO_LEVY;
+  // A planned car is in every other step, so "now" carries it too: the same
+  // home on both sides, or staying put can look cheaper than the best plan.
+  const today = (state.ev_active && !state.ev_in_bill)
+    ? withSimState({ count_A: 0, count_B: 0, battery_kwh: 0, has_solar: false }, () => annualCost(sim(basePlan.id), basePlan).net)
+    : sumF(baselineSim(state.baseline).cost) + basePlan.standing + PSO_LEVY;
   const noSolar = withSimState({ count_A: 0, count_B: 0, battery_kwh: 0, has_solar: false }, () => { const b = getBestPlan(); return { net: b.net, plan: b.plan }; });
   const withS = getBestPlan();
   const mine = annualCost(sim(basePlan.id), basePlan).net;
@@ -2463,6 +2467,13 @@ function _analyticsData(){
     t = { cost: s.cost, revenue: s.revenue, band: s.band, use: s.cons, imp: s.grid_import,
       gen: s.gen, exp: s.grid_export, ch: s.battery_charge, dis: s.battery_discharge,
       energy: ac.energy_cost, standing: ac.standing, pso: ac.pso, outlook: ac.outlook_extra, credit: ac.export_revenue, total: ac.net };
+  } else if (state.ev_active && !state.ev_in_bill){
+    // A planned car: priced in, as on Home's "Now" bar and the cheapest plan.
+    t = withSimState({ count_A: 0, count_B: 0, battery_kwh: 0, has_solar: false }, () => {
+      const s = sim(plan.id); const ac = annualCost(s, plan);
+      return { cost: Float32Array.from(s.cost), revenue: null, band: s.band ? s.band.slice() : null, use: Float32Array.from(s.cons), imp: Float32Array.from(s.grid_import),
+        energy: ac.energy_cost, standing: ac.standing, pso: ac.pso, outlook: ac.outlook_extra, credit: 0, total: ac.net };
+    });
   } else {
     // The bill as it stands: the same figure as Home's "Now" bar.
     const b = baselineSim(plan.id);

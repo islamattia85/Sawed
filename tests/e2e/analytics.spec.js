@@ -101,3 +101,14 @@ test('every tab answers in about two screens, with its detail folded', async ({ 
     await expect(page.locator('h1')).toHaveCount(1);
   }
 });
+
+test('with a planned car, staying put never looks cheaper than the best plan', async ({ page }) => {
+  // "Now" left the planned car out while every other step had it, so the
+  // cheapest plan without panels showed €150 dearer than staying.
+  await boot(page, { ...PLANNED, ev_active: true, ev_in_bill: false, ev_km_per_year: 15000, baseline: 'BG-TOU', current_screen: 'result' });
+  const r = await page.evaluate(() => [...document.querySelectorAll('.v7-hero .v7-ladder [data-rung]')].map((x) => +x.dataset.value));
+  expect(r[1]).toBeLessThanOrEqual(r[0] + 0.5);
+  expect(r[3]).toBeLessThanOrEqual(r[2] + 0.5);
+  await page.locator('.ax-door', { hasText: 'Bill' }).click();
+  expect(euros(await page.locator('.ax-ans .ax-big').textContent())).toBe(Math.round(r[0]));
+});

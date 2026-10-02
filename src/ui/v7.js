@@ -166,7 +166,7 @@ export function createV7(api) {
     const plannedSolar = withSolar && (st.solar_planned || st.solar_is_estimate);
     const pl = plannedSolar ? api.plannedLadder() : null;
     const stair = pl ? [
-      { label: `${nowLabel()}, no solar`, value: pl.today, token: '--ink-dim' },
+      { label: `${nowLabel()}, no solar${st.ev_active && !st.ev_in_bill ? ', with the planned car' : ''}`, value: pl.today, token: '--ink-dim' },
       { label: `On ${pl.noSolar.plan.supplier}, no solar`, value: pl.noSolar.net, token: '--v7-mid' },
       { label: `${nowLabel()}, with the planned solar`, value: pl.mine, token: '--v7-mid' },
       { label: `On ${pl.best.plan.supplier}, with the planned solar`, value: pl.best.net, token: '--accent' },
