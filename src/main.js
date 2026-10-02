@@ -8221,10 +8221,9 @@ function renderRefine(){
           const dates = TARIFFS.map(t => t.verified_date).filter(Boolean).sort();
           const latest = dates.length ? dates[dates.length-1] : null;
           const s = state._tariff_status;
-          const apiAvailable = state._refresh_api_available !== false;
           let html = '';
           if (latest){
-            html += `<b style="color:var(--ink)">Bundled rates verified:</b> ${fmtVerifiedDate(latest)} (${TARIFFS.length} plans)`;
+            html += `<b style="color:var(--ink)">Rates last updated:</b> ${fmtVerifiedDate(latest)} (${TARIFFS.length} plans)`;
           }
           if (s && s.timestamp){
             const ts = new Date(s.timestamp).toLocaleString('en-IE', {day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
@@ -8232,24 +8231,12 @@ function renderRefine(){
             const changes = (s.potential_changes || []).length;
             if (changes > 0) html += `<br><span style="color:var(--amber)">${changes} possible rate change${changes>1?'s':''} flagged</span>`;
           }
-          if (!apiAvailable){
-            html += `<br><span style="color:var(--ink-dim)">Live refresh is unavailable on this deployment — rates are manually verified and bundled with each release.</span>`;
-          }
           return html || '<span style="color:var(--ink-dim)">Tariff data bundled with this release.</span>';
         })()}
       </div>
-      ${state._refresh_api_available === true ? `
-        <button class="btn-secondary" id="tariff-refresh-btn" onclick="refreshTariffs()" style="width:100%">
-          ${state._tariff_refreshing ? 'Checking supplier sites…' : 'Try live refresh'}
-        </button>
-        <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);text-align:center;margin-top:6px;letter-spacing:.04em;line-height:1.5">
-          Reads each supplier's published price page.<br>If it comes back short, the bundled rates below are what we last verified.
-        </div>
-      ` : `
-        <div style="padding:10px 12px;background:rgba(90,156,255,.04);border:1px solid rgba(90,156,255,.15);border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.6;text-align:center">
-          ⓘ Live refresh runs on the dev server, not this static deploy.<br>Rates are manually verified and shipped with each release.
-        </div>
-      `}
+      <div style="padding:10px 12px;background:var(--well);border:1px solid var(--hair);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.6">
+        Checked every morning: each supplier's own price page is read and every plan compared. A price change is reviewed by a person before it reaches the app, so a misread page can never change your figures. The date above is when the rates in the app were last updated.
+      </div>
       ${(state._tariff_status?.potential_changes || []).length > 0 ? `
         <div style="margin-top:10px;padding:10px 12px;background:rgba(255,145,0,.08);border:1px solid rgba(255,145,0,.35);border-radius:8px;font-family:var(--mono);font-size:12px;line-height:1.7">
           <b style="color:var(--amber)">Possible rate changes detected:</b><br>
