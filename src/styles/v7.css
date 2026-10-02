@@ -1374,7 +1374,7 @@ section.hc { cursor: default; }
 .g4-k { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--space-2); }
 .g4-k span { display: grid; min-width: 0; }
 .g4-k b { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-data); color: var(--ink); }
-.g4-k small { font-size: var(--text-caption); color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g4-k small { font-size: var(--text-caption); color: var(--ink-soft); line-height: 1.35; }
 .g4-k em { flex: none; font-style: normal; font-weight: 800; font-size: var(--text-body); color: var(--ink); font-variant-numeric: tabular-nums; }
 .g4-sun { display: inline-flex; color: var(--ax-made); }
 .g4-t { height: 12px; border-radius: 999px; background: var(--track-soft); overflow: hidden; }

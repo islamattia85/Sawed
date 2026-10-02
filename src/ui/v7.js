@@ -160,16 +160,17 @@ export function createV7(api) {
     const max = Math.max(...stair.map((r) => r.value), 1);
     const sun = `<i class="g4-sun">${api.ic('sun', 14)}</i>`;
     const bar = (i, name, plan, solar, cls) => `<div class="g4-bar ${cls}" data-rung="${i}" data-label="${esc(stair[i].label)}" data-value="${stair[i].value}">
-        <div class="g4-k"><span><b>${name}${solar ? ` + ${sun}` : ''}</b><small>${esc(plan)}${solar ? ', with the planned panels' : ''}</small></span><em>${eur(stair[i].value)}</em></div>
+        <div class="g4-k"><span><b>${name}${solar ? ` + ${sun} planned panels` : ''}</b><small>${esc(plan)}</small></span><em>${eur(stair[i].value)}</em></div>
         <div class="g4-t"><i style="width:${Math.max(3, stair[i].value / max * 100).toFixed(1)}%"></i></div>
       </div>`;
+    const full = (p) => (p ? `${p.supplier} · ${p.plan}` : '');
     const sw = pl.today - pl.noSolar.net;
     const panels = pl.noSolar.net - pl.best.net;
     return `<div class="v7-ladder v7-grid4" role="list" aria-label="What you'd pay a year">
-        ${bar(0, 'Current plan', mine ? mine.supplier : '', false, 'is-now')}
-        ${bar(1, 'Best plan', pl.noSolar.plan.supplier, false, 'is-mid')}
-        ${bar(2, 'Current plan', mine ? mine.supplier : '', true, 'is-mid')}
-        ${bar(3, 'Best plan', pl.best.plan.supplier, true, 'is-best')}
+        ${bar(0, 'Current plan', full(mine), false, 'is-now')}
+        ${bar(1, 'Best plan', full(pl.noSolar.plan), false, 'is-mid')}
+        ${bar(2, 'Current plan', full(mine), true, 'is-mid')}
+        ${bar(3, 'Best plan', full(pl.best.plan), true, 'is-best')}
       </div>
       <div class="g4-steps">
         <span><b>${sw > 1 ? eur(sw) : '€0'}</b> from switching plan, today</span>

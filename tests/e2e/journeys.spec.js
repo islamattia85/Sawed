@@ -185,7 +185,7 @@ test('solar explored in the guide is "planned", and the card only moves on its l
   await expect(page.locator('.sg-found')).toContainText('Found for you');
   await page.getByRole('button', { name: /Add to my Home/ }).click();
   // Planned solar joins the one staircase on Home; nothing calls it installed.
-  await expect(page.locator('.v7-hero')).toContainText('with the planned panels');
+  await expect(page.locator('.v7-hero')).toContainText('planned panels');
   await expect(page.locator('.v7-hero')).not.toContainText(/installed/i);
   await page.locator('.v7-hero .v7-solar-ctl small').click();
   expect(await screen(page)).toBe('result');                                                   // information goes nowhere
