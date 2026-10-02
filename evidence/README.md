@@ -6,9 +6,9 @@ Raw capture by scraper/audit_dump.py; one JSON per supplier. Nothing here is int
 |---|---|---|---|---|---|
 | Bord Gáis Energy | 18/18 | 10 | 18 | 11/11 | 10 |
 | Community Power | 3/3 | 2 | 0 | 1/1 | 12 |
-| Ecopower | 6/6 | 0 | 0 | 0/1 | 0 |
+| Ecopower | 6/6 | 0 | 1 | 0/1 | 0 |
 | Electric Ireland | 16/18 | 55 | 0 | 0/1 | 20 |
-| Energia | 18/18 | 44 | 73 | 4/4 | 9 |
+| Energia | 18/18 | 44 | 74 | 4/4 | 9 |
 | Flogas | 18/18 | 2 | 35 | 1/1 | 0 |
 | Pinergy | 16/18 | 50 | 1 | 4/5 | 5 |
 | PrePayPower | 18/18 | 35 | 38 | 3/3 | 34 |
