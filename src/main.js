@@ -6158,58 +6158,104 @@ function goRefineSolar(){
 function makeShareCardCanvas(savings){
   const cv = document.createElement('canvas');
   if (!cv || typeof cv.getContext !== 'function') return null;
-  cv.width = 1080; cv.height = 1080;
+  const W = 1080, H = 1350;
+  cv.width = W; cv.height = H;
   const x = cv.getContext('2d');
   if (!x || typeof x.fillRect !== 'function') return null;
-  x.fillStyle = '#F2F5F2'; x.fillRect(0, 0, 1080, 1080);
-  x.fillStyle = '#FFFFFF';
-  x.beginPath(); x.roundRect(70, 120, 940, 840, 48); x.fill();
-  x.strokeStyle = '#00A35A'; x.lineWidth = 3;
-  x.beginPath(); x.roundRect(70, 120, 940, 840, 48); x.stroke();
-  x.fillStyle = '#00C966';
-  x.beginPath(); x.roundRect(130, 190, 84, 84, 24); x.fill();
-  x.fillStyle = '#03130A';
-  x.beginPath(); x.arc(172, 232, 18, 0, Math.PI * 2); x.fill();
-  x.fillStyle = '#111A14';
-  x.font = '700 44px -apple-system, "Inter Tight", sans-serif';
-  x.fillText(BRAND.name, 240, 246);
-  x.fillStyle = '#5A6A61';
-  x.font = '400 30px -apple-system, sans-serif';
-  x.fillText('Independent Irish energy advisor', 240, 290);
-  x.fillStyle = '#5A6A61';
-  x.font = '700 34px ui-monospace, Menlo, monospace';
-  x.fillText('I JUST FOUND', 130, 430);
-  x.fillStyle = '#00A35A';
-  x.font = '800 170px -apple-system, "Inter Tight", sans-serif';
-  x.fillText('\u20ac' + Math.round(savings).toLocaleString(), 120, 600);
-  x.fillStyle = '#111A14';
-  x.font = '700 52px -apple-system, sans-serif';
-  x.fillText('a year in electricity savings', 130, 690);
-  x.fillStyle = '#5A6A61';
-  x.font = '400 34px -apple-system, sans-serif';
-  x.fillText('in about 30 seconds. The average Irish home', 130, 770);
-  x.fillText('overpays \u20ac300+/yr. Check yours \u2014 it\u2019s free.', 130, 818);
-  x.fillStyle = '#93A199';
-  x.font = '400 26px ui-monospace, Menlo, monospace';
-  const live = TARIFFS.filter(t => !t.discontinued).length;
-  x.fillText('Checked against ' + live + ' live Irish tariffs \u00b7 verified ' + fmtShortDate(dataVerifiedDate()), 130, 905);
+  const F = '"Inter Tight", -apple-system, "Segoe UI", sans-serif';
+  const rr = (X, Y, w, h, r, c) => { x.fillStyle = c; x.beginPath(); if (x.roundRect) x.roundRect(X, Y, w, h, r); else x.rect(X, Y, w, h); x.fill(); };
+  const t = (s, X, Y, size, c, weight = 400, align = 'left') => { x.font = `${weight} ${size}px ${F}`; x.fillStyle = c; x.textAlign = align; x.fillText(s, X, Y); };
+  const fit = (s, max, size, weight) => { x.font = `${weight} ${size}px ${F}`; let o = s; while (o.length > 3 && x.measureText(o).width > max) o = o.slice(0, -2); return o === s ? s : o + '…'; };
+  const eurS = (v) => '€' + Math.round(v).toLocaleString('en-IE');
+
+  // Ground: the brand navy, a soft glow behind the figure.
+  x.fillStyle = '#0F1311'; x.fillRect(0, 0, W, H);
+  const g = x.createRadialGradient(300, 330, 40, 300, 330, 700);
+  g.addColorStop(0, 'rgba(76,203,140,0.20)'); g.addColorStop(1, 'rgba(76,203,140,0)');
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+
+  // Mark and name.
+  rr(72, 70, 76, 76, 18, '#16343d');
+  x.strokeStyle = '#8fb0b8'; x.lineWidth = 3; x.setLineDash([4, 7]);
+  x.beginPath(); x.moveTo(84, 122); x.bezierCurveTo(100, 122, 104, 88, 110, 88); x.bezierCurveTo(116, 88, 120, 122, 136, 122); x.stroke();
+  x.setLineDash([]); x.strokeStyle = '#ffd166'; x.lineWidth = 6; x.lineCap = 'round';
+  x.beginPath(); x.moveTo(84, 124); x.lineTo(136, 124); x.stroke();
+  t('peakless', 168, 124, 46, '#EEF1EE', 700);
+  t('My home energy analysis', W - 72, 122, 28, '#A2ACA6', 500, 'right');
+
+  // The answer.
+  t('THE MOST I COULD SAVE', 72, 250, 28, '#ffd166', 700);
+  t(eurS(Math.max(0, savings)), 64, 420, 190, '#4CCB8C', 800);
+  t('less a year', 72, 480, 40, '#A2ACA6', 600);
+
+  // The four bars, as Home shows them.
+  let rungs = [];
+  try {
+    const pl = (state.solar_planned || state.solar_is_estimate) ? plannedLadder() : null;
+    const mine = getPlanById(state.baseline);
+    const rec = getRecommendation();
+    if (pl) rungs = [
+      ['Current plan', mine.supplier, pl.today, '#7A847E'],
+      ['Best plan', pl.noSolar.plan.supplier, pl.noSolar.net, '#2F7A56'],
+      ['Current plan + solar', mine.supplier, pl.mine, '#2F7A56'],
+      ['Best plan + solar', pl.best.plan.supplier, pl.best.net, '#4CCB8C'],
+    ];
+    else rungs = [['Current plan', mine.supplier, rec.baseCost, '#7A847E'], ['Best plan', rec.best.plan.supplier, rec.best.net, '#4CCB8C']];
+  } catch (e) { rungs = []; }
+  rr(56, 530, W - 112, 110 + rungs.length * 86, 36, '#171C19');
+  t('What I’d pay a year', 96, 588, 28, '#A2ACA6', 600);
+  const max = Math.max(1, ...rungs.map((r) => r[2]));
+  rungs.forEach(([label, sup, v, c], i) => {
+    const y = 650 + i * 86;
+    t(label, 96, y, 30, '#EEF1EE', 700);
+    x.font = `700 30px ${F}`; const lw = x.measureText(label + '  ').width;
+    t(fit(sup, 560 - lw, 26, 400), 96 + lw, y, 26, '#A2ACA6', 400);
+    t(eurS(v), W - 96, y, 32, i === rungs.length - 1 ? '#4CCB8C' : '#EEF1EE', 800, 'right');
+    rr(96, y + 18, W - 192, 22, 11, '#262D29');
+    rr(96, y + 18, Math.max(22, (W - 192) * (v / max)), 22, 11, c);
+  });
+
+  // Three facts.
+  const facts = [];
+  try {
+    const best = getBestPlan();
+    facts.push(['Best plan', best.plan.supplier]);
+    if (state.has_solar && totalPanels() > 0){ const d = v7SolarData(); if (d.cur.payback < 50) facts.push(['Solar pays back', d.cur.payback.toFixed(1) + ' years']); }
+    if (state.ev_active){ const ev = evEconomics(best.plan.id); if (ev) facts.push(['Car vs petrol', eurS(ev.evVsPetrolNet) + ' less']); }
+    facts.push(['Accuracy', '±' + modelAccuracy().pct + '%']);
+  } catch (e) {}
+  const fy = 664 + rungs.length * 86;
+  const fw = (W - 112 - 24 * (Math.min(3, facts.length) - 1)) / Math.min(3, facts.length);
+  facts.slice(0, 3).forEach(([k, v], i) => {
+    const fx = 56 + i * (fw + 24);
+    rr(fx, fy, fw, 136, 28, '#171C19');
+    t(k, fx + 30, fy + 52, 26, '#A2ACA6', 600);
+    t(fit(v, fw - 60, 40, 800), fx + 30, fy + 104, 40, '#EEF1EE', 800);
+  });
+
+  // Footer.
+  let live = 0; try { live = getRecommendation().ranked.length; } catch (e) { live = TARIFFS.filter(tt => !tt.discontinued).length; }
+  t('Every hour of my year, priced on all ' + live + ' Irish plans.', 72, H - 96, 28, '#A2ACA6', 500);
+  t('Check yours free at peakless', 72, H - 52, 34, '#ffd166', 700);
   return cv;
 }
 
 function shareSavingsCard(){
-  const savings = publishableSavings();   // honest: planned solar excluded
+  // The card shows the whole comparison, so its headline is the whole of it.
+  let savings = publishableSavings();
+  try { const pl = (state.solar_planned || state.solar_is_estimate) ? plannedLadder() : null; if (pl) savings = pl.today - pl.best.net; } catch (e) {}
   const cv = makeShareCardCanvas(savings);
   if (!cv){ copyShareUrl(); return; }
-  const text = 'I just found \u20ac' + Math.round(savings).toLocaleString() + '/yr of electricity savings in 30 seconds \u2014 check yours free';
+  const text = 'My home energy analysis: \u20ac' + Math.round(savings).toLocaleString('en-IE') + ' a year less. Check yours free: ' + location.origin;
   cv.toBlob((blob) => {
     if (!blob){ copyShareUrl(); return; }
-    const file = new File([blob], 'my-savings.png', { type: 'image/png' });
+    const file = new File([blob], 'peakless-analysis.png', { type: 'image/png' });
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })){
       navigator.share({ files: [file], text }).catch(() => {});
     } else {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'my-savings.png';
+      a.download = 'peakless-analysis.png';
       a.click();
       showToast('Savings card saved \u2014 share it anywhere', { type:'accent', icon:ic('spark',16) });
     }

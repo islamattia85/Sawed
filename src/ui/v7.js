@@ -1121,7 +1121,7 @@ export function createV7(api) {
         ${working(rec)}${api.renderSolarWorking()}`)}
       ${anCard('Take it with you', `<div class="ax-two">
           <button class="ax-tile" onclick="openPdfReportModal()">${api.ic('doc', 18)}<b>Full report, PDF</b></button>
-          <button class="ax-tile" onclick="copyShareUrl()">${api.ic('link', 18)}<b>Share this analysis</b></button>
+          <button class="ax-tile" onclick="shareSavingsCard()">${api.ic('link', 18)}<b>Share this analysis</b></button>
         </div>`)}
       ${st._csv_imported ? (a.tip ? cta(esc(a.tip.tip), a.tip.go) : '') : cta('Upload your ESB meter file', "v7Sheet('meter')")}`;
   }
