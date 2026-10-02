@@ -36,7 +36,7 @@ async function modelFromNothing(page) {
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
   await page.getByRole('button', { name: /^Start/ }).click();
   await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
-  await page.getByRole('button', { name: /See the full solar analysis/ }).click();
+  await page.getByRole('button', { name: /see the full analysis/ }).click();
 }
 
 const NO_SOLAR = {
@@ -70,7 +70,7 @@ test('the answer is not blocked by the twelve-design sweep', async ({ page }) =>
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
   await page.getByRole('button', { name: /^Start/ }).click();
   await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
-  await page.getByRole('button', { name: /See the full solar analysis/ }).click();
+  await page.getByRole('button', { name: /see the full analysis/ }).click();
   await expect(page.locator('.qr-value')).toContainText(/yr payback/);
   const elapsed = Date.now() - started;
 

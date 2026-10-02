@@ -287,7 +287,7 @@ test('modelling solar after a no-solar setup prices the system, even if a quote 
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
   await page.getByRole('button', { name: /^Start/ }).click();
   await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
-  await page.getByRole('button', { name: /See the full solar analysis/ }).click();
+  await page.getByRole('button', { name: /see the full analysis/ }).click();
   const st = await page.evaluate(() => ({ c: window.state.install_cost, n: window.state.count_A }));
   expect(st.n).toBeGreaterThan(0);
   expect(st.c).toBeGreaterThan(3000);
@@ -721,7 +721,7 @@ test('v8 solar guide: four steps, each on a suggestion, then the answer and the 
   await expect(page.locator('.sg-h')).toContainText('What would it cost');
   await page.getByRole('button', { name: /Show me the answer/ }).click();
   await expect(page.locator('.sg-reveal-fig b')).toHaveText(/\d/);
-  await page.getByRole('button', { name: /See the full solar analysis/ }).click();
+  await page.getByRole('button', { name: /see the full analysis/ }).click();
   expect(await page.evaluate(() => window.state.current_screen)).toBe('solar');
   await expect(page.locator('.v7-months-card')).toBeVisible();
 });
@@ -777,7 +777,10 @@ test('v8 Home adapts: a card per part of the home, invitations for what it lacks
   await expect(page.locator('.hc-invite')).toHaveCount(0);
   await page.locator('.hc').first().click();
   expect(await page.evaluate(() => window.state.current_screen)).toBe('solar');
-  await expect(page.locator('.v7-nav-item.active')).toContainText('Home');
+  // The full analysis is depth: Analytics is lit, and the way back says Home.
+  await expect(page.locator('.v7-nav-item.active')).toContainText('Analytics');
+  await page.locator('.v7-home-back', { hasText: 'Home' }).click();
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('result');
   await page.locator('.v7-nav-item', { hasText: 'Analytics' }).click();
   await expect(page.locator('.an-hub')).toContainText('Solar, month by month');
 });

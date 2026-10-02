@@ -5586,6 +5586,7 @@ function sgGo(step, fromHistory){
 }
 function sgDone(){
   state._sg = null; _sgBefore = null;
+  state._solar_from = 'result';
   state.current_screen = 'solar';
   state._solar_deep = true;
   saveState();
@@ -5685,7 +5686,7 @@ function renderSolarGuide(){
         <div class="sg-sys">${totalPanels()} panels${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh battery` : ' · no battery'} · ${({ S: 'south', SE: 'south-east', SW: 'south-west', EW: 'east and west', E: 'east', W: 'west' })[state._sg_face] || 'south'}-facing</div>
       </div>
       <button class="fp-cta sg-next" onclick="sgKeep()">Keep this on my Home ${ic('checkC', 18)}</button>
-      <button class="sg-link" onclick="sgDone()">See the full solar analysis</button>
+      <button class="sg-link" onclick="sgDone()">Keep it, and see the full analysis in Analytics</button>
       <button class="sg-link" onclick="sgGo(1)">Change my answers</button>
       <button class="sg-link sg-skip" onclick="sgCancel()">Don’t keep it</button>`;
   }

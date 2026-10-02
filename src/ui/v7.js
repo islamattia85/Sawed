@@ -26,9 +26,11 @@ const jsAttr = (s) => esc(jsq(s));
 export const V7_SURFACES = [
   // v8: Solar is no longer a tab. Its answer is a card on Home (the 'solar'
   // screen opens from it and keeps Home lit); its depth lives in Analytics.
-  { id: 'result', icon: 'home', label: 'Home', screens: ['result', 'solar'] },
+  { id: 'result', icon: 'home', label: 'Home', screens: ['result'] },
   { id: 'plans', icon: 'plans', label: 'Plans', screens: ['plans', 'plan-detail', 'compare'] },
-  { id: 'analytics', icon: 'chart', label: 'Analytics', screens: ['analytics', 'monitor', 'csv-import'] },
+  // The full solar analysis (the payback curve) is depth, so it sits under
+  // Analytics: the lit tab always says where you are, and Home is only Home.
+  { id: 'analytics', icon: 'chart', label: 'Analytics', screens: ['analytics', 'monitor', 'csv-import', 'solar'] },
   { id: 'me', icon: 'user', label: 'Me',
     screens: ['me', 'more', 'refine', 'auditor', 'quotes', 'methodology', 'independence', 'how-to-switch', 'privacy', 'installer'] },
 ];
@@ -44,7 +46,8 @@ export function createV7(api) {
     // A screen opened from Home (Solar) says where it came from and goes back there.
     if (home) return `<header class="topbar v7-top v7-top-sub" role="banner">
       <h1 class="sr-only">${esc(title)}</h1>
-      <button class="v7-home-back" onclick="setScreen('result')" aria-label="Back to Home">${api.ic('chevL', 18)} Home</button>
+      ${(() => { const from = S()._solar_from === 'result' ? ['result', 'Home'] : ['analytics', 'Analytics'];
+        return `<button class="v7-home-back" onclick="state._solar_from=null;setScreen('${from[0]}')" aria-label="Back to ${from[1]}">${api.ic('chevL', 18)} ${from[1]}</button>`; })()}
       <div class="v7-top-title">${esc(title)}</div>
       <div class="v7-top-end">${api.renderProfileNavBtn()}</div>
     </header>`;
@@ -283,7 +286,7 @@ export function createV7(api) {
     if (sys) {
       let d = null; try { d = api.solarData(); } catch (e) {}
       const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
-      out += `<button class="hc" onclick="setScreen('solar')">
+      out += `<button class="hc" onclick="state._solar_from='result';setScreen('solar')">
         <span class="hc-k"><span>${api.ic('sun', 16)} ${planned ? 'Solar for this home' : 'Your solar'}</span><i class="hc-tag ${planned ? 'is-plan' : ''}">${planned ? 'planned' : 'installed'}</i></span>
         <span class="hc-fig">${planned ? `${pb ? pb.toFixed(1) : '—'}<small>years to pay back</small>` : `${eur(d ? d.cur.solarBenefit : 0)}<small>back a year</small>`}</span>
         <span class="hc-facts">
