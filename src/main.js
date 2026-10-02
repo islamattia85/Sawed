@@ -7756,7 +7756,9 @@ function analyticsHub(on){
     ['hours', 'Hour by hour', "setScreen('analytics')"],
     // Solar is always a section here: the analysis when there's a system, the
     // short "would it pay off?" guide when there isn't.
-    ['solar', 'Solar', sys ? "state._solar_from=null;state._solar_deep=true;setScreen('solar')" : 'startSolarGuide()'],
+    // Always its own page: the analysis, or a calm "no solar yet" with the
+    // guide one deliberate tap away — never a jump straight into questions.
+    ['solar', 'Solar', `state._solar_from=null;state._solar_deep=${sys};setScreen('solar')`],
     ['market', 'Market', "setScreen('monitor')"],
   ];
   if (on === 'meter') items.push(['meter', 'Meter data', "setScreen('csv-import')"]);

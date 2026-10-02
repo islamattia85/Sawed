@@ -202,3 +202,11 @@ test('Solar is a section of Analytics, and tapping the lit tab keeps you there',
   await page.locator('.an-hub-b', { hasText: 'Hour by hour' }).click();
   await expect.poll(() => screen(page)).toBe('analytics');
 });
+
+test('Solar in the Analytics menu, with no system, opens a calm page, not the questions', async ({ page }) => {
+  await boot(page, { current_screen: 'analytics', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
+  await page.locator('.an-hub-b', { hasText: /^Solar$/ }).click();
+  await expect.poll(() => screen(page)).toBe('solar');
+  await expect(page.locator('.v7-invite')).toContainText('Thinking about solar?');
+  await expect(page.locator('.an-hub-b.on')).toHaveText('Solar');
+});
