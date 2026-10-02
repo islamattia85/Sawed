@@ -1153,3 +1153,6 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .ms-rates .is-cheap { background: var(--accent-faint); } .ms-rates .is-cheap b { color: var(--accent); }
 .ms-rates .is-dear { background: var(--amber-faint); } .ms-rates .is-dear b { color: var(--amber); }
 .ms-eur { flex: none; color: var(--accent); font-size: var(--text-data); }
+/* The highlighted challenge is the one you last opened (the first, until you choose). */
+.gm-q:first-of-type { border-color: var(--hair-strong); background: var(--panel); }
+.gm-q.is-sel { border-color: var(--accent); background: var(--accent-faint); }

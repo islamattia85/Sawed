@@ -10086,7 +10086,11 @@ function householdScore(){
     const installed = state.has_solar && totalPanels() > 0 && !(state.solar_planned || state.solar_is_estimate);
     const inst = installed ? realityChecks().find((c) => c.kind === 'install' && c.r && c.r.ratio) : null;
     const panelPts = inst ? Math.round(20 * Math.min(1, inst.r.ratio)) : 0;
-    if (installed) parts.push({ key: 'panels', label: 'Panels working', max: 20, pts: panelPts });
+    // Panels only count once the meter can check them; until then they are a
+    // challenge to unlock, not a zero that drags the score down.
+    if (installed && inst) parts.push({ key: 'panels', label: 'Panels working', max: 20, pts: panelPts });
+    if (installed && !inst && hasMeter && !(state.journey || []).some((e) => e.type === 'install'))
+      quests.push({ pts: 0, icon: 'sun', title: 'Tell us when your panels went in', sub: 'So your meter readings can check they’re doing what they should', go: "v7Sheet('journey','install')" });
 
     // Meter data also replaces the usage estimate, so it lifts "home known" too.
     const knowAfter = state._csv_imported ? knowPts : Math.round(20 * Math.max(0, Math.min(1, (15 - Math.max(2, acc.pct - 6)) / 12)));
@@ -10094,7 +10098,9 @@ function householdScore(){
       sub: `Unlocks cheap-hour habits${installed ? ' and panel checks' : ''}, sharpens every figure, and checks your savings for real`, go: "v7Sheet('meter')" });
     else {
       done.push(`Meter data in · ${Object.keys(days).length} days`);
-      if (fit && fit.fit < 0.8 && !isFlatPlan(plan)) quests.push({ pts: 20 - timePts, icon: 'clock', title: 'Move use out of the dear hours',
+      const habitsDone = (state.quests_done || {}).habits && (Date.now() - Date.parse(state.quests_done.habits)) < 60 * 864e5;
+      if (habitsDone) done.push('Timers set for the cheap hours');
+      if (fit && fit.fit < 0.8 && !isFlatPlan(plan) && !habitsDone) quests.push({ pts: 20 - timePts, icon: 'clock', title: 'Move use out of the dear hours',
         sub: `You pay ${fmtCent(fit.avgRate)} a kWh on average${fit.peakShare > 0.02 ? `, ${Math.round(fit.peakShare * 100)}% of it at peak` : ''}`, go: "v7Sheet('habits')" });
       else if (fit) done.push('Good cheap-hour habits');
       if (installed && inst && inst.r.ratio < 0.85) quests.push({ pts: 20 - panelPts, icon: 'battery', title: 'Get more from your panels',
@@ -10125,6 +10131,15 @@ function renderQuestSheet(i){
     </div>
     <button class="v7-cta-2" onclick="${/^v7Sheet\(/.test(q.go) ? q.go : `v7Sheet(null);${q.go}`}">Do it now ${ic('chevR', 16)}</button>
     <div class="v7-fine">Your score updates as soon as it’s done.</div>`;
+}
+
+/** Mark a challenge that only the person can confirm (timers set) as done for 60 days. */
+function questDone(key){
+  (state.quests_done = state.quests_done || {})[key] = todayIso();
+  state._sheet = null; state._quest_sel = 0;
+  saveState();
+  showToast('Marked done. Your next meter upload shows what moved.', { type: 'accent', icon: ic('checkC', 16), title: 'Challenge done' });
+  renderApp();
 }
 
 /** Upload the ESB file without leaving the screen: the steps, the button, the result. */
@@ -10175,7 +10190,7 @@ function renderHabitsSheet(){
     </div>
     <div class="me-list">${moves.map((m) => `<div class="me-row"><span><b>${m.what}</b><small>${m.how}</small></span><b class="ms-eur">${eur(m.eur)}/yr</b></div>`).join('')}</div>
     <p class="me-p">All of them together: about <b>${eur(total)} a year</b>, on ${esc(plan.supplier)} ${esc(plan.plan)}. Your next meter upload shows how much moved, and your score goes up with it.</p>
-    <button class="v7-cta-2" onclick="v7Sheet(null)">Done: I've set my timers</button>`;
+    <button class="v7-cta-2" onclick="questDone('habits')">Done: I've set my timers</button>`;
 }
 
 /* Reward feedback: when something the person did raises the score, say so. */
@@ -10228,7 +10243,7 @@ function renderScoreBlock(){
     <div class="gm-parts">${sc.parts.map((p) => `<span class="gm-part"><b>${p.pts}</b>/${p.max} ${p.label.toLowerCase()}</span>`).join('')}</div>
 
     ${sc.quests.length ? `<div class="gm-h">Next challenges</div>
-    ${sc.quests.map((q, qi) => `<button class="gm-q" onclick="v7Sheet('quest','${qi}')">
+    ${sc.quests.map((q, qi) => `<button class="gm-q ${(state._quest_sel ?? 0) === qi ? 'is-sel' : ''}" onclick="state._quest_sel=${qi};v7Sheet('quest','${qi}')">
         <span class="gm-q-ico">${ic(q.icon, 18)}</span>
         <span class="gm-q-text"><b>${q.title}</b><small>${q.sub}</small></span>
         <span class="gm-q-gain">${q.pts ? `<b>+${q.pts}</b><small>points</small>` : `<small>reminder</small>`}${q.eur ? `<em>${eur(q.eur)}/yr</em>` : ''}</span>
@@ -13345,6 +13360,7 @@ window.sysTypicalPrice = sysTypicalPrice;
 window.openMySystem = openMySystem;
 window.homeSet = homeSet;
 window.openMyHome = openMyHome;
+window.questDone = questDone;
 window.startSolarGuide = startSolarGuide;
 window.startFlow = startFlow;
 window.plannedSolarSplit = plannedSolarSplit;

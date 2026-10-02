@@ -633,6 +633,7 @@ export function createV7(api) {
     else if (sh.kind === 'ev') body = evSheet();
     else if (sh.kind === 'quote') body = quoteSheet();
     else if (sh.kind === 'switch') body = switchSheet(sh.id);
+    else if (sh.kind === 'switched') body = switchedSheet(sh.id);
     else if (sh.kind === 'system') body = api.renderSystemSheet();
     else if (sh.kind === 'home') body = api.renderHomeSheet();
     else if (sh.kind === 'handover') body = api.renderHandoverSheet();
@@ -691,7 +692,8 @@ export function createV7(api) {
       ${api.planDataFlag(plan) ? `<div class="v7-note is-check">${api.ic('warn', 16)}<div>These rates have not been re-checked recently. Confirm them with ${esc(plan.supplier)} before switching.</div></div>` : ''}
       ${switchButton(plan, '', 'v7-cta-2')}
       <div class="v7-sheet-links">
-        ${st.chosen_plan === plan.id ? '' : `<a href="#" onclick="event.preventDefault();v7Choose('${plan.id}')">Use this plan for my figures</a>`}
+        ${plan.id !== st.baseline ? `<a href="#" onclick="event.preventDefault();recordSwitch('${plan.id}')">I've switched to this plan</a>` : ''}
+        ${st.chosen_plan === plan.id || (api.getRecommendation().cheapest || {}).plan?.id === plan.id ? '' : `<a href="#" onclick="event.preventDefault();v7Choose('${plan.id}')">Compare my home on this plan</a>`}
         <a href="#" onclick="event.preventDefault();v7Sheet(null);showPlanDetail('${plan.id}')">Full rate card</a>
       </div>`;
   }
@@ -762,12 +764,24 @@ export function createV7(api) {
         <li><b>Nothing to cancel:</b> your new supplier tells your old one. There's no break in supply, and you have 14 days to change your mind.</li>
         ${plan.exit ? `<li><b>Contract:</b> ${plan.length || 12} months; leaving early costs €${plan.exit}.</li>` : ''}
       </ol>
-      <button class="switch-cta v7-cta" onclick="v7Sheet(null);handleSwitchClick('${plan.id}', '${switchName}', ${Math.round(saving)})">
+      <button class="switch-cta v7-cta" onclick="handleSwitchClick('${plan.id}', '${switchName}', ${Math.round(saving)});v7Sheet('switched','${plan.id}')">
         ${partner ? `Continue with ${api.brand} ${api.ic('chevR', 18)}` : `Open ${esc(plan.supplier)}'s website ${api.ic('external', 18)}`}
       </button>
       <div class="v7-fine">${partner
         ? `${esc(plan.supplier)} pays ${esc(api.brand)} when you switch through us. You pay the same price, and it never changes how plans are ranked.`
-        : `${esc(api.brand)} earns nothing from this switch. We show it because it's the right plan for your home.`}</div>`;
+        : `${esc(api.brand)} earns nothing from this switch. We show it because it's the right plan for your home.`}</div>
+      ${plan.id !== S().baseline ? `<div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();recordSwitch('${plan.id}')">Already switched? Update my home</a></div>` : ''}`;
+  }
+
+  /** Back from the supplier's site: did the switch happen? One tap records it. */
+  function switchedSheet(id) {
+    const plan = api.getPlanById(id);
+    if (!plan) return '';
+    return `<div class="v7-sheet-head"><div class="v7-eyebrow">Back from ${esc(plan.supplier)}</div>
+        <h2 class="v7-h">Did you switch to ${esc(plan.plan)}?</h2></div>
+      <p class="v7-muted">We'll make it your plan here, start counting what it saves, and remind you before its contract ends.</p>
+      <button class="switch-cta v7-cta" onclick="recordSwitch('${plan.id}')">Yes, I switched ${api.ic('checkC', 18)}</button>
+      <button class="v7-cta-2 v7-cta-alt" onclick="v7Sheet(null)">Not yet</button>`;
   }
 
   /** Where the figures were read, and when. */
