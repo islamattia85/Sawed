@@ -1031,6 +1031,11 @@ const DEFAULT_STATE = {
 };
 
 let state;
+// Testing: open the app with ?fresh to start from the very beginning.
+if (/[?&]fresh\b/.test(location.search)) {
+  try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
+  history.replaceState(null, '', location.pathname);
+}
 try {
   const raw = localStorage.getItem("solarAppState_v2");
   state = raw ? JSON.parse(raw) : structuredClone(DEFAULT_STATE);
@@ -10604,6 +10609,7 @@ function renderMe(){
 
     <div class="section-title">Settings and more</div>
     <section class="me-list">
+      <button class="me-row me-link" onclick="startFresh()"><span><b>Start fresh</b><small>For testing: signs out and clears this phone, back to the first screen</small></span>${ic('chevR', 16)}</button>
       <button class="me-row me-link" onclick="setScreen('more')"><span><b>Settings, help and more</b><small>Advanced settings, appearance, privacy, how to switch, methodology</small></span>${ic('chevR', 16)}</button>
     </section>
 
@@ -11241,6 +11247,13 @@ function renderPrivacy(){
     <p class="disclaimer">Questions about your data: contact us through the app's support page.</p>
   </div>
   ${bottomNav()}`;
+}
+/** Back to the very first screen: signs out (so the account can't restore it) and clears this device. */
+async function startFresh(){
+  if (!confirm('Start fresh? This signs you out and clears everything on this phone. Your account keeps its saved copy.')) return;
+  try { if (_sb && _sbUser) await _sb.auth.signOut(); } catch (e) {}
+  try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
+  location.replace(location.pathname);
 }
 function clearThisDevice(){
   if (!confirm('Clear your setup, quotes and settings from this device?')) return;
@@ -13394,6 +13407,7 @@ window.quoteToSystem = quoteToSystem;
 window.meOpenAuth = meOpenAuth;
 window.modelAccuracy = modelAccuracy;
 window.clearThisDevice = clearThisDevice;
+window.startFresh = startFresh;
 window.deleteMyAccount = deleteMyAccount;
 window.setLeadStatus = setLeadStatus;
 window.setAnalyticsConsent = setAnalyticsConsent;
