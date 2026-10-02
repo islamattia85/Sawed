@@ -868,7 +868,8 @@ export function createV7(api) {
     if (st.hot_water_strategy === 'smart' && top >= 2 && top <= 4) why.push('the water heating in the cheap hours (smart hot-water timing is on)');
     const legend = present.sort((x, y) => BAND_ORDER.indexOf(x) - BAND_ORDER.indexOf(y))
       .map((x) => `<span><i class="v7-dot" style="background:var(${flat ? '--bandink-day' : bandToken(x)})"></i>${flat ? 'Every hour' : BAND_NAME[x] || x} ${api.fmtCent(rate(x))}</span>`).join('');
-    const avg = anCard(dayTitle, `${vbars(hrs.map((v, h) => ({ v, token: flat ? '--bandink-day' : bandToken(bands24[h]),
+    const perDay = sum(hrs);
+    const avg = anCard(dayTitle, `<p class="ax-chart-what">An average day across the year: the electricity you ${bought ? 'buy from the grid' : 'use'} in each hour, ${perDay.toFixed(1)} kWh a day in all. The tallest bar is ${hrs[top].toFixed(1)} kWh.</p>${vbars(hrs.map((v, h) => ({ v, token: flat ? '--bandink-day' : bandToken(bands24[h]),
       tip: `${hhmm(h)} · ${v.toFixed(2)} kWh on an average day · ${BAND_NAME[bands24[h]] || bands24[h]} rate` })),
     { label: `${bought ? 'Bought' : 'Used'} by hour on an average day, most at ${hhmm(top)}` })}${hourAxis()}
       <div class="v7-legend">${legend}</div>${why.length ? note(`That is ${why.join(', and ')}.`) : ''}`);

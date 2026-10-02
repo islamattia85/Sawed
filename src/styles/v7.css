@@ -1214,6 +1214,7 @@ section.hc { cursor: default; }
 }
 .ax-t { margin: 0; font-size: var(--text-body); line-height: 1.3; font-weight: 700; color: var(--ink); }
 .ax-note { margin: 0; font-size: var(--text-data); line-height: 1.45; color: var(--ink-soft); }
+.ax-chart-what { margin: 0 0 var(--space-3); font-size: var(--text-data); line-height: 1.45; color: var(--ink-soft); }
 .ax-note > svg { vertical-align: -2px; color: var(--accent); }
 .ax-p { margin: 0; font-size: var(--text-data); line-height: 1.5; color: var(--ink-soft); }
 .ax-card .v7-legend { margin-top: 0; }
