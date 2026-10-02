@@ -9828,7 +9828,7 @@ function householdScene(){
       ${tap('openMyHome()', 'My home', 118, 124, 144, 110)}
       ${tap("setScreen('plans')", 'Your plan and the grid', 14, 112, 64, 166)}
       ${batt ? tap('openMySystem()', 'Battery', 286, 130, 46, 104) : ''}
-      ${ev ? tap("anTab('car')", 'Your EV', 266, 244, 76, 54) : ''}
+      ${ev ? tap('startEvGuide()', 'Your EV', 266, 244, 76, 54) : ''}
     </svg>
     <div class="hs-actions">
       ${sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('sun', 14)} Add solar</button>`}
@@ -9897,7 +9897,7 @@ function renderMe(){
     <div class="me-cards">
       ${card('openMyHome()', ic('home', 18), 'My home', `${esc(region ? region.name : '')} · ${kwh.toLocaleString('en-IE')} kWh a year`, 'Edit')}
       ${card('openMySystem()', ic('sun', 18), 'My system', hasSys ? `${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh` : ''}` : 'No solar yet', hasSys ? 'Edit' : 'Model one')}
-      ${card(state.ev_active ? "anTab('car')" : 'startEvGuide()', ic('car', 18), 'My EV', state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No EV', state.ev_active ? 'See it' : 'Add one')}
+      ${card('startEvGuide()', ic('car', 18), 'My EV', state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No EV', state.ev_active ? 'Edit' : 'Add one')}
     </div>
 
     <div class="section-title">Saved quotes</div>
@@ -9908,11 +9908,9 @@ function renderMe(){
           <button class="me-mini" onclick="quoteToSystem('${qid}')">${q.source === 'previous' ? 'Bring back' : 'Model it'}</button>
           <button class="me-mini me-x" aria-label="Remove quote" onclick="removeQuote('${qid}')">${ic('x', 14)}</button>
         </div>`; }).join('') : `<div class="me-empty">No quotes saved yet.</div>`}
-      <button class="me-add" onclick="setScreen('solar');v7Sheet('quote')">${ic('clip', 16)} Upload an installer's quote</button>
+      <button class="me-add" onclick="v7Sheet('quote')">${ic('clip', 16)} Upload an installer's quote</button>
     </section>
 
-    <div class="section-title">Quote requests</div>
-    <section class="me-list">${requests}</section>
 
     <div class="section-title">Settings and more</div>
     <section class="me-list">
@@ -9926,6 +9924,11 @@ function renderMe(){
       <button class="me-row me-link" onclick="setScreen('privacy')"><span><b>Privacy and your data</b><small>What we keep, download or delete it</small></span>${ic('chevR', 16)}</button>
       <button class="me-row me-link" onclick="doSignOut()"><span><b>Sign out</b><small>Your setup stays on this phone and in your account</small></span>${ic('chevR', 16)}</button>
     </section>` : ''}
+
+    <!-- Last on the page: when signed in it arrives a moment after the rest,
+         and anything below it would move just as it was being tapped. -->
+    <div class="section-title">Quote requests</div>
+    <section class="me-list">${requests}</section>
   </div>
   ${bottomNav()}`;
 }
@@ -10995,7 +10998,14 @@ function renderHomeSheet(){
 }
 
 function v7Sheet(kind, id){
+  const was = !!state._sheet;
   state._sheet = kind ? { kind, id: id || null } : null;
+  // An open sheet is a step Back can undo. Without its own history entry, Back
+  // changed the screen behind the sheet and the sheet came along to the next one.
+  const cur = state.current_screen;
+  if (kind && !was && !_sheetEntry && state.onboarding_complete && APP_SCREENS.indexOf(cur) >= 0){
+    try { history.pushState({ screen: cur, depth: _histDepth() + 1, sheet: true }, '', '#' + cur); _sheetEntry = true; } catch(e){}
+  }
   renderApp();
 }
 /** Open the month-by-month sheet at the bar that was tapped (or January). */
@@ -11033,6 +11043,8 @@ const APP_SCREENS = ['result','plans','plan-detail','solar','analytics','monitor
 // Set while we are reacting to a popstate, so restoring a screen doesn't
 // push a fresh entry and trap the user in a loop.
 let _suppressHistoryPush = false;
+// The top history entry was added for a sheet (open, or since closed by its own button).
+let _sheetEntry = false;
 
 function _histDepth(){ return (history.state && +history.state.depth) || 0; }
 function _hashScreen(){
@@ -11043,6 +11055,13 @@ function _hashScreen(){
 function pushScreenHistory(name){
   if (_suppressHistoryPush) return;
   if (APP_SCREENS.indexOf(name) < 0) return;
+  // Leaving through a sheet (a link inside it): the new screen takes the
+  // sheet's entry, so Back returns to the screen the sheet was opened on.
+  if (_sheetEntry){
+    _sheetEntry = false;
+    try { history.replaceState({ screen: name, depth: _histDepth() }, '', '#' + name); } catch(e){}
+    return;
+  }
   try { history.pushState({ screen: name, depth: _histDepth() + 1 }, '', '#' + name); } catch(e){}
 }
 
@@ -11057,6 +11076,15 @@ function syncScreenHistory(){
 }
 
 window.addEventListener('popstate', function(e){
+  // Back with a sheet open closes the sheet and stays put. If the sheet was
+  // already closed by its own button, this Back only stepped off its entry:
+  // take the step the reader meant.
+  if (_sheetEntry){
+    _sheetEntry = false;
+    if (state._sheet){ state._sheet = null; renderApp(); return; }
+    try { history.back(); } catch(err){}
+    return;
+  }
   // Inside a guide or the first-visit flow, Back steps back through it, and
   // past its first step closes it, landing where it was opened from.
   const g = state.current_screen;
