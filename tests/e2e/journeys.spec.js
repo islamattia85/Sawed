@@ -161,3 +161,12 @@ test('the first visit asks for the supplier, then that supplier\'s plan', async 
   await page.locator('.fl-opt').first().click();
   expect(await page.evaluate(() => [getPlanById(window.state.baseline).supplier, window.state.baseline_known])).toEqual(['Energia', true]);
 });
+
+test('"Include solar" with no system asks first instead of inventing one', async ({ page }) => {
+  await boot(page, { current_screen: 'result', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, _home_deep: true });
+  await page.locator('.v7-switch-row').click();
+  await expect(page.locator('.sg-h')).toContainText('Would solar pay off here');
+  await page.getByRole('button', { name: 'Not now' }).click();
+  await expect.poll(() => screen(page)).toBe('result');
+  expect(await page.evaluate(() => window.state.has_solar)).toBe(false);
+});

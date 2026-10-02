@@ -105,7 +105,7 @@ export function createV7(api) {
       <span class="v7-switch-ico">${api.ic('sun', 18)}</span>
       <span class="v7-switch-text"><b>Include solar</b><small>${on
         ? `${api.totalPanels()} panels${S().battery_kwh > 0 ? ` and a ${S().battery_kwh} kWh battery` : ''}`
-        : api.hasModelledSystem() ? 'Left out — your system is kept' : 'Not modelled — switch on to estimate one'}</small></span>
+        : api.hasModelledSystem() ? 'Left out — your system is kept' : 'Not modelled — switch on to see if it pays off'}</small></span>
       <span class="v7-switch ${on ? 'on' : ''}" aria-hidden="true"><i></i></span>
     </button>`;
   }
@@ -221,7 +221,7 @@ export function createV7(api) {
         : switchButton(best.plan, '')}
 
       <button class="v7-basis-line" onclick="openMyHome()">
-        ${(() => { const p = api.getPlanById(st.baseline); return st.baseline_known && p ? `You’re on <b>${esc(p.supplier)} ${esc(p.plan)}</b><br>` : 'Your plan: not given, a standard one assumed<br>'; })()}Based on ${esc(basis)}${st.has_solar && api.totalPanels() > 0 ? ` · ${api.totalPanels()} solar panels` : ''}${st.ev_active ? ' · an electric car' : ''}
+        Based on ${esc(basis)}${st.has_solar && api.totalPanels() > 0 ? ` · ${api.totalPanels()} solar panels` : ''}${st.ev_active ? ' · an electric car' : ''}
         <span>Change</span>
       </button>
 
@@ -242,14 +242,13 @@ export function createV7(api) {
         </span>
       </button>
 
-      ${deep && acc ? (() => { const a = api.modelAccuracy(); return `<div class="v7-acc-why">${api.ic('info', 16)}<span><b>Why ±${acc}%?</b> It allows for: ${esc(a.parts.filter((x) => x.err >= 2).map((x) => x.label.toLowerCase()).join('; '))}.
+      ${deep && acc ? (() => { const a = api.modelAccuracy(); return `<div class="v7-acc-why">${api.ic('info', 16)}<span><b>Why ±${acc}%?</b> ${a.tip ? `It allows for: ${esc(a.parts.filter((x) => x.err >= 2).map((x) => x.label.toLowerCase()).join('; '))}.` : 'This is as close as a model gets: it’s built on your real meter readings, and only the weather is left to vary.'}
         ${a.tip ? `<button onclick="${a.tip.go}">${esc(a.tip.tip)} to tighten it ${api.ic('chevR', 14)}</button>` : ''}</span></div>`; })() : ''}
       ${deep ? `
       ${withSolar ? `<section class="v7-card v7-full-ladder"><div class="v7-card-title">The whole saving, step by step</div>${savingsLadder({ rungs: lad.rungs })}${split}</section>` : ''}
       <div class="qr-actions v7-links">
         <a href="#" onclick="event.preventDefault();setScreen('plans')">See all ${rec.ranked.length} plans ranked for you</a>
-        ${saving > 10 ? `<span class="qr-actions-dot">·</span>
-        <a href="#" onclick="event.preventDefault();setScreen('how-to-switch')">How switching works</a>` : ''}
+        ${saving > 10 ? `<a href="#" onclick="event.preventDefault();setScreen('how-to-switch')">How switching works</a>` : ''}
       </div>
       <div class="v7-basis" aria-label="What these figures are worked out for">${homeChips({ withSolar: false })}${solarSwitch()}</div>
       <div class="v7-notices">${api.freshnessChip(best.plan)}</div>

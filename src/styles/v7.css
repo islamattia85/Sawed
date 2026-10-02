@@ -1204,3 +1204,8 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .fl-upload > span { min-width: 0; overflow-wrap: anywhere; }
 .v7-top-sub .v7-top-title { flex: 1; margin-left: var(--space-2); }
 .v7-home-back { margin-right: var(--space-3); }
+/* One tight line under the switch button, "Change" on the same line. */
+.v7-basis-line { display: block; text-align: center; line-height: 1.5; }
+.v7-basis-line span { margin-left: 6px; }
+.v7-links { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+.v7-links { gap: 0; } .v7-links a { margin: 0; padding: 6px 0; }

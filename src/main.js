@@ -11166,6 +11166,9 @@ const V7 = createV7({
 function v7HasModelledSystem(){ return !!state.considering_solar && totalPanels() > 0; }
 
 function toggleSolarModel(){
+  // Nothing of theirs to bring back: rather than invent a system, open the
+  // short solar guide, which says what it will do and changes nothing unless kept.
+  if (!state.has_solar && !v7HasModelledSystem()) return startSolarGuide();
   const on = !state.has_solar;
   state.has_solar = on;
   if (on && !v7HasModelledSystem()){
