@@ -170,3 +170,21 @@ test('"Include solar" with no system asks first instead of inventing one', async
   await expect.poll(() => screen(page)).toBe('result');
   expect(await page.evaluate(() => window.state.has_solar)).toBe(false);
 });
+
+test('solar explored in the guide is "planned", and the card only moves on its link', async ({ page }) => {
+  await boot(page, { current_screen: 'result', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
+  await page.getByRole('button', { name: /Thinking about solar/ }).click();
+  await page.getByRole('button', { name: /^Start/ }).click();
+  await page.locator('.sg-tile', { hasText: 'South' }).first().click();
+  await page.getByRole('button', { name: /^Next/ }).click();
+  await page.locator('.sg-own input').fill('7.5'); await page.locator('.sg-own input').blur();   // own battery size
+  await page.getByRole('button', { name: /^Next/ }).click();
+  await page.locator('.sg-grant').click();                                                     // grant off
+  expect(await page.evaluate(() => [window.state.battery_kwh, window.state.grant_seai])).toEqual([7.5, 0]);
+  await page.getByRole('button', { name: /Show me the answer/ }).click();
+  await expect(page.locator('.sg-found')).toContainText('Found for you');
+  await page.getByRole('button', { name: /Add to my Home/ }).click();
+  await expect(page.locator('.hc .hc-tag')).toHaveText('planned');
+  await page.locator('.hc .hc-tag').click({ force: true });
+  expect(await screen(page)).toBe('result');                                                   // a label goes nowhere
+});

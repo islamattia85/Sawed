@@ -5563,6 +5563,7 @@ function startSolarGuide(){
   _sgBefore = structuredClone(state);
   // Start from the same suggested system as before: sized to the usage.
   exploreSolar();
+  state.solar_planned = true;            // explored here, not bought: never "installed"
   state.current_screen = 'solar-guide';
   state._sg = 0;
   guidePush('solar-guide', 0);
@@ -5596,7 +5597,7 @@ function sgKeep(){
   state._sg = null; _sgBefore = null;
   state.current_screen = 'result';
   saveState(); renderApp(); window.scrollTo(0, 0);
-  showToast('Solar added to your Home as a plan', { type: 'accent', icon: ic('sun', 16) });
+  showToast('Solar added as a plan. It’s marked “planned” until you have panels', { type: 'accent', icon: ic('sun', 16) });
 }
 function sgRoof(face){
   const map = { S: [180, 0, 0], SE: [135, 0, 0], SW: [225, 0, 0], EW: [90, 270, 1], E: [90, 0, 0], W: [270, 0, 0] };
@@ -5611,6 +5612,11 @@ function sgRoof(face){
   sgGo(2);
 }
 function sgBattery(k){ sysSet('battery_kwh', k); }
+function sgGrant(){
+  if ((state.grant_seai || 0) > 0){ state.grant_seai = 0; state.grant_is_manual = true; }
+  else { state.grant_is_manual = false; applyEstimatedSolarCost(); }
+  invalidate(); saveState(); renderApp();
+}
 
 function renderSolarGuide(){
   const step = state._sg ?? 1;
@@ -5664,12 +5670,18 @@ function renderSolarGuide(){
       [10, '10 kWh', 'Covers most evenings, and can charge on cheap night rates.']];
     body = `${head('Step 3 · Battery', 'Add a battery?', 'It stores the day’s solar for the evening, when power costs most.')}
       <div class="sg-opts">${opts.map(([k, l, s]) => `<button class="sg-opt ${b === k ? 'on' : ''}" onclick="sgBattery(${k})"><b>${l}</b><small>${s}</small></button>`).join('')}</div>
+      <label class="sg-own ${b && ![5, 10].includes(b) ? 'on' : ''}"><span>Another size</span>
+        <input type="number" inputmode="decimal" min="0" max="${SYS_MAX_BATTERY}" step="0.5" placeholder="e.g. 7.5" value="${b && ![5, 10].includes(b) ? b : ''}" onchange="sgBattery(this.value)" aria-label="Battery size in kWh"><em>kWh</em></label>
       ${next()}`;
   } else if (step === 4){
     const net = Math.max(0, (state.install_cost || 0) - (state.grant_seai || 0));
     body = `${head('Step 4 · Price', 'What would it cost?', 'A typical 2026 Irish price for this system, with the SEAI grant taken off.')}
       <div class="sg-big"><b>${eur(net)}</b><span>after the ${eur(state.grant_seai || 0)} grant</span></div>
-      <div class="sg-note">${eur(state.install_cost || 0)} including VAT before the grant. If you have a quote, its price makes the answer exact.</div>
+      <label class="sg-own ${state.cost_is_manual ? 'on' : ''}"><span>Price including VAT, before the grant</span>
+        <em>€</em><input type="number" inputmode="numeric" min="0" step="100" value="${Math.round(state.install_cost || 0)}" onchange="sysSet('install_cost', this.value)" aria-label="Price including VAT"></label>
+      <button class="v7-switch-row sg-grant" role="switch" aria-checked="${(state.grant_seai || 0) > 0}" onclick="sgGrant()">
+        <span class="v7-switch-text"><b>SEAI grant</b><small>${(state.grant_seai || 0) > 0 ? `${eur(state.grant_seai)} taken off` : 'Not included: not eligible, or already claimed'}</small></span>
+        <span class="v7-switch ${(state.grant_seai || 0) > 0 ? 'on' : ''}" aria-hidden="true"><i></i></span></button>
       <button class="sg-link" onclick="v7Sheet('quote')">${ic('clip', 14)} I have a quote: read it for me</button>
       ${next('Show me the answer')}`;
   } else {
@@ -5683,12 +5695,11 @@ function renderSolarGuide(){
           <div><b>${eur(d ? d.sysCost : 0)}</b><small>to install, after the grant</small></div>
           <div><b class="${d && d.npv >= 0 ? 'is-gain' : ''}">${eur(d ? d.npv : 0)}</b><small>ahead over 20 years</small></div>
         </div>
+        ${d && d.best && d.best.plan ? `<div class="sg-found">${ic('spark', 14)}<span>Found for you: with panels, your best plan is <b>${esc(d.best.plan.supplier)} ${esc(d.best.plan.plan)}</b>. This answer assumes you switch to it, and counts only what the panels add.</span></div>` : ''}
         <div class="sg-sys">${totalPanels()} panels${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh battery` : ' · no battery'} · ${({ S: 'south', SE: 'south-east', SW: 'south-west', EW: 'east and west', E: 'east', W: 'west' })[state._sg_face] || 'south'}-facing</div>
       </div>
-      <button class="fp-cta sg-next" onclick="sgKeep()">Keep this on my Home ${ic('checkC', 18)}</button>
-      <button class="sg-link" onclick="sgDone()">Keep it, and see the full analysis in Analytics</button>
-      <button class="sg-link" onclick="sgGo(1)">Change my answers</button>
-      <button class="sg-link sg-skip" onclick="sgCancel()">Don’t keep it</button>`;
+      <button class="fp-cta sg-next" onclick="sgKeep()">Add to my Home as a plan ${ic('checkC', 18)}</button>
+      <button class="sg-link sg-skip" onclick="sgCancel()">Not now: leave my Home as it was</button>`;
   }
   return `<div class="fp-wrap sg">${body}</div>${V7.sheet()}`;
 }
@@ -13451,6 +13462,7 @@ window.questDone = questDone;
 window.sgCancel = sgCancel;
 window.flowSupplier = flowSupplier;
 window.sgKeep = sgKeep;
+window.sgGrant = sgGrant;
 window.startSolarGuide = startSolarGuide;
 window.startFlow = startFlow;
 window.plannedSolarSplit = plannedSolarSplit;

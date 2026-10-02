@@ -287,7 +287,8 @@ test('modelling solar after a no-solar setup prices the system, even if a quote 
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
   await page.getByRole('button', { name: /^Start/ }).click();
   await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
-  await page.getByRole('button', { name: /see the full analysis/ }).click();
+  await page.getByRole('button', { name: /Add to my Home/ }).click();
+  await page.locator('.hc-go', { hasText: 'Solar analysis' }).click();
   const st = await page.evaluate(() => ({ c: window.state.install_cost, n: window.state.count_A }));
   expect(st.n).toBeGreaterThan(0);
   expect(st.c).toBeGreaterThan(3000);
@@ -669,7 +670,7 @@ test('v8 Solar: an invitation without a system; with one, the answer first and t
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
   await page.getByRole('button', { name: /^Start/ }).click();
   await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
-  await page.getByRole('button', { name: /Keep this on my Home/ }).click();
+  await page.getByRole('button', { name: /Add to my Home/ }).click();
   await page.evaluate(() => window.setScreen('solar'));
   await expect(page.locator('.qr-value')).toBeVisible();
   await expect(page.locator('.v7-months-card')).toHaveCount(0);
@@ -721,8 +722,10 @@ test('v8 solar guide: four steps, each on a suggestion, then the answer and the 
   await expect(page.locator('.sg-h')).toContainText('What would it cost');
   await page.getByRole('button', { name: /Show me the answer/ }).click();
   await expect(page.locator('.sg-reveal-fig b')).toHaveText(/\d/);
-  await page.getByRole('button', { name: /see the full analysis/ }).click();
+  await page.getByRole('button', { name: /Add to my Home/ }).click();
+  await page.locator('.hc-go', { hasText: 'Solar analysis' }).click();
   expect(await page.evaluate(() => window.state.current_screen)).toBe('solar');
+  await page.locator('.v7-deep').click();
   await expect(page.locator('.v7-months-card')).toBeVisible();
 });
 
@@ -773,9 +776,9 @@ test('v8 Home adapts: a card per part of the home, invitations for what it lacks
 
   await boot(page, { has_solar: true, considering_solar: true, solar_planned: true, count_A: 12, battery_kwh: 5, ev_active: true, ev_km_per_year: 15000, _home_deep: false });
   await expect(page.locator('.hc')).toHaveCount(2);
-  await expect(page.locator('.hc').first()).toContainText('years to pay back');
+  await expect(page.locator('.hc').first()).toContainText('years to pay for itself');
   await expect(page.locator('.hc-invite')).toHaveCount(0);
-  await page.locator('.hc').first().click();
+  await page.locator('.hc-go', { hasText: 'Solar analysis' }).click();
   expect(await page.evaluate(() => window.state.current_screen)).toBe('solar');
   // The full analysis is depth: Analytics is lit, and the way back says Home.
   await expect(page.locator('.v7-nav-item.active')).toContainText('Analytics');

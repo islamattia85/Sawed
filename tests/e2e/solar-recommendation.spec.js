@@ -36,7 +36,8 @@ async function modelFromNothing(page) {
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
   await page.getByRole('button', { name: /^Start/ }).click();
   await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
-  await page.getByRole('button', { name: /see the full analysis/ }).click();
+  await page.getByRole('button', { name: /Add to my Home/ }).click();
+  await page.locator('.hc-go', { hasText: 'Solar analysis' }).click();
 }
 
 const NO_SOLAR = {
@@ -66,11 +67,12 @@ test('the answer is not blocked by the twelve-design sweep', async ({ page }) =>
   const errors = await boot(page, NO_SOLAR);
 
   await page.evaluate(() => window.setScreen('solar'));
-  const started = Date.now();
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
   await page.getByRole('button', { name: /^Start/ }).click();
   await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
-  await page.getByRole('button', { name: /see the full analysis/ }).click();
+  await page.getByRole('button', { name: /Add to my Home/ }).click();
+  const started = Date.now();                       // from the tap that opens the analysis
+  await page.locator('.hc-go', { hasText: 'Solar analysis' }).click();
   await expect(page.locator('.qr-value')).toContainText(/yr payback/);
   const elapsed = Date.now() - started;
 

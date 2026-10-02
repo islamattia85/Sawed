@@ -286,30 +286,33 @@ export function createV7(api) {
     if (sys) {
       let d = null; try { d = api.solarData(); } catch (e) {}
       const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
-      out += `<button class="hc" onclick="state._solar_from='result';setScreen('solar')">
-        <span class="hc-k"><span>${api.ic('sun', 16)} ${planned ? 'Solar for this home' : 'Your solar'}</span><i class="hc-tag ${planned ? 'is-plan' : ''}">${planned ? 'planned' : 'installed'}</i></span>
-        <span class="hc-fig">${planned ? `${pb ? pb.toFixed(1) : '—'}<small>years to pay back</small>` : `${eur(d ? d.cur.solarBenefit : 0)}<small>back a year</small>`}</span>
+      out += `<section class="hc">
+        <span class="hc-k"><span>${api.ic('sun', 16)} ${planned ? 'If you add solar' : 'Your solar panels'}</span><i class="hc-tag ${planned ? 'is-plan' : ''}">${planned ? 'planned' : 'installed'}</i></span>
+        <span class="hc-line">${planned ? 'Separate from switching: what panels would do, if you buy them' : 'What your panels bring back, on top of switching'}</span>
+        <span class="hc-fig">${planned ? `${pb ? pb.toFixed(1) : '—'}<small>years to pay for itself</small>` : `${eur(d ? d.cur.solarBenefit : 0)}<small>a year from your panels</small>`}</span>
         <span class="hc-facts">
           ${planned ? `<span><b>${eur(d ? d.cur.solarBenefit : 0)}</b>back a year</span>` : `<span><b>${pb ? pb.toFixed(1) : '—'} yrs</b>to pay back</span>`}
           <span><b>${eur(d ? d.sysCost : 0)}</b>after grant</span>
           <span><b>${eur(d ? d.npv : 0)}</b>over 20 years</span>
         </span>
-        <span class="hc-sub">${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''} <em>See solar ${api.ic('chevR', 14)}</em></span>
-      </button>`;
+        <span class="hc-sub">${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}</span>
+        <button class="hc-go" onclick="state._solar_from='result';setScreen('solar')">Solar analysis ${api.ic('chevR', 14)}</button>
+      </section>`;
     }
     if (st.ev_active) {
       let ev = null; try { ev = api.evEconomics(rec.best.plan.id); } catch (e) {}
       const w = rec.best.plan.windows || {};
       const win = w.ev || w.night;
-      out += `<button class="hc" onclick="v7Sheet('ev')">
+      out += `<section class="hc">
         <span class="hc-k"><span>${api.ic('car', 16)} Your EV</span><i class="hc-tag ${st.ev_in_bill ? '' : 'is-plan'}">${st.ev_in_bill ? 'yours' : 'planned'}</i></span>
         <span class="hc-fig">${eur(ev ? ev.evElectricityCost : 0)}<small>a year to charge</small></span>
-        <span class="hc-sub">${ev ? `${eur(ev.evVsPetrolNet)} less than petrol` : ''}${win ? ` · charge ${hhmm(win[0])}–${hhmm(win[1])}` : ''} <em>See it ${api.ic('chevR', 14)}</em></span>
-      </button>`;
+        <span class="hc-sub">${ev ? `${eur(ev.evVsPetrolNet)} less than petrol` : ''}${win ? ` · charge ${hhmm(win[0])}–${hhmm(win[1])}` : ''}</span>
+        <button class="hc-go" onclick="v7Sheet('ev')">Your EV in detail ${api.ic('chevR', 14)}</button>
+      </section>`;
     }
     const invites = [];
-    if (!sys) invites.push(`<button class="hc-invite" onclick="startSolarGuide()">${api.ic('sun', 18)}<span><b>Thinking about solar?</b>See if it pays off, in a few taps</span></button>`);
-    if (!st.ev_active) invites.push(`<button class="hc-invite" onclick="startEvGuide()">${api.ic('car', 18)}<span><b>Thinking about an EV?</b>What it would cost to charge here</span></button>`);
+    if (!sys) invites.push(`<button class="hc-invite" onclick="startSolarGuide()">${api.ic('sun', 18)}<span><b>Thinking about solar?</b>See if it pays off, in a few taps</span>${api.ic('chevR', 18)}</button>`);
+    if (!st.ev_active) invites.push(`<button class="hc-invite" onclick="startEvGuide()">${api.ic('car', 18)}<span><b>Thinking about an EV?</b>What it would cost to charge here</span>${api.ic('chevR', 18)}</button>`);
     return out + invites.join('');
   }
 
