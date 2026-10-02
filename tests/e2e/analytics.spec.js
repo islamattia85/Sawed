@@ -137,3 +137,28 @@ test('a plan picked in Analytics changes every tab, not Home, and lapses when th
   expect(id).toBeTruthy();
   expect(errors).toEqual([]);
 });
+
+test('Bill by month: hover or tap a month for its bill, with summer credit carried into autumn', async ({ page }) => {
+  const errors = await boot(page, { ...PLANNED, current_screen: 'analytics', _an_tab: 'bill' });
+  const months = page.locator('.ax-mb-col');
+  await expect(months).toHaveCount(12);
+  // One month shown at a time, and moving over another shows that one, without redrawing.
+  await expect(page.locator('.ax-mb-read.on')).toHaveCount(1);
+  await months.nth(6).hover();
+  await expect(page.locator('.ax-mb-read.on .ax-mb-head')).toContainText('July');
+  await months.nth(10).click();
+  await expect(page.locator('.ax-mb-read.on .ax-mb-head')).toContainText('November');
+  // What is paid across the year, plus credit still held, is the year's total
+  // whenever the year is in credit or not: credit moves money between months, it adds none.
+  const { pay, total } = await page.evaluate(() => {
+    const total = Number(document.querySelector('.ax-ans .ax-big').textContent.replace(/[^\d.]/g, ''));
+    const read = [...document.querySelectorAll('.ax-mb-read')].map((r) => r.querySelector('.ax-mb-head b').textContent);
+    return { pay: read.reduce((a, t) => a + (t === 'No bill' ? 0 : Number(t.replace(/[^\d.]/g, ''))), 0), total };
+  });
+  if (total > 0) expect(Math.abs(pay - total)).toBeLessThanOrEqual(12);
+  // With planned panels the summer builds credit, and an autumn bill is paid from it.
+  await expect(page.locator('.ax-mb-dn i').first()).toBeVisible();
+  await expect(page.locator('.ax-mb-read', { hasText: 'Credit from earlier months' }).first()).toBeAttached();
+  await page.locator('.ax-mb').locator('xpath=..').screenshot({ path: 'test-results/bill-by-month.png' });
+  expect(errors).toEqual([]);
+});

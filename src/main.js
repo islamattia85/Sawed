@@ -96,7 +96,7 @@ async function sbInit(){
  * the person to choose. Saved quotes from both are always kept. */
 
 // What describes this screen rather than the household is never synced.
-const NO_SYNC = ['_flow', '_flow_edit', '_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_solar_more', '_an_tab', '_an_from', '_an_pick', '_an_note', '_an_day_open', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
+const NO_SYNC = ['_flow', '_flow_edit', '_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_solar_more', '_an_tab', '_an_from', '_an_pick', '_an_note', '_an_day_open', '_an_mon', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
   '_tariff_refreshing', '_expert_open', '_account_id', '_saved_at'];
 let _sync = { status: 'idle', at: null };
 let _syncTimer = null;
@@ -2505,7 +2505,7 @@ function _analyticsData(plan){
     gen: s.gen, exp: s.grid_export, ch: s.battery_charge, dis: s.battery_discharge, soc: s.soc,
     energy: ac.energy_cost, standing: ac.standing, pso: ac.pso, outlook: ac.outlook_extra, credit: ac.export_revenue, total: ac.net };
   const byBand = {}, kwhBand = {};
-  const month = new Array(12).fill(0);
+  const month = new Array(12).fill(0), monthBuy = new Array(12).fill(0), monthSell = new Array(12).fill(0);
   const dayCost = new Array(365).fill(0);
   const hourUse = new Array(24).fill(0), hourImp = new Array(24).fill(0), hourCost = new Array(24).fill(0);
   let i = 0;
@@ -2518,6 +2518,8 @@ function _analyticsData(plan){
         byBand[b] = (byBand[b] || 0) + (t.cost[i] || 0);
         kwhBand[b] = (kwhBand[b] || 0) + (t.imp[i] || 0);
         month[m] += net;
+        monthBuy[m] += t.cost[i] || 0;
+        monthSell[m] += t.revenue ? (t.revenue[i] || 0) : 0;
         dayCost[Math.floor(i / 24)] += net;
         hourUse[h] += (t.use[i] || 0) / 365;
         hourImp[h] += (t.imp[i] || 0) / 365;
@@ -2547,7 +2549,7 @@ function _analyticsData(plan){
   }
   return { sys, installed, plan, picked: ap.picked, bestIsChoice: ap.bestIsChoice, _t: t,
     today: { total: t.total, energy: t.energy, standing: t.standing, pso: t.pso, outlook: t.outlook, credit: t.credit,
-      byBand, kwhBand, month, hourUse, hourImp, hourCost, kwh: sumF(t.use), imp: sumF(t.imp),
+      byBand, kwhBand, month, monthBuy, monthSell, hourUse, hourImp, hourCost, kwh: sumF(t.use), imp: sumF(t.imp),
       dearest: { day: hi, cost: dayCost[hi] }, cheapest: { day: lo, cost: dayCost[lo] } },
     ref, best, solar };
 }
@@ -7388,6 +7390,13 @@ function renderDayInspector(){
     </div>
     <div style="font-size:12px;color:var(--ink-dim);margin-top:6px">kWh in each hour. ${selfUse.toFixed(1)} kWh of the solar was used at home${hasBattery ? ', directly or through the battery' : ''}.</div>
   </div>`;
+}
+
+/** Show one month's bill on the Bill tab. Hover and tap both land here, so it swaps the shown month in place rather than redrawing the page. */
+function anMonth(i){
+  state._an_mon = Math.max(0, Math.min(11, i | 0));
+  document.querySelectorAll('[data-mon]').forEach((el) => el.classList.toggle('on', +el.dataset.mon === state._an_mon));
+  try { saveState(); } catch (e) { /* the month shown is a convenience */ }
 }
 
 function setAnalyticsDay(idx){
@@ -12691,6 +12700,7 @@ window.toggleRoofB = toggleRoofB;
 window.showPlanDetail = showPlanDetail;
 window.pickObHeating = pickObHeating;
 window.setAnalyticsDay = setAnalyticsDay;
+window.anMonth = anMonth;
 window.setStrategy = setStrategy;
 window.setHotWater = setHotWater;
 window.updateShapeBucket = updateShapeBucket;

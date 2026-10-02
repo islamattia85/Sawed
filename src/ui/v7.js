@@ -687,6 +687,58 @@ export function createV7(api) {
   const cta = (label, go, cls = 'switch-cta v7-cta') => `<button class="${cls} ax-cta" onclick="${go}">${label} ${api.ic('chevR', 18)}</button>`;
   const cta2 = (label, go, icon = '') => `<button class="v7-cta-2 v7-cta-alt ax-cta2" onclick="${go}">${icon ? `${api.ic(icon, 16)} ` : ''}${label}</button>`;
 
+  /**
+   * The bill month by month, as it would arrive: what the month charges, less
+   * any credit the account is carrying. Export payments that exceed a summer
+   * month's charges stay on the account and pay later bills, so the year is
+   * run twice and the second year shown: by January, last summer's credit is
+   * already there, as it would be for a home past its first year.
+   */
+  function monthBills(T, mo, sys, fallbackTitle, hiI) {
+    const fixedM = (T.standing + T.pso + (T.outlook || 0)) / 12;
+    const buy = T.monthBuy || mo, sell = T.monthSell || mo.map(() => 0);
+    const charge = mo.map((v) => v + fixedM);
+    let bal = 0;
+    const out = [];
+    for (let k = 0; k < 24; k++) {
+      const i = k % 12, c = charge[i], before = bal;
+      const used = Math.min(bal, Math.max(0, c));
+      bal = bal - used + Math.max(0, -c);
+      if (k >= 12) out.push({ i, c, before, used, pay: Math.max(0, c) - used, after: bal });
+    }
+    const covered = out.filter((m) => m.c > 0 && m.used > 0.5);
+    const peak = out.reduce((a, m) => (m.after > a.after ? m : a), out[0]);
+    const free = covered.filter((m) => m.pay < 0.5);
+    const title = !covered.length ? fallbackTitle
+      : free.length ? `The credit built by ${MONTH[peak.i]} pays your bills ${free.length > 1 ? `in ${MONTH[free[0].i]} to ${MONTH[free[free.length - 1].i]}` : `in ${MONTH[free[0].i]}`}`
+        : `Summer credit takes ${eur(covered.reduce((a, m) => a + m.used, 0))} off autumn’s bills`;
+    const pos = Math.max(1, ...charge), neg = Math.max(0, ...charge.map((c) => -c));
+    const H = 150, hp = Math.round(H * pos / (pos + neg)), hn = H - hp;
+    const sel = Number.isInteger(S()._an_mon) ? S()._an_mon : hiI;
+    const cols = out.map((m) => {
+      const up = Math.max(0, m.c), dn = Math.max(0, -m.c);
+      return `<button class="ax-mb-col${m.i === sel ? ' on' : ''}" data-mon="${m.i}" onclick="anMonth(${m.i})" onmouseenter="anMonth(${m.i})" onfocus="anMonth(${m.i})"
+          aria-label="${MONTH[m.i]}: ${m.c < 0 ? `${eur(-m.c)} credit` : `you pay ${eur(m.pay)}`}">
+        <span class="ax-mb-up" style="height:${hp}px">${up ? `<i class="ax-mb-pay" style="height:${Math.max(m.pay > 0.5 ? 2 : 0, m.pay / pos * 100).toFixed(1)}%"></i><i class="ax-mb-cov" style="height:${(m.used / pos * 100).toFixed(1)}%"></i>` : ''}</span>
+        ${hn ? `<span class="ax-mb-dn" style="height:${hn}px">${dn ? `<i style="height:${(dn / neg * 100).toFixed(1)}%"></i>` : ''}</span>` : ''}
+        <small>${MONTH[m.i][0]}</small>
+      </button>`;
+    }).join('');
+    const row = (l, v, cls = '') => `<div class="ax-mb-row ${cls}"><span>${l}</span><b>${v}</b></div>`;
+    const reads = out.map((m) => `<div class="ax-mb-read${m.i === sel ? ' on' : ''}" data-mon="${m.i}">
+        <div class="ax-mb-head"><span>${MONTH[m.i]}</span><b>${m.c < 0 ? 'No bill' : eur(m.pay)}</b></div>
+        ${row('Electricity bought', eur(buy[m.i]))}
+        ${row('Fixed charges', eur(fixedM))}
+        ${sys ? row('Paid for what you sell back', `−${eur(sell[m.i])}`, 'is-gain') : ''}
+        ${m.used > 0.5 ? row(`Credit from earlier months`, `−${eur(m.used)}`, 'is-gain') : ''}
+        ${m.c < 0 ? row('Added to your credit', eur(-m.c), 'is-gain') : ''}
+        ${m.after > 0.5 ? `<p class="ax-mb-bal">${eur(m.after)} of credit left on the account after ${MONTH[m.i]}.</p>` : ''}
+      </div>`).join('');
+    const legend = covered.length || neg ? `<div class="ax-mb-key"><span><i class="k-pay"></i>You pay</span>${covered.length ? '<span><i class="k-cov"></i>Paid by credit</span>' : ''}${neg ? '<span><i class="k-cr"></i>Credit built</span>' : ''}</div>` : '';
+    return { title, html: `<div class="ax-mb" role="group" aria-label="The bill by month; choose a month to see it">${cols}</div>${legend}${reads}
+      ${note(`Fixed charges, electricity${sys ? ' and export payments' : ''} for each month, the way the bill adds them. Bills come every two months; this splits each into its two.`)}` };
+  }
+
   function analytics(tab) {
     const st = S();
     let t = tab || st._an_tab || 'bill';
@@ -741,6 +793,7 @@ export function createV7(api) {
       : r >= 1.5 ? `${MONTH[hiI]} costs ${r.toFixed(1)} times what ${MONTH[loI]} does`
         : r >= 1.1 ? `${MONTH[hiI]} costs ${Math.round((r - 1) * 100)}% more than ${MONTH[loI]}` : 'Every month costs about the same';
 
+    const bill = monthBills(T, mo, d.sys, monthTitle, hiI);
     const R = d.ref, B = d.best;
     const vsNow = R.net - T.total;
     const nowName = `${esc(R.plan.supplier)} · ${esc(R.plan.plan)}`;
@@ -762,9 +815,7 @@ export function createV7(api) {
         line: `On ${esc(plan.supplier)} · ${esc(plan.plan)}, ${d.picked ? 'the plan you picked' : d.bestIsChoice ? 'your chosen plan' : 'the best plan for this home'}, for ${kwh(T.kwh)}. That is ${api.fmtCent(T.total / Math.max(1, T.kwh))} for every kWh you use, fixed charges included.`,
       })}
       ${anCard(partsTitle, `${stack(parts, parts.map((p) => `${p.label} ${p.val}`).join(', '))}${rows(parts)}${credit}`)}
-      ${anCard(monthTitle, `${vbars(mo.map((v, i) => ({ v: Math.max(0, v), token: '--accent', tip: `${MONTH[i]}: ${v < 0 ? `${eur(-v)} credit` : eur(v)}` })),
-        { label: `Electricity cost by month, from ${eur(mo[loI])} to ${eur(mo[hiI])}` })}${axis(MONTH.map((m) => m[0]))}
-        ${note(`Electricity${d.sys ? ', less export payments' : ''}, month by month. Fixed charges add ${eur(fixed / 12)} a month on top.`)}`)}
+      ${anCard(bill.title, bill.html)}
       ${cheap}
       ${health ? `<button class="ax-link-row ax-health" onclick="v7Sheet('score')" aria-label="Plan health ${health.overall} of 100">
         ${scoreRing({ value: health.overall, size: 44 })}

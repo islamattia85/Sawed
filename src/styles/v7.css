@@ -1238,6 +1238,30 @@ section.hc { cursor: default; }
 .ax-axis { display: flex; gap: 2px; margin-top: calc(-1 * var(--space-2)); }
 .ax-axis span { flex: 1 1 0; min-width: 0; text-align: center; white-space: nowrap; font-size: var(--text-caption); color: var(--ink-soft); }
 
+/* The bill by month: tap or hover a month. */
+.ax-mb { display: flex; gap: 2px; }
+.ax-mb-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: stretch; padding: 0; border: 0; background: none; cursor: pointer; border-radius: var(--radius-sm); }
+.ax-mb-up { display: flex; flex-direction: column-reverse; border-bottom: 1px solid var(--track); }
+.ax-mb-up i, .ax-mb-dn i { display: block; flex: none; }
+.ax-mb-pay { background: var(--accent); }
+.ax-mb-cov { background: var(--track); }
+.ax-mb-up i:last-child { border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+.ax-mb-dn i { background: var(--ax-sold); border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+.ax-mb-col small { margin-top: var(--space-1); text-align: center; font-size: var(--text-caption); color: var(--ink-soft); }
+.ax-mb:has(.on) .ax-mb-col:not(.on) i { opacity: .45; }
+.ax-mb-col.on small { color: var(--ink); font-weight: 700; }
+.ax-mb-key { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-2); font-size: var(--text-caption); color: var(--ink-soft); }
+.ax-mb-key i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: var(--radius-sm); vertical-align: -1px; }
+.k-pay { background: var(--accent); } .k-cov { background: var(--track); } .k-cr { background: var(--ax-sold); }
+.ax-mb-read { display: none; margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--track); }
+.ax-mb-read.on { display: grid; gap: 6px; }
+.ax-mb-head { display: flex; justify-content: space-between; align-items: baseline; font-size: var(--text-h3); font-weight: 700; color: var(--ink); }
+.ax-mb-row { display: flex; justify-content: space-between; gap: 10px; font-size: var(--text-data); color: var(--ink-soft); }
+.ax-mb-row b { color: var(--ink); }
+.ax-mb-row.is-gain span { color: var(--ink-soft); }
+.ax-mb-row.is-gain b { color: var(--accent); }
+.ax-mb-bal { margin: 0; font-size: var(--text-caption); color: var(--ink-soft); }
+
 /* Side by side. */
 .ax-hbar { display: grid; gap: 5px; }
 .ax-hbar-k { display: flex; justify-content: space-between; gap: 10px; font-size: var(--text-data); color: var(--ink-soft); }
