@@ -26,9 +26,12 @@ test('window bridge exposes live module state, not a stale copy', async ({ page 
 });
 
 test('inline handler assigning a nested state field works (Day Inspector season)', async ({ page }) => {
-  // The day inspector is instrumentation, so it sits behind "Show me the
-  // working" on the solar screen. Open it the way a reader would.
-  const errors = await boot(page, { current_screen: 'solar', _di_season: 'summer', _solar_detail_open: true });
+  // The summer and winter day is detail, so it sits in the Solar tab's
+  // "More detail" fold. Open it the way a reader would.
+  const errors = await boot(page, { current_screen: 'solar', _di_season: 'summer' });
+  await page.locator('.ax-more', { hasText: 'More detail' }).click();
+  // The weather years and the upgrades arrive a moment after the paint.
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
   const winter = page.getByRole('button', { name: /Winter/ });
   await winter.scrollIntoViewIfNeeded();
   await winter.click();
@@ -38,8 +41,9 @@ test('inline handler assigning a nested state field works (Day Inspector season)
   expect(errors).toEqual([]);
 });
 
-test('inline handler toggling a boolean state field works (Home disclosure)', async ({ page }) => {
+test('inline handler toggling a boolean state field works (the working disclosure)', async ({ page }) => {
   const errors = await boot(page);
+  await page.evaluate(() => window.anTab('accuracy'));
   const toggle = page.getByText('Show me the working');
   await toggle.scrollIntoViewIfNeeded();
   await toggle.click();

@@ -129,8 +129,11 @@ test('the four tabs are destinations: no back arrow on any of them', async ({ pa
 test('the way back into setup, and sharing, survive the redesign', async ({ page }) => {
   // V7's first cut dropped both from the home screen and nothing noticed — a
   // returning visitor then had no route back into the guided setup at all.
+  // v8: sharing sits with the report on Analytics' Accuracy tab; setup is in Me.
   const errors = await boot(page);
-  await expect(page.getByRole('button', { name: /Share analysis/ })).toBeVisible();
+  await page.evaluate(() => window.anTab('accuracy'));
+  await expect(page.getByRole('button', { name: /Share this analysis/ })).toBeVisible();
+  await page.evaluate(() => window.setScreen('me'));
   await page.getByRole('button', { name: /Re-run setup/ }).click();
   await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('onboarding');
   expect(errors).toEqual([]);
@@ -159,12 +162,15 @@ test('solar can be left out in one tap, and comes back as the same system', asyn
   expect(errors).toEqual([]);
 });
 
-test('the same switch is at the top of the Solar screen', async ({ page }) => {
+test('left-out solar is offered back on the Solar tab, as the same system', async ({ page }) => {
+  // v8: leaving solar out happens where the system is (Home's solar line, My
+  // system); the Solar tab says it is out and brings it back in one tap.
   await boot(page, { current_screen: 'solar' });
-  await page.getByRole('switch', { name: /Include solar/ }).click();
+  const before = await page.locator('.ax-ans .qr-value').textContent();
+  await page.evaluate(() => window.toggleSolarModel());
   await expect(page.locator('.v7-solar-hero')).toContainText(/left out of every figure/);
-  await page.getByRole('switch', { name: /Include solar/ }).click();
-  await expect(page.locator('.v7-solar-hero .qr-value')).toContainText(/yr payback/);
+  await page.getByRole('button', { name: /Switch solar back on/ }).click();
+  await expect(page.locator('.ax-ans .qr-value')).toHaveText(before);
 });
 
 test('opening Solar with no solar models nothing', async ({ page }) => {
@@ -179,7 +185,8 @@ test('opening Solar with no solar models nothing', async ({ page }) => {
   expect(await page.evaluate(() => [window.state.has_solar, !!window.state.considering_solar]))
     .toEqual([false, false]);
   // v8: an invitation to estimate it, nothing modelled until asked.
-  await expect(page.locator('.v7-invite')).toContainText('Thinking about solar?');
+  await expect(page.locator('h1.ax-h')).toHaveText('Would solar pay off here?');
+  await expect(page.locator('.v7-invite')).toContainText('What you’ll see');
 
   await page.evaluate(() => window.setScreen('result'));
   expect(await page.evaluate(() => window.getRecommendation().annualSavings)).toBe(before);
@@ -196,16 +203,16 @@ test('a home without panels sees only solar on the Solar tab', async ({ page }) 
 });
 
 test('the health sheet carries its own advice', async ({ page }) => {
-  await boot(page, { current_screen: 'result' });
-  await page.locator('.v7-tile-score').click();
+  await boot(page, { current_screen: 'analytics', _an_tab: 'bill' });
+  await page.locator('.ax-health').click();
   await expect(page.locator('#v7-sheet .v7-ring')).toBeVisible();
   await expect(page.locator('#v7-sheet')).toContainText(/Weakest:|Little left on the table/);
 });
 
-test('Price watch and Hour by hour are reachable from More', async ({ page }) => {
+test('Price watch is reachable from More; the hours live in Analytics, not twice', async ({ page }) => {
   await boot(page, { current_screen: 'more' });
   await expect(page.getByText('Price watch', { exact: true })).toBeVisible();
-  await expect(page.getByText('Hour by hour', { exact: true })).toBeVisible();
+  await expect(page.getByText('Hour by hour', { exact: true })).toHaveCount(0);
 });
 
 test('the health score judges the plan on the same home the ladder does', async ({ page }) => {
@@ -214,7 +221,8 @@ test('the health score judges the plan on the same home the ladder does', async 
   await boot(page);
   const mine = await page.evaluate(() =>
     Math.round(+document.querySelectorAll('.v7-full-ladder .v7-ladder [data-rung]')[1].dataset.value));
-  await page.locator('.v7-tile-score').click();
+  await page.evaluate(() => window.anTab('bill'));
+  await page.locator('.ax-health').click();
   const weak = await page.locator('#v7-sheet').innerText();
   const m = weak.match(/You pay €([\d,]+)/);
   if (m) expect(+m[1].replace(/,/g, '')).toBe(mine);
@@ -246,23 +254,24 @@ test('the month chart opens a swipeable month-by-month sheet', async ({ page }) 
     const kwh = (t) => +t.replace(/[^\d]/g, '');
     const solar = cards.reduce((a, c) => a + kwh(c.querySelectorAll('.v7-month-bar b')[0].textContent), 0);
     const legend = document.querySelector('.v7-months-card .v7-legend').textContent;
-    return { solar, year: kwh(legend.match(/solar ([\d,]+)/)[1]) };
+    return { solar, year: kwh(legend.match(/panels · ([\d,]+)/)[1]) };
   });
   expect(Math.abs(sums.solar - sums.year), 'months do not add up to the year').toBeLessThanOrEqual(12);
   expect(errors).toEqual([]);
 });
 
 
-test('the EV lives on Home, not on the Solar tab', async ({ page }) => {
-  const errors = await boot(page, { ev_active: true, current_screen: 'solar', _solar_detail_open: true });
+test('the EV has its own question, not a corner of the Solar tab', async ({ page }) => {
+  const errors = await boot(page, { ev_active: true, current_screen: 'solar', _solar_more: true });
   await expect(page.getByText('EV petrol displacement')).toHaveCount(0);
   await boot(page, { ev_active: true, ev_km_per_year: 15000 });
-  const tile = page.locator('.v7-tile-ev');
-  await expect(tile).toBeVisible();
-  await expect(tile).toContainText('EV saves vs petrol');
-  await tile.click();
-  await expect(page.locator('#v7-sheet')).toContainText('a year less than petrol');
-  await expect(page.locator('#v7-sheet')).toContainText('Cheapest plans to charge on');
+  const card = page.locator('section.hc', { hasText: 'Your EV' });
+  await expect(card).toContainText('less than petrol');
+  await card.getByRole('button', { name: /Your EV in detail/ }).click();
+  await expect(page.locator('h1.ax-h')).toHaveText('What does the car cost to run here?');
+  await expect(page.locator('.ax-tab.on')).toHaveText('Car');
+  await expect(page.locator('.screen')).toContainText('less than petrol');
+  await expect(page.locator('.screen')).toContainText('Cheapest plans to charge on');
   await page.waitForTimeout(400);
   await page.screenshot({ path: 'screenshots/24-ev-sheet.png' });
   expect(errors).toEqual([]);
@@ -361,7 +370,7 @@ test('My system: sliders, battery stops, grant switch and fine-tune change the m
 
 test('My home holds the house, the usage and the roof', async ({ page }) => {
   await boot(page);
-  await page.locator('.v7-home-chips').click();
+  await page.locator('.v7-basis-line').click();
   const sheet = page.locator('#v7-sheet');
   await expect(sheet).toContainText('My home');
   await sheet.locator('select').nth(1).selectOption('heatpump');
@@ -647,36 +656,39 @@ test('suggestions written for another plan are set aside, not shown as current',
   await expect(page.locator('.adv')).toContainText('no longer apply');
 });
 
-test('v8 Home: one answer first, the full analysis one tap away and nothing lost', async ({ page }) => {
-  await boot(page, { _home_deep: false });
-  const home = page.locator('.v7-home');
-  await expect(home).toHaveClass(/is-simple/);
+test('v8 Home: one answer first, then four doors into the analysis, nothing lost', async ({ page }) => {
+  await boot(page);
   await expect(page.locator('.v7-hero .v7-figure')).toBeVisible();
   await expect(page.locator('.v7-basis-line')).toContainText('Based on');
-  await expect(page.locator('.v7-deep')).toContainText('8,760');
-  // The depth is folded, not deleted.
-  await expect(page.locator('.v7-carousel')).toHaveCount(0);
-  await page.locator('.v7-deep').click();
-  await expect(home).toHaveClass(/is-deep/);
-  for (const sel of ['.v7-carousel', '.v7-tile-score', '.working-toggle', '.v7-home-chips']) await expect(page.locator(sel).first()).toBeVisible();
-  // The bars stay on the answer either way, and the next visit opens closed.
-  await expect(page.locator('.v7-hero .v7-ladder, .v7-hero [class*=ladder]').first()).toBeVisible();
-  await page.reload(); await page.waitForFunction(() => window.__bootSettled === true);
-  await expect(page.locator('.v7-home')).toHaveClass(/is-simple/);
+  // The depth is behind four doors, each carrying its answer.
+  await expect(page.locator('.ax-doors-h')).toContainText('Every hour of your year');
+  await expect(page.locator('.ax-door b')).toHaveText(['Bill', 'Hours', 'Solar', 'Accuracy']);
+  await expect(page.locator('.ax-door', { hasText: 'Accuracy' })).toContainText(/±\d+%/);
+  await expect(page.locator('.v7-carousel, .v7-deep, .v7-tiles')).toHaveCount(0);
+  // Nothing deleted: the health sheet and the working are a door away.
+  await page.locator('.ax-door', { hasText: 'Bill' }).click();
+  await expect(page.locator('.ax-health')).toBeVisible();
+  await page.locator('.ax-tab', { hasText: 'Accuracy' }).click();
+  await expect(page.locator('.working-toggle').first()).toBeVisible();
+  // The bars stay on the answer.
+  await page.locator('.v7-home-back').click();
+  await expect(page.locator('.v7-hero .v7-ladder').first()).toBeVisible();
 });
 
-test('v8 Solar: an invitation without a system; with one, the answer first and the analysis folded', async ({ page }) => {
-  await boot(page, { current_screen: 'solar', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, _solar_deep: false });
-  await expect(page.locator('.v7-invite')).toContainText('Thinking about solar?');
+test('v8 Solar: an invitation without a system; with one, the answer first and the detail folded', async ({ page }) => {
+  await boot(page, { current_screen: 'solar', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
+  await expect(page.locator('.v7-invite')).toContainText('What you’ll see');
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
   await page.getByRole('button', { name: /^Start/ }).click();
   await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
   await page.getByRole('button', { name: /Add to my Home/ }).click();
   await page.evaluate(() => window.setScreen('solar'));
-  await expect(page.locator('.qr-value')).toBeVisible();
-  await expect(page.locator('.v7-months-card')).toHaveCount(0);
-  await page.locator('.v7-deep').click();
+  await expect(page.locator('.ax-ans .qr-value')).toBeVisible();
   await expect(page.locator('.v7-months-card')).toBeVisible();
+  // The summer and winter day, and the upgrades, are folded.
+  await expect(page.locator('.section-title', { hasText: 'A summer and a winter day' })).toHaveCount(0);
+  await page.locator('.ax-more', { hasText: 'More detail' }).click();
+  await expect(page.locator('.section-title', { hasText: 'A summer and a winter day' })).toBeVisible();
 });
 
 test('first visit: one revealing page, answers fold into lines you can change, then the answer', async ({ page }) => {
@@ -708,7 +720,7 @@ test('first visit: one revealing page, answers fold into lines you can change, t
 });
 
 test('v8 solar guide: four steps, each on a suggestion, then the answer and the analysis', async ({ page }) => {
-  await boot(page, { current_screen: 'solar', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, _solar_deep: false });
+  await boot(page, { current_screen: 'solar', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
   await expect(page.locator('.sg-h')).toContainText('Would solar pay off here');
   await page.getByRole('button', { name: /^Start/ }).click();
@@ -726,7 +738,6 @@ test('v8 solar guide: four steps, each on a suggestion, then the answer and the 
   await page.getByRole('button', { name: /Add to my Home/ }).click();
   await page.locator('.hc-go', { hasText: 'Solar analysis' }).click();
   expect(await page.evaluate(() => window.state.current_screen)).toBe('solar');
-  await page.locator('.v7-deep').click();
   await expect(page.locator('.v7-months-card')).toBeVisible();
 });
 
@@ -747,7 +758,9 @@ test('v8 EV guide: four steps, then what it costs and saves; backing out changes
   expect(st).toEqual({ on: true, km: 25000, e: 20, kw: 7.4, inBill: false });
   await expect(page.locator('.sg-reveal-fig b')).toContainText('€');
   await page.getByRole('button', { name: /See my EV in full/ }).click();
-  await expect(page.locator('#v7-sheet')).toContainText('Your EV');
+  // The car has its own question in Analytics, and the way back says Home.
+  await expect(page.locator('h1.ax-h')).toHaveText('What does the car cost to run here?');
+  await expect(page.locator('.v7-home-back')).toBeVisible();
 });
 
 test('the flow reveal: planned solar leads with the most you could save, the same figure Home shows', async ({ page }) => {
@@ -770,12 +783,12 @@ test('the flow reveal: planned solar leads with the most you could save, the sam
 });
 
 test('v8 Home adapts: a card per part of the home, invitations for what it lacks, four tabs', async ({ page }) => {
-  await boot(page, { has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, ev_active: false, _home_deep: false });
+  await boot(page, { has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, ev_active: false });
   await expect(page.locator('.hc')).toHaveCount(0);
   await expect(page.locator('.hc-invite')).toHaveCount(2);
   expect((await page.locator('.v7-nav-item .nav-label').allInnerTexts())).toEqual(['Home', 'Plans', 'Analytics', 'Me']);
 
-  await boot(page, { has_solar: true, considering_solar: true, solar_planned: true, count_A: 12, battery_kwh: 5, ev_active: true, ev_km_per_year: 15000, _home_deep: false });
+  await boot(page, { has_solar: true, considering_solar: true, solar_planned: true, count_A: 12, battery_kwh: 5, ev_active: true, ev_km_per_year: 15000 });
   // Planned solar is part of the answer's staircase; the car keeps its card.
   await expect(page.locator('.hc')).toHaveCount(1);
   await expect(page.locator('.v7-hero .v7-steps')).toContainText('pays back in');
@@ -787,5 +800,7 @@ test('v8 Home adapts: a card per part of the home, invitations for what it lacks
   await page.locator('.v7-home-back', { hasText: 'Home' }).click();
   expect(await page.evaluate(() => window.state.current_screen)).toBe('result');
   await page.locator('.v7-nav-item', { hasText: 'Analytics' }).click();
-  await expect(page.locator('.v7-solar-hero')).toBeVisible();
+  await expect(page.locator('h1.ax-h')).toHaveText('Would the panels pay off, and how?');
+  // Reached from the nav, not from Home: no "Home" back button.
+  await expect(page.locator('.v7-home-back')).toHaveCount(0);
 });

@@ -21,7 +21,7 @@ import { boot } from './support.js';
 test('the answer and its action arrive before anything else', async ({ page }) => {
   // The first screen a person sees: the analysis folded, as it opens by default.
   // A home with no solar or car: the plan card and two small invitations.
-  const errors = await boot(page, { _home_deep: false, has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, ev_active: false });
+  const errors = await boot(page, { has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, ev_active: false });
 
   const geo = await page.evaluate(() => {
     const box = (sel) => {
@@ -90,9 +90,10 @@ test('prose is set in the prose face', async ({ page }) => {
 test('nothing was deleted — the working and the health sheet hold all of it', async ({ page }) => {
   const errors = await boot(page);
 
-  // Collapsed by default.
+  // v8: the working is on Analytics' Accuracy tab, collapsed by default.
+  await page.locator('.ax-door', { hasText: 'Accuracy' }).click();
   await expect(page.locator('.plan-compare')).toHaveCount(0);
-  await page.locator('.working-toggle').click();
+  await page.locator('.working-toggle', { hasText: 'Show me the working' }).click();
 
   const working = await page.evaluate(() => document.querySelector('.working-body').innerText);
   for (const [what, re] of [
@@ -105,8 +106,9 @@ test('nothing was deleted — the working and the health sheet hold all of it', 
     expect(working, `${what} is gone from the answer, not moved`).toMatch(re);
   }
 
-  // …and the health score, which left the working, is one tap away on Home.
-  await page.locator('.v7-tile-score').click();
+  // …and the health score, which left the working, is a row on the Bill tab.
+  await page.locator('.ax-tab', { hasText: 'Bill' }).click();
+  await page.locator('.ax-health').click();
   const sheet = await page.evaluate(() => document.getElementById('v7-sheet')?.innerText || '');
   expect(sheet, 'the health score is gone, not moved').toMatch(/Plan health/i);
 

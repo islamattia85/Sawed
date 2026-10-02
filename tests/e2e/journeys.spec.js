@@ -46,7 +46,7 @@ test('Back inside the EV guide steps back, and out of it leaves the home as it w
 
 test('every switch button opens the same "before you switch" panel, from any screen', async ({ page }) => {
   for (const scr of ['result', 'solar', 'monitor']) {
-    await boot(page, { current_screen: scr, _solar_deep: false });
+    await boot(page, { current_screen: scr });
     const btn = page.locator('.switch-cta').filter({ hasText: /Switch/ }).first();
     if (!(await btn.count())) continue;
     await btn.click();
@@ -163,7 +163,7 @@ test('the first visit asks for the supplier, then that supplier\'s plan', async 
 });
 
 test('"Include solar" with no system asks first instead of inventing one', async ({ page }) => {
-  await boot(page, { current_screen: 'result', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, _home_deep: true });
+  await boot(page, { current_screen: 'result', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
   await page.evaluate(() => window.toggleSolarModel());
   await expect(page.locator('.sg-h')).toContainText('Would solar pay off here');
   await page.getByRole('button', { name: 'Not now' }).click();
@@ -191,20 +191,41 @@ test('solar explored in the guide is "planned", and the card only moves on its l
   expect(await screen(page)).toBe('result');                                                   // information goes nowhere
 });
 
-test('one Analytics page: solar first when there is solar, hour by hour below', async ({ page }) => {
-  await boot(page, { current_screen: 'analytics', has_solar: true, considering_solar: true, solar_planned: true, count_A: 10, battery_kwh: 5 });
-  await expect(page.locator('.v7-solar-hero')).toBeVisible();
-  await expect(page.locator('.v7-section-h', { hasText: 'Hour by hour' })).toBeVisible();
-  await expect(page.locator('.an-hub')).toHaveCount(0);
-  await expect(page.locator('.v7-nav-item.active')).toContainText('Analytics');
+test('Analytics is five questions, a tab each, under the one lit Analytics tab', async ({ page }) => {
+  const errors = await boot(page, { current_screen: 'analytics', _an_tab: 'bill', has_solar: true, considering_solar: true, solar_planned: true, count_A: 10, battery_kwh: 5 });
+  // No car, no Car tab.
+  await expect(page.locator('.ax-tab')).toHaveText(['Bill', 'Hours', 'Solar', 'Accuracy']);
+  await expect(page.locator('h1.ax-h')).toHaveText('Where does your money go?');
+  await expect(page.locator('h1')).toHaveCount(1);
+  for (const [tab, q] of [['Hours', /When do you use it/], ['Solar', /Would the panels pay off/], ['Accuracy', /How sure are these figures/]]) {
+    await page.locator('.ax-tab', { hasText: tab }).click();
+    await expect(page.locator('h1.ax-h')).toHaveText(q);
+    await expect(page.locator('.ax-tab.on')).toHaveText(tab);
+    await expect(page.locator('.v7-nav-item.active')).toContainText('Analytics');
+  }
+  // The lit Analytics tab only scrolls; it never moves you off the question.
   await page.locator('.v7-nav-item.active').click();
   expect(await screen(page)).toBe('analytics');
+  // From another surface it returns to the last question asked.
+  await page.evaluate(() => window.setScreen('plans'));
+  await page.locator('.v7-nav-item', { hasText: 'Analytics' }).click();
+  await expect(page.locator('h1.ax-h')).toHaveText(/How sure are these figures/);
+  expect(errors).toEqual([]);
 });
 
-test('without solar, Analytics is hour by hour with one way into solar', async ({ page }) => {
-  await boot(page, { current_screen: 'analytics', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
-  await expect(page.locator('.v7-solar-hero')).toHaveCount(0);
-  await expect(page.locator('.an-stat-go')).toContainText('Would it pay off?');
+test('without solar, the Solar tab is an invitation and nothing is modelled', async ({ page }) => {
+  await boot(page, { current_screen: 'solar', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
+  await expect(page.locator('h1.ax-h')).toHaveText('Would solar pay off here?');
+  await expect(page.getByRole('button', { name: /Estimate it for my roof/ })).toBeVisible();
+  expect(await page.evaluate(() => window.state.has_solar)).toBe(false);
+});
+
+test('a door on Home opens its question and says where it came from', async ({ page }) => {
+  await boot(page, { current_screen: 'result' });
+  await page.locator('.ax-door', { hasText: 'Hours' }).click();
+  await expect(page.locator('h1.ax-h')).toHaveText(/When do you use it/);
+  await page.locator('.v7-home-back').click();
+  expect(await screen(page)).toBe('result');
 });
 
 test('"not sure which plan" assumes a standard plan, never an EV or dynamic one', async ({ page }) => {
@@ -236,13 +257,17 @@ test('"not sure which plan" is kept as a guess, not as a known plan', async ({ p
   await expect(page.locator('.fl-chip').nth(1)).toContainText('plan not sure');
 });
 
-test('video fixes: one panels figure, Analytics follows the answer, left-out solar is offered back', async ({ page }) => {
+test('video fixes: one panels figure, and left-out solar is offered back', async ({ page }) => {
   await boot(page, { current_screen: 'result', has_solar: true, considering_solar: true, solar_planned: false, count_A: 10, battery_kwh: 9, _an_plan: 'BG-24' });
-  const home = await page.evaluate(() => Math.round(window.v7SolarData().cur.solarBenefit));
-  await page.evaluate(() => window.setScreen('me'));
-  const me = await page.evaluate(() => [...document.querySelectorAll('*')].find((e) => e.children.length < 6 && /Your panels already save/.test(e.innerText || ''))?.innerText || '');
-  expect(me.replace(/[^\d]/g, '')).toContain(String(home));
-  await page.evaluate(() => { window.toggleSolarModel(); window.setScreen('analytics'); });
-  expect(await page.evaluate(() => window.state._an_plan)).toBe(await page.evaluate(() => window.getBestPlan().plan.id));
-  await expect(page.locator('.an-stat-go')).toContainText('Solar is left out');
+  // Home's solar card and the Solar tab say the same "a year from your panels".
+  const engine = await page.evaluate(() => Math.round(window.v7SolarData().cur.solarBenefit));
+  const card = await page.locator('section.hc', { hasText: 'Your solar panels' }).locator('.hc-fig').textContent();
+  expect(card.replace(/[^\d]/g, '')).toContain(String(engine));
+  await page.locator('section.hc', { hasText: 'Your solar panels' }).getByRole('button', { name: /Solar analysis/ }).click();
+  const tab = await page.locator('.ax-ans .ax-line').first().textContent();
+  expect(tab.replace(/,/g, '')).toContain(`€${engine} a year back`);
+  await page.evaluate(() => { window.toggleSolarModel(); window.anTab('solar'); });
+  await expect(page.locator('.ax-ans')).toContainText('Solar is switched off');
+  await page.getByRole('button', { name: /Switch solar back on/ }).click();
+  await expect(page.locator('.ax-ans .ax-big')).toContainText(/\d/);
 });

@@ -28,8 +28,6 @@ import { BRAND, MARK_PATHS, iconDataUri, wordmarkHtml } from './brand';
 const SUPABASE_URL      = window.SUPABASE_URL      || '';
 const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || '';
 
-
-
 let _sb = null;          // Supabase client
 let _sbUser = null;      // Current user object (null = logged out)
 let _sbProfile = null;   // User profile row from DB
@@ -98,7 +96,7 @@ async function sbInit(){
  * the person to choose. Saved quotes from both are always kept. */
 
 // What describes this screen rather than the household is never synced.
-const NO_SYNC = ['_flow', '_flow_edit', '_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
+const NO_SYNC = ['_flow', '_flow_edit', '_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_solar_more', '_an_tab', '_an_from', '_an_day_open', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
   '_tariff_refreshing', '_expert_open', '_account_id', '_saved_at'];
 let _sync = { status: 'idle', at: null };
 let _syncTimer = null;
@@ -1156,12 +1154,7 @@ function traceStrategy(){
    diffuse split + isotropic POA + NOCT temperature derate.
    ============================================================ */
 
-
-
 // Erbs model — diffuse fraction from monthly clearness index
-
-
-
 
 function buildSolar(){
   const ghi = buildHourlyGHI();
@@ -1728,8 +1721,6 @@ function simulate(plan, gen, cons, strategy){
   return out;
 }
 
-
-
 /* ============================================================
    8. ORCHESTRATOR + CACHE
    ============================================================ */
@@ -2155,11 +2146,14 @@ function runScenario(hasSolar, hasEv){
 // Worst / realistic / optimistic scenarios: re-run the engine with GHI multiplied
 // down (poor year, heavy cloud) or up (good Irish summer). Gives Persona 5 the
 // honest range they need without hiding Irish winter reality.
-function computeScenarioRange(){
-  const ck = JSON.stringify(['range', state.region, state.count_A, state.count_B,
+function rangeKey(){
+  return JSON.stringify(['range', state.region, state.count_A, state.count_B,
     state.battery_kwh, state.install_cost, state.grant_seai, state.heating_type,
     usageKey(), state.ev_active, state.ev_in_bill, state.ev_km_per_year,
     state.chosen_plan]);
+}
+function computeScenarioRange(){
+  const ck = rangeKey();
   if (CACHE._range_ck === ck && CACHE._range) return CACHE._range;
 
   const origMult = state._ghi_override;
@@ -2366,165 +2360,6 @@ function dataAgeDays(){
    already running, so a chart can never disagree with the text beside it.
    ============================================================ */
 
-const BAND_LABEL = { day: 'Day', night: 'Night', peak: 'Peak', ev: 'EV window', wfh: 'Work-from-home' };
-
-/** The recommended plan's year, as the slices that make it up. */
-function billSegments(best){
-  const cost = best.sim && best.sim.cost;
-  if (!cost) return [];
-  const bands = best.sim.band;
-  const byBand = {};
-  for (let i = 0; i < cost.length; i++){
-    const b = (bands && bands[i]) || 'day';
-    byBand[b] = (byBand[b] || 0) + cost[i];
-  }
-  const segs = Object.keys(byBand)
-    .sort((a, b) => byBand[b] - byBand[a])
-    .map(b => ({ label: `${BAND_LABEL[b] || b} electricity`, value: byBand[b], token: `--bandink-${b}` }));
-  segs.push({ label: 'Standing charge', value: best.standing, token: '--ink-dim' });
-  // Export credit is deliberately NOT a segment. It is money coming back, and
-  // a slice inside the same bar reads as money going out — on a home with a
-  // big array it was the largest block in a chart of costs. It is stated
-  // under the bar instead, where a negative number cannot be misread.
-  return segs;
-}
-
-/**
- * An average day, hour by hour.
- *
- * Averaging across the 365 days rather than picking one avoids the trap of a
- * cherry-picked sunny Tuesday: the shape a reader sees is the shape they are
- * actually billed on. The band is a property of the hour, not the date, so it
- * carries over from the simulation unchanged.
- */
-function averageDayHours(best){
-  const cons = CACHE.cons;
-  if (!cons || !best.sim) return [];
-  const gen = CACHE.solar && CACHE.solar.total;
-  const imp = best.sim.grid_import;
-  const bands = best.sim.band;
-  const out = [];
-  for (let h = 0; h < 24; h++){
-    let c = 0, g = 0, m = 0, days = 0;
-    for (let i = h; i < cons.length; i += 24){
-      c += cons[i];
-      g += gen ? gen[i] : 0;
-      m += imp ? imp[i] : 0;
-      days++;
-    }
-    if (!days) break;
-    out.push({ cons: c / days, gen: g / days, imp: m / days, band: (bands && bands[h]) || 'day' });
-  }
-  return out;
-}
-
-/** The stacked bill bar with its figures named beside it. */
-function renderBillShape(best){
-  const segs = billSegments(best);
-  const bar = moneyBar({ segments: segs });
-  if (!bar) return '';
-  const keys = segs.map(s => `
-    <div class="v6-key-item">
-      <span class="v6-key-dot" style="background:var(${s.token})"></span>
-      <span class="v6-key-label">${s.label}</span>
-      <span class="v6-key-value">${fmtCurrency(Math.round(s.value))}</span>
-    </div>`).join('');
-  const gross = segs.reduce((a, s) => a + s.value, 0);
-  const exported = Math.round(best.export_revenue || 0);
-  return `<div class="v6-object">
-    <div class="v6-object-title">Where the year's money goes — ${best.plan.supplier}</div>
-    ${bar}
-    <div class="v6-key">${keys}</div>
-    ${exported > 0 ? `<div class="v6-net">
-      <span class="v6-net-label">Export credit</span>
-      <span class="v6-net-value is-credit">−${fmtCurrency(exported)}</span>
-      <span class="v6-net-label">You pay</span>
-      <span class="v6-net-value">${fmtCurrency(Math.round(gross - exported))}</span>
-    </div>` : ''}
-  </div>`;
-}
-
-/** One day against the plan's bands, so a time-of-use shape is visible. */
-function renderDayShape(best){
-  const hours = averageDayHours(best);
-  const chart = dayProfile({ hours });
-  if (!chart) return '';
-  const used = hours.map(h => h.band);
-  const shown = [...new Set(used)];
-  const keys = shown.map(b => `
-    <div class="v6-key-item">
-      <span class="v6-key-dot" style="background:var(--bandink-${b})"></span>
-      <span class="v6-key-label">${BAND_LABEL[b] || b}</span>
-      <span class="v6-key-value">${fmtCent(best.plan.rates[b])}/kWh</span>
-    </div>`).join('');
-  return `<div class="v6-object">
-    <div class="v6-object-title">Your average day on ${best.plan.supplier}</div>
-    ${chart}
-    <div class="v6-key">${keys}</div>
-  </div>`;
-}
-
-/**
- * The whole year as one ribbon — a cell a day, darker where the day cost more.
- *
- * "Winter costs more" is a sentence the reader has to take on faith. This is
- * the same claim as 365 figures they can point at, read from the same
- * simulation the annual totals come from.
- */
-function renderYearShape(s, plan){
-  if (!s || !s.cost) return '';
-  const days = [];
-  for (let d = 0; d < 365; d++){
-    let c = 0;
-    for (let h = 0; h < 24; h++){
-      const i = d * 24 + h;
-      if (i >= s.cost.length) break;
-      c += s.cost[i] - (s.revenue ? s.revenue[i] : 0);
-    }
-    days.push(c);
-  }
-  const chart = yearRibbon({ days });
-  if (!chart) return '';
-  const max = days.indexOf(Math.max(...days));
-  const min = days.indexOf(Math.min(...days));
-  return `<div class="v6-object">
-    <div class="v6-object-title">Your year, a day at a time — ${plan.supplier}</div>
-    ${chart}
-    <div class="v6-key">
-      <div class="v6-key-item"><span class="v6-key-label">Dearest day</span><span class="v6-key-value">${analyticsDayLabel(max)} · ${fmtCurrency(days[max])}</span></div>
-      <div class="v6-key-item"><span class="v6-key-label">Cheapest day</span><span class="v6-key-value">${analyticsDayLabel(min)} · ${fmtCurrency(days[min])}</span></div>
-    </div>
-  </div>`;
-}
-
-/** Where the imported kilowatt-hours actually landed, by rate band. */
-function renderBandMix(s, plan){
-  if (!s || !s.grid_import) return '';
-  const byBand = {};
-  for (let i = 0; i < s.grid_import.length; i++){
-    const b = (s.band && s.band[i]) || bandAt(i % 24, plan);
-    byBand[b] = (byBand[b] || 0) + s.grid_import[i];
-  }
-  const slices = Object.keys(byBand)
-    .sort((a, b) => byBand[b] - byBand[a])
-    .map(b => ({ label: BAND_LABEL[b] || b, value: byBand[b], token: `--bandink-${b}` }));
-  // A one-price plan has a single band: a full ring draws nothing and says nothing.
-  if (slices.length < 2) return '';
-  const chart = bandDonut({ slices });
-  if (!chart) return '';
-  const total = slices.reduce((a, x) => a + x.value, 0);
-  const keys = slices.map(x => `
-    <div class="v6-key-item">
-      <span class="v6-key-dot" style="background:var(${x.token})"></span>
-      <span class="v6-key-label">${x.label}</span>
-      <span class="v6-key-value">${Math.round(x.value).toLocaleString()} kWh · ${Math.round(x.value / total * 100)}%</span>
-    </div>`).join('');
-  return `<div class="v6-object">
-    <div class="v6-object-title">Which band you actually buy in</div>
-    <div class="v6-object-split">${chart}<div class="v6-key v6-key-stack">${keys}</div></div>
-  </div>`;
-}
-
 function renderSavingsBreakdown(best, baseCost){
   const b = savingsBreakdown(best);
   if (b.total <= 5) return '';
@@ -2572,11 +2407,23 @@ function plannedSolarSplit(){
 
 /** The four costs behind Home's staircase when solar is planned: now and
  *  best, each without and with the panels. */
+/**
+ * The household as the model sees it, for memo keys: UI state (the "_" keys,
+ * which screen is open, the theme) is left out, so moving between screens or
+ * tabs never re-simulates a year. A few "_" keys are the model: the meter
+ * file's hourly shape changes every hour of the year without touching the bills.
+ */
+const UI_ONLY = new Set(['current_screen', 'theme']);
+const MODEL_PRIVATE = new Set(['_csv_imported', '_csv_hourly_shape', '_ghi_override']);
+function modelKey(){
+  return JSON.stringify(state, (key, v) => (key && !MODEL_PRIVATE.has(key) && (key[0] === '_' || UI_ONLY.has(key)) ? undefined : v)) + '|' + _tariffGen;
+}
+
 let _plMemo = { k: null, v: null };
 function plannedLadder(){
   if (!state.has_solar || !(totalPanels() > 0)) return null;
   // The no-solar run re-simulates the year; do it once per household, not per render.
-  const k = JSON.stringify(state, (key, v) => (key && key[0] === '_' ? undefined : v)) + '|' + _tariffGen;
+  const k = modelKey();
   if (_plMemo.k === k && _plMemo.v) return _plMemo.v;
   _plMemo = { k, v: _plannedLadder() };
   return _plMemo.v;
@@ -2589,6 +2436,141 @@ function _plannedLadder(){
   const withS = getBestPlan();
   const mine = annualCost(sim(basePlan.id), basePlan).net;
   return { today, noSolar, mine, best: { net: withS.net, plan: withS.plan } };
+}
+
+/* ── ANALYTICS: ONE QUESTION PER TAB ──────────────────────────
+ * Bill, Hours, Solar, Car and Accuracy each answer one question, read from
+ * the same simulations as every other screen. "Today" is the home as it is
+ * billed now: a planned system is not bought yet, so it is left out; an
+ * installed one is part of the home. Memoised on the whole model: the
+ * no-panels side re-simulates the year. */
+let _anMemo = { k: null, v: null };
+function analyticsData(){
+  const k = modelKey();
+  if (_anMemo.k === k && _anMemo.v) return _anMemo.v;
+  _anMemo = { k, v: _analyticsData() };
+  return _anMemo.v;
+}
+function _analyticsData(){
+  if (CACHE.dirty) rebuildBase();
+  const sys = !!state.has_solar && totalPanels() > 0;
+  const installed = sys && !state.solar_planned && !state.solar_is_estimate;
+  const plan = getPlanById(state.baseline);
+  let t;
+  if (installed){
+    const s = sim(plan.id);
+    const ac = annualCost(s, plan);
+    t = { cost: s.cost, revenue: s.revenue, band: s.band, use: s.cons, imp: s.grid_import,
+      gen: s.gen, exp: s.grid_export, ch: s.battery_charge, dis: s.battery_discharge,
+      energy: ac.energy_cost, standing: ac.standing, pso: ac.pso, outlook: ac.outlook_extra, credit: ac.export_revenue, total: ac.net };
+  } else {
+    // The bill as it stands: the same figure as Home's "Now" bar.
+    const b = baselineSim(plan.id);
+    const use = (state.ev_active && state.ev_in_bill) ? CACHE.cons : CACHE.consNoEv;
+    const energy = sumF(b.cost);
+    t = { cost: b.cost, revenue: null, band: b.band, use, imp: use,
+      energy, standing: plan.standing, pso: PSO_LEVY, outlook: 0, credit: 0, total: energy + plan.standing + PSO_LEVY };
+  }
+  const byBand = {}, kwhBand = {};
+  const month = new Array(12).fill(0);
+  const dayCost = new Array(365).fill(0);
+  const hourUse = new Array(24).fill(0), hourImp = new Array(24).fill(0), hourCost = new Array(24).fill(0);
+  let i = 0;
+  for (let m = 0; m < 12; m++){
+    for (let d = 0; d < DAYS_IN_MONTH[m]; d++){
+      for (let h = 0; h < 24; h++, i++){
+        if (i >= HOURS_IN_YEAR) break;
+        const b = (t.band && t.band[i]) || bandAt(h, plan);
+        const net = (t.cost[i] || 0) - (t.revenue ? (t.revenue[i] || 0) : 0);
+        byBand[b] = (byBand[b] || 0) + (t.cost[i] || 0);
+        kwhBand[b] = (kwhBand[b] || 0) + (t.imp[i] || 0);
+        month[m] += net;
+        dayCost[Math.floor(i / 24)] += net;
+        hourUse[h] += (t.use[i] || 0) / 365;
+        hourImp[h] += (t.imp[i] || 0) / 365;
+        hourCost[h] += (t.cost[i] || 0);
+      }
+    }
+  }
+  let hi = 0, lo = 0;
+  for (let d = 1; d < 365; d++){ if (dayCost[d] > dayCost[hi]) hi = d; if (dayCost[d] < dayCost[lo]) lo = d; }
+  // The cheapest plan for that same home: without the planned panels, or
+  // with the installed ones. Hand-picked plans aside, it is the ranking's top.
+  const cheapest = () => {
+    const best = getBestPlan({ ignoreChoice: true });
+    const ac = annualCost(sim(best.plan.id), best.plan);
+    return { plan: best.plan, net: ac.net, energy: ac.energy_cost, standing: ac.standing, pso: ac.pso, credit: ac.export_revenue, outlook: ac.outlook_extra };
+  };
+  const cheaper = (sys && !installed) ? withSimState({ count_A: 0, count_B: 0, battery_kwh: 0, has_solar: false }, cheapest) : cheapest();
+  let solar = null;
+  if (sys){
+    const best = getBestPlan();
+    const bs = best.sim;
+    const gen = sumF(bs.gen), exp = sumF(bs.grid_export), curt = sumF(bs.curtailed);
+    solar = { plan: best.plan, gen, exp, curt, kept: Math.max(0, gen - exp - curt), revenue: sumF(bs.revenue),
+      battIn: state.battery_kwh > 0 ? sumF(bs.battery_charge) : 0, battOut: state.battery_kwh > 0 ? sumF(bs.battery_discharge) : 0,
+      cons: sumF(bs.cons), arbitrage: state.battery_kwh > 0 && arbitrageOn() };
+  }
+  return { sys, installed, plan, _t: t,
+    today: { total: t.total, energy: t.energy, standing: t.standing, pso: t.pso, outlook: t.outlook, credit: t.credit,
+      byBand, kwhBand, month, hourUse, hourImp, hourCost, kwh: sumF(t.use), imp: sumF(t.imp),
+      dearest: { day: hi, cost: dayCost[hi] }, cheapest: { day: lo, cost: dayCost[lo] } },
+    cheaper, solar };
+}
+
+/** One day of that same home, hour by hour: what it used and bought, and what each hour cost. */
+function analyticsDay(dayIdx){
+  const d = analyticsData();
+  const t = d._t;
+  const day = Math.max(0, Math.min(364, Math.round(+dayIdx || 0)));
+  const hours = [];
+  for (let h = 0; h < 24; h++){
+    const i = day * 24 + h;
+    const band = (t.band && t.band[i]) || bandAt(h, d.plan);
+    hours.push({ h, band, rate: d.plan.rates[band] ?? d.plan.rates.day,
+      use: t.use[i] || 0, imp: t.imp[i] || 0,
+      gen: t.gen ? t.gen[i] || 0 : 0, exp: t.exp ? t.exp[i] || 0 : 0,
+      ch: t.ch ? t.ch[i] || 0 : 0, dis: t.dis ? t.dis[i] || 0 : 0,
+      cost: (t.cost[i] || 0) - (t.revenue ? t.revenue[i] || 0 : 0) });
+  }
+  return { day, hours };
+}
+
+/**
+ * Poor, typical and good solar years. Three full re-runs of the year, so it is
+ * worked out after the screen has painted, then drawn in: null until then.
+ */
+let _rangePending = false;
+function solarRange(){
+  if (CACHE._range_ck === rangeKey() && CACHE._range) return CACHE._range;
+  if (!_rangePending){
+    _rangePending = true;
+    setTimeout(() => {
+      try { if (state.has_solar && totalPanels() > 0) computeScenarioRange(); } catch (e) { /* the tiles keep their placeholder */ }
+      _rangePending = false;
+      if (state.current_screen === 'solar') renderApp();
+    }, 450);
+  }
+  return null;
+}
+
+/** What the accuracy would be with the meter file in: usage measured, all else as now. */
+function accuracyWithMeter(){
+  const parts = modelAccuracy().parts.map((p) => (/^Usage/.test(p.label) ? { ...p, err: 1 } : p));
+  return Math.max(2, Math.round(Math.sqrt(parts.reduce((x, p) => x + p.err * p.err, 0))));
+}
+
+/** Analytics' own tabs. Solar keeps its screen id ('solar') so every link
+ *  into it — Home, the solar guide — still lands on it. */
+function anTab(t, from){
+  if (from !== undefined) state._an_from = from;
+  if (t === 'car' && !state.ev_active) t = 'bill';
+  state._an_tab = t;
+  const screen = t === 'solar' ? 'solar' : 'analytics';
+  if (state.current_screen === screen){ saveState(); renderApp(); }
+  else setScreen(screen);
+  // A tab is a new question: it starts at the top.
+  window.scrollTo(0, 0);
 }
 
 // The savings figure that's honest to publish (share card / PDF): for planned
@@ -3039,37 +3021,6 @@ function renderImproveList(advice){
     </details>` : ''}
     ${good.length ? `<div class="v7-imp-good">${ic('checkC', 15)} <span>${state.solar_planned ? 'Already right in this plan' : 'Already set up well'}: ${good.join(' · ')}</span></div>` : ''}
     ${opts.suggest.length ? `<div class="v7-fine">Each figure is simulated on your home. Applying one can change the others.</div>` : ''}`;
-}
-
-function renderOptimisations(){
-  const opts = computeOptimisations();
-  if (!opts.suggest.length && !opts.confirmed.length) return '';
-  return `
-    <div class="section-title">Free changes worth making</div>
-    ${opts.suggest.map(o => `
-      <div class="advisor-card" style="border-color:var(--accent);box-shadow:0 0 24px -10px var(--accent-glow)">
-        <div class="advisor-title" style="color:var(--accent)">Worth +${fmtCurrency(o.delta)}/yr · simulated on your home</div>
-        <div class="advisor-headline">${o.title}</div>
-        <div class="advisor-body">${o.body}</div>
-        <button onclick="applyOptimisation('${o.id}')" style="margin-top:11px;padding:10px 16px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent)">Apply to my model →</button>
-      </div>
-    `).join('')}
-    ${opts.confirmed.map(o => `
-      <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 15px;margin-bottom:8px">
-        <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="toggleOptExpand('${o.id}')">
-          <span style="color:var(--accent);flex-shrink:0">${ic('checkC',17)}</span>
-          <div style="flex:1;font-size:13px;color:var(--ink);font-weight:600">${o.title}</div>
-          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);white-space:nowrap">~${fmtCurrency(o.keep)}/yr ${state._opt_open === o.id ? '▴' : '▾'}</div>
-        </div>
-        ${state._opt_open === o.id ? `
-        <div style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin:10px 0 0;padding-top:10px;border-top:1px solid var(--line)">${o.body}</div>
-        <div style="display:flex;gap:8px;margin-top:11px">
-          <div style="flex:1;padding:9px;text-align:center;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent)">✓ Included · +${fmtCurrency(o.keep)}/yr</div>
-          <button onclick="removeOptimisation('${o.id}')" style="padding:9px 16px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid var(--line);background:transparent;color:var(--ink-soft)">Exclude →</button>
-        </div>` : ''}
-      </div>
-    `).join('')}
-    ${opts.suggest.length ? `<div style="font-family:var(--display);font-size:12px;color:var(--ink-dim);line-height:1.6;margin:4px 2px 0;letter-spacing:.02em">Values are re-simulated on your exact setup — applying one change can unlock others, so check back after applying.</div>` : ''}`;
 }
 
 /* ============================================================
@@ -3909,8 +3860,6 @@ function startOnboarding(){
   renderApp();
 }
 
-
-
 function goFastPath(){
   // The 30-second quick answer is a no-solar electricity-only view. Clear any
   // solar/battery/EV-arbitrage setup carried over from a previous full setup
@@ -4088,7 +4037,6 @@ function obStep5CurrentPlan(){
     <p class="ob-help" style="margin-top:10px">Not sure? Pick the closest match, or tap Not sure.</p>`;
 }
 
-
 function obStep1Home(){
   return `
     <div class="ob-step-num">Step 1 of 5 · Your home</div>
@@ -4114,7 +4062,6 @@ function obStep1Home(){
     </div>
     <p class="ob-help" style="margin-top:12px">County is accurate enough.</p>`;
 }
-
 
 function pickObHeating(heating){
   _ob.heating = heating;
@@ -4595,7 +4542,6 @@ function confirmExitOnboarding(){
     renderApp();
   }
 }
-
 
 /* ============================================================
    TARIFF STALENESS — warns users if rate data is >45 days old
@@ -5638,9 +5584,9 @@ function sgGo(step, fromHistory){
 function sgDone(){
   state._sg = null; _sgBefore = null;
   try { localStorage.removeItem('pk_sg_before'); } catch (e) {}
-  state._solar_from = 'result';
+  state._an_from = 'result';
+  state._an_tab = 'solar';
   state.current_screen = 'solar';
-  state._solar_deep = true;
   saveState();
   renderApp();
 }
@@ -5793,9 +5739,10 @@ function egSet(key, v, next){
 }
 function egDone(){
   state._eg = null; _egBefore = null;
-  state.current_screen = 'result';
-  state._sheet = { kind: 'ev', id: null };
-  saveState(); renderApp();
+  state._an_from = 'result';
+  state._an_tab = 'car';
+  state.current_screen = 'analytics';
+  saveState(); renderApp(); window.scrollTo(0, 0);
 }
 
 function renderEvGuide(){
@@ -6463,142 +6410,30 @@ function showToast(message, opts){
   }, 3000);
 }
 
-/* ============================================================
-   SOLAR DASHBOARD — the deep-dive screen
-   ============================================================ */
-// Tiny monochrome system pictogram for the Solar hero — panels drawn as
-// panels (one slanted group per roof, opposite slants for different
-// orientations) plus a battery glyph with a proportional fill level.
-// The whole configuration reads at a glance: "8 + 4 panels · 9 kWh".
-function sysVisual(){
-  const nA = Math.max(0, state.count_A || 0);
-  const nB = Math.max(0, state.count_B || 0);
-  const batt = state.battery_kwh || 0;
-  if (!state.has_solar || (nA + nB) === 0) return '';
-  const COLS = 4, PW = 12, PH = 16, GAP = 3, CAPN = 20;
-  const panelRect = (x, y) => `<g transform="translate(${x},${y})">` +
-      `<rect width="${PW}" height="${PH}" rx="1.6" fill="var(--ink)" fill-opacity=".10" stroke="var(--ink-soft)" stroke-width="1"/>` +
-      `<line x1="${PW/2}" y1="1.5" x2="${PW/2}" y2="${PH-1.5}" stroke="var(--ink-dim)" stroke-width=".6" opacity=".55"/>` +
-      `<line x1="1.5" y1="${PH/2}" x2="${PW-1.5}" y2="${PH/2}" stroke="var(--ink-dim)" stroke-width=".6" opacity=".55"/></g>`;
-  const roofGroup = (n, skew, yOff) => {
-    const shown = Math.min(n, CAPN);
-    const rows = Math.ceil(shown / COLS);
-    let cells = '';
-    for (let i = 0; i < shown; i++){
-      cells += panelRect((i % COLS) * (PW + GAP), Math.floor(i / COLS) * (PH + GAP));
-    }
-    const w = Math.min(shown, COLS) * (PW + GAP) - GAP;
-    const h = rows * (PH + GAP) - GAP;
-    const more = n > CAPN ? `<text x="${w/2}" y="${h + 9}" text-anchor="middle" font-size="10" font-family="var(--mono)" fill="var(--ink-dim)">+${n - CAPN} more</text>` : '';
-    return { svg: `<g transform="translate(8,${yOff}) skewX(${skew})">${cells}${more}</g>`, h: h + (n > CAPN ? 11 : 0) };
-  };
-  let y = 3;
-  const parts = [];
-  const gA = roofGroup(nA, -7, y); parts.push(gA.svg); y += gA.h;
-  if (nB > 0){
-    y += 8;
-    const gB = roofGroup(nB, 7, y); parts.push(gB.svg); y += gB.h;
-  }
-  if (batt > 0){
-    y += 10;
-    const bw = 46, bh = 15;
-    const fill = Math.max(.18, Math.min(1, batt / 15));
-    parts.push(`<g transform="translate(9,${y})">` +
-      `<rect width="${bw}" height="${bh}" rx="3" fill="none" stroke="var(--ink-soft)" stroke-width="1.1"/>` +
-      `<rect x="${bw + 1}" y="${bh/2 - 3}" width="2.5" height="6" rx="1" fill="var(--ink-soft)"/>` +
-      `<rect x="2" y="2" width="${Math.round((bw - 4) * fill)}" height="${bh - 4}" rx="1.6" fill="var(--ink)" fill-opacity=".20"/>` +
-      `<text x="${bw/2}" y="${bh/2 + 3}" text-anchor="middle" font-size="10" font-family="var(--mono)" font-weight="700" fill="var(--ink-soft)">${batt} kWh</text></g>`);
-    y += bh;
-  }
-  y += 13;
-  parts.push(`<text x="38" y="${y - 3}" text-anchor="middle" font-size="10" font-family="var(--mono)" letter-spacing=".05em" fill="var(--ink-dim)">${nA}${nB ? ' + ' + nB : ''} PANELS</text>`);
-  return `<svg width="76" height="${y}" viewBox="0 0 76 ${y}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="display:block">${parts.join('')}</svg>`;
-}
-
-function renderSolarDashboard(opts){
+/** The solar maths: generation, self-use, export, battery and the 20-year
+ *  value, behind one toggle. Shown in Accuracy, beside the bill's own sum. */
+function renderSolarWorking(){
   if (CACHE.dirty) rebuildBase();
+  if (!state.has_solar || !(totalPanels() > 0)) return '';
   const best = getBestPlan();
-  const baselinePlan = getPlanById(state.baseline);
-  const baseSim = baselineSim(state.baseline);
-  const baseCost = sumF(baseSim.cost) + baselinePlan.standing + PSO_LEVY;
-  const annualSavings = Math.max(0, baseCost - best.net);
   const totalGen = sumF(CACHE.solar.total);
   const totalExport = sumF(best.sim.grid_export);
-  // Unified self-use definition (same as Analytics + hardware advice):
-  // generation − export − curtailed = consumed on-site (direct or via battery)
   const selfConsumed = Math.max(0, totalGen - totalExport - sumF(best.sim.curtailed));
   const selfConsumPct = totalGen > 0 ? Math.round(selfConsumed / totalGen * 100) : 0;
   const sysCost = state.install_cost - state.grant_seai;
   const kwp = totalPanels() * state.panel_w / 1000;
-
-  // Compute proper solar-only payback for both EV scenarios
   const scen = computeSolarPaybackScenarios();
   const currentScen = state.ev_active ? scen.withEv : scen.withoutEv;
-  const altScen     = state.ev_active ? scen.withoutEv : scen.withEv;
-  const currentLabel = state.ev_active ? 'WITH EV' : 'NO EV';
-  const altLabel     = state.ev_active ? 'NO EV'  : 'WITH EV';
-
-  // Total annual benefit = solar electricity savings + petrol displacement (EV displaces petrol regardless of solar,
-  // but combined with the solar payback it gives the user a "total annual return" view)
-  const econ = state.ev_active ? evEconomics(best.plan.id) : null;
-  const totalAnnualBenefit = currentScen.solarBenefit + (econ ? econ.petrolCost : 0);
   const npv20 = calcNPV20(currentScen.solarBenefit, sysCost, state.battery_kwh || 0, state.panel_degradation);
-
-  const advice = generateAdvice(best);
-  const affiliateUrl = getAffiliateUrl(best.plan.id);
-
-  const isEst = !!state.solar_is_estimate;
-  // V7 draws its own hero and chrome, and asks only for the body below it:
-  // the plan choice, the free changes, the optimiser and the tools.
-  const body = `
-    <!-- No size suggestion here. The solar tab answers one question — is this
-         worth it — and a second system alongside the reader's own turned that
-         into a comparison they had not asked for. The suggestion belongs where
-         someone has already decided to change the spec, so it lives on the
-         customise screen now. -->
-
-    ${isEst ? `<div class="solar-correct">
-      Already have panels, or planning a specific system?
-      <a href="#" onclick="event.preventDefault();goRefineSolar()">Set your exact spec</a>
-    </div>` : ''}
-
-    ${renderPlanChoiceBlock(best, annualSavings, { title: state.solar_planned ? 'Best plan once the panels are in' : 'Best plan with your solar' })}
-    <div class="solar-note">Same plan whether or not you install solar</div>
-
-    <!-- The SEAI grant card lived here, permanently. It is a fixed €1,800 for
-         almost every domestic system in the country, it is already deducted
-         from the price beside the payback, and it changes nothing about
-         whether solar is worth it — yet it took a full card of the reader's
-         attention on every visit. It now sits beside the cost and grant fields
-         on the customise screen, where it is genuinely useful: the one moment
-         the number is being decided. -->
-
-    <!-- Advice stays on the surface. Everything below this point either costs
-         nothing and raises the return, or is money the reader can claim. The
-         readouts — six metric tiles, the NPV maths, the day inspector, the
-         cost comparison — are instrumentation for someone who already believes
-         the headline, and they now sit behind one door. This screen was 4.2
-         phone-screens of simultaneous facts; a homeowner asking "is solar
-         worth it on my roof" was handed a modelling environment. -->
-    ${renderImproveList(advice)}
-
-    <div class="section-title">Next step</div>
-    <div class="v7-next">
-      <div class="v7-next-spec">${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh battery` : ''}</div>
-      <button class="switch-cta v7-cta" onclick="openLeadForm()">${state._lead_form && state._lead_form.sent_at ? 'Update my quote request' : 'Get 3 quotes for this system'} ${ic('chevR', 18)}</button>
-      <button class="v7-cta-2" onclick="v7Sheet('quote')">${ic('clip', 16)} Upload a quote you already have</button>
-      <div class="v7-fine">SEAI-registered installers only. An uploaded quote is checked against 2026 Irish prices and becomes the system modelled here.${(state.solar_quotes || []).length > 1 ? ` <a href="#" onclick="event.preventDefault();setScreen('quotes')">Compare your ${state.solar_quotes.length} saved quotes</a>` : ''}</div>
-    </div>
-
+  return `
     <div class="working">
       <button class="working-toggle" aria-expanded="${!!state._solar_detail_open}" onclick="state._solar_detail_open=!state._solar_detail_open;saveState();renderApp()">
-        <span class="working-toggle-label">${ic('flask',18)} Show me the working</span>
+        <span class="working-toggle-label">${ic('sun',18)} The solar working</span>
         <span class="working-toggle-hint">${state._solar_detail_open ? 'Hide' : 'Generation, self-use, export and the 20-year maths'}</span>
         <span class="working-toggle-chev" style="transform:rotate(${state._solar_detail_open ? '90' : '0'}deg)">›</span>
       </button>
       ${!state._solar_detail_open ? '' : `<div class="working-body">
 
-
     <div class="grid-2">
       <div class="card">
         <div class="card-label">${ic('bolt',13)} Solar electricity benefit</div>
@@ -6635,252 +6470,8 @@ function renderSolarDashboard(opts){
 
     ${state._show_npv_breakdown ? renderNpvBreakdown(currentScen.solarBenefit, sysCost, state.battery_kwh || 0, state.panel_degradation || 0.005) : ''}
 
-
       </div>`}
-    </div>
-
-    <p class="disclaimer">
-      Modelled from typical-year weather and your bill — real generation varies ±5-8%. Always check the figures with your installer.
-    </p>
-`;
-  if (opts && opts.bodyOnly){
-    // V7 places the plan choice right under its payback figure and its own
-    // objects after that, so it asks for the body in two parts.
-    const cut = '<div class="solar-note">Same plan whether or not you install solar</div>';
-    const at = body.indexOf(cut);
-    if (at < 0 || opts.bodyOnly === true) return body;
-    return opts.bodyOnly === 'top' ? body.slice(0, at + cut.length) : body.slice(at + cut.length);
-  }
-  return `${topbar('Solar payback', 'accent', true)}
-  <div class="screen">
-    <div class="sd-hero" style="position:relative">
-      <button onclick="goRefineSolar()" style="position:absolute;top:14px;right:14px;display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid var(--hair-strong);background:transparent;color:var(--ink-soft)">${ic('tune',13)} Customise</button>
-      <div class="qr-eyebrow" style="margin-bottom:6px;padding-right:110px">${(state.solar_view || 'mine') === 'payback' ? 'Fastest-payback design — preview' : (state.solar_view || 'mine') === 'npv' ? 'Most 20-yr value design — preview' : isEst ? 'With this estimated system' : 'With this solar system'}</div>
-      <div style="display:flex;align-items:flex-start;gap:12px">
-        <div style="flex:1;min-width:0">
-      ${(() => {
-        const view = state._scenario_view || 'realistic';
-        if (view !== 'realistic'){
-          try {
-            const range = computeScenarioRange();
-            const s = range[view];
-            const pb = s && s.payback < 50 ? s.payback.toFixed(1) : '—';
-            const ben = s ? Math.round(s.solarBenefit) : 0;
-            const lbl = view === 'pessimist' ? 'poor year −18% sun' : 'good year +15% sun';
-            return '<div class="qr-value">'+pb+'<span class="qr-value-unit"> yr payback ('+view+')</span></div>'+
-                   '<div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:4px">€'+ben.toLocaleString()+'/yr solar benefit · '+lbl+'</div>';
-          } catch(e){}
-        }
-        return '<div class="qr-value">'+(currentScen.payback < 50 ? currentScen.payback.toFixed(1) : '—')+'<span class="qr-value-unit"> yr payback</span></div>';
-      })()}
-      <div class="qr-headline">${kwp.toFixed(1)} kWp · ${state.battery_kwh > 0 ? state.battery_kwh + ' kWh battery' : 'no battery'} · €${sysCost.toLocaleString()} after grant${isEst ? ' (est.)' : ''}</div>
-        </div>
-        <div style="flex-shrink:0">${sysVisual()}</div>
-      </div>
-      ${configChips()}
-      ${evChip()}
-
-      ${state.ev_active ? `
-      <div style="margin-top:14px;padding:12px 14px;background:var(--overlay-tile);border:1px solid var(--line);border-radius:8px">
-        <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.14em;text-transform:uppercase;font-weight:700;margin-bottom:8px">Solar payback isolated (electricity only)</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div style="padding:10px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:8px;text-align:center">
-            <div style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.1em;font-weight:700;margin-bottom:4px">★ WITH EV</div>
-            <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums">${scen.withEv.payback < 50 ? scen.withEv.payback.toFixed(1) : '—'}<span style="font-size:12px;color:var(--ink-soft);margin-left:2px">yr</span></div>
-            <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:4px">€${Math.round(scen.withEv.solarBenefit).toLocaleString()}/yr solar</div>
-          </div>
-          <div style="padding:10px;background:var(--well);border:1px solid var(--line);border-radius:8px;text-align:center">
-            <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.1em;font-weight:700;margin-bottom:4px">IF NO EV</div>
-            <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums">${scen.withoutEv.payback < 50 ? scen.withoutEv.payback.toFixed(1) : '—'}<span style="font-size:12px;color:var(--ink-soft);margin-left:2px">yr</span></div>
-            <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:4px">€${Math.round(scen.withoutEv.solarBenefit).toLocaleString()}/yr solar</div>
-          </div>
-        </div>
-        <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);text-align:center;margin-top:10px;line-height:1.5;letter-spacing:.02em">
-          ★ = your current setup. Solar payback compares <b>same EV state with vs without solar</b> — the EV-petrol savings happen regardless of solar, so they're not in the payback math.
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
-          <div style="font-size:12px;font-weight:600;color:var(--ink)">EV in the model <span style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);font-weight:400">· ${(state.ev_km_per_year||15000).toLocaleString()} km/yr · ${state.ev_in_bill ? 'already in your bill' : 'added on top'}</span></div>
-          <div class="mon-switch ${state.ev_active ? 'on' : 'off'}" onclick="toggleSolarEvModel()" style="cursor:pointer"><div class="mon-knob"></div></div>
-        </div>
-      </div>` : `
-      <div style="font-family:var(--display);font-size:12px;color:var(--ink-dim);text-align:center;margin-top:12px;letter-spacing:.03em">Payback uses electricity savings only — solar vs no solar, everything else equal.</div>`}
-
-      <!-- The weather range qualifies the number, so it belongs under it. Three
-           buttons standing in front of the figure read as a decision the reader
-           has to make before they are allowed to see anything. -->
-      <div class="wx-range">
-        <span class="wx-range-label">Weather year</span>
-        ${['pessimist','realistic','optimist'].map(k => {
-          const lbl = k==='pessimist'?'Poor':k==='realistic'?'Typical':'Good';
-          const active = (state._scenario_view||'realistic')===k;
-          return '<button class="wx-range-btn'+(active?' on':'')+'" onclick="state._scenario_view=\''+k+'\';renderApp();">'+lbl+'</button>';
-        }).join('')}
-      </div>
-    </div>
-
-    <!-- No size suggestion here. The solar tab answers one question — is this
-         worth it — and a second system alongside the reader's own turned that
-         into a comparison they had not asked for. The suggestion belongs where
-         someone has already decided to change the spec, so it lives on the
-         customise screen now. -->
-
-    ${isEst ? `<div class="solar-correct">
-      Already have panels, or planning a specific system?
-      <a href="#" onclick="event.preventDefault();goRefineSolar()">Set your exact spec</a>
-    </div>` : ''}
-
-    ${renderPlanChoiceBlock(best, annualSavings, { title: state.solar_planned ? 'Best plan once the panels are in' : 'Best plan with your solar' })}
-    <div class="solar-note">Same plan whether or not you install solar</div>
-
-    <!-- The SEAI grant card lived here, permanently. It is a fixed €1,800 for
-         almost every domestic system in the country, it is already deducted
-         from the price beside the payback, and it changes nothing about
-         whether solar is worth it — yet it took a full card of the reader's
-         attention on every visit. It now sits beside the cost and grant fields
-         on the customise screen, where it is genuinely useful: the one moment
-         the number is being decided. -->
-
-    <!-- Advice stays on the surface. Everything below this point either costs
-         nothing and raises the return, or is money the reader can claim. The
-         readouts — six metric tiles, the NPV maths, the day inspector, the
-         cost comparison — are instrumentation for someone who already believes
-         the headline, and they now sit behind one door. This screen was 4.2
-         phone-screens of simultaneous facts; a homeowner asking "is solar
-         worth it on my roof" was handed a modelling environment. -->
-    ${renderOptimisations()}
-
-    ${(advice.length > 0 || (computeOptimisations().upgrades || []).length > 0) ? `
-      <div class="section-title">Hardware upgrades</div>
-      ${(computeOptimisations().upgrades || []).map(u => `
-        <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:8px">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
-            <div style="font-size:15px;font-weight:700;color:var(--ink)">${u.label}</div>
-            <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:${u.gain > 0 ? 'var(--accent)' : 'var(--ink-dim)'};white-space:nowrap">+${fmtCurrency(u.gain)}/yr</div>
-          </div>
-          <div style="font-size:13px;color:var(--ink-soft);margin-top:5px;line-height:1.6">
-            ~${fmtCurrency(u.netExtra)} extra after grant · ${u.payback === Infinity || u.payback > 30 ? `<span style="color:var(--amber);font-weight:700">doesn't pay for itself — not recommended</span>` : u.payback > 12 ? `<span style="color:var(--amber)">pays back in ${u.payback.toFixed(0)} yr — long; not recommended at current prices</span>` : `pays itself back in <b style="color:var(--ink)">${u.payback.toFixed(0)} yr</b>`}
-          </div>
-        </div>
-      `).join('')}
-      ${advice.map(a => `
-        <div class="advisor-card">
-          <div class="advisor-title" ${a.kind === 'battery-hold' ? 'style="color:var(--ink-soft)"' : ''}>${a.kind === 'optimal' ? '✓ Optimal' : a.kind === 'battery-hold' ? 'On hold — honest call' : 'Upgrade opportunity'}</div>
-          <div class="advisor-headline">${a.headline}</div>
-          <div class="advisor-body">${a.body}</div>
-        </div>
-      `).join('')}
-    ` : ''}
-
-    <div class="working">
-      <button class="working-toggle" aria-expanded="${!!state._solar_detail_open}" onclick="state._solar_detail_open=!state._solar_detail_open;saveState();renderApp()">
-        <span class="working-toggle-label">${ic('flask',18)} Show me the working</span>
-        <span class="working-toggle-hint">${state._solar_detail_open ? 'Hide' : 'Generation, self-use, export, the 20-year maths and an hour-by-hour day'}</span>
-        <span class="working-toggle-chev" style="transform:rotate(${state._solar_detail_open ? '90' : '0'}deg)">›</span>
-      </button>
-      ${!state._solar_detail_open ? '' : `<div class="working-body">
-
-    ${renderSolarComparison()}
-
-
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-label">${ic('bolt',13)} Solar electricity benefit</div>
-        <div class="card-value accent">${fmtCurrency(currentScen.solarBenefit)}<span class="unit">/yr</span></div>
-        <div class="card-delta">vs no solar, ${state.ev_active ? 'with EV' : 'no EV'}</div>
-      </div>
-      <div class="card" onclick="toggleNpvBreakdown()" style="cursor:pointer">
-        <div class="card-label">∑ 20-yr NPV (3%) <span style="float:right;color:var(--accent);font-size:12px">tap for math ↓</span></div>
-        <div class="card-value ${npv20 > 0 ? 'accent' : 'red'}">${fmtCurrency(npv20)}</div>
-        <div class="card-delta">After Y12 battery swap</div>
-      </div>
-      <div class="card">
-        <div class="card-label">${ic('sun',13)} Solar produced</div>
-        <div class="card-value">${Math.round(totalGen).toLocaleString()}<span class="unit"> kWh/yr</span></div>
-        <div class="card-delta">${(totalGen/Math.max(kwp,0.01)).toFixed(0)} kWh per kWp</div>
-      </div>
-      <div class="card">
-        <div class="card-label">${ic('rotate',13)} Solar used on-site</div>
-        <div class="card-value">${selfConsumPct}<span class="unit">%</span></div>
-        <div class="card-delta">${Math.round(selfConsumed).toLocaleString()} of ${Math.round(totalGen).toLocaleString()} kWh</div>
-      </div>
-      ${state.battery_kwh > 0 ? `
-      <div class="card">
-        <div class="card-label">${ic('battery',13)} Battery cycled</div>
-        <div class="card-value amber">${Math.round(sumF(best.sim.battery_charge))}<span class="unit"> kWh/yr</span></div>
-        <div class="card-delta">${state.battery_kwh} kWh cap</div>
-      </div>` : ''}
-      <div class="card">
-        <div class="card-label">${ic('export',13)} Export income</div>
-        <div class="card-value">${fmtCurrency(totalExport * best.plan.export_rate)}<span class="unit">/yr</span></div>
-        <div class="card-delta">${Math.round(totalExport)} kWh @ ${fmtCent(best.plan.export_rate)}</div>
-      </div>
-    </div>
-
-    ${state._show_npv_breakdown ? renderNpvBreakdown(currentScen.solarBenefit, sysCost, state.battery_kwh || 0, state.panel_degradation || 0.005) : ''}
-
-    ${renderDayInspector()}
-
-      </div>`}
-    </div>
-
-    ${state.ev_active && econ ? `
-      <div class="ev-banner">
-        <div class="ev-banner-icon">${ic('car',20)}</div>
-        <div>
-          <b>EV profile active.</b> Petrol displaced: ${fmtCurrency(econ.petrolCost)}/yr for ${econ.km.toLocaleString()} km. Your battery now grid-charges 2-5am to keep the EV on cheap rates.
-          <div style="margin-top:8px"><a href="#" onclick="event.preventDefault(); toggleEv();" style="color:var(--amber);font-size:12px;font-weight:600">Remove EV profile</a></div>
-        </div>
-      </div>
-    ` : `
-      <div class="secondary-card amber" onclick="startEvGuide()">
-        <div class="secondary-card-icon">${ic('car',19)}</div>
-        <div class="secondary-card-body">
-          <div class="secondary-card-title">Considering an EV?</div>
-          <div class="secondary-card-sub">See how it changes your tariff and lifetime payback</div>
-        </div>
-        <div class="secondary-card-arrow">+</div>
-      </div>
-    `}
-
-    <div class="section-title">Get this system installed</div>
-    <!-- Moved off the answer screen. All three are about what this home could
-         do differently, which is what Simulate is for; on the answer they were
-         three more cards between the reader and a single figure. -->
-
-    <div class="secondary-card" onclick="openLeadForm()">
-      <div class="secondary-card-icon">${ic('home',19)}</div>
-      <div class="secondary-card-body">
-        <div class="secondary-card-title">Get 3 installer quotes for this exact spec</div>
-        <div class="secondary-card-sub">${totalPanels()} panels · ${state.battery_kwh > 0 ? state.battery_kwh + ' kWh battery · ' : ''}SEAI-registered only</div>
-      </div>
-      <div class="secondary-card-arrow">›</div>
-    </div>
-
-    <div class="secondary-card amber" onclick="setScreen('quotes')">
-      <div class="secondary-card-icon">${ic('scales',19)}</div>
-      <div class="secondary-card-body">
-        <div class="secondary-card-title">Already have quotes? Check them</div>
-        <div class="secondary-card-sub">Audit against 2026 benchmarks or compare side-by-side${(state.solar_quotes||[]).length ? ' · ' + state.solar_quotes.length + ' added' : ''}</div>
-      </div>
-      <div class="secondary-card-arrow">›</div>
-    </div>
-
-    ${state.has_solar ? `
-      <div class="secondary-card blue" onclick="setScreen('analytics')">
-        <div class="secondary-card-icon">${ic('chart',19)}</div>
-        <div class="secondary-card-body">
-          <div class="secondary-card-title">See engine details &amp; hourly flows</div>
-          <div class="secondary-card-sub">Day inspector · monthly bars · annual production/use/export</div>
-        </div>
-        <div class="secondary-card-arrow">›</div>
-      </div>
-    ` : ''}
-
-    <p class="disclaimer">
-      Modelled from typical-year weather and your bill — real generation varies ±5-8%. Always check the figures with your installer.
-    </p>
-  </div>
-  ${bottomNav()}`;
+    </div>`;
 }
 
 // Quick what-if toggle on the Solar screen — flips EV modelling without touching
@@ -6992,53 +6583,6 @@ function pickPlan(planId){
   const modal = document.getElementById('plan-picker');
   if (modal) modal.remove();
   choosePlan(planId);
-}
-
-/**
- * The plan every figure on this screen assumes, and the control to change it.
- * Shared by the result and solar screens so the two can never disagree.
- */
-function renderPlanChoiceBlock(best, annualSavings, opts = {}){
-  const isChosen = !!state.chosen_plan && state.chosen_plan === best.plan.id;
-  return `
-    <div class="section-title">${opts.title || 'Best plan'}</div>
-    ${state.chosen_plan ? renderChoiceStrip() : ''}
-    <div class="plan-compare">
-      <div class="plan-row best" onclick="v7Sheet('plan','${best.plan.id}')" style="cursor:pointer">
-        <div>
-          <div class="plan-label">${isChosen ? '→ Your chosen plan' : '→ Recommended'} · <span style="text-decoration:underline">tap for tariff</span></div>
-          <div class="plan-value">${best.plan.supplier} — ${best.plan.plan}</div>
-        </div>
-        <div class="plan-amount">${fmtCurrency(best.net)}/yr</div>
-      </div>
-    </div>
-    <button class="btn-secondary" style="margin-top:10px" onclick="openPlanPicker()">
-      ${ic('tune',14)} ${state.chosen_plan ? 'Change plan' : 'Use a different plan'}
-    </button>
-    ${state.has_solar && state.solar_planned && opts.title
-      ? (() => { const pl = plannedLadder(); const now = pl && pl.noSolar.plan; return now && now.id !== best.plan.id
-          ? `<div class="opt-note">${ic('info',14)} <span>That’s the plan for once the panels are in. Until then, <b>${esc(now.supplier)} ${esc(now.plan)}</b> is cheapest, and it’s the switch on Home.</span></div>`
-          : `<button class="switch-cta" style="margin-top:8px" onclick="v7Sheet('switch','${best.plan.id}')">Switch to ${best.plan.supplier} →</button>`; })()
-      : `<button class="switch-cta" style="margin-top:8px" onclick="v7Sheet('switch','${best.plan.id}')">
-      Switch to ${best.plan.supplier} →
-    </button>`}`;
-}
-
-function toggleSolarEvModel(){
-  const before = computeSolarPaybackScenarios();
-  const pBefore = state.ev_active ? before.withEv.payback : before.withoutEv.payback;
-  state.ev_active = !state.ev_active;
-  if (state.ev_active && !state.ev_km_per_year) state.ev_km_per_year = 15000;
-  invalidate();
-  saveState();
-  const after = computeSolarPaybackScenarios();
-  const pAfter = state.ev_active ? after.withEv.payback : after.withoutEv.payback;
-  if (pBefore < 50 && pAfter < 50 && Math.abs(pAfter - pBefore) >= 0.05){
-    showToast(`Solar payback ${pBefore.toFixed(1)} → ${pAfter.toFixed(1)} yr`, { type:'accent', icon:ic('car',16), title: state.ev_active ? 'EV added to the model' : 'EV removed from the model' });
-  } else {
-    showToast(state.ev_active ? 'EV added to the model' : 'EV removed from the model', { type:'accent', icon:ic('car',16) });
-  }
-  renderApp();
 }
 
 function setEvMode(m){
@@ -7490,7 +7034,6 @@ function renderDetailsBlock(){
   `;
 }
 
-
 /* ============================================================
    REGION PICKER — six Irish zones with PVGIS-calibrated multipliers
    ============================================================ */
@@ -7590,12 +7133,6 @@ function configChips(){
     ${chip(ic('battery',12), battOn, battOn ? state.battery_kwh+' kWh' : 'no battery')}
     ${chip(ic('car',12), evOn, evOn ? Math.round((state.ev_km_per_year||15000)/1000)+'k km EV' : 'no EV')}
   </div>`;
-}
-
-function evChip(){
-  if (!state.ev_active) return '';
-  const km = state.ev_km_per_year || 0;
-  return `<div class="ev-chip">${ic('car',13,'margin-right:3px;vertical-align:-2px')}EV: <b>${km.toLocaleString()} km/yr</b> · ${state.ev_kwh_per_100km || 17} kWh/100km</div>`;
 }
 
 /* ============================================================
@@ -7710,7 +7247,7 @@ function renderDayInspector(){
   ].filter(Boolean);
 
   return `
-  <div class="section-title" style="margin-top:20px">Day inspector</div>
+  <div class="section-title" style="margin-top:20px">A summer and a winter day</div>
   <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 12px 10px;margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div style="font-size:13px;font-weight:700;color:var(--ink)">${label}</div>
@@ -7750,487 +7287,6 @@ function renderDayInspector(){
     </div>
     <div style="font-size:12px;color:var(--ink-dim);margin-top:6px">kWh in each hour. ${selfUse.toFixed(1)} kWh of the solar was used at home${hasBattery ? ', directly or through the battery' : ''}.</div>
   </div>`;
-}
-
-// Seasonal preset days (idx into the 365-day year)
-const ANALYTICS_PRESETS = [
-  { idx: 18,  label: 'Jan 19',  season: 'winter' },
-  { idx: 80,  label: 'Mar 22',  season: 'spring' },
-  { idx: 172, label: 'Jun 21',  season: 'summer' },
-  { idx: 265, label: 'Sep 23',  season: 'autumn' },
-  { idx: 355, label: 'Dec 22',  season: 'winter' }
-];
-
-function analyticsDayLabel(dayIdx){
-  // Compute calendar label from day-of-year
-  const d = new Date(2025, 0, 1);
-  d.setDate(d.getDate() + dayIdx);
-  return d.toLocaleDateString('en-IE', { month:'short', day:'numeric' });
-}
-
-function ensureAnalyticsState(){
-  if (state._an_day === undefined) state._an_day = 172;
-  // Default to user's recommended best plan so Analytics matches Solar tab.
-  // User can switch via the picker — selection persists via state._an_plan.
-  if (!state._an_plan_picked) state._an_plan = null;   // follow the answer as the home changes
-  if (!state._an_plan){
-    try {
-      const best = getBestPlan();
-      state._an_plan = best.plan.id;
-    } catch(e){
-      state._an_plan = state.baseline || 'EI-24';
-    }
-  }
-  if (!state._an_view) state._an_view = 'flows';
-}
-
-/** The Analytics tab's own menu: the depth of the model, in one place. */
-function analyticsHub(on){
-  const sys = state.has_solar && totalPanels() > 0;
-  const items = [
-    ['hours', 'Hour by hour', "setScreen('analytics')"],
-    // Solar is always a section here: the analysis when there's a system, the
-    // short "would it pay off?" guide when there isn't.
-    // Always its own page: the analysis, or a calm "no solar yet" with the
-    // guide one deliberate tap away — never a jump straight into questions.
-    ['solar', 'Solar', `state._solar_from=null;state._solar_deep=${sys};setScreen('solar')`],
-  ];
-  if (on === 'meter') items.push(['meter', 'Meter data', "setScreen('csv-import')"]);
-  return `<nav class="an-hub" aria-label="Analytics">${items.map(([k, l, go]) =>
-    `<button class="an-hub-b ${k === on ? 'on' : ''}" onclick="${go}">${l}</button>`).join('')}</nav>`;
-}
-
-function renderAnalytics(opts = {}){
-  ensureAnalyticsState();
-  if (CACHE.dirty) rebuildBase();
-
-  const dayIdx = state._an_day;
-  const plan = getPlanById(state._an_plan) || getPlanById(state.baseline);
-  const s = sim(plan.id);
-  const annualCons = sumF(s.cons);
-  const annualGen = sumF(s.gen);
-  const annualImp = sumF(s.grid_import);
-  const annualExp = sumF(s.grid_export);
-  const annualSelfUse = sumF(s.self_use);
-  const annualCurtailed = sumF(s.curtailed);
-  // Consistent definition with Solar tab: solar that wasn't exported or curtailed
-  // counts as "self-consumed" (whether direct or via battery).
-  const selfConsumed = Math.max(0, annualGen - annualExp - annualCurtailed);
-  const solarUtilization = annualGen > 0 ? selfConsumed / annualGen : 0;
-  // "Solar covers X% of demand" — same numerator (solar that ended up consumed),
-  // different denominator (consumption). Avoids the arbitrage-confusion of treating
-  // cheap-window grid → battery → home as "non-self-sufficient" imports.
-  const demandFromSolar = annualCons > 0 ? selfConsumed / annualCons : 0;
-
-  // Hourly slice for the chosen day
-  const start = dayIdx * 24;
-  const hours = [];
-  let maxFlow = 0.001;
-  let maxBatt = 0.001;
-  let maxCost = 0.001;
-  for (let h = 0; h < 24; h++){
-    const i = start + h;
-    const rate = plan.type === 'dynamic' && s.eff_rate ? s.eff_rate[i] : staticRateAt(i, plan);
-    const exportRev = s.grid_export[i] * plan.export_rate;
-    const importCost = s.grid_import[i] * rate;
-    const hCost = importCost - exportRev;
-    hours.push({
-      h,
-      gen: s.gen[i], cons: s.cons[i],
-      imp: s.grid_import[i], exp: s.grid_export[i],
-      ch: s.battery_charge[i], dis: s.battery_discharge[i],
-      band: bandAt(h, plan),
-      rate, hCost
-    });
-    if (s.gen[i] > maxFlow) maxFlow = s.gen[i];
-    if (s.cons[i] > maxFlow) maxFlow = s.cons[i];
-    if (s.grid_import[i] > maxFlow) maxFlow = s.grid_import[i];
-    if (s.grid_export[i] > maxFlow) maxFlow = s.grid_export[i];
-    if (s.battery_charge[i] > maxBatt) maxBatt = s.battery_charge[i];
-    if (s.battery_discharge[i] > maxBatt) maxBatt = s.battery_discharge[i];
-    if (Math.abs(hCost) > maxCost) maxCost = Math.abs(hCost);
-  }
-  const dayCost = hours.reduce((a, x) => a + x.hCost, 0);
-  const dayGen = hours.reduce((a, x) => a + x.gen, 0);
-  const dayCons = hours.reduce((a, x) => a + x.cons, 0);
-  const dayImp = hours.reduce((a, x) => a + x.imp, 0);
-  const dayExp = hours.reduce((a, x) => a + x.exp, 0);
-
-  // Monthly bars
-  const HOURS_PER_MONTH = HOURS_IN_YEAR / 12;
-  const m = { gen:new Array(12).fill(0), cons:new Array(12).fill(0), imp:new Array(12).fill(0), exp:new Array(12).fill(0) };
-  for (let i = 0; i < HOURS_IN_YEAR; i++){
-    const mi = Math.floor(i / HOURS_PER_MONTH);
-    m.gen[mi]  += s.gen[i];
-    m.cons[mi] += s.cons[i];
-    m.imp[mi]  += s.grid_import[i];
-    m.exp[mi]  += s.grid_export[i];
-  }
-  const monthMax = Math.max(...m.gen, ...m.cons);
-
-  // Per-day cost values (positive = paid; negative = credit)
-  const FLOW_COLORS = {
-    gen:  'var(--accent)',
-    cons: 'var(--amber)',
-    imp:  'var(--loss)',
-    exp:  '#5A9CFF'
-  };
-  const BAND_COLORS = {
-    ev:    'var(--accent)',
-    night: '#5A9CFF',
-    day:   '#9CA39B',
-    peak:  'var(--loss)',
-    wfh:   '#7BC8FF'
-  };
-  const FLOW_LABEL = { gen:'Solar generation', cons:'House load', imp:'Grid import', exp:'Grid export' };
-
-  const flowRow = (key) => {
-    const total = hours.reduce((a,x) => a + x[key], 0);
-    return `<div class="an-row">
-      <div class="an-row-head">
-        <div class="an-row-label" style="color:${FLOW_COLORS[key]}">${FLOW_LABEL[key]}</div>
-        <div class="an-row-stat">${total.toFixed(1)} kWh today</div>
-      </div>
-      <div class="an-bars">
-        ${hours.map(x => {
-          const v = x[key];
-          const pct = Math.max(0, Math.min(100, Math.round(v / maxFlow * 100)));
-          return `<div class="an-bar" style="height:${pct}%;background:${FLOW_COLORS[key]};opacity:${0.55 + pct/200}" title="${x.h}h: ${v.toFixed(2)} kWh"></div>`;
-        }).join('')}
-      </div>
-      <div class="an-hours">
-        ${Array.from({length:24},(_,h) => `<div>${h % 6 === 0 || h === 23 ? h + 'h' : ''}</div>`).join('')}
-      </div>
-    </div>`;
-  };
-
-  // Is the currently-selected analytics plan the user's recommended best one?
-  const _rec = getRecommendation();
-  const recommendedId = _rec.best ? _rec.best.plan.id : null;
-  const isRecommended = (recommendedId === plan.id);
-
-  const body = `
-    <div class="an-hero">
-      <div class="an-hero-label">Annual flows · ${plan.supplier} ${plan.plan}${isRecommended ? ' · ★ RECOMMENDED' : ''}</div>
-      <div style="font-family:var(--display);font-size:20px;font-weight:600;color:var(--ink);line-height:1.2;letter-spacing:-.01em">${Math.round(annualCons).toLocaleString()} kWh used / yr</div>
-      ${evChip()}
-      ${!isRecommended && recommendedId ? `
-        <div onclick="state._an_plan='${recommendedId}'; state._an_plan_picked=false; saveState(); renderApp(); showToast('Now viewing your recommended plan.',{type:'accent',icon:'★',title:''});" style="margin-top:8px;padding:8px 12px;background:var(--accent-faint);border:1px dashed var(--accent);border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--accent);cursor:pointer;letter-spacing:.02em">
-          ★ Tap to view your <b>recommended</b> plan — ${getPlanById(recommendedId).supplier} — ${getPlanById(recommendedId).plan}
-        </div>` : ''}
-      ${annualGen < 1 ? `<div class="an-hero-grid an-hero-two">
-        <div class="an-stat">
-          <div class="an-stat-label">Bought from the grid</div>
-          <div class="an-stat-value amber">${Math.round(annualImp).toLocaleString()}</div>
-          <div class="an-stat-unit">kWh / yr</div>
-          <div class="an-stat-sub">${state.battery_kwh > 0 && state.charge_from_grid ? 'Includes charging the battery in cheap hours' : 'All of it: no solar in this home'}</div>
-        </div>
-        ${v7HasModelledSystem() ? `<button class="an-stat an-stat-go" onclick="toggleSolarModel()">
-          <div class="an-stat-label">Solar is left out</div>
-          <div class="an-stat-sub">Your ${totalPanels()} panels are kept. Include them to see what they make, keep and sell</div>
-          <span class="hc-go">Include solar ${ic('chevR', 14)}</span>
-        </button>` : `<button class="an-stat an-stat-go" onclick="startSolarGuide()">
-          <div class="an-stat-label">Solar</div>
-          <div class="an-stat-sub">See what panels would make, keep and sell here</div>
-          <span class="hc-go">Would it pay off? ${ic('chevR', 14)}</span>
-        </button>`}
-      </div>` : `<div class="an-hero-grid">
-        <div class="an-stat" title="Solar generated minus exports minus curtailed = consumed on-site (either directly or via battery)">
-          <div class="an-stat-label">Solar generated</div>
-          <div class="an-stat-value accent">${Math.round(annualGen).toLocaleString()}</div>
-          <div class="an-stat-unit">kWh / yr</div>
-          <div class="an-stat-sub">${(solarUtilization*100).toFixed(0)}% kept at home</div>
-        </div>
-        <div class="an-stat" title="Of your total household demand, this fraction came from your own solar (directly or via battery storage of solar)">
-          <div class="an-stat-label">Of your needs met</div>
-          <div class="an-stat-value blue">${(demandFromSolar*100).toFixed(0)}</div>
-          <div class="an-stat-unit">% by solar</div>
-          <div class="an-stat-sub">${Math.round(selfConsumed).toLocaleString()} of ${Math.round(annualCons).toLocaleString()} kWh</div>
-        </div>
-        <div class="an-stat">
-          <div class="an-stat-label">Grid import</div>
-          <div class="an-stat-value amber">${Math.round(annualImp).toLocaleString()}</div>
-          <div class="an-stat-unit">kWh / yr</div>
-          <div class="an-stat-sub">${state.battery_kwh > 0 && state.charge_from_grid ? 'Incl. cheap-window battery charging' : 'Direct grid imports'}</div>
-        </div>
-        <div class="an-stat">
-          <div class="an-stat-label">Grid export</div>
-          <div class="an-stat-value accent">${Math.round(annualExp).toLocaleString()}</div>
-          <div class="an-stat-unit">kWh / yr</div>
-          <div class="an-stat-sub">€${(annualExp * plan.export_rate).toFixed(0)} CEG revenue</div>
-        </div>
-      </div>`}
-    </div>
-
-    ${state._csv_imported ? '' : `<button class="an-meter-hint" onclick="v7Sheet('meter')">${ic('csv', 18)}<span><b>These hours are estimated from your bill</b>Upload your ESB meter file to see your real ones</span>${ic('chevR', 16)}</button>`}
-    ${renderYearShape(s, plan)}
-    ${renderBandMix(s, plan)}
-
-    <div class="section-title">Day inspector</div>
-
-    <div class="an-selector">
-      <div class="an-selector-label">Day to inspect</div>
-      <div class="an-day-pills">
-        ${ANALYTICS_PRESETS.map(p => `
-          <div class="an-day-pill ${p.idx === dayIdx ? 'active' : ''}" onclick="setAnalyticsDay(${p.idx})">
-            <b>${p.label}</b>${p.season}
-          </div>`).join('')}
-      </div>
-      <input type="range" class="an-day-slider" min="0" max="364" value="${dayIdx}" oninput="setAnalyticsDay(+this.value)" id="an-day-slider">
-      <div class="an-day-tag">Currently showing <b>${analyticsDayLabel(dayIdx)}</b> (day ${dayIdx + 1} of 365)</div>
-      <div class="an-selector-label" style="margin-top:14px">Tariff plan</div>
-      <select class="an-plan-select" onchange="state._an_plan=this.value; state._an_plan_picked=true; saveState(); renderApp();">
-        ${TARIFFS.filter(t => !t.discontinued).map(t => `
-          <option value="${t.id}" ${t.id === plan.id ? 'selected' : ''}>${t.supplier} — ${t.plan}</option>`).join('')}
-      </select>
-    </div>
-
-    <div class="an-stat" style="margin-bottom:14px;padding:14px 16px">
-      <div class="an-stat-label">Day total cost</div>
-      <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:4px">
-        <div class="an-stat-value ${dayCost > 0 ? 'amber' : 'accent'}">${dayCost > 0 ? '€' + dayCost.toFixed(2) : '+€' + (-dayCost).toFixed(2) + ' credit'}</div>
-        <div class="an-stat-sub" style="margin:0">${dayImp.toFixed(1)} kWh imported${annualGen >= 1 ? ` · ${dayExp.toFixed(1)} kWh exported` : ''}</div>
-      </div>
-    </div>
-
-    <div class="an-chart">
-      <div class="an-chart-title">Energy flows (kWh per hour)</div>
-      ${annualGen >= 1 ? flowRow('gen') : ''}
-      ${flowRow('cons')}
-      ${flowRow('imp')}
-      ${annualGen >= 1 ? flowRow('exp') : ''}
-    </div>
-
-    ${state.battery_kwh > 0 ? (() => {
-      // Battery annual stats
-      const annualCharged    = sumF(s.battery_charge);
-      const annualDischarged = sumF(s.battery_discharge);
-      const roundTripLoss    = annualCharged - annualDischarged;
-      const cap = state.battery_kwh;
-      const isArb = arbitrageOn();
-
-      // Estimate arbitrage value: kWh discharged at avg day rate minus kWh charged at avg night rate
-      const nightRate = plan.rates.ev || plan.rates.night || plan.rates.day;
-      const peakRateV = plan.rates.peak || plan.rates.day;
-      const arbValueEst = isArb
-        ? Math.max(0, annualDischarged * peakRateV - annualCharged * nightRate)
-        : 0;
-
-      // SOC curve for the selected day (24 points from sim)
-      const socPts = [];
-      for (let h=0; h<24; h++) socPts.push(s.soc[start + h]);
-      const maxSoc = cap > 0 ? cap : 1;
-      const socPolyline = socPts.map((v, h) => {
-        const x = (h / 23) * 280;
-        const y = 40 - (v / maxSoc) * 36;  // 40px track, 36px usable height
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-      }).join(' ');
-
-      const dayCharge    = hours.reduce((a,x) => a+x.ch, 0);
-      const dayDischarge = hours.reduce((a,x) => a+x.dis, 0);
-
-      // Build a proper SVG combining all three series in one chart:
-      // Top half (above midline) = charge (green bars up)
-      // Bottom half (below midline) = discharge (amber bars down)
-      // Blue line = SOC (state of charge, right Y-axis 0..cap kWh)
-      const svgW = 300, svgH = 110, mid = 52;  // mid = centre dividing line y
-      const chargeArea = mid - 4;    // available px above midline for charge bars
-      const disArea   = svgH - mid - 4; // available px below midline for discharge bars
-      const colW = svgW / 24;
-
-      const battSvg = hours.map((x, i) => {
-        const cx = i * colW + colW * 0.1;
-        const cw = colW * 0.8;
-        let bars = '';
-        if (x.ch > 0){
-          const bh = Math.max(1, (x.ch / Math.max(maxBatt, 0.001)) * chargeArea);
-          bars += `<rect x="${cx.toFixed(1)}" y="${(mid - bh).toFixed(1)}" width="${cw.toFixed(1)}" height="${bh.toFixed(1)}" fill="#00E676" opacity=".75" rx="1"><title>${x.h}h charge ${x.ch.toFixed(3)} kWh</title></rect>`;
-        }
-        if (x.dis > 0){
-          const bh = Math.max(1, (x.dis / Math.max(maxBatt, 0.001)) * disArea);
-          bars += `<rect x="${cx.toFixed(1)}" y="${mid.toFixed(1)}" width="${cw.toFixed(1)}" height="${bh.toFixed(1)}" fill="var(--amber)" opacity=".75" rx="1"><title>${x.h}h discharge ${x.dis.toFixed(3)} kWh</title></rect>`;
-        }
-        return bars;
-      }).join('');
-
-      // SOC line — scaled to the full chart height (0=bottom, cap=top)
-      const socLine = socPts.map((v, h) => {
-        const x = (h / 23) * (svgW - colW/2) + colW/4;
-        const y = svgH - 4 - (v / maxSoc) * (svgH - 8);
-        return (h === 0 ? 'M' : 'L') + `${x.toFixed(1)},${y.toFixed(1)}`;
-      }).join(' ');
-
-      // Band colouring behind the chart to show cheap/expensive windows
-      const bandBg = hours.map((x, i) => {
-        const col = x.band === 'ev' || x.band === 'night' ? 'rgba(0,230,118,.05)' : x.band === 'peak' ? 'rgba(231,110,92,.05)' : null;
-        return col ? `<rect x="${(i*colW).toFixed(1)}" y="0" width="${colW.toFixed(1)}" height="${svgH}" fill="${col}"/>` : '';
-      }).join('');
-
-      return `
-      <div class="an-chart">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div class="an-chart-title" style="margin-bottom:0">Battery charge / discharge · SOC</div>
-        </div>
-        <div style="display:flex;gap:14px;font-family:var(--mono);font-size:12px;margin-bottom:10px;flex-wrap:wrap">
-          <span style="color:var(--accent)">▲ charge ${dayCharge.toFixed(2)} kWh</span>
-          <span style="color:var(--amber)">▼ discharge ${dayDischarge.toFixed(2)} kWh</span>
-          <span style="color:var(--blue)">— SOC 0–${cap} kWh</span>
-        </div>
-
-        <svg viewBox="0 0 ${svgW} ${svgH}" style="width:100%;height:${svgH}px;overflow:visible" preserveAspectRatio="none">
-          <!-- Band colouring -->
-          ${bandBg}
-          <!-- Midline (zero charge/discharge) -->
-          <line x1="0" y1="${mid}" x2="${svgW}" y2="${mid}" stroke="var(--line)" stroke-width="1"/>
-          <!-- Charge label -->
-          <text x="3" y="${mid - 3}" font-size="10" fill="#00E676" opacity=".6" font-family="monospace">CHARGE ▲</text>
-          <!-- Discharge label -->
-          <text x="3" y="${mid + 9}" font-size="10" fill="var(--amber)" opacity=".6" font-family="monospace">DISCHARGE ▼</text>
-          <!-- Bars -->
-          ${battSvg}
-          <!-- SOC line (blue) -->
-          <path d="${socLine}" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linejoin="round"/>
-          ${socPts.map((v, h) => {
-            const x2 = ((h / 23) * (svgW - colW/2) + colW/4).toFixed(1);
-            const y2 = (svgH - 4 - (v / maxSoc) * (svgH - 8)).toFixed(1);
-            return `<circle cx="${x2}" cy="${y2}" r="2" fill="var(--blue)" opacity=".8"/>`;
-          }).join('')}
-        </svg>
-
-        <div class="an-hours" style="margin-top:2px">
-          ${Array.from({length:24},(_,h) => `<div>${h % 6 === 0 || h === 23 ? h + 'h' : ''}</div>`).join('')}
-        </div>
-
-        <!-- Annual battery performance stats -->
-        <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div style="padding:10px;background:var(--bg-elev);border-radius:8px;border:1px solid var(--line)">
-            <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em">Annual charged</div>
-            <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent);margin-top:3px;white-space:nowrap">${Math.round(annualCharged).toLocaleString()}</div>
-            <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.04em;margin-top:1px">kWh / yr</div>
-            <div style="font-size:12px;color:var(--ink-dim);margin-top:2px">${isArb ? 'Solar + cheap grid' : 'Solar surplus only'}</div>
-          </div>
-          <div style="padding:10px;background:var(--bg-elev);border-radius:8px;border:1px solid var(--line)">
-            <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em">Annual discharged</div>
-            <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--amber);margin-top:3px;white-space:nowrap">${Math.round(annualDischarged).toLocaleString()}</div>
-            <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.04em;margin-top:1px">kWh / yr</div>
-            <div style="font-size:12px;color:var(--ink-dim);margin-top:2px">Roundtrip loss: ${Math.round(roundTripLoss)} kWh</div>
-          </div>
-          ${isArb ? `
-          <div style="padding:10px;background:rgba(0,230,118,.04);border-radius:8px;border:1px solid var(--accent);grid-column:span 2">
-            <div style="font-family:var(--mono);font-size:12px;color:var(--accent);text-transform:uppercase;letter-spacing:.08em">Arbitrage strategy · est. annual gain</div>
-            <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--accent);margin-top:3px">€${Math.round(arbValueEst).toLocaleString()}</div>
-            <div style="font-size:13px;color:var(--ink-soft);margin-top:2px;line-height:1.6">
-              Buy cheap (${fmtCent(nightRate)}/kWh) · sell dear (${fmtCent(peakRateV)}/kWh) · ${Math.round(annualDischarged).toLocaleString()} kWh/yr cycled
-            </div>
-          </div>` : `
-          <div style="padding:10px;background:var(--bg-elev);border-radius:8px;border:1px solid var(--line);grid-column:span 2">
-            <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em">Self-consume strategy</div>
-            <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.5">Battery fills from solar surplus only. Cheap-window grid charging is off.</div>
-            <button onclick="state.strategy_mode='arbitrage';state.charge_from_grid=true;invalidate();saveState();showToast('Switched to Arbitrage — your battery now charges on cheap overnight rates.',{type:'accent',icon:'⚡',title:'Arbitrage on'});renderApp();" style="margin-top:8px;display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1.5px solid var(--accent);background:var(--accent-soft);color:var(--accent);cursor:pointer">
-              ⚡ Switch to Arbitrage
-            </button>
-          </div>`}
-        </div>
-      </div>`;
-    })() : ''}
-
-    <div class="an-chart">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <div class="an-chart-title" style="margin-bottom:0">Tariff bands &amp; rates</div>
-        <div onclick="v7Sheet('plan','${plan.id}')" style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.06em;cursor:pointer;padding:5px 9px;border:1px solid var(--accent);border-radius:4px">Plan details</div>
-      </div>
-      ${isFlatPlan(plan) ? `
-        <div class="an-bands">
-          ${hours.map(x => `<div style="background:#9CA39B" title="${x.h}h flat ${fmtCent(x.rate)}/kWh"></div>`).join('')}
-        </div>
-        <div class="an-hours">
-          ${Array.from({length:24},(_,h) => `<div>${h % 6 === 0 || h === 23 ? h + 'h' : ''}</div>`).join('')}
-        </div>
-        <div class="an-band-legend">
-          <span style="color:#9CA39B">FLAT — ${fmtCent(plan.rates.day)}/kWh, all hours</span>
-          ${plan._is_edited ? '<span style="color:var(--amber)">EDITED</span>' : ''}
-        </div>
-      ` : `
-        <div class="an-bands">
-          ${hours.map(x => {
-            const col = BAND_COLORS[x.band] || BAND_COLORS.day;
-            return `<div style="background:${col}" title="${x.h}h ${x.band} · ${fmtCent(x.rate)}/kWh"></div>`;
-          }).join('')}
-        </div>
-        <div class="an-hours">
-          ${Array.from({length:24},(_,h) => `<div>${h % 6 === 0 || h === 23 ? h + 'h' : ''}</div>`).join('')}
-        </div>
-        <div class="an-band-legend">
-          ${['ev','night','day','peak','wfh'].filter(b => plan.rates[b] != null && plan.rates[b] !== undefined).map(b => `
-            <span style="color:${BAND_COLORS[b]}">${b.toUpperCase()} ${fmtCent(plan.rates[b])}/kWh</span>
-          `).join('')}
-          ${plan._is_edited ? '<span style="color:var(--amber)">EDITED</span>' : ''}
-        </div>
-      `}
-    </div>
-
-    <div class="an-chart">
-      <div class="an-chart-title">Net cost per hour (€)</div>
-      <div class="an-cost-strip">
-        ${hours.map(x => {
-          const v = x.hCost;
-          const pct = Math.max(2, Math.round(Math.abs(v) / maxCost * 100));
-          return `<div class="an-cost-cell ${v < 0 ? 'credit' : ''}" style="height:${pct}%" title="${x.h}h: €${v.toFixed(2)}"></div>`;
-        }).join('')}
-      </div>
-      <div class="an-hours">
-        ${Array.from({length:24},(_,h) => `<div>${h % 6 === 0 || h === 23 ? h + 'h' : ''}</div>`).join('')}
-      </div>
-      ${annualGen >= 1 ? `<div style="font-size:13px;color:var(--ink-soft);margin-top:6px;line-height:1.6">Red = paid · Green = credit (export revenue exceeds import cost)</div>` : ''}
-    </div>
-
-    <div class="section-title">Monthly breakdown</div>
-    ${annualGen < 1 ? `<div class="an-chart">
-        <div style="font-size:13px;color:var(--ink-soft);margin-bottom:10px">Electricity used each month</div>
-        <div class="an-month-bars">
-          ${m.cons.map((c) => `<div class="an-month-bar cons" style="height:${Math.max(2, Math.round(c / Math.max(1, ...m.cons) * 100))}%" title="Use ${Math.round(c)} kWh"></div>`).join('')}
-        </div>
-        <div class="an-month-labels">${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((x) => `<div>${x}</div>`).join('')}</div>
-      </div>` : `<div class="an-flow-tabs">
-      <div class="an-flow-tab ${state._an_view === 'flows' ? 'active' : ''}" onclick="setAnalyticsView('flows')">Gen vs Use</div>
-      <div class="an-flow-tab ${state._an_view === 'monthly' ? 'active' : ''}" onclick="setAnalyticsView('monthly')">Import vs Export</div>
-    </div>
-
-    <div class="an-chart">
-      ${state._an_view === 'flows' ? `
-        <div style="display:flex;gap:18px;font-family:var(--mono);font-size:12px;letter-spacing:.04em;margin-bottom:10px">
-          <span style="color:var(--accent)">■ Solar generated</span>
-          <span style="color:var(--amber)">■ House consumed</span>
-        </div>
-        <div class="an-month-bars">
-          ${m.gen.map((g,i) => `<div class="an-month-bar gen" style="height:${Math.max(2,Math.round(g/monthMax*100))}%" title="Gen ${Math.round(g)} kWh"></div>`).join('')}
-        </div>
-        <div class="an-month-bars" style="margin-top:0">
-          ${m.cons.map((c,i) => `<div class="an-month-bar cons" style="height:${Math.max(2,Math.round(c/monthMax*100))}%" title="Use ${Math.round(c)} kWh"></div>`).join('')}
-        </div>
-      ` : `
-        <div style="display:flex;gap:18px;font-family:var(--mono);font-size:12px;letter-spacing:.04em;margin-bottom:10px">
-          <span style="color:var(--amber)">■ Grid imported</span>
-          <span style="color:var(--accent)">■ Grid exported</span>
-        </div>
-        <div class="an-month-bars">
-          ${m.imp.map((v,i) => `<div class="an-month-bar imp" style="height:${Math.max(2,Math.round(v/(Math.max(...m.imp,...m.exp))*100))}%" title="Imp ${Math.round(v)} kWh"></div>`).join('')}
-        </div>
-        <div class="an-month-bars" style="margin-top:0">
-          ${m.exp.map((v,i) => `<div class="an-month-bar exp" style="height:${Math.max(2,Math.round(v/(Math.max(...m.imp,...m.exp))*100))}%" title="Exp ${Math.round(v)} kWh"></div>`).join('')}
-        </div>
-      `}
-      <div class="an-month-labels">
-        ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map(mo => `<div>${mo}</div>`).join('')}
-      </div>
-    </div>`}
-
-    <p class="disclaimer">Simulated, not metered — hourly figures vary ±5–8% with the weather.</p>`;
-  if (opts.bodyOnly) return body;
-  return `${topbar('Analytics', 'blue', true)}
-  <div class="screen">${body}
-  </div>
-  ${bottomNav()}`;
 }
 
 function setAnalyticsDay(idx){
@@ -8609,12 +7665,6 @@ function downloadTextReport(email){
   showToast('PDF unavailable on this device — saved a text summary to Downloads instead', { type:'blue', icon:ic('doc',16), title:'Text report saved' });
 }
 
-function setAnalyticsView(v){
-  state._an_view = v;
-  saveState();
-  renderApp();
-}
-
 /* ============================================================
    STRATEGY + CONSUMPTION SHAPE — for Settings tab
    ============================================================ */
@@ -8819,8 +7869,6 @@ function clearShapeOverride(){
   saveState();
   renderApp();
 }
-
-
 
 /* ============================================================
    QUOTE AUDITOR — viral standalone tool
@@ -10643,7 +9691,7 @@ function householdScene(){
       ${tap('openMyHome()', 'My home', 118, 124, 144, 110)}
       ${tap("setScreen('plans')", 'Your plan and the grid', 14, 112, 64, 166)}
       ${batt ? tap('openMySystem()', 'Battery', 286, 130, 46, 104) : ''}
-      ${ev ? tap("v7Sheet('ev')", 'Your EV', 266, 244, 76, 54) : ''}
+      ${ev ? tap("anTab('car')", 'Your EV', 266, 244, 76, 54) : ''}
     </svg>
     <div class="hs-actions">
       ${sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('sun', 14)} Add solar</button>`}
@@ -10654,48 +9702,6 @@ function householdScene(){
   </section>`;
 }
 
-/**
- * What the app found, said in terms of what the person can do and when.
- *
- * One "€X a year" figure mixed a switch that can happen this week with panels
- * that may never be bought. It is split by status: an installed system's
- * savings are already being made, so only the switch is on offer; a planned
- * one is shown as two decisions, the switch available now and the system
- * as a separate "if you install it".
- */
-function householdFindings(){
-  try {
-    const rec = getRecommendation();
-    const sys = state.has_solar && totalPanels() > 0;
-    const planned = sys && (state.solar_planned || state.solar_is_estimate);
-    const best = rec.best.plan;
-    const planName = `${esc(best.supplier)} ${esc(best.plan)}`;
-    const money = (v) => v > 10 ? eur(v) : '€0';
-    if (!sys){
-      const save = rec.baseCost - rec.best.net;
-      return { status: 'No solar at this home', rows: [
-        { label: save > 10 ? `Switch to ${planName}` : 'Stay on your plan', sub: save > 10 ? 'Available now · about ten minutes online' : 'Nothing on sale beats it for your home', value: money(save), cls: 'is-gain', go: "setScreen('result')" },
-        { label: 'See what solar would do', sub: 'Model a system for your roof', value: '', go: 'openMySystem()' },
-      ] };
-    }
-    if (planned){
-      const sp = plannedSolarSplit() || { switchNow: 0, withPlanned: 0 };
-      return { status: `Planned system · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` + ${state.battery_kwh} kWh` : ''} · not installed yet`, rows: [
-        { label: sp.switchNow > 10 ? 'Switch plan' : 'Your plan is the best one today', sub: 'Available now, without the panels', value: money(sp.switchNow), cls: 'is-gain', go: "setScreen('result')" },
-        { label: 'If you install the planned system', sub: `On top of the switch · it costs ${eur(Math.max(0, state.install_cost - state.grant_seai))} after the grant`, value: money(sp.withPlanned), cls: 'is-maybe', go: "setScreen('solar')" },
-      ] };
-    }
-    const mine = myPlanCost();
-    let solarNow = rec.baseCost - mine;
-    try { solarNow = v7SolarData().cur.solarBenefit; } catch (e) {}   // the same figure Home and Solar show
-    const sw = mine - rec.best.net;
-    return { status: `Installed system · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` + ${state.battery_kwh} kWh` : ''}`, rows: [
-      { label: 'Your panels already save', sub: 'Against the same home without them, each on its best plan', value: money(solarNow), cls: 'is-done', go: "setScreen('solar')" },
-      { label: sw > 10 ? `Switch to ${planName}` : 'Stay on your plan', sub: sw > 10 ? 'Available now · on top of what the panels save' : 'Nothing on sale beats it with your panels', value: money(sw), cls: 'is-gain', go: "setScreen('result')" },
-    ] };
-  } catch (e){ return null; }
-}
-
 function renderMe(){
   if (state.onboarding_complete && unseenAlerts().length) setTimeout(markAlertsSeen, 1500);
   const signedIn = !!_sbUser;
@@ -10704,7 +9710,6 @@ function renderMe(){
   const region = IRISH_REGIONS[state.region || 'east'];
   const kwh = Math.round(v7AnnualKwh());
   const hasSys = state.considering_solar && totalPanels() > 0;
-  const found = state.onboarding_complete ? householdFindings() : null;
   const quotes = state.solar_quotes || [];
   const card = (onclick, icon, title, sub, cta) => `<button class="me-card" onclick="${onclick}">
       <span class="me-card-ico">${icon}</span><b>${title}</b><small>${sub}</small><span class="me-card-cta">${cta} ${ic('chevR', 14)}</span></button>`;
@@ -10755,16 +9760,8 @@ function renderMe(){
     <div class="me-cards">
       ${card('openMyHome()', ic('home', 18), 'My home', `${esc(region ? region.name : '')} · ${kwh.toLocaleString('en-IE')} kWh a year`, 'Edit')}
       ${card('openMySystem()', ic('sun', 18), 'My system', hasSys ? `${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh` : ''}` : 'No solar yet', hasSys ? 'Edit' : 'Model one')}
-      ${card(state.ev_active ? "v7Sheet('ev')" : 'startEvGuide()', ic('car', 18), 'My EV', state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No EV', state.ev_active ? 'See it' : 'Add one')}
+      ${card(state.ev_active ? "anTab('car')" : 'startEvGuide()', ic('car', 18), 'My EV', state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No EV', state.ev_active ? 'See it' : 'Add one')}
     </div>
-
-    ${found ? `<div class="section-title">What we found</div>
-    <section class="me-found">
-      <div class="me-found-status">${found.status}</div>
-      ${found.rows.map((r) => `<button class="me-found-row" onclick="${r.go}">
-        <span><b>${r.label}</b><small>${r.sub}</small></span>
-        <em class="${r.cls || ''}">${r.value}</em></button>`).join('')}
-    </section>` : ''}
 
     <div class="section-title">Saved quotes</div>
     <section class="me-list">
@@ -10782,6 +9779,7 @@ function renderMe(){
 
     <div class="section-title">Settings and more</div>
     <section class="me-list">
+      <button class="me-row me-link" onclick="reRunOnboarding()"><span><b>Re-run setup</b><small>Go through the setup questions again, starting from your answers</small></span>${ic('chevR', 16)}</button>
       <button class="me-row me-link" onclick="startFresh()"><span><b>Start fresh</b><small>For testing: signs out and clears this phone, back to the first screen</small></span>${ic('chevR', 16)}</button>
       <button class="me-row me-link" onclick="setScreen('more')"><span><b>Settings, help and more</b><small>Advanced settings, appearance, privacy, how to switch, methodology</small></span>${ic('chevR', 16)}</button>
     </section>
@@ -10801,7 +9799,6 @@ function renderMore(){
   // Everything else is one tap away under "Settings and more".
   const groups = [
     ['Your data', [
-      [ic('chart',19),'Hour by hour','Any day of the year: use, solar, battery, grid and cost','analytics'],
       [ic('radar',19),'Price watch','Price changes, announced rises and alerts','monitor'],
       [ic('csv',19),'Import smart-meter data','Your ESB file: the most accurate result','csv-import'],
     ]],
@@ -11131,14 +10128,9 @@ function fastPathGo(){
   // No toast: the answer is on screen, and 'Based on … Change' says how to adjust it.
 }
 
-
-
-
-
 function bottomNav(){
   return V7.nav();
 }
-
 
 /* ============================================================
    V7 — the presentation layer (src/ui/v7.js)
@@ -11251,19 +10243,22 @@ const V7 = createV7({
   renderResultEmpty: v7ResultEmpty,
   hasModelledSystem: v7HasModelledSystem,
   // What a plan costs this home as simulated — solar, battery and EV included.
-  analyticsHub: () => '',
-  analyticsBody: () => renderAnalytics({ bodyOnly: true }),
+  analyticsData: () => analyticsData(), analyticsDay, solarRange,
+  accuracyWithMeter: () => accuracyWithMeter(),
+  renderSolarImprove: () => { try { return renderImproveList(generateAdvice(getBestPlan())); } catch (e) { return ''; } },
+  renderSolarWorking: () => renderSolarWorking(),
+  isFlatPlan,
+  tariffCounts: () => { const live = TARIFFS.filter((p) => !p.discontinued); const dyn = live.filter((p) => p.type === 'dynamic').length; return { live: live.length, dynamicLeftOut: state.include_dynamic ? 0 : dyn }; },
   plannedLadder: () => plannedLadder(),
   householdScore: () => householdScore(),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
-  renderSolarBody: (part) => renderSolarDashboard({ bodyOnly: part || true }),
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,
   getPlanById, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, renderConsentBar,
   fmtCurrency, fmtCent, fmtVerifiedDate, latestVerifiedLabel, planDataFlag, planCategoryLabel,
   freshnessChip, priceChangeChip, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
-  renderBillShape, renderDayShape, renderSavingsBreakdown, renderAssumptions,
+  renderSavingsBreakdown, renderAssumptions,
   renderTrustPanel, renderLogicBreakdown, renderNightRateCard, renderEvSavingsCard, evEconomics,
-  renderSolarComparison, renderDayInspector,
+  renderDayInspector,
   renderSystemSheet, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet, renderJourneySheet, renderQuestSheet, renderMeterSheet, renderHabitsSheet,
   alertCount: () => { try { return unseenAlerts().length; } catch (e) { return 0; } },
 });
@@ -12308,8 +11303,8 @@ function renderApp(){
     case 'result':       html = V7.home(); break;
     case 'plans':        html = V7.plans(); break;
     case 'plan-detail':  html = renderPlanDetail(); break;
-    case 'solar':        html = V7.solar(); break;
-    case 'analytics':    html = state.has_solar && totalPanels() > 0 ? V7.solar() : renderAnalytics(); break;
+    case 'solar':        state._an_tab = 'solar'; html = V7.analytics('solar'); break;
+    case 'analytics':    html = V7.analytics(); break;
     case 'monitor':      html = renderMonitor(); break;
     case 'compare':      html = renderCompare(); break;
     case 'more':         html = renderMore(); break;
@@ -12433,8 +11428,10 @@ function dismissSplash(){
 document.addEventListener('DOMContentLoaded', () => {
   applyTheme();
   // The analysis on Home opens closed on every visit: the answer comes first.
-  state._home_deep = false;
-  state._solar_deep = false;
+  // Analytics' folds open closed too, and nothing claims you came from Home.
+  state._solar_more = false;
+  state._an_day_open = false;
+  state._an_from = null;
   setTimeout(() => {
     const loader = document.getElementById('loader');
     if (loader) loader.remove();
@@ -12778,7 +11775,6 @@ function renderHowToSwitch(){
 function renderCsvImport(){
   const hasImport = state._csv_imported;
   return `${topbar('Meter data', 'blue', true)}
-  ${analyticsHub('meter')}
   <div class="screen">
     <div class="pd-back-bar">
       <button class="pd-back-btn" onclick="setScreen('refine')">← Advanced</button>
@@ -13213,86 +12209,6 @@ function applyImportedBills(){
 }
 
 /* ============================================================
-   SPRINT 3 — SOLAR VS NO-SOLAR VISUAL COMPARISON (F3)
-   Side-by-side annual cost bar chart
-   ============================================================ */
-function renderSolarComparison(){
-  if (!state.has_solar || CACHE.dirty) rebuildBase();
-  if (!state.has_solar) return '';
-  if (!solarExtrasReady()) return SOLAR_EXTRA_WAIT('Solar impact — annual cost comparison');
-
-  const best = getBestPlan();
-  const baselinePlan = getPlanById(state.baseline);
-
-  // No-solar scenario — run the full engine with solar removed. Memoised: this
-  // is a full-year simulation of every plan, and it was being re-run on every
-  // paint of the solar screen, unguarded, which also cleared every other memo.
-  //
-  // The current-plan figure comes from the scenario as well, so all three rows
-  // price the same house. Reading it off baselineSim() instead priced row one
-  // without the EV and rows two and three with it.
-  const noSolarScenario = cachedScenario(false, state.ev_active);
-  const baseCost = noSolarScenario.baselineCost;
-  const noSolarCost = noSolarScenario.annualCost;
-  const solarCost = best.net;
-
-  // Staying put can genuinely beat every switch when the plan has been
-  // withdrawn — a legacy rate no new customer can get. That is worth saying out
-  // loud rather than leaving as an apparent contradiction.
-  const stayingIsBest = noSolarCost > baseCost + 1;
-  const evCounted = state.ev_active && !state.ev_in_bill;
-
-  const maxCost = Math.max(baseCost, noSolarCost, solarCost, 1);
-  const bar = (val, color) => {
-    const pct = Math.min(100, (val / maxCost) * 100);
-    return `<div style="background:${color};height:10px;border-radius:4px;width:${pct}%;min-width:4px;transition:width .3s"></div>`;
-  };
-
-  const solarSaving = noSolarCost - solarCost;
-
-  return `<div class="card" style="margin-top:14px">
-    <div class="card-label">${ic('sun',13)} Solar impact — annual cost comparison</div>
-    <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">
-      <div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="font-family:var(--mono);font-size:12px;color:var(--ink-soft)">Stay as you are (${baselinePlan.supplier})</span>
-          <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--ink)">${fmtCurrency(baseCost)}</span>
-        </div>
-        ${bar(baseCost, 'var(--track)')}
-      </div>
-      <div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="font-family:var(--mono);font-size:12px;color:var(--ink-soft)">Switch plan, no solar (${noSolarScenario.bestPlanLabel.split('—')[0].trim()})</span>
-          <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--blue)">${fmtCurrency(noSolarCost)}</span>
-        </div>
-        ${bar(noSolarCost, 'var(--blue)')}
-      </div>
-      <div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="font-family:var(--mono);font-size:12px;color:var(--accent)">Switch plan + solar (${best.plan.supplier})</span>
-          <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent)">${fmtCurrency(solarCost)}</span>
-        </div>
-        ${bar(solarCost, 'var(--accent)')}
-      </div>
-    </div>
-    <div style="margin-top:10px;padding:8px 10px;background:${solarSaving > 50 ? 'rgba(0,230,118,.06)' : 'rgba(41,182,246,.06)'};border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.7">
-      ${solarSaving > 50
-        ? `Solar saves you an extra <b style="color:var(--accent)">${fmtCurrency(solarSaving)}/yr</b> on top of the best no-solar plan (${fmtCurrency(noSolarCost)} → ${fmtCurrency(solarCost)})`
-        : `At your usage level, the best no-solar tariff (${fmtCurrency(noSolarCost)}) closes most of the gap — solar adds <b style="color:var(--blue)">${fmtCurrency(Math.abs(solarSaving))}/yr</b> ${solarSaving >= 0 ? 'on top' : 'less than the no-solar optimum due to plan mix'}`
-      }
-    </div>
-    ${stayingIsBest ? `
-      <div style="margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--ink-dim);line-height:1.6">
-        Your ${baselinePlan.supplier} rate beats anything on sale today${baselinePlan.discontinued ? ' — it is no longer offered to new customers' : ''}, so switching alone would cost you more. Solar is still worth it; keep the plan.
-      </div>` : ''}
-    ${evCounted ? `
-      <div style="margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--ink-dim);line-height:1.6">
-        All three include charging the EV, so every figure is higher than the bill you get today.
-      </div>` : ''}
-  </div>`;
-}
-
-/* ============================================================
    SPRINT 4 — METHODOLOGY / ABOUT PAGE (T1)
    ============================================================ */
 function renderMethodology(){
@@ -13570,6 +12486,7 @@ window.sgCancel = sgCancel;
 window.flowSupplier = flowSupplier;
 window.sgKeep = sgKeep;
 window.sgGrant = sgGrant;
+window.anTab = anTab;
 window.tryUpgrade = tryUpgrade;
 window.useGoalDesign = useGoalDesign;
 window.startSolarGuide = startSolarGuide;
@@ -13637,7 +12554,6 @@ window.toggleRoofB = toggleRoofB;
 window.showPlanDetail = showPlanDetail;
 window.pickObHeating = pickObHeating;
 window.setAnalyticsDay = setAnalyticsDay;
-window.setAnalyticsView = setAnalyticsView;
 window.setStrategy = setStrategy;
 window.setHotWater = setHotWater;
 window.updateShapeBucket = updateShapeBucket;
@@ -13707,7 +12623,6 @@ window.fpTogglePlanPicker = fpTogglePlanPicker;
 window.fpPickPlan = fpPickPlan;
 window.goBack = goBack;
 window.markSolarAsMine = markSolarAsMine;
-window.toggleSolarEvModel = toggleSolarEvModel;
 window.toggleOptExpand = toggleOptExpand;
 window.removeOptimisation = removeOptimisation;
 window.saveContractDate = saveContractDate;
@@ -13756,7 +12671,6 @@ window.__annual = (s, p) => annualCost(s, p).net;   // tests: a plan's comparabl
 window.bandAt = bandAt;
 window.calcNPV20 = calcNPV20;
 
-
 /* ---------------------------------------------------------------
  * Live bridge for module-scoped state touched by inline on* attributes.
  *
@@ -13781,7 +12695,6 @@ Object.defineProperties(window, {
   _authModalOpen: { get: () => _authModalOpen, set: v => { _authModalOpen = v; }, configurable: true },
   _authEmailView: { get: () => _authEmailView, set: v => { _authEmailView = v; }, configurable: true },
 });
-
 
 /* ---------------------------------------------------------------
  * Inline on* attributes resolve against the global scope. Under a
@@ -13809,8 +12722,6 @@ window.sbInitialized = sbInitialized;
 window.setObUsageMode = setObUsageMode;
 window.setUsageMode = setUsageMode;
 window.toggleCompareSelect = toggleCompareSelect;
-
-
 
 /* ============================================================
    PWA LAYER — installable, offline-capable web app.

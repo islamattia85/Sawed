@@ -40,18 +40,9 @@ export function createV7(api) {
 
   /* ------------------------------------------------------------ chrome */
 
-  function topbar(title, { back = false, home = false } = {}) {
+  function topbar(title, { back = false } = {}) {
     const root = V7_SURFACES.some((x) => x.id === S().current_screen);
     if (root) back = false;
-    // A screen opened from Home (Solar) says where it came from and goes back there.
-    if (home) return `<header class="topbar v7-top v7-top-sub" role="banner">
-      <h1 class="sr-only">${esc(title)}</h1>
-      ${S()._solar_from === 'result'
-        ? `<button class="v7-home-back" onclick="state._solar_from=null;setScreen('result')" aria-label="Back to Home">${api.ic('chevL', 18)} Home</button>`
-        : `<span class="v7-brand v7-brand-static">${api.ic('chart', 18)}</span>`}
-      <div class="v7-top-title">${esc(title)}</div>
-      <div class="v7-top-end">${api.renderProfileNavBtn()}</div>
-    </header>`;
     return `<header class="topbar v7-top" role="banner">
       <h1 class="sr-only">${esc(title || api.brand)}</h1>
       ${back
@@ -64,16 +55,26 @@ export function createV7(api) {
     </header>`;
   }
 
+  /** What a bottom-bar tap does: scroll up on the page you're on, else go there. */
+  function navGo(id, cur) {
+    const up = "window.scrollTo({top:0,behavior:'smooth'})";
+    if (id === 'analytics') return cur === 'analytics' || cur === 'solar' ? up : "state._an_from=null;anTab(state._an_tab||'bill')";
+    return cur === id ? up : `setScreen('${id}')`;
+  }
+
   function nav() {
     const cur = S().current_screen;
     const active = (V7_SURFACES.find((s) => s.screens.includes(cur)) || {}).id;
     return `${api.renderConsentBar()}<nav class="bottom-nav v7-nav" role="navigation" aria-label="Sections">
-      ${V7_SURFACES.map((s) => `
+      ${V7_SURFACES.map((s) => {
+        const go = navGo(s.id, cur);
+        return `
         <button class="bottom-nav-item v7-nav-item ${active === s.id ? 'active' : ''}"
-          onclick="${cur === s.id ? 'window.scrollTo({top:0,behavior:\'smooth\'})' : `setScreen('${s.id}')`}" aria-current="${active === s.id ? 'page' : 'false'}">
+          onclick="${go}" aria-current="${active === s.id ? 'page' : 'false'}">
           <span class="nav-ico">${api.ic(s.icon, 22)}${s.id === 'me' && api.alertCount() ? `<i class="nav-badge" aria-label="${api.alertCount()} new alerts">${api.alertCount()}</i>` : ''}</span>
           <span class="nav-label">${s.label}</span>
-        </button>`).join('')}
+        </button>`;
+      }).join('')}
     </nav>`;
   }
 
@@ -95,22 +96,6 @@ export function createV7(api) {
     return `<button class="v7-home-chips" onclick="v7Sheet('home')" aria-label="My home — change">
       ${chips.map((c) => `<span class="v7-chip">${c}</span>`).join('')}
       <span class="v7-chip v7-chip-edit">${api.ic('tune', 14)} Edit</span>
-    </button>`;
-  }
-
-  /**
-   * The solar switch. Lives beside the inputs it changes — under the answer on
-   * Home, and at the top of Solar — so leaving solar out never means a trip
-   * back through setup.
-   */
-  function solarSwitch() {
-    const on = !!S().has_solar;
-    return `<button class="v7-switch-row" role="switch" aria-checked="${on}" onclick="toggleSolarModel()">
-      <span class="v7-switch-ico">${api.ic('sun', 18)}</span>
-      <span class="v7-switch-text"><b>Include solar</b><small>${on
-        ? `${api.totalPanels()} panels${S().battery_kwh > 0 ? ` and a ${S().battery_kwh} kWh battery` : ''}`
-        : api.hasModelledSystem() ? 'Left out — your system is kept' : 'Not modelled — switch on to see if it pays off'}</small></span>
-      <span class="v7-switch ${on ? 'on' : ''}" aria-hidden="true"><i></i></span>
     </button>`;
   }
 
@@ -217,7 +202,7 @@ export function createV7(api) {
         ${(() => { let d = null; try { d = api.solarData(); } catch (e) {} const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
           return `<div class="v7-solar-ctl">${api.ic('sun', 18)}<span><b>Planned solar</b><small>${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}${d ? ` · ${eur(d.sysCost)} after grant` : ''}${pb ? ` · pays back in ${pb.toFixed(1)} yrs` : ''}</small></span>
           <button onclick="toggleSolarModel()">Leave out</button></div>`; })()}
-        <button class="hc-go" onclick="state._solar_from='result';setScreen('solar')">Solar analysis ${api.ic('chevR', 14)}</button>
+        <button class="hc-go" onclick="anTab('solar','result')">Solar analysis ${api.ic('chevR', 14)}</button>
       </div>`;
     }
 
@@ -232,13 +217,11 @@ export function createV7(api) {
      * it is ordered. Price changes and contract ends stay up front: they are
      * things to act on, not detail.
      */
-    const deep = !!st._home_deep;
-    const acc = api.modelAccuracy ? api.modelAccuracy().pct : null;
     const kwh = Math.round(api.annualKwh()).toLocaleString('en-IE');
     const basis = st._csv_imported ? `your smart-meter data · ${kwh} kWh a year`
       : st.usage_input_mode === 'kwh' ? `${kwh} kWh a year` : `your €${st.bimonthly_bill_eur} bill`;
     return `${topbar('')}
-    <div class="screen v7 v7-home ${deep ? 'is-deep' : 'is-simple'}">
+    <div class="screen v7 v7-home">
       <section class="v7-hero qr-hero">
         ${hero}
         <div class="v7-ladder-k">What you’d pay a year</div>
@@ -266,38 +249,44 @@ export function createV7(api) {
 
       ${homeCards(rec)}
 
-      <button class="v7-deep ${deep ? 'open' : ''}" aria-expanded="${deep}" onclick="state._home_deep=!state._home_deep;renderApp()">
-        <span class="v7-deep-top"><b>${api.ic('chart', 18)} Your analysis</b><span>${deep ? 'Hide' : 'Show'} ${api.ic(deep ? 'chevU' : 'chevD', 16)}</span></span>
-        <span class="v7-deep-stats">
-          <span><b>8,760</b><small>hours of your year modelled</small></span>
-          <span><b>${rec.ranked.length}</b><small>plans priced on your home</small></span>
-          ${acc ? `<span><b>±${acc}%</b><small>estimate accuracy</small></span>` : ''}
-        </span>
-      </button>
-
-      ${deep && acc ? (() => { const a = api.modelAccuracy(); return `<div class="v7-acc-why">${api.ic('info', 16)}<span><b>Why ±${acc}%?</b> ${a.tip ? `It allows for: ${esc(a.parts.filter((x) => x.err >= 2).map((x) => x.label.toLowerCase()).join('; '))}.` : 'This is as close as a model gets: it’s built on your real meter readings, and only the weather is left to vary.'}
-        ${a.tip ? `<button onclick="${a.tip.go}">${esc(a.tip.tip)} to tighten it ${api.ic('chevR', 14)}</button>` : ''}</span></div>`; })() : ''}
-      ${deep ? `
+      ${doors(rec)}
       ${withSolar && !pl ? `<div class="v7-full-ladder" hidden aria-hidden="true">${savingsLadder({ rungs: lad.rungs })}</div>` : ''}
-      <div class="qr-actions v7-links">
-        <a href="#" onclick="event.preventDefault();setScreen('plans')">See all ${rec.ranked.length} plans ranked for you</a>
-
-      </div>
-      <div class="v7-basis" aria-label="What these figures are worked out for">${homeChips({ withSolar: false })}</div>
-
-      <div class="v7-carousel" role="region" aria-label="Your year and your day">
-        ${api.renderBillShape(best)}
-        ${api.renderDayShape(best)}
-      </div>
-      ${tiles(rec)}
-      ${working(rec)}
-      <div class="v7-actions">
-        <button class="v7-action" onclick="reRunOnboarding()">${api.ic('rotate', 18)}<b>Re-run setup</b></button>
-        <button class="v7-action" onclick="copyShareUrl()">${api.ic('link', 18)}<b>Share analysis</b></button>
-      </div>` : ''}
-
     </div>
     ${nav()}`;
+  }
+
+  /**
+   * Why these figures? Four doors into Analytics, each carrying its own
+   * answer. "Your analysis" used to unfold a second page under the first;
+   * the depth now lives in Analytics, a tab per question, one tap away.
+   */
+  function doors(rec) {
+    const st = S();
+    let d = null;
+    try { d = api.analyticsData(); } catch (e) { d = null; }
+    const T = d && d.today;
+    let hours = 'your day';
+    if (T) {
+      if (api.isFlatPlan(d.plan)) hours = 'one price';
+      else if ((T.byBand.peak || 0) > 0) hours = `${pct(T.byBand.peak, T.energy)}% at peak`;
+      else hours = `${pct((T.kwhBand.night || 0) + (T.kwhBand.ev || 0), sum(Object.values(T.kwhBand)))}% at night`;
+    }
+    let solar = 'pay off?';
+    if (st.has_solar && api.totalPanels() > 0) {
+      try { const p = api.solarData().cur.payback; solar = p < 50 ? `${p.toFixed(1)} yrs` : 'no payback'; } catch (e) { solar = 'payback'; }
+    } else if (api.hasModelledSystem()) solar = 'left out';
+    const door = (t, icon, label, sub, aria) => `<button class="ax-door" onclick="anTab('${t}','result')" aria-label="${aria}">
+        <b>${api.ic(icon, 18)}${label}</b><small>${sub}</small></button>`;
+    const acc = api.modelAccuracy().pct;
+    return `<section class="ax-doors-wrap" aria-label="Why these figures?">
+      <div class="ax-doors-h"><b>Why these figures?</b><small>Every hour of your year, on all ${rec.ranked.length} plans</small></div>
+      <div class="ax-doors">
+        ${door('bill', 'euro', 'Bill', T ? eur(T.total) : 'in parts', `Bill: where the money goes${T ? `, ${eur(T.total)} a year` : ''}`)}
+        ${door('hours', 'clock', 'Hours', hours, `Hours: when you use it, ${hours}`)}
+        ${door('solar', 'sun', 'Solar', solar, `Solar: ${solar}`)}
+        ${door('accuracy', 'shield', 'Accuracy', `±${acc}%`, `Accuracy: within ±${acc}%`)}
+      </div>
+    </section>`;
   }
 
   /**
@@ -326,7 +315,7 @@ export function createV7(api) {
           <span><b>${eur(d ? d.npv : 0)}</b>over 20 years</span>
         </span>
         <span class="hc-sub">${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}</span>
-        <button class="hc-go" onclick="state._solar_from='result';setScreen('solar')">Solar analysis ${api.ic('chevR', 14)}</button>
+        <button class="hc-go" onclick="anTab('solar','result')">Solar analysis ${api.ic('chevR', 14)}</button>
       </section>`;
     }
     if (st.ev_active) {
@@ -337,7 +326,7 @@ export function createV7(api) {
         <span class="hc-k"><span>${api.ic('car', 16)} Your EV</span><i class="hc-tag ${st.ev_in_bill ? '' : 'is-plan'}">${st.ev_in_bill ? 'yours' : 'planned'}</i></span>
         <span class="hc-fig">${eur(ev ? ev.evElectricityCost : 0)}<small>a year to charge</small></span>
         <span class="hc-sub">${ev ? `${eur(ev.evVsPetrolNet)} less than petrol` : ''}${win ? ` · charge ${hhmm(win[0])}–${hhmm(win[1])}` : ''}</span>
-        <button class="hc-go" onclick="v7Sheet('ev')">Your EV in detail ${api.ic('chevR', 14)}</button>
+        <button class="hc-go" onclick="anTab('car','result')">Your EV in detail ${api.ic('chevR', 14)}</button>
       </section>`;
     }
     const invites = [];
@@ -346,56 +335,6 @@ export function createV7(api) {
       : `<button class="hc-invite" onclick="startSolarGuide()">${api.ic('sun', 18)}<span><b>Thinking about solar?</b>See if it pays off, in a few taps</span>${api.ic('chevR', 18)}</button>`);
     if (!st.ev_active) invites.push(`<button class="hc-invite" onclick="startEvGuide()">${api.ic('car', 18)}<span><b>Thinking about an EV?</b>What it would cost to charge here</span>${api.ic('chevR', 18)}</button>`);
     return out + invites.join('');
-  }
-
-  /** Doors to the other two questions, each carrying its own answer. */
-  function tiles(rec) {
-    const st = S();
-    const n = rec.ranked.length;
-    let health = null;
-    try { health = api.computeEnergyScore(rec.best, rec.baseCost); } catch (e) { health = null; }
-    const rank = rec.ranked.findIndex((r) => r.plan.id === st.baseline) + 1;
-    let solar = { big: 'Solar', sub: 'not modelled' };
-    if (st.has_solar && api.totalPanels() > 0) {
-      try {
-        const scen = api.computeSolarPaybackScenarios();
-        const s = st.ev_active ? scen.withEv : scen.withoutEv;
-        solar = { big: s.payback < 50 ? `${s.payback.toFixed(1)} yr` : '—', sub: 'payback' };
-      } catch (e) { /* the tile is a door; a failed estimate must not block the answer */ }
-    }
-    let ev = null;
-    if (st.ev_active) { try { ev = api.evEconomics(rec.best.plan.id); } catch (e) { ev = null; } }
-    if (ev && !(ev.evKwh > 0)) ev = null;  // an EV with no driving set has nothing to say
-    return `<div class="v7-tiles ${ev ? 'v7-tiles-4' : 'v7-tiles-3'}">
-      <button class="v7-tile" onclick="setScreen('plans')">
-        <span class="v7-tile-ico">${api.ic('plans', 18)}</span>
-        <span class="v7-tile-big">${n} plans</span>
-        <span class="v7-tile-sub">${rank > 0 ? `yours is #${rank}` : 'ranked for you'}</span>
-      </button>
-      <button class="v7-tile" onclick="setScreen('solar')">
-        <span class="v7-tile-ico">${api.ic('sun', 18)}</span>
-        <span class="v7-tile-big">${solar.big}</span>
-        <span class="v7-tile-sub">${solar.sub}</span>
-      </button>
-      ${health ? `<button class="v7-tile v7-tile-score" onclick="v7Sheet('score')" aria-label="Plan health ${health.overall} of 100">
-        ${scoreRing({ value: health.overall, size: 44 })}
-        <span class="v7-tile-big">Plan health</span>
-        <span class="v7-tile-sub">how well your plan fits</span>
-      </button>` : ''}
-      ${ev ? `<button class="v7-tile v7-tile-ev" onclick="v7Sheet('ev')">
-        <span class="v7-tile-ico">${api.ic('car', 18)}</span>
-        <span class="v7-tile-big">${eur(ev.evVsPetrolNet)}/yr</span>
-        <span class="v7-tile-sub">EV saves vs petrol</span>
-      </button>` : ''}
-    </div>
-    <div class="report-promo v7-report" onclick="openPdfReportModal()">
-      <div class="v7-report-ico">${api.ic('doc', 20)}</div>
-      <div>
-        <div class="v7-report-title">Your full report, as a PDF</div>
-        <div class="v7-report-sub">Ten typeset pages — your year, hour by hour</div>
-      </div>
-      <span class="v7-chev">${api.ic('chevR', 18)}</span>
-    </div>`;
   }
 
   /**
@@ -555,127 +494,565 @@ export function createV7(api) {
     try { return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' }); } catch (e) { return iso; }
   }
 
-  /* ------------------------------------------------------------ SOLAR */
+  /* -------------------------------------------------------- ANALYTICS */
 
   /**
-   * Solar answers one question — is it worth it — with the one shape that
-   * answers it: money over twenty years, crossing zero. The figures that used
-   * to stand in front of the curve now annotate it.
+   * Analytics: five questions, a tab each.
+   *
+   * The single long page this replaces carried eighteen headings and two day
+   * inspectors; a reader scrolled eight screens and still could not say what
+   * it was for. Each tab now asks one question at its head, answers it with
+   * one figure, and backs the figure with a few cards whose titles say what
+   * they found. Detail is folded, not dropped. Every figure is the engine's
+   * own: the tabs only choose which ones belong together.
    */
-  function solar() {
+  const AN_TABS = [
+    { id: 'bill', label: 'Bill', icon: 'euro', q: 'Where does your money go?',
+      sub: 'What you pay in a year, what it is made of, and what would change it.' },
+    { id: 'hours', label: 'Hours', icon: 'clock', q: 'When do you use it, and what does each hour cost?',
+      sub: 'Your typical day, the price of every hour, and any day of the year.' },
+    { id: 'solar', label: 'Solar', icon: 'sun', q: 'Would the panels pay off, and how?', sub: '' },
+    { id: 'car', label: 'Car', icon: 'car', q: 'What does the car cost to run here?',
+      sub: 'Charging, the hours that make it cheap, and the plans that suit it.' },
+    { id: 'accuracy', label: 'Accuracy', icon: 'shield', q: 'How sure are these figures?',
+      sub: 'What every figure is built on, what is assumed, and how to make it sharper.' },
+  ];
+  /** Cheapest to dearest, so a stacked bar reads like the rates do. */
+  const BAND_ORDER = ['ev', 'night', 'wfh', 'day', 'peak'];
+  const BAND_NAME = { ev: 'EV window', night: 'Night', wfh: 'Work from home', day: 'Day', peak: 'Peak' };
+  const RATE_NAME = { ev: 'the EV rate', night: 'the night rate', wfh: 'the work-from-home rate', day: 'the day rate', peak: 'the peak rate' };
+  const DIM = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const pct = (a, b) => (b > 0 ? Math.round((a / b) * 100) : 0);
+  const sum = (a) => a.reduce((x, y) => x + y, 0);
+
+  /** A day's money, to the cent; a day the panels earn more than it buys says so. */
+  const dayMoney = (v) => (v < 0 ? `€${(-v).toFixed(2)} earned` : `€${v.toFixed(2)}`);
+
+  /** "21 December", for a day of the model's year. */
+  function dayName(idx) {
+    let d = Math.max(0, Math.min(364, Math.round(idx || 0)));
+    let m = 0;
+    while (d >= DIM[m]) { d -= DIM[m]; m += 1; }
+    return `${d + 1} ${MONTH[m]}`;
+  }
+
+  /** The weekday hours a band covers, as "08:00–17:00, 19:00–23:00". */
+  function bandHours(plan, band) {
+    const on = Array.from({ length: 24 }, (_, h) => api.bandAt(h, plan) === band);
+    if (on.every(Boolean)) return 'all day';
+    const runs = [];
+    for (let h = 0; h < 24; h++) {
+      if (!on[h] || on[(h + 23) % 24]) continue;
+      let k = 1;
+      while (k < 24 && on[(h + k) % 24]) k += 1;
+      runs.push(`${hhmm(h)}–${hhmm((h + k) % 24)}`);
+    }
+    return runs.join(', ');
+  }
+
+  /** The bands in a breakdown, cheapest first, then anything unexpected. */
+  const bandKeys = (o) => [...BAND_ORDER.filter((b) => (o[b] || 0) > 0.5),
+    ...Object.keys(o).filter((b) => !BAND_ORDER.includes(b) && (o[b] || 0) > 0.5)];
+  const bandToken = (b) => (BAND_ORDER.includes(b) ? `--bandink-${b}` : '--bandink-day');
+
+  /** The header: where you came from, and the five questions, sticky together. */
+  function anTop(tab) {
     const st = S();
-    const hasSystem = st.has_solar && api.totalPanels() > 0;
-    const d = api.solarData();
-    const { scen, cur, sysCost, npv, range, view, best, baseCost } = d;
-    const pb = view === 'realistic'
-      ? cur.payback
-      : (range && range[view] ? range[view].payback : cur.payback);
-    const benefit = view === 'realistic' ? cur.solarBenefit : (range && range[view] ? range[view].solarBenefit : cur.solarBenefit);
+    const tabs = AN_TABS.filter((t) => t.id !== 'car' || st.ev_active);
+    return `<header class="topbar v7-top v7-top-sub ax-top" role="banner">
+      ${st._an_from === 'result'
+        ? `<button class="v7-home-back" onclick="state._an_from=null;setScreen('result')" aria-label="Back to Home">${api.ic('chevL', 18)} Home</button>`
+        : `<span class="v7-brand v7-brand-static" aria-hidden="true">${api.ic('chart', 18)}</span>`}
+      <div class="v7-top-title">Analytics</div>
+      <div class="v7-top-end">${api.renderProfileNavBtn()}</div>
+      <nav class="ax-tabs" aria-label="Analytics">
+        ${tabs.map((t) => `<button class="ax-tab ${t.id === tab ? 'on' : ''}" ${t.id === tab ? 'aria-current="page"' : ''} onclick="anTab('${t.id}')">${api.ic(t.icon, 18)}<span>${t.label}</span></button>`).join('')}
+      </nav>
+    </header>`;
+  }
+
+  function anHead(tab, sub, q) {
+    const t = AN_TABS.find((x) => x.id === tab);
+    const s = sub ?? t.sub;
+    return `<div class="ax-q"><h1 class="ax-h">${esc(q || t.q)}</h1>${s ? `<p class="ax-sub">${s}</p>` : ''}</div>`;
+  }
+
+  function anAnswer({ k, big, unit = '', line = '', extra = '' }) {
+    return `<section class="ax-ans">
+      <div class="ax-ans-k">${k}</div>
+      <div class="ax-big qr-value"><span>${big}</span>${unit ? `<span class="ax-unit">${unit}</span>` : ''}</div>
+      ${line ? `<div class="ax-line">${line}</div>` : ''}
+      ${extra}
+    </section>`;
+  }
+
+  const anCard = (title, body, cls = '') => `<section class="ax-card ${cls}"><h2 class="ax-t">${title}</h2>${body}</section>`;
+  const note = (t) => (t ? `<p class="ax-note">${t}</p>` : '');
+
+  /** One bar split into parts: a share of a whole. */
+  function stack(parts, label) {
+    const tot = sum(parts.map((p) => Math.max(0, p.v))) || 1;
+    return `<div class="ax-stack" role="img" aria-label="${esc(label)}">${parts.filter((p) => p.v > 0).map((p) =>
+      `<i style="flex-grow:${(p.v / tot).toFixed(4)};background:var(${p.token})" title="${esc(p.tip || p.label)}"></i>`).join('')}</div>`;
+  }
+  function rows(parts) {
+    return `<div class="ax-rows">${parts.map((p) => `<div class="ax-row">
+        <i class="ax-sw" style="background:var(${p.token})"></i>
+        <span class="ax-row-l"><b>${p.label}</b>${p.sub ? `<small>${p.sub}</small>` : ''}</span>
+        <span class="ax-row-v"><b>${p.val}</b>${p.p ? `<small>${p.p}</small>` : ''}</span>
+      </div>`).join('')}</div>`;
+  }
+  /** Columns from a baseline: a month, or an hour. */
+  function vbars(items, { height = 110, label = '' } = {}) {
+    const max = Math.max(0.0001, ...items.map((x) => x.v));
+    return `<div class="ax-vbars" style="height:${height}px" role="img" aria-label="${esc(label)}">${items.map((x) =>
+      `<i style="height:${(x.v > 0 ? Math.max(3, (x.v / max) * 100) : 0).toFixed(1)}%;background:var(${x.token})" title="${esc(x.tip)}"></i>`).join('')}</div>`;
+  }
+  const axis = (labels) => `<div class="ax-axis" aria-hidden="true">${labels.map((l) => `<span>${l}</span>`).join('')}</div>`;
+  const hourAxis = () => axis(Array.from({ length: 24 }, (_, h) => (h % 6 === 0 ? String(h).padStart(2, '0') : '')));
+  /** Two or three things side by side, longest bar = most. */
+  function hbars(list) {
+    const max = Math.max(0.0001, ...list.map((r) => r.v));
+    return list.map((r) => `<div class="ax-hbar">
+        <div class="ax-hbar-k"><span>${r.name}</span><b>${r.val}</b></div>
+        <div class="ax-hbar-t"><i style="width:${Math.max(2, (r.v / max) * 100).toFixed(1)}%;background:var(${r.token})"></i></div>
+      </div>`).join('');
+  }
+  const cta = (label, go, cls = 'switch-cta v7-cta') => `<button class="${cls} ax-cta" onclick="${go}">${label} ${api.ic('chevR', 18)}</button>`;
+  const cta2 = (label, go, icon = '') => `<button class="v7-cta-2 v7-cta-alt ax-cta2" onclick="${go}">${icon ? `${api.ic(icon, 16)} ` : ''}${label}</button>`;
+
+  function analytics(tab) {
+    const st = S();
+    let t = tab || st._an_tab || 'bill';
+    if (!tab && t === 'solar') t = 'bill';
+    if (t === 'car' && !st.ev_active) t = 'bill';
+    if (!AN_TABS.some((x) => x.id === t)) t = 'bill';
+    let body;
+    try {
+      const d = t === 'car' ? null : api.analyticsData();
+      body = t === 'bill' ? anBill(d) : t === 'hours' ? anHours(d) : t === 'solar' ? anSolar(d)
+        : t === 'car' ? anCar() : anAccuracy(d);
+    } catch (e) {
+      console.error('[analytics]', e);
+      body = `${anHead(t)}${note('This part could not be worked out just now. Try again in a moment.')}`;
+    }
+    return `${anTop(t)}
+    <div class="screen v7 ax ax-${t}${t === 'solar' ? ' v7-solar' : ''}" data-tab="${t}">${body}</div>
+    ${nav()}`;
+  }
+
+  /* --- Bill: where does your money go? --- */
+  function anBill(d) {
+    const st = S();
+    const T = d.today;
+    const plan = d.plan;
+    const planned = d.sys && !d.installed;
+    const flat = api.isFlatPlan(plan);
+    const fixed = T.standing + T.pso;
+    const gross = T.energy + T.outlook + fixed;
+    const bands = flat
+      ? [{ key: 'day', label: 'Electricity', sub: `${api.fmtCent(plan.rates.day)} a kWh, every hour`, v: T.energy, token: '--bandink-day' }]
+      : bandKeys(T.byBand).map((b) => ({ key: b, label: BAND_NAME[b] || b,
+        sub: [bandHours(plan, b), `${api.fmtCent(plan.rates[b] ?? plan.rates.day)} a kWh`].filter(Boolean).join(' · '),
+        v: T.byBand[b], token: bandToken(b) }));
+    if (T.outlook > 0.5) bands.push({ key: 'rise', label: 'Price rise already announced', sub: 'For the months it applies', v: T.outlook, token: '--amber' });
+    const parts = [...bands, { key: 'fixed', label: 'Fixed charges', sub: `Standing charge ${eur(T.standing)}, PSO levy ${eur(T.pso)}`, v: fixed, token: '--ax-fixed' }]
+      .map((p) => ({ ...p, val: eur(p.v), p: `${pct(p.v, gross)}%`, tip: `${p.label}: ${eur(p.v)} a year` }));
+    const big = parts.slice().sort((a, b) => b.v - a.v)[0];
+    const partsTitle = big.key === 'fixed' ? `Fixed charges are the biggest part: ${big.p}`
+      : flat || big.key === 'rise' ? `Electricity is ${pct(T.energy, gross)}% of it; fixed charges the rest`
+        : `Electricity at ${RATE_NAME[big.key] || big.label} is the biggest part: ${big.p}`;
+    const credit = d.installed && T.credit > 0.5 ? `<div class="ax-row ax-row-credit"><i class="ax-sw" style="background:var(--ax-sold)"></i>
+        <span class="ax-row-l"><b>Paid for what you sell back</b><small>Export payments, taken off the bill</small></span>
+        <span class="ax-row-v"><b class="is-gain">−${eur(T.credit)}</b></span></div>` : '';
+
+    const mo = T.month;
+    const hiI = mo.indexOf(Math.max(...mo));
+    const loI = mo.indexOf(Math.min(...mo));
+    const r = mo[loI] > 0 ? mo[hiI] / mo[loI] : Infinity;
+    const monthTitle = mo[loI] <= 0 ? `${MONTH[hiI]} costs the most; in ${MONTH[loI]} the panels earn more than you buy`
+      : r >= 1.5 ? `${MONTH[hiI]} costs ${r.toFixed(1)} times what ${MONTH[loI]} does`
+        : r >= 1.1 ? `${MONTH[hiI]} costs ${Math.round((r - 1) * 100)}% more than ${MONTH[loI]}` : 'Every month costs about the same';
+
+    const ch = d.cheaper;
+    const n = api.getRecommendation().ranked.length;
+    const diff = T.total - ch.net;
+    const as = planned ? 'as it is today, before the panels' : d.installed ? 'with its panels' : 'as it is';
+    let cheap;
+    if (ch.plan.id === plan.id) {
+      cheap = anCard('You’re already on the cheapest plan for this home', note(`Checked against all ${n} plans, for this home ${as}.`));
+    } else if (diff < 0) {
+      // A withdrawn rate can beat everything on sale. Say so, or it reads as a bug.
+      cheap = anCard('Nothing on sale today beats your plan',
+        note(`It costs ${eur(-diff)} a year less than the cheapest plan on sale, ${esc(ch.plan.supplier)} ${esc(ch.plan.plan)}. If it is a rate no longer offered, keep it while you can.`));
+    } else if (diff < 5) {
+      cheap = anCard('Nothing on the market costs much less', note(`The cheapest of ${n} plans, ${esc(ch.plan.supplier)} ${esc(ch.plan.plan)}, saves under €5 a year for this home ${as}.`));
+    } else {
+      const dE = T.energy - ch.energy;
+      const dS = ch.standing - T.standing;
+      const dC = ch.credit - T.credit;
+      cheap = anCard(`${esc(ch.plan.supplier)} would cost ${eur(diff)} less a year`,
+        hbars([
+          { name: `You now: ${esc(plan.supplier)}`, val: eur(T.total), v: T.total, token: '--bandink-day' },
+          { name: `${esc(ch.plan.supplier)} ${esc(ch.plan.plan)}`, val: eur(ch.net), v: ch.net, token: '--accent' },
+        ])
+        + note(`Its electricity costs ${eur(Math.abs(dE))} ${dE >= 0 ? 'less' : 'more'}; its standing charge is ${eur(Math.abs(dS))} ${dS >= 0 ? 'more' : 'less'}.${d.installed && Math.abs(dC) >= 5 ? ` It pays ${eur(Math.abs(dC))} ${dC >= 0 ? 'more' : 'less'} for what you sell.` : ''}${ch.outlook > 5 ? ' That includes a price rise it has already announced.' : ''} The cheapest of ${n} plans for this home ${as}.`));
+    }
+
+    let health = null;
+    try { const rec = api.getRecommendation(); health = api.computeEnergyScore(rec.best, rec.baseCost); } catch (e) { health = null; }
+    return `${anHead('bill')}
+      ${anAnswer({
+        k: planned ? 'You pay today, before the planned panels' : d.installed ? 'You pay, with your panels' : 'You pay',
+        big: eur(T.total), unit: 'a year',
+        line: `On ${esc(plan.supplier)} ${esc(plan.plan)}${st.baseline_known ? '' : ' (our guess at your plan)'}, for ${kwh(T.kwh)}. That is ${api.fmtCent(T.total / Math.max(1, T.kwh))} for every kWh you use, fixed charges included.`,
+      })}
+      ${anCard(partsTitle, `${stack(parts, parts.map((p) => `${p.label} ${p.val}`).join(', '))}${rows(parts)}${credit}`)}
+      ${anCard(monthTitle, `${vbars(mo.map((v, i) => ({ v: Math.max(0, v), token: '--accent', tip: `${MONTH[i]}: ${v < 0 ? `${eur(-v)} credit` : eur(v)}` })),
+        { label: `Electricity cost by month, from ${eur(mo[loI])} to ${eur(mo[hiI])}` })}${axis(MONTH.map((m) => m[0]))}
+        ${note(`Electricity${d.installed ? ', less export payments' : ''}, month by month. Fixed charges add ${eur(fixed / 12)} a month on top.`)}`)}
+      ${cheap}
+      ${health ? `<button class="ax-link-row ax-health" onclick="v7Sheet('score')" aria-label="Plan health ${health.overall} of 100">
+        ${scoreRing({ value: health.overall, size: 44 })}
+        <span><b>Plan health: ${health.overall} of 100</b><small>How well your plan fits this home, and what would raise it</small></span>
+        ${api.ic('chevR', 18)}
+      </button>` : ''}
+      ${cta('Compare every plan, priced for your home', "setScreen('plans')")}`;
+  }
+
+  /* --- Hours: when do you use it, and what does each hour cost? --- */
+  function anHours(d) {
+    const st = S();
+    const T = d.today;
+    const plan = d.plan;
+    const flat = api.isFlatPlan(plan);
+    const bought = d.installed;  // with panels, the bill follows what is bought, not what is used
+    const hrs = bought ? T.hourImp : T.hourUse;
+    const bands24 = Array.from({ length: 24 }, (_, h) => api.bandAt(h, plan));
+    const rate = (b) => plan.rates[b] ?? plan.rates.day;
+    const present = [...new Set(bands24)];
+    const cheapB = present.slice().sort((a, b) => rate(a) - rate(b))[0];
+    const dearB = present.slice().sort((a, b) => rate(b) - rate(a))[0];
+    const kTot = sum(Object.values(T.kwhBand));
+    const nightShare = pct(sum([23, 0, 1, 2, 3, 4, 5, 6, 7].map((h) => hrs[h])), sum(hrs));
+
+    let ans;
+    if (flat) {
+      ans = { k: 'One price, every hour', big: api.fmtCent(plan.rates.day), unit: 'a kWh, all day',
+        line: `On a flat plan, when you use it does not change the bill. ${nightShare}% of your use already falls between 23:00 and 08:00, the hours night-rate plans sell cheaper.` };
+    } else if (dearB === 'peak' && (T.byBand.peak || 0) > 0) {
+      ans = { k: `At peak, ${bandHours(plan, 'peak')}`, big: `${pct(T.byBand.peak, T.energy)}%`, unit: 'of your electricity spend',
+        line: `Peak costs ${api.fmtCent(rate('peak'))} a kWh, ${BAND_NAME[cheapB].toLowerCase()} ${api.fmtCent(rate(cheapB))}. Each kWh moved from peak to ${cheapB === 'ev' ? 'the EV window' : BAND_NAME[cheapB].toLowerCase()} saves ${api.fmtCent(rate('peak') - rate(cheapB))}.` };
+    } else {
+      ans = { k: `At ${RATE_NAME[cheapB] || 'the cheap rate'}, ${bandHours(plan, cheapB)}`, big: `${pct(T.kwhBand[cheapB] || 0, kTot)}%`, unit: `of what you ${bought ? 'buy' : 'use'}`,
+        line: `${BAND_NAME[cheapB]} costs ${api.fmtCent(rate(cheapB))} a kWh, ${BAND_NAME[dearB].toLowerCase()} ${api.fmtCent(rate(dearB))}. Each kWh moved into the cheap hours saves ${api.fmtCent(rate(dearB) - rate(cheapB))}.` };
+    }
+    ans.extra = st._csv_imported ? '' : `<div class="ax-est">${api.ic('info', 14)} Estimated from your ${st.usage_input_mode === 'kwh' ? 'yearly kWh' : 'bill'}: the hours of a typical home like yours</div>`;
+
+    // The average day.
+    const max = Math.max(...hrs);
+    const top = hrs.indexOf(max);
+    let a = top, b = top;
+    while (a > 0 && hrs[a - 1] >= max * 0.8) a -= 1;
+    while (b < 23 && hrs[b + 1] >= max * 0.8) b += 1;
+    const span = `${hhmm(a)}–${hhmm(b + 1)}`;
+    const dayTitle = `${bought ? 'You buy most' : a === b ? 'Your biggest hour is' : 'Your biggest hours are'} ${bought ? 'at ' : ''}${span}${flat ? '' : `, at ${RATE_NAME[bands24[top]] || 'its rate'}`}`;
+    const why = [];
+    if (st.ev_active && (bands24[top] === 'night' || bands24[top] === 'ev')) why.push('the car charging');
+    if (st.hot_water_strategy === 'smart' && top >= 2 && top <= 4) why.push('the water heating in the cheap hours (smart hot-water timing is on)');
+    const legend = present.sort((x, y) => BAND_ORDER.indexOf(x) - BAND_ORDER.indexOf(y))
+      .map((x) => `<span><i class="v7-dot" style="background:var(${flat ? '--bandink-day' : bandToken(x)})"></i>${flat ? 'Every hour' : BAND_NAME[x] || x} ${api.fmtCent(rate(x))}</span>`).join('');
+    const avg = anCard(dayTitle, `${vbars(hrs.map((v, h) => ({ v, token: flat ? '--bandink-day' : bandToken(bands24[h]),
+      tip: `${hhmm(h)} · ${v.toFixed(2)} kWh on an average day · ${BAND_NAME[bands24[h]] || bands24[h]} rate` })),
+    { label: `${bought ? 'Bought' : 'Used'} by hour on an average day, most at ${hhmm(top)}` })}${hourAxis()}
+      <div class="v7-legend">${legend}</div>${why.length ? note(`That is ${why.join(', and ')}.`) : ''}`);
+
+    // The rates it is bought at.
+    let ratesCard = '';
+    if (!flat && kTot > 0) {
+      const ks = bandKeys(T.kwhBand);
+      const list = ks.map((x) => ({ label: BAND_NAME[x] || x, sub: `${api.fmtCent(rate(x))} a kWh`, v: T.kwhBand[x], token: bandToken(x),
+        val: kwh(T.kwhBand[x]), p: `${pct(T.kwhBand[x], kTot)}%`, tip: `${BAND_NAME[x] || x}: ${pct(T.kwhBand[x], kTot)}%` }));
+      const cs = pct(T.kwhBand[cheapB] || 0, kTot);
+      ratesCard = anCard(`${cs}% of what you ${bought ? 'buy' : 'use'} is ${cs >= 30 ? 'already ' : ''}at ${RATE_NAME[cheapB] || 'the cheapest rate'}`,
+        `${stack(list, list.map((x) => `${x.label} ${x.p}`).join(', '))}${rows(list)}`);
+    }
+
+    // Any day of the year.
+    const day = st._an_day ?? 354;
+    const one = api.analyticsDay(day);
+    const oh = one.hours.map((x) => (bought ? x.imp : x.use));
+    const dCost = sum(one.hours.map((x) => x.cost));
+    const chip = (label, idx) => `<button class="ax-chip ${idx === one.day ? 'on' : ''}" aria-pressed="${idx === one.day}" onclick="setAnalyticsDay(${idx})">${label}</button>`;
+    const open = !!st._an_day_open;
+    const anyDay = anCard('Any day of the year', `
+      <div class="ax-chips">${chip('21 June', 171)}${chip('21 December', 354)}</div>
+      <label class="ax-range"><span>Or pick a day: <b>${dayName(one.day)}</b></span>
+        <input type="range" min="0" max="364" value="${one.day}" onchange="setAnalyticsDay(+this.value)" aria-label="Day of the year"></label>
+      ${vbars(oh.map((v, h) => ({ v, token: flat ? '--bandink-day' : bandToken(one.hours[h].band),
+        tip: `${hhmm(h)} · ${v.toFixed(2)} kWh · ${api.fmtCent(one.hours[h].rate)}` })), { height: 96, label: `${bought ? 'Bought' : 'Used'} by hour on ${dayName(one.day)}` })}${hourAxis()}
+      <div class="ax-fact">${dayName(one.day)}: ${sum(oh).toFixed(1)} kWh ${bought ? 'bought' : 'used'}, ${dCost >= 0 ? `${dayMoney(dCost)} of electricity` : dayMoney(dCost)}</div>
+      <p class="ax-note">Dearest day: <button class="ax-inline" onclick="setAnalyticsDay(${T.dearest.day})">${dayName(T.dearest.day)}, ${dayMoney(T.dearest.cost)}</button>.
+        Cheapest: <button class="ax-inline" onclick="setAnalyticsDay(${T.cheapest.day})">${dayName(T.cheapest.day)}, ${dayMoney(T.cheapest.cost)}</button>. ${bought ? 'Electricity less export payments.' : 'Electricity only.'}</p>
+      <button class="ax-more ax-more-in ${open ? 'open' : ''}" aria-expanded="${open}" onclick="state._an_day_open=!state._an_day_open;saveState();renderApp()">
+        <span><b>Every hour of ${dayName(one.day)}</b><small>The rate, the cost${bought ? ', and the solar and battery' : ''}, hour by hour</small></span>
+        <span class="ax-more-s">${open ? 'Hide' : 'Show'} ${api.ic(open ? 'chevU' : 'chevD', 16)}</span>
+      </button>
+      ${open ? dayDetail(one, bought) : ''}`);
+
+    return `${anHead('hours')}
+      ${anAnswer(ans)}
+      ${avg}
+      ${ratesCard}
+      ${anyDay}
+      ${st._csv_imported ? cta('Plans that suit these hours', "setScreen('plans')") : cta('Upload your meter file for your real hours', "v7Sheet('meter')")}`;
+  }
+
+  /** One day, every hour: the rate it was bought at and what it cost, and with panels what they did. */
+  function dayDetail(one, bought) {
+    const H = one.hours;
+    const maxC = Math.max(0.0001, ...H.map((x) => Math.abs(x.cost)));
+    const solar = bought && sum(H.map((x) => x.gen)) > 0.05;
+    const ch = sum(H.map((x) => x.ch));
+    const dis = sum(H.map((x) => x.dis));
+    const runs = (key) => {
+      const on = H.map((x) => x[key] > 0.05);
+      const out = [];
+      for (let h = 0; h < 24; h++) {
+        if (!on[h] || (h > 0 && on[h - 1])) continue;
+        let k = h;
+        while (k < 23 && on[k + 1]) k += 1;
+        out.push(`${hhmm(h)}–${hhmm(k + 1)}`);
+      }
+      return out.slice(0, 3).join(', ');
+    };
+    return `<div class="ax-day">
+      <div class="ax-day-k">The rate, hour by hour</div>
+      ${rateStrip({ bands: H.map((x) => x.band), rates: H.reduce((o, x) => ({ ...o, [x.band]: x.rate }), {}), height: 18 })}
+      ${hourAxis()}
+      <div class="ax-day-k">What each hour cost</div>
+      <div class="ax-vbars ax-cost" style="height:72px" role="img" aria-label="Cost by hour on ${dayName(one.day)}">${H.map((x) =>
+        `<i class="${x.cost < 0 ? 'is-credit' : ''}" style="height:${Math.max(x.cost ? 3 : 0, (Math.abs(x.cost) / maxC) * 100).toFixed(1)}%" title="${hhmm(x.h)} · ${x.cost < 0 ? 'earned' : 'cost'} €${Math.abs(x.cost).toFixed(2)}"></i>`).join('')}</div>
+      ${hourAxis()}
+      ${solar ? `<div class="ax-day-k">Made by the panels, used by the home</div>
+        ${dayProfile({ hours: H.map((x) => ({ cons: x.use, gen: x.gen, imp: x.imp, band: x.band })), height: 110 })}
+        <p class="ax-note">Made ${sum(H.map((x) => x.gen)).toFixed(1)} kWh, sold ${sum(H.map((x) => x.exp)).toFixed(1)} kWh, bought ${sum(H.map((x) => x.imp)).toFixed(1)} kWh.</p>` : ''}
+      ${bought && (ch > 0.05 || dis > 0.05) ? `<p class="ax-note">${api.ic('battery', 14)} The battery took in ${ch.toFixed(1)} kWh${runs('ch') ? ` (${runs('ch')})` : ''} and gave back ${dis.toFixed(1)} kWh${runs('dis') ? ` (${runs('dis')})` : ''}.</p>` : ''}
+    </div>`;
+  }
+
+  /* --- Solar: would the panels pay off, and how? --- */
+  function anSolar(d) {
+    const st = S();
+    if (!d.sys) {
+      if (api.hasModelledSystem()) {
+        return `${anHead('solar', '')}
+        <section class="ax-ans v7-solar-hero">
+          <div class="ax-ans-k">${api.ic('sun', 16)} Solar is switched off</div>
+          <div class="ax-line">Your ${st.solar_planned ? 'planned ' : ''}system (${api.totalPanels()} panels${st._kept_battery ? `, ${st._kept_battery} kWh battery` : ''}) is kept, but left out of every figure.</div>
+        </section>
+        ${cta(`Switch solar back on`, 'toggleSolarModel()')}`;
+      }
+      return `<div class="ax-q"><h1 class="ax-h">Would solar pay off here?</h1>
+          <p class="ax-sub">Four quick questions, about a minute. Nothing changes on your Home unless you keep the answer.</p></div>
+        <section class="ax-card v7-invite">
+          <h2 class="ax-t">What you’ll see</h2>
+          <ol class="ax-steps">
+            <li>Years to pay for itself, with the SEAI grant counted</li>
+            <li>Month by month: what the panels make against what you use</li>
+            <li>Where the solar goes: used at home or sold</li>
+            <li>A summer and a winter day, every hour of it</li>
+            <li>The best plan once the panels are in</li>
+          </ol>
+        </section>
+        ${cta('Estimate it for my roof', 'startSolarGuide()')}
+        <button class="v7-cta-2 v7-cta-alt ax-cta2 v7-quote-tile" onclick="v7Sheet('quote')">${api.ic('clip', 16)} I already have a quote</button>`;
+    }
+    const planned = st.solar_planned || st.solar_is_estimate;
+    const sd = api.solarData();
+    const { cur, sysCost, view, best } = sd;
+    const range = api.solarRange();
+    const pick = (v) => (v === 'realistic' ? cur : (range && range[v]) || (sd.range && sd.range[v]) || null);
+    const shown = pick(view) || cur;
+    const pb = shown.payback;
+    const benefit = shown.solarBenefit;
+    const wx = [['pessimist', 'Poor year'], ['realistic', 'Typical'], ['optimist', 'Good year']].map(([k, l]) => {
+      const s = pick(k);
+      return `<button class="ax-wx-b wx-range-btn ${view === k ? 'on active' : ''}" aria-pressed="${view === k}" ${s ? '' : 'aria-busy="true"'} onclick="state._scenario_view='${k}';renderApp()">
+        <span>${l}</span><b>${s ? (s.payback < 50 ? `${s.payback.toFixed(1)} yrs` : 'never') : '…'}</b></button>`;
+    }).join('');
+    const sys = `${api.totalPanels()} panels${st.battery_kwh > 0 ? ` and a ${st.battery_kwh} kWh battery` : ''}`;
+    const sub = st.solar_is_estimate ? `An estimated system for your home: ${sys}.` : st.solar_planned ? `The system you are planning: ${sys}.` : `Your system: ${sys}.`;
+
+    // Money over twenty years, in today's euros.
     const curve = [-sysCost];
     const deg = st.panel_degradation || 0.005;
     for (let y = 1; y <= 20; y++) {
-      const disc = benefit * Math.pow(1 - deg, y - 1) / Math.pow(1.03, y);
-      const batt = st.battery_kwh > 0 && y === 12 ? -400 * st.battery_kwh / Math.pow(1.03, 12) : 0;
+      const disc = (benefit * Math.pow(1 - deg, y - 1)) / Math.pow(1.03, y);
+      const batt = st.battery_kwh > 0 && y === 12 ? (-400 * st.battery_kwh) / Math.pow(1.03, 12) : 0;
       curve.push(curve[y - 1] + disc + batt);
     }
+    const clear = curve.findIndex((v) => v >= 0);
+    const end = curve[20];
+    const curveTitle = clear > 0 && end >= 0 ? `In today’s money, clear in year ${clear} and ${eur(end)} ahead after 20 years`
+      : `In today’s money, still ${eur(-end)} short after 20 years`;
 
-    const hero = hasSystem ? `<section class="v7-hero v7-solar-hero">
-        <div class="v7-eyebrow">${st.solar_planned ? 'The system you are planning' : st.solar_is_estimate ? 'An estimated system for your home' : 'Your system'}</div>
-        <div class="v7-figure qr-value">${pb < 50 ? pb.toFixed(1) : '—'}<span class="v7-figure-unit">yr payback</span></div>
-        <div class="v7-headline">${eur(benefit)} a year back on ${eur(sysCost)} after the grant · 20-year value <b class="${npv >= 0 ? 'is-gain' : 'is-loss'}">${eur(npv)}</b></div>
+    const m = api.monthlyTotals(best);
+    const over = m.gen.map((g, i) => (g > m.cons[i] ? i : -1)).filter((i) => i >= 0);
+    const run = over.length && over[over.length - 1] - over[0] === over.length - 1;
+    const monthsTitle = !over.length ? 'The home uses more than the panels make, every month'
+      : over.length === 1 ? `Only in ${MONTH[over[0]]} do the panels make more than the home uses`
+        : run ? `${MONTH[over[0]]} to ${MONTH[over[over.length - 1]]}, the panels make more than the home uses`
+          : `In ${over.length} months, the panels make more than the home uses`;
 
-        <div class="v7-seg v7-wx wx-range" role="tablist" aria-label="Weather year">
-          ${[['pessimist', 'Poor year'], ['realistic', 'Typical'], ['optimist', 'Good year']].map(([k, l]) => `
-            <button class="v7-seg-btn wx-range-btn ${view === k ? 'active on' : ''}" onclick="state._scenario_view='${k}';renderApp()">${l}</button>`).join('')}
-        </div>
-        <button class="v7-system" onclick="openMySystem()">
-          <span class="v7-chip">${api.totalPanels()} panels</span>
-          <span class="v7-chip">${st.battery_kwh > 0 ? `${st.battery_kwh} kWh battery` : 'no battery'}</span>
-          <span class="v7-chip">${st.ev_active ? 'with EV' : 'no EV'}</span>
-          <span class="v7-chip v7-chip-edit">${api.ic('tune', 14)} Change</span>
-        </button>
-        <button class="v7-acc-chip" onclick="openMySystem()">Estimate accuracy <b>±${api.modelAccuracy().pct}%</b>${api.modelAccuracy().tip ? ' · tighten it' : ''}</button>
-        <button class="v7-link" onclick="v7Sheet('quote')">${api.ic('clip', 14)} Model an installer's quote instead</button>
-      </section>`
-      : `<section class="v7-hero v7-solar-hero">
-        <div class="v7-eyebrow">${api.ic('sun', 16)} Solar is switched off</div>
-        <div class="v7-headline">${api.hasModelledSystem()
-          ? `Your system (${api.totalPanels()} panels${st.battery_kwh > 0 ? `, ${st.battery_kwh} kWh battery` : ''}) is kept, but left out of every figure.`
-          : 'No solar is modelled for this home, so every figure is without panels.'}</div>
-        ${api.hasModelledSystem()
-          ? `<button class="switch-cta v7-cta" onclick="toggleSolarModel()">Switch solar back on ${api.ic('sun', 18)}</button>`
-          : `<button class="switch-cta v7-cta" onclick="startSolarGuide()">Would solar pay off here? ${api.ic('chevR', 18)}</button>`}
-      </section>`;
+    const so = d.solar;
+    const goes = [
+      { label: `Used at home · ${pct(so.kept, so.gen)}%`, v: so.kept, token: '--ax-kept', val: kwh(so.kept), sub: `${pct(so.kept, so.cons)}% of what the home uses` },
+      { label: `Sold to the grid · ${pct(so.exp, so.gen)}%`, v: so.exp, token: '--ax-sold', val: kwh(so.exp), sub: `${eur(so.revenue)} a year in export payments` },
+    ];
+    if (so.curt > so.gen * 0.01) goes.push({ label: `Turned away · ${pct(so.curt, so.gen)}%`, v: so.curt, token: '--ax-fixed', val: kwh(so.curt), sub: 'More than the inverter or the export limit can pass' });
+    const battLine = so.battOut > 1 ? note(`${api.ic('battery', 14)} The battery hands back ${kwh(so.battOut)} a year${so.arbitrage ? ': afternoon solar, and cheap night power in winter' : ' of solar, in the evening'}.`) : '';
+    const more = !!st._solar_more;
+    const planName = `${esc(best.plan.supplier)} ${esc(best.plan.plan)}`;
+    const planLine = best.isChosen ? `Worked out on ${planName}, the plan you picked.`
+      : `Worked out on ${planName}, the best plan ${planned ? 'once the panels are in' : 'with your panels'}.`;
 
-    const months = hasSystem ? (() => {
-      const m = api.monthlyTotals(best);
-      return `<section class="v7-card v7-months-card" role="button" tabindex="0" onclick="v7OpenMonth(event)"
-          aria-label="Month by month — tap to go through each month">
-        <div class="v7-card-title">What the panels make, against what the home uses</div>
-        ${monthBars({ a: m.gen, b: m.cons })}
-        <div class="v7-legend"><span><i class="v7-dot" style="background:var(--accent)"></i>solar ${Math.round(m.gen.reduce((a, b) => a + b, 0)).toLocaleString('en-IE')} kWh</span>
-          <span><i class="v7-dot" style="background:var(--ink-dim)"></i>use ${Math.round(m.cons.reduce((a, b) => a + b, 0)).toLocaleString('en-IE')} kWh</span></div>
+    return `${anHead('solar', sub, planned ? '' : 'Are the panels paying off, and how?')}
+      ${anAnswer({
+        k: 'Pays for itself in',
+        big: pb < 50 ? pb.toFixed(1) : '—', unit: pb < 50 ? 'years' : 'never pays back',
+        extra: `<div class="ax-wx wx-range" role="group" aria-label="Weather year">${wx}</div>
+          <div class="ax-line">${eur(benefit)} a year back on ${eur(sysCost)} after grant (${eur(st.install_cost)} less a ${eur(st.grant_seai)} SEAI grant).</div>
+          <div class="ax-line ax-line-2">${planLine} <button class="ax-inline" onclick="openPlanPicker()">Use a different plan</button></div>
+          ${st.chosen_plan ? api.renderChoiceStrip() : ''}
+          <button class="v7-system" onclick="openMySystem()">
+            <span class="v7-chip">${api.totalPanels()} panels</span>
+            <span class="v7-chip">${st.battery_kwh > 0 ? `${st.battery_kwh} kWh battery` : 'no battery'}</span>
+            <span class="v7-chip v7-chip-edit">${api.ic('tune', 14)} Change</span>
+          </button>
+          ${st.solar_is_estimate ? `<p class="ax-note solar-correct">Sized from your usage. Already have panels, or a quote for a specific system? <button class="ax-inline" onclick="openMySystem()">Set the exact system</button></p>` : ''}`,
+      })}
+      ${anCard(curveTitle, `${paybackCurve({ cumulative: curve })}
+        ${note(`The ${pb < 50 ? pb.toFixed(1) : ''} years above count euros as they come in. This line counts them in today’s money, each later year worth 3% less, with the panels slowly wearing${st.battery_kwh > 0 ? ' and the battery replaced around year 12' : ''}.`)}`)}
+      <section class="ax-card v7-months-card" role="button" tabindex="0" onclick="v7OpenMonth(event)" aria-label="Month by month: tap to go through each month">
+        <h2 class="ax-t">${monthsTitle}</h2>
+        ${monthBars({ a: m.gen, b: m.cons, tokenA: '--ax-made', tokenB: '--bandink-day' })}
+        <div class="v7-legend"><span><i class="v7-dot" style="background:var(--ax-made)"></i>Made by the panels · ${kwh(sum(m.gen))}</span>
+          <span><i class="v7-dot" style="background:var(--bandink-day)"></i>Used by the home · ${kwh(sum(m.cons))}</span></div>
         <div class="v7-tap-hint">Tap a month to go through the year ${api.ic('chevR', 14)}</div>
-      </section>`;
-    })() : '';
-
-    // Without a system this tab is only about solar: the switch, the offer to
-    // model one, and a way to check a quote already in hand. The health score,
-    // the market and the plan choice are about the whole home and live there.
-    if (!hasSystem) {
-      // No system yet: an invitation, not a settings screen. Someone who only
-      // wants a cheaper plan never has to read about panels.
-      if (api.hasModelledSystem()) {
-        return `${topbar('Analytics', { home: S()._solar_from === 'result' })}
-        <div class="screen v7 v7-solar">${solarSwitch()}${hero}</div>${nav()}`;
-      }
-      return `${topbar('Analytics', { home: S()._solar_from === 'result' })}
-      <div class="screen v7 v7-solar">
-        <section class="v7-invite">
-          <div class="v7-eyebrow">Thinking about solar?</div>
-          <h2 class="v7-h">See if it pays off for your home, before anyone sells you a system.</h2>
-          <ul class="v7-invite-list">
-            <li>${api.ic('sun', 18)} Sized for your roof and your real usage</li>
-            <li>${api.ic('chart', 18)} Years to pay back, with the SEAI grant counted</li>
-            <li>${api.ic('battery', 18)} With or without a battery, on the plan that suits it</li>
-          </ul>
-          <button class="switch-cta v7-cta" onclick="startSolarGuide()">Estimate it for my roof ${api.ic('chevR', 18)}</button>
-          <button class="v7-cta-2 v7-cta-alt v7-quote-tile" onclick="v7Sheet('quote')">${api.ic('clip', 16)} I already have a quote</button>
-        </section>
-        <div class="v7-fine" style="text-align:center">Free, and nothing is shared with installers unless you ask for quotes.</div>
-      </div>
-      ${nav()}`;
-    }
-
-    return `${topbar('Analytics', { home: S()._solar_from === 'result' })}
-    <div class="screen v7 v7-solar">
-      ${solarSwitch()}
-      ${hero}
-      ${api.renderSolarBody('top')}
-      <button class="v7-deep ${st._solar_deep ? 'open' : ''}" aria-expanded="${!!st._solar_deep}" onclick="state._solar_deep=!state._solar_deep;renderApp()">
-        <span class="v7-deep-top"><b>${api.ic('chart', 18)} Your solar analysis</b><span>${st._solar_deep ? 'Hide' : 'Show'} ${api.ic(st._solar_deep ? 'chevU' : 'chevD', 16)}</span></span>
-        <span class="v7-deep-stats">
-          <span><b>12</b><small>months of panels against use</small></span>
-          <span><b>24h</b><small>summer and winter days</small></span>
-          <span><b>${pb < 50 ? pb.toFixed(1) : '—'}</b><small>years to pay back</small></span>
-        </span>
+      </section>
+      ${anCard(`${pct(so.kept, so.gen)}% used at home, ${pct(so.exp, so.gen)}% sold`, `${stack(goes, goes.map((g) => g.label).join(', '))}${rows(goes)}${battLine}`)}
+      <button class="ax-more ${more ? 'open' : ''}" aria-expanded="${more}" onclick="state._solar_more=!state._solar_more;saveState();renderApp()">
+        <span><b>More detail</b><small>A summer and a winter day · make it pay back faster</small></span>
+        <span class="ax-more-s">${more ? 'Hide' : 'Show'} ${api.ic(more ? 'chevU' : 'chevD', 16)}</span>
       </button>
-      ${st._solar_deep ? `
-      <section class="v7-card"><div class="v7-card-title">Paying it back, year by year</div>${paybackCurve({ cumulative: curve })}</section>
-      ${months}
-      ${api.renderSolarComparison()}
-      ${api.renderDayInspector()}
-      <button class="v7-tile v7-tile-wide" onclick="setScreen('analytics')">
-        <span class="v7-tile-ico">${api.ic('chart', 18)}</span>
-        <span class="v7-tile-big">Hour by hour</span>
-        <span class="v7-tile-sub">what the panels and battery do on any day of the year</span>
-      </button>
-      ${api.renderSolarBody('rest')}` : ''}
-      <h2 class="v7-section-h">${api.ic('clock', 18)} Hour by hour</h2>
-      <div class="v7-an-embed">${api.analyticsBody()}</div>
-    </div>
-    ${nav()}`;
+      ${more ? `<div class="ax-fold">${api.renderDayInspector()}${api.renderSolarImprove()}</div>` : ''}
+      ${planned
+        ? `${cta('Get 3 quotes for this system', 'openLeadForm()')}${cta2('Check a quote you already have', "v7Sheet('quote')", 'clip')}`
+        : cta('Compare plans with your panels', "setScreen('plans')")}`;
   }
+
+  /* --- Car: what does it cost to run here? --- */
+  function anCar() {
+    const st = S();
+    const rec = api.getRecommendation();
+    const plan = rec.best.plan;
+    let ev = null;
+    try { ev = api.evEconomics(plan.id); } catch (e) { ev = null; }
+    if (!ev || !(ev.evKwh > 0)) {
+      return `${anHead('car')}${note('Tell us how far the car goes in a year to see what it costs to charge.')}${cta('Set up the car', 'startEvGuide()')}`;
+    }
+    const cheapRate = plan.rates.ev ?? plan.rates.night ?? plan.rates.day;
+    const win = plan.windows?.ev || plan.windows?.night;
+    const cheapName = plan.windows?.ev ? `${hhmm(win[0])}–${hhmm(win[1])}, its EV window`
+      : plan.windows?.night ? `${hhmm(win[0])}–${hhmm(win[1])}, its night rate` : 'Any hour, on its flat rate';
+    const at6 = plan.rates[api.bandAt(18, plan)] ?? plan.rates.day;
+    const lost = ev.evKwh * (at6 - cheapRate);
+    const byCharging = rec.ranked.map((r) => {
+      const p = r.plan;
+      const rate = p.windows?.ev ? p.rates.ev : p.windows?.night ? p.rates.night : p.rates.day;
+      return { p, cost: ev.evKwh * rate };
+    }).sort((a, b) => a.cost - b.cost).slice(0, 3);
+    const net = ev.evVsPetrolNet;
+    return `${anHead('car')}
+      ${anAnswer({
+        k: st.ev_in_bill ? 'To charge it' : 'To charge it, once you have it',
+        big: eur(ev.evElectricityCost), unit: 'a year',
+        line: `${eur(Math.abs(net))} ${net >= 0 ? 'less' : 'more'} than petrol: the ${Math.round(ev.litres).toLocaleString('en-IE')} litres you no longer buy would cost ${eur(ev.petrolCost)} at €${(st.fuel_price || 1.83).toFixed(2)}. ${Math.round(ev.km).toLocaleString('en-IE')} km a year, ${kwh(ev.evKwh)}.`,
+      })}
+      ${lost > 1
+        ? anCard(`Charging at 6 pm would cost ${eur(lost)} more a year`, `${hbars([
+          { name: cheapName, val: `${api.fmtCent(cheapRate)} a kWh`, v: cheapRate, token: plan.windows?.ev ? '--bandink-ev' : '--bandink-night' },
+          { name: 'Straight home at 6 pm', val: `${api.fmtCent(at6)} a kWh`, v: at6, token: '--bandink-peak' },
+        ])}${note('A charger timer, or the car’s own schedule, does it for you.')}`)
+        : anCard('This plan charges the same at any hour', note(`${api.fmtCent(cheapRate)} a kWh whenever you plug in. Plans with a cheap night or EV window would charge it for less.`))}
+      ${anCard('Cheapest plans to charge on', `${hbars(byCharging.map((x, i) => ({ name: `${esc(x.p.supplier)} ${esc(x.p.plan)}`, val: eur(x.cost), v: x.cost, token: i === 0 ? '--accent' : '--bandink-day' })))}
+        ${note(`Charging alone. Your best plan overall, ${esc(plan.supplier)} ${esc(plan.plan)}, weighs the car with everything else you use.`)}`)}
+      ${cta('Compare EV plans', "state._plans_filter='ev';setScreen('plans')")}`;
+  }
+
+  /* --- Accuracy: how sure are these figures? --- */
+  function accRow(p) {
+    const L = p.label;
+    const conf = /confirmed/.test(L);
+    if (/^Weather/.test(L)) return { name: 'Weather and the model', how: 'A typical Irish year; real years vary', state: 'Always' };
+    if (/smart-meter/.test(L)) return { name: 'Your usage', how: 'From your smart-meter data', state: 'Measured' };
+    if (/yearly kWh/.test(L)) return { name: 'Your usage', how: 'Your yearly kWh, spread over a typical day', state: 'Estimated' };
+    if (/from your bill/.test(L)) return { name: 'Your usage', how: 'Worked out from your bill', state: 'Estimated' };
+    if (/^Roof/.test(L)) return { name: 'Roof direction and tilt', how: conf ? 'You confirmed it' : 'A typical roof assumed', state: conf ? 'Confirmed' : 'Assumed' };
+    if (/panel spec/i.test(L)) return { name: 'Panel spec', how: conf ? 'You confirmed it' : 'Typical panels assumed', state: conf ? 'Confirmed' : 'Assumed' };
+    if (/battery spec/i.test(L)) return { name: 'Battery spec', how: conf ? 'You confirmed it' : 'A typical battery assumed', state: conf ? 'Confirmed' : 'Assumed' };
+    return { name: L, how: '', state: 'Assumed' };
+  }
+
+  function anAccuracy(d) {
+    const st = S();
+    const a = api.modelAccuracy();
+    const meter = st._csv_imported ? null : api.accuracyWithMeter();
+    const fill = Math.max(8, Math.min(100, Math.round(100 - (a.pct - 2) * 6)));
+    const sorted = a.parts.slice().sort((x, y) => y.err - x.err);
+    const worst = accRow(sorted[0]);
+    const line = /^Weather/.test(sorted[0].label)
+      ? 'Built on your real meter readings: only the weather is left to vary.'
+      : `The biggest unknown is ${worst.name.toLowerCase()}: ${worst.how.toLowerCase()}.${meter && meter < a.pct ? ` Your meter file would bring it to ±${meter}%.` : ''}`;
+    const list = sorted.map((p) => {
+      const r = accRow(p);
+      return `<div class="ax-acc">
+        <div class="ax-acc-top"><b>${esc(r.name)}</b><span class="ax-pill is-${r.state.toLowerCase()}">${r.state}</span><b class="ax-acc-err">±${p.err}%</b></div>
+        ${r.how ? `<small>${esc(r.how)}</small>` : ''}
+        ${p.tip ? `<button class="ax-act" onclick="${p.go}">${esc(p.tip)}</button>` : ''}
+      </div>`;
+    }).join('');
+    const price = a.priceTypical ? `<div class="ax-acc">
+        <div class="ax-acc-top"><b>System price</b><span class="ax-pill is-assumed">Assumed</span><b class="ax-acc-err"></b></div>
+        <small>A typical price for this size. It moves the payback, not the bills</small>
+        <button class="ax-act" onclick="openMySystem()">Add the price from your quote</button>
+      </div>` : '';
+
+    const tc = api.tariffCounts();
+    const when = api.latestVerifiedLabel();
+    const T = d.today;
+    const ch = d.cheaper;
+    const line2 = (x, credit) => `${eur(x.energy)} electricity + ${eur(x.standing)} standing + ${eur(x.pso)} levy${x.outlook > 0.5 ? ` + ${eur(x.outlook)} announced rise` : ''}${credit > 0.5 ? ` − ${eur(credit)} export` : ''}`;
+    const sums = [{ name: `${esc(d.plan.supplier)} ${esc(d.plan.plan)}, now`, line: line2(T, T.credit), total: eur(T.total) }];
+    if (ch.plan.id !== d.plan.id) sums.push({ name: `${esc(ch.plan.supplier)} ${esc(ch.plan.plan)}`, line: line2(ch, ch.credit), total: eur(ch.net) });
+    const rec = api.getRecommendation();
+    return `${anHead('accuracy')}
+      ${anAnswer({ k: 'Yearly figures, within', big: `±${a.pct}%`, unit: 'either way',
+        extra: `<div class="ax-meter" aria-hidden="true"><i style="width:${fill}%"></i></div>`, line })}
+      ${anCard('Measured, confirmed, assumed', `${list}${price}`)}
+      ${anCard(`${tc.live} plans, checked against suppliers’ own rates`, `<p class="ax-p">Each plan’s rates are read from its supplier’s published price list${when ? `, ${/–/.test(when) ? 'between' : 'on'} ${esc(when)}` : ''}. ${tc.dynamicLeftOut ? `${tc.live - tc.dynamicLeftOut} are ranked; ${tc.dynamicLeftOut} dynamic plans are left out unless you turn them on in Settings.` : 'All of them are ranked.'}</p>
+        <button class="ax-inline ax-go" onclick="setScreen('plans')">Every plan’s date, in Plans ${api.ic('chevR', 14)}</button>`)}
+      ${anCard('The sum behind your answer', `${sums.map((x) => `<div class="ax-sum"><b>${x.name}</b><div><span>${x.line}</span><b>${x.total}</b></div></div>`).join('')}
+        ${sums.length > 1 ? `<div class="ax-sum-d">Difference: ${eur(T.total - ch.net)} a year, the figure on the Bill tab.</div>` : ''}
+        ${working(rec)}${api.renderSolarWorking()}`)}
+      ${anCard('Take it with you', `<div class="ax-two">
+          <button class="ax-tile" onclick="openPdfReportModal()">${api.ic('doc', 18)}<b>Full report, PDF</b></button>
+          <button class="ax-tile" onclick="copyShareUrl()">${api.ic('link', 18)}<b>Share this analysis</b></button>
+        </div>`)}
+      ${st._csv_imported ? (a.tip ? cta(esc(a.tip.tip), a.tip.go) : '') : cta('Upload your ESB meter file', "v7Sheet('meter')")}`;
+  }
+
 
   /* ------------------------------------------------------------ SHEETS */
 
@@ -692,7 +1069,6 @@ export function createV7(api) {
     else if (sh.kind === 'assume') body = assumeSheet();
     else if (sh.kind === 'score') body = scoreSheet();
     else if (sh.kind === 'months') body = monthsSheet();
-    else if (sh.kind === 'ev') body = evSheet();
     else if (sh.kind === 'quote') body = quoteSheet();
     else if (sh.kind === 'switch') body = switchSheet(sh.id);
     else if (sh.kind === 'switched') body = switchedSheet(sh.id);
@@ -880,52 +1256,8 @@ export function createV7(api) {
         </div>
       </section>
       ${api.renderNightRateCard(best, rec.baseCost)}
-      ${S().ev_active ? `<button class="v7-cta-2" onclick="v7Sheet('ev')">${api.ic('car', 16)} Your EV: charging and petrol ${api.ic('chevR', 16)}</button>`
+      ${S().ev_active ? `<button class="v7-cta-2" onclick="v7Sheet(null);anTab('car')">${api.ic('car', 16)} Your EV: charging and petrol ${api.ic('chevR', 16)}</button>`
         : `<button class="v7-link" onclick="startEvGuide()">${api.ic('car', 14)} Thinking about an EV? See what it would change</button>`}`;
-  }
-
-  /**
-   * The car, on its own. Petrol against electricity is true with or without
-   * panels, so it lives here rather than on the Solar tab. Leads with the net
-   * figure; the petrol and charging figures below are its working.
-   */
-  function evSheet() {
-    const st = S();
-    const rec = api.getRecommendation();
-    const best = rec.best;
-    const ev = api.evEconomics(best.plan.id);
-    if (!ev) return '';
-    const plan = best.plan;
-    const cheapRate = plan.rates.ev ?? plan.rates.night ?? plan.rates.day;
-    const cheapName = plan.windows?.ev ? `its EV window (${hhmm(plan.windows.ev[0])}–${hhmm(plan.windows.ev[1])})`
-      : plan.windows?.night ? `its night rate (${hhmm(plan.windows.night[0])}–${hhmm(plan.windows.night[1])})` : 'its flat rate';
-    const at6 = plan.rates[api.bandAt(18, plan)] ?? plan.rates.day;
-    const lost = ev.evKwh * (at6 - cheapRate);
-    // Charging alone, on every plan on sale: the cheapest place to plug in.
-    const byCharging = rec.ranked.map((r) => {
-      const p = r.plan;
-      const rate = p.windows?.ev ? p.rates.ev : p.windows?.night ? p.rates.night : p.rates.day;
-      return { p, rate, cost: ev.evKwh * rate };
-    }).sort((a, b) => a.cost - b.cost).slice(0, 3);
-    return `<div class="v7-sheet-head">
-        <div class="v7-eyebrow">Your EV · ${Math.round(ev.km).toLocaleString('en-IE')} km a year</div>
-        <h2 class="v7-h">${ev.evVsPetrolNet >= 0 ? `${eur(ev.evVsPetrolNet)} a year less than petrol` : `${eur(-ev.evVsPetrolNet)} a year more than petrol`}</h2>
-      </div>
-      <div class="v7-sheet-figs">
-        <div><div class="v7-fig">${eur(ev.petrolCost)}</div><div class="v7-fig-sub">petrol you don't buy · ${Math.round(ev.litres).toLocaleString('en-IE')} L at €${(st.fuel_price || 1.83).toFixed(2)}</div></div>
-        <div><div class="v7-fig">${eur(ev.evElectricityCost)}</div><div class="v7-fig-sub">to charge it · ${kwh(ev.evKwh)} on ${esc(plan.supplier)}</div></div>
-      </div>
-      <div class="v7-card-title">When you plug in</div>
-      <div class="v7-rates v7-rates-1">
-        <div class="v7-rate"><i class="v7-dot" style="background:var(--bandink-ev)"></i>Overnight, on ${esc(cheapName)}<b>${api.fmtCent(cheapRate)}</b></div>
-        <div class="v7-rate"><i class="v7-dot" style="background:var(--bandink-peak)"></i>Straight home at 6pm<b>${api.fmtCent(at6)}</b></div>
-      </div>
-      ${lost > 1 ? `<div class="v7-note is-check">${api.ic('bolt', 16)}<div>Charging at 6pm instead would cost <b>${eur(lost)} more a year</b>. A charger timer or the car's own schedule does it for you.</div></div>` : ''}
-      <div class="v7-card-title">Cheapest plans to charge on</div>
-      <div class="v7-rates v7-rates-1">
-        ${byCharging.map((x) => `<div class="v7-rate"><i class="v7-dot" style="background:var(--bandink-ev)"></i>${esc(x.p.supplier)} ${esc(x.p.plan)}<b>${eur(x.cost)}/yr</b></div>`).join('')}
-      </div>
-      <div class="v7-fine">Charging alone. The plan ranked best for your home, ${esc(plan.supplier)} ${esc(plan.plan)}, already weighs charging together with everything else you use.</div>`;
   }
 
   /**
@@ -1049,5 +1381,5 @@ export function createV7(api) {
       </div>`;
   }
 
-  return { topbar, nav, home, plans, solar, sheet };
+  return { topbar, nav, home, plans, analytics, sheet };
 }

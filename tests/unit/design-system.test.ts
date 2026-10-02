@@ -81,10 +81,13 @@ describe('tokens', () => {
   });
 
   it('colour still runs through tokens rather than raw literals', () => {
-    const raw = new Set([...JS.matchAll(/#[0-9a-fA-F]{3,8}\b/g)].map((m) => m[0]));
+    const uses = [...JS.matchAll(/#[0-9a-fA-F]{3,8}\b/g)].map((m) => m[0]);
+    const raw = new Set(uses);
     const tokens = [...JS.matchAll(/var\(--[\w-]+\)/g)].length;
     // Colour was already disciplined; this guards against regression, not perfection.
-    expect(tokens).toBeGreaterThan(800);
+    // A share, not a count: deleting old screens lowers the count without
+    // making the colour any less disciplined.
+    expect(tokens / (tokens + uses.length), 'colour drifting from tokens to raw hex').toBeGreaterThan(0.9);
     expect(raw.size, `raw hex values in markup: ${[...raw].join(' ')}`).toBeLessThan(45);
   });
 });

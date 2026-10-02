@@ -40,9 +40,6 @@ export const SETUP = {
   onboarding_complete: true,
   seen_intro: true,
   current_screen: 'result',
-  // Existing tests exercise the full analysis on Home; v8 opens it collapsed.
-  _home_deep: true,
-  _solar_deep: true,
   bimonthly_bill_eur: 250,
   heating_type: 'gas',
   region: 'east',
@@ -83,9 +80,11 @@ export async function boot(page, overrides = {}) {
   // real defect seen from the outside but makes every test that clicks
   // something a coin flip. Wait for boot to settle.
   await page.waitForFunction(() => window.__bootSettled === true, null, { timeout: 10_000 });
-  // Home's analysis always opens closed; tests that read it open it here.
-  const want = { ...SETUP, ...state };
-  if (want._home_deep || want._solar_deep) await page.evaluate(([h, so]) => { window.state._home_deep = !!h; window.state._solar_deep = !!so; window.renderApp(); }, [want._home_deep, want._solar_deep]);
+  // Analytics' folds open closed on every visit, and nothing claims the
+  // reader came from Home; tests that need either set it again here.
+  const again = Object.fromEntries(['_solar_more', '_an_day_open', '_an_from']
+    .filter((k) => k in state).map((k) => [k, state[k]]));
+  if (Object.keys(again).length) await page.evaluate((f) => { Object.assign(window.state, f); window.renderApp(); }, again);
   return errors;
 }
 

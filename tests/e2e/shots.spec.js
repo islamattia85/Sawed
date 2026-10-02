@@ -20,6 +20,7 @@ test('the answer, closed and open @shots', async ({ page }) => {
   await boot(page);
   await page.screenshot(SHOT('02-answer'));
 
+  await page.evaluate(() => window.anTab('accuracy'));
   const toggle = page.getByText('Show me the working');
   await toggle.scrollIntoViewIfNeeded();
   await toggle.click();
@@ -34,11 +35,15 @@ test('explore — plans and compare @shots', async ({ page }) => {
   await page.screenshot(SHOT('05-compare'));
 });
 
-test('simulate — solar, hourly, market @shots', async ({ page }) => {
+test('analytics — bill, hours, solar, accuracy; and the market @shots', async ({ page }) => {
   await boot(page, { current_screen: 'solar' });
   await page.screenshot(SHOT('06-solar'));
-  await boot(page, { current_screen: 'analytics' });
+  await boot(page, { current_screen: 'analytics', _an_tab: 'hours' });
   await page.screenshot(SHOT('07-hourly'));
+  await boot(page, { current_screen: 'analytics', _an_tab: 'bill' });
+  await page.screenshot(SHOT('07b-bill'));
+  await boot(page, { current_screen: 'analytics', _an_tab: 'accuracy' });
+  await page.screenshot(SHOT('07c-accuracy'));
   await boot(page, { current_screen: 'monitor' });
   await page.screenshot(SHOT('08-market'));
 });
@@ -71,7 +76,7 @@ test('dark theme @shots', async ({ page }) => {
 });
 
 test('setup wizard and landing @shots', async ({ page }) => {
-  await boot(page);
+  await boot(page, { current_screen: 'me' });
   await page.getByRole('button', { name: /Re-run setup/ }).click();
   await page.waitForTimeout(350);
   await page.screenshot(SHOT('15-wizard'));
@@ -80,23 +85,22 @@ test('setup wizard and landing @shots', async ({ page }) => {
   await page.screenshot(SHOT('16-landing'));
 });
 
-test('solar switch, on and off @shots', async ({ page }) => {
-  await boot(page, { current_screen: 'solar' });
-  await page.locator('.v7-switch-row').scrollIntoViewIfNeeded();
+test('solar left out, and back @shots', async ({ page }) => {
+  await boot(page, { current_screen: 'result' });
   await page.screenshot({ path: 'screenshots/17-switch-on.png' });
-  await page.locator('.v7-switch-row').click();
+  await page.evaluate(() => { window.toggleSolarModel(); window.anTab('solar'); });
   await page.waitForTimeout(400);
-  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: 'screenshots/18-switch-off.png' });
 });
 
-test('no-solar Solar tab, home tiles, health sheet @shots', async ({ page }) => {
+test('no-solar Solar tab, home doors, health sheet @shots', async ({ page }) => {
   await boot(page, { has_solar: false, considering_solar: false, battery_kwh: 0, current_screen: 'solar' });
   await page.screenshot({ path: 'screenshots/19-solar-empty.png' });
   await boot(page);
-  await page.locator('.v7-tiles-3').scrollIntoViewIfNeeded();
-  await page.screenshot({ path: 'screenshots/20-home-tiles.png' });
-  await page.locator('.v7-tile-score').click();
+  await page.locator('.ax-doors').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: 'screenshots/20-home-doors.png' });
+  await page.evaluate(() => window.anTab('bill'));
+  await page.locator('.ax-health').click();
   await page.waitForTimeout(350);
   await page.screenshot({ path: 'screenshots/21-health-sheet.png' });
 });

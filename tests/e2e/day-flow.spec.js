@@ -2,8 +2,10 @@ import { test, expect } from '@playwright/test';
 import { boot } from './support.js';
 
 test('the day chart balances every hour, and tapping an hour says it in words', async ({ page }) => {
-  const errors = await boot(page, { current_screen: 'solar', _di_season: 'winter', _solar_detail_open: true });
-  const box = page.locator('.section-title', { hasText: 'Day inspector' }).first().locator('xpath=following-sibling::div[1]');
+  const errors = await boot(page, { current_screen: 'solar', _di_season: 'winter', _solar_more: true });
+  // The weather years and the upgrades arrive a moment after the paint.
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+  const box = page.locator('.section-title', { hasText: 'A summer and a winter day' }).first().locator('xpath=following-sibling::div[1]');
   await box.scrollIntoViewIfNeeded();
   await expect(box).toContainText('Tap any hour');
   await expect(box).toContainText('↑ buying · ↓ selling');

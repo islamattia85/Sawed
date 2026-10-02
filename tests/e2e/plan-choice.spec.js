@@ -63,9 +63,9 @@ test('choosing a plan replaces the recommendation everywhere, and clearing resto
   // The strip is on the default view: that is the guarantee that matters — a
   // figure computed on a non-cheapest plan can never pass for our advice.
   await expect(page.locator('.choice-strip')).toBeVisible();
-  // The comparison names it too, inside the analysis (closed on each visit).
-  await page.locator('.v7-deep').click();
-  await page.locator('.working-toggle').click();
+  // The comparison names it too, in the working on Analytics' Accuracy tab.
+  await page.evaluate(() => window.anTab('accuracy'));
+  await page.locator('.working-toggle', { hasText: 'Show me the working' }).click();
   await expect(page.locator('.plan-compare')).toContainText('Your chosen plan');
 
   await page.evaluate(() => window.clearChosenPlan());
@@ -139,18 +139,16 @@ test('generating a report leaves the user’s settings exactly as they were', as
 test('the plan can be chosen from the solar screen, near the top', async ({ page }) => {
   const errors = await boot(page, { current_screen: 'solar' });
 
-  // The plan block must sit within reach of the payback headline, not below
-  // the day inspector two screens down.
+  // The plan the payback is worked out on is named in the answer itself, with
+  // the way to change it beside it, not below the day inspector two screens down.
   const top = await page.evaluate(() => {
-    const sec = [...document.querySelectorAll('.section-title')].find((e) => /Best plan/i.test(e.textContent));
-    return sec ? sec.getBoundingClientRect().top + window.scrollY : null;
+    const el = [...document.querySelectorAll('.ax-ans .ax-line')].find((e) => /Worked out on/i.test(e.textContent));
+    return el ? el.getBoundingClientRect().top + window.scrollY : null;
   });
-  expect(top, 'the plan block is missing from the solar screen').not.toBeNull();
+  expect(top, 'the plan is not named in the solar answer').not.toBeNull();
   expect(top).toBeLessThan(900);
 
-  // Still a button on the solar screen, where it is the section's own action
-  // rather than a sibling of the primary CTA.
-  await page.getByRole('button', { name: /different plan|Change plan/i }).first().click();
+  await page.getByRole('button', { name: /Use a different plan/i }).first().click();
   await expect(page.locator('#plan-picker')).toBeVisible();
 
   const third = await page.evaluate(() => window.getRecommendation().ranked[2].plan.id);
@@ -168,12 +166,12 @@ test('the plan can be chosen from the solar screen, near the top', async ({ page
   expect(errors).toEqual([]);
 });
 
-test('every plan, ranked, is one plain link from the result screen', async ({ page }) => {
+test('every plan, ranked, is one plain tap from the Bill question', async ({ page }) => {
   const errors = await boot(page);
-  // v8: "Pick a different plan" left people asking why it was there. The link
-  // now says what it does and opens the ranked list.
-  const ranked = await page.evaluate(() => window.getRecommendation().ranked.length);
-  await page.getByRole('link', { name: new RegExp(`See all ${ranked} plans ranked for you`) }).click();
+  // v8: "Pick a different plan" left people asking why it was there. Home's
+  // Plans tab is the ranked list; the Bill tab ends on the same action, named.
+  await page.locator('.ax-door', { hasText: 'Bill' }).click();
+  await page.getByRole('button', { name: /Compare every plan, priced for your home/ }).click();
   await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('plans');
   expect(errors).toEqual([]);
 });
@@ -192,8 +190,8 @@ test('picking a costlier plan lengthens payback, never shortens it', async ({ pa
   const errors = await boot(page, { current_screen: 'solar', count_A: 10, battery_kwh: 9 });
 
   const payback = () => page.evaluate(() => {
-    const el = document.querySelector('.qr-value');
-    const m = el && el.textContent.match(/([\d.]+)\s*yr/);
+    const el = document.querySelector('.ax-ans .qr-value');
+    const m = el && el.textContent.match(/([\d.]+)\s*years/);
     return m ? parseFloat(m[1]) : null;
   });
 
@@ -245,33 +243,27 @@ test('the primary action is above the fold, and the reasoning is below it', asyn
   expect(geo.cta, 'no primary action on the home screen').not.toBeNull();
   expect(geo.cta, 'the action is below the fold').toBeLessThan(geo.viewport);
   expect(geo.cta, 'the action does not follow the headline figure').toBeGreaterThan(geo.hero);
-  expect(geo.working, 'the working is above the action, not below it').toBeGreaterThan(geo.cta);
-  expect(geo.cta / geo.page, 'the action sits too deep in the page').toBeLessThan(0.35);
+  expect(geo.cta / geo.page, 'the action sits too deep in the page').toBeLessThan(0.6);
+  // v8: the reasoning is not on Home at all; a door below the action leads to it.
+  const door = await page.evaluate(() => document.querySelector('.ax-door').getBoundingClientRect().top + window.scrollY);
+  expect(door, 'the way to the working is above the action, not below it').toBeGreaterThan(geo.cta);
 
-  // …and the reasoning is still all there, one tap down. The working is now
-  // collapsed by default, so "below the action" has to be checked after
-  // opening it — otherwise this test would pass on a screen that had simply
-  // deleted the justification.
-  await page.locator('.working-toggle').click();
-  const reasoning = await page.evaluate(() => {
-    const el = document.querySelector('.plan-compare');
-    return el ? el.getBoundingClientRect().top + window.scrollY : null;
-  });
-  expect(reasoning, 'the plan comparison vanished instead of moving').not.toBeNull();
-  expect(reasoning, 'the working opened above the action').toBeGreaterThan(geo.cta);
+  // …and the reasoning is still all there, one tap down: collapsed by
+  // default, so it has to be opened — otherwise this test would pass on a
+  // screen that had simply deleted the justification.
+  await page.locator('.ax-door', { hasText: 'Accuracy' }).click();
+  await page.locator('.working-toggle', { hasText: 'Show me the working' }).click();
+  await expect(page.locator('.plan-compare')).toBeVisible();
   expect(errors).toEqual([]);
 });
 
-test('the report is promoted, and the novelty tile is gone', async ({ page }) => {
+test('the report is offered where the figures are explained, and the novelty tile is gone', async ({ page }) => {
   const errors = await boot(page);
-  const promo = page.locator('.report-promo');
-  await expect(promo).toHaveCount(1);
-  await expect(promo).toContainText(/typeset pages/i);
-
-  // Full width, not a quarter tile beside a share-card gimmick.
-  const width = await promo.evaluate((el) => el.getBoundingClientRect().width);
-  const screen = await page.evaluate(() => document.querySelector('.screen')?.getBoundingClientRect().width ?? 0);
-  expect(width / screen).toBeGreaterThan(0.9);
+  // v8: "Take it with you" on the Accuracy tab: the report, and sharing.
+  await page.evaluate(() => window.anTab('accuracy'));
+  const card = page.locator('.ax-card', { hasText: 'Take it with you' });
+  await expect(card.getByRole('button', { name: /Full report, PDF/ })).toBeVisible();
+  await expect(card.getByRole('button', { name: /Share this analysis/ })).toBeVisible();
 
   const text = await page.evaluate(() => document.body.innerText);
   expect(text).not.toMatch(/Challenge a friend/i);
@@ -283,8 +275,10 @@ test('the health score names its weakest factor instead of just scoring you', as
   // the Solar tab showed it to homes with no panels — a tile on Home that
   // opens a sheet. It scores the whole home, so it lives with the answer. It
   // still has to name the weakest factor wherever it lives.
+  // v8: a row on the Bill tab, which asks where the money goes.
   const errors = await boot(page);
-  await page.locator('.v7-tile-score').click();
+  await page.evaluate(() => window.anTab('bill'));
+  await page.locator('.ax-health').click();
   const card = page.locator('#v7-sheet');
   await expect(card).toContainText(/Plan health/);
   await expect(card).toContainText(/Weakest:|Little left on the table/);
@@ -298,7 +292,7 @@ test('the solar screen puts free advice above the instrument', async ({ page }) 
       const el = [...document.querySelectorAll('.section-title')].find((e) => re.test(e.textContent));
       return el ? el.getBoundingClientRect().top + window.scrollY : null;
     };
-    return { advice: at(/Maximise your benefit/i), inspector: at(/Day inspector/i) };
+    return { advice: at(/Maximise your benefit/i), inspector: at(/A summer and a winter day/i) };
   });
   if (order.advice !== null && order.inspector !== null) {
     expect(order.advice, 'the day inspector still precedes the free changes')

@@ -50,14 +50,14 @@ test('the tab lands on an answer, with nothing to choose or unlock first', async
   await modelFromNothing(page);
 
   // A number, immediately.
-  await expect(page.locator('.qr-value')).toContainText(/yr payback/);
+  await expect(page.locator('.ax-ans .qr-value')).toContainText(/years/);
 
   const text = await page.evaluate(() => document.body.innerText);
   expect(text, 'the goal chooser is still here').not.toMatch(/Fastest payback|Most 20-yr value|Design my system/i);
   expect(text, 'a gate is standing in front of the answer').not.toMatch(/Do you have solar panels|Show me the detail/i);
 
-  // And the whole screen is present — nothing hidden behind a mode.
-  const sections = await page.locator('.section-title').count();
+  // And the whole answer is present — nothing hidden behind a mode.
+  const sections = await page.locator('.ax-card').count();
   expect(sections, 'sections were hidden behind a disclosure').toBeGreaterThan(2);
 
   expect(errors).toEqual([]);
@@ -73,7 +73,7 @@ test('the answer is not blocked by the twelve-design sweep', async ({ page }) =>
   await page.getByRole('button', { name: /Add to my Home/ }).click();
   const started = Date.now();                       // from the tap that opens the analysis
   await page.locator('.hc-go', { hasText: 'Solar analysis' }).click();
-  await expect(page.locator('.qr-value')).toContainText(/yr payback/);
+  await expect(page.locator('.ax-ans .qr-value')).toContainText(/years/);
   const elapsed = Date.now() - started;
 
   // Simulating twelve designs across a full year takes seconds. It must not
@@ -176,7 +176,7 @@ test('correcting our guess is a sentence, not a gate', async ({ page }) => {
   await expect(correct).toBeVisible();
   await expect(correct).toContainText(/Already have panels/i);
 
-  await correct.getByRole('link', { name: /exact spec/i }).click();
+  await correct.getByRole('button', { name: /exact system/i }).click();
   await expect.poll(() => page.evaluate(() => window.state._sheet && window.state._sheet.kind)).toBe('system');
   expect(errors).toEqual([]);
 });
