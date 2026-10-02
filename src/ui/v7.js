@@ -70,7 +70,7 @@ export function createV7(api) {
     return `${api.renderConsentBar()}<nav class="bottom-nav v7-nav" role="navigation" aria-label="Sections">
       ${V7_SURFACES.map((s) => `
         <button class="bottom-nav-item v7-nav-item ${active === s.id ? 'active' : ''}"
-          onclick="${active === s.id ? 'window.scrollTo({top:0,behavior:\'smooth\'})' : `setScreen('${s.id}')`}" aria-current="${active === s.id ? 'page' : 'false'}">
+          onclick="${cur === s.id ? 'window.scrollTo({top:0,behavior:\'smooth\'})' : `setScreen('${s.id}')`}" aria-current="${active === s.id ? 'page' : 'false'}">
           <span class="nav-ico">${api.ic(s.icon, 22)}${s.id === 'me' && api.alertCount() ? `<i class="nav-badge" aria-label="${api.alertCount()} new alerts">${api.alertCount()}</i>` : ''}</span>
           <span class="nav-label">${s.label}</span>
         </button>`).join('')}
@@ -212,7 +212,9 @@ export function createV7(api) {
       let d = null; try { d = api.solarData(); } catch (e) {}
       const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
       steps = `<div class="v7-steps">
-        <div class="v7-step"><b>${eur(Math.max(0, pl.today - pl.noSolar.net))} less</b><span>a year from switching to <b>${esc(pl.noSolar.plan.supplier)}</b> ${esc(pl.noSolar.plan.plan)}. Free, and you can do it today.</span></div>
+        ${pl.noSolar.plan.id === st.baseline
+          ? `<div class="v7-step"><b>${api.ic('checkC', 16)}</b><span>You’re already on the cheapest plan until the panels are in.</span></div>`
+          : `<div class="v7-step"><b>${eur(Math.max(0, pl.today - pl.noSolar.net))} less</b><span>a year from switching to <b>${esc(pl.noSolar.plan.supplier)}</b> ${esc(pl.noSolar.plan.plan)}. Free, and you can do it today.</span></div>`}
         <div class="v7-step"><b>${eur(Math.max(0, pl.noSolar.net - pl.best.net))} less</b><span>again, a year, once the panels are in${pl.best.plan.id !== pl.noSolar.plan.id ? `, on <b>${esc(pl.best.plan.supplier)}</b> ${esc(pl.best.plan.plan)}` : ''}. ${d ? `${eur(d.sysCost)} after the grant${pb ? `, paid back in ${pb.toFixed(1)} years` : ''}.` : ''}</span></div>
         <div class="v7-solar-ctl">${api.ic('sun', 16)}<span><b>Planned solar</b> · ${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}</span>
           <button onclick="toggleSolarModel()">Leave out</button></div>
@@ -247,7 +249,9 @@ export function createV7(api) {
 
       ${stay
         ? `<button class="switch-cta v7-cta" onclick="setScreen('plans')">See every plan compared ${api.ic('chevR', 18)}</button>`
-        : switchButton(pl ? pl.noSolar.plan : best.plan, '')}
+        : pl && pl.noSolar.plan.id === st.baseline
+          ? `<button class="switch-cta v7-cta" onclick="setScreen('plans')">See every plan compared ${api.ic('chevR', 18)}</button>`
+          : switchButton(pl ? pl.noSolar.plan : best.plan, '')}
 
       <button class="v7-basis-line" onclick="openMyHome()">
         Based on ${esc(basis)}${st.has_solar && api.totalPanels() > 0 ? ` · ${api.totalPanels()} solar panels` : ''}${st.ev_active ? ' · an electric car' : ''}

@@ -191,16 +191,18 @@ test('solar explored in the guide is "planned", and the card only moves on its l
   expect(await screen(page)).toBe('result');                                                   // information goes nowhere
 });
 
-test('Solar is a section of Analytics, and tapping the lit tab keeps you there', async ({ page }) => {
+test('Solar is a section of Analytics; the lit tab returns to its main page', async ({ page }) => {
   await boot(page, { current_screen: 'analytics', has_solar: true, considering_solar: true, solar_planned: true, count_A: 10, battery_kwh: 5 });
   await page.locator('.an-hub-b', { hasText: /^Solar$/ }).click();
   await expect.poll(() => screen(page)).toBe('solar');
   await expect(page.locator('.an-hub-b.on')).toHaveText('Solar');
   await expect(page.locator('.v7-nav-item.active')).toContainText('Analytics');
+  // On a section, the lit tab goes back to the tab's main page (the menu
+  // above shows where you are); on that main page it just scrolls to the top.
   await page.locator('.v7-nav-item.active').click();
-  expect(await screen(page)).toBe('solar');
-  await page.locator('.an-hub-b', { hasText: 'Hour by hour' }).click();
   await expect.poll(() => screen(page)).toBe('analytics');
+  await page.locator('.v7-nav-item.active').click();
+  expect(await screen(page)).toBe('analytics');
 });
 
 test('Solar in the Analytics menu, with no system, opens a calm page, not the questions', async ({ page }) => {
@@ -237,4 +239,24 @@ test('"not sure which plan" assumes a standard plan, never an EV or dynamic one'
   await page.locator('.fl-sup', { hasText: 'Energia' }).click();
   await page.locator('.fl-opt', { hasText: 'Not sure which plan' }).click();
   expect(await page.evaluate(() => getPlanById(window.state.baseline).type)).not.toMatch(/ev|dynamic/);
+});
+
+test('planned solar never offers a switch to the plan you are already on', async ({ page }) => {
+  await boot(page, { current_screen: 'result', has_solar: true, considering_solar: true, solar_planned: true, count_A: 10, battery_kwh: 5 });
+  const noSolarBest = await page.evaluate(() => { const v = document.querySelector('.v7-switch-btn'); return v && v.getAttribute('onclick'); });
+  const planId = noSolarBest && noSolarBest.match(/'switch','([^']+)'/)[1];
+  await page.evaluate((pid) => { window.state.baseline = pid; window.state.baseline_known = true; window.invalidate(); window.renderApp(); }, planId);
+  await expect(page.locator('.v7-hero')).toContainText('already on the cheapest plan until the panels are in');
+  const btns = await page.locator('.v7-switch-btn').evaluateAll((els) => els.map((e) => e.getAttribute('onclick')));
+  expect(btns.some((b) => b.includes(`'${planId}'`))).toBe(false);
+});
+
+test('"not sure which plan" is kept as a guess, not as a known plan', async ({ page }) => {
+  await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
+  await page.getByRole('button', { name: /Get my answer/ }).click();
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.locator('.fl-sup', { hasText: 'Energia' }).click();
+  await page.locator('.fl-opt', { hasText: 'Not sure which plan' }).click();
+  expect(await page.evaluate(() => window.state.baseline_known)).toBe(false);
+  await expect(page.locator('.fl-chip').nth(1)).toContainText('plan not sure');
 });

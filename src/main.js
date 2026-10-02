@@ -1518,6 +1518,7 @@ const EMBEDDED_TARIFFS = [
 ];
 
 let TARIFFS = EMBEDDED_TARIFFS.slice();
+let _tariffGen = 0;   // bumped whenever the price data is replaced
 
 async function loadTariffs(){
   try {
@@ -1544,7 +1545,7 @@ async function loadTariffs(){
     // repainted the entire screen a quarter-second after first paint, for no
     // change the reader could see.
     const changed = JSON.stringify(fetched) !== JSON.stringify(TARIFFS);
-    TARIFFS = fetched;
+    TARIFFS = fetched; _tariffGen++;
     return changed;
   } catch(e){ return false; }
 }
@@ -2575,8 +2576,7 @@ let _plMemo = { k: null, v: null };
 function plannedLadder(){
   if (!state.has_solar || !(totalPanels() > 0)) return null;
   // The no-solar run re-simulates the year; do it once per household, not per render.
-  const k = JSON.stringify([goalSweepCk(), state.baseline, state.count_A, state.count_B, state.battery_kwh,
-    state.azimuth_B, state.chosen_plan, state.include_dynamic, state.charge_from_grid, state.solar_planned]);
+  const k = JSON.stringify(state, (key, v) => (key && key[0] === '_' ? undefined : v)) + '|' + _tariffGen;
   if (_plMemo.k === k && _plMemo.v) return _plMemo.v;
   _plMemo = { k, v: _plannedLadder() };
   return _plMemo.v;
@@ -5603,6 +5603,7 @@ function startSolarGuide(){
   // Nothing the guide changes counts until its answer is accepted: leaving
   // early puts the home back exactly as it was.
   _sgBefore = structuredClone(state);
+  try { localStorage.setItem('pk_sg_before', JSON.stringify(_sgBefore)); } catch (e) {}
   // Start from the same suggested system as before: sized to the usage.
   exploreSolar();
   state.solar_planned = true;            // explored here, not bought: never "installed"
@@ -5613,6 +5614,8 @@ function startSolarGuide(){
   renderApp();
 }
 function sgCancel(){
+  if (!_sgBefore){ try { _sgBefore = JSON.parse(localStorage.getItem('pk_sg_before') || 'null'); } catch (e) {} }
+  try { localStorage.removeItem('pk_sg_before'); } catch (e) {}
   if (_sgBefore){ for (const k of Object.keys(state)) if (!(k in _sgBefore)) delete state[k]; Object.assign(state, _sgBefore); }
   _sgBefore = null;
   state._sg = null; state._sheet = null;
@@ -5629,6 +5632,7 @@ function sgGo(step, fromHistory){
 }
 function sgDone(){
   state._sg = null; _sgBefore = null;
+  try { localStorage.removeItem('pk_sg_before'); } catch (e) {}
   state._solar_from = 'result';
   state.current_screen = 'solar';
   state._solar_deep = true;
@@ -5637,6 +5641,7 @@ function sgDone(){
 }
 function sgKeep(){
   state._sg = null; _sgBefore = null;
+  try { localStorage.removeItem('pk_sg_before'); } catch (e) {}
   state.current_screen = 'result';
   saveState(); renderApp(); window.scrollTo(0, 0);
   showToast('Solar added as a plan. It’s marked “planned” until you have panels', { type: 'accent', icon: ic('sun', 16) });
@@ -5895,7 +5900,11 @@ function flowAnswer(q, v){
   const clear = (keys) => keys.forEach((k) => delete f[k]);
   if (q === 'bill'){ state.usage_input_mode = 'bill'; state.bimonthly_bill_eur = Math.max(30, Math.round(+v) || 250); }
   if (q === 'plan') state._flow_sup = null;
-  if (q === 'plan'){ if (v === 'unsure'){ state.baseline = 'EI-24'; state.baseline_known = false; } else { state.baseline = v; state.baseline_known = true; } }
+  if (q === 'plan' && String(v).startsWith('guess:')){
+    const g = getPlanById(String(v).slice(6));
+    if (g && !['ev', 'dynamic'].includes(g.type)){ state.baseline = g.id; state.baseline_known = false; }
+    else { state.baseline = 'EI-24'; state.baseline_known = false; }
+  } else if (q === 'plan'){ if (v === 'unsure'){ state.baseline = 'EI-24'; state.baseline_known = false; } else { state.baseline = v; state.baseline_known = true; } }
   if (q === 'heat'){ state.heating_type = v; state.hot_water_strategy = DEFAULT_HW_FOR_HEATING[v] || 'none'; }
   if (q === 'bill' || q === 'heat') applyUsageInput();
   if (q === 'solar'){
@@ -5966,7 +5975,7 @@ function renderFlow(){
   };
   const shown = {
     bill: (v) => v === 'meter' ? 'Smart-meter data' : `€${v} / 2 months`,
-    plan: (v) => v === 'unsure' ? 'Plan not sure' : (() => { const p = getPlanById(v); return `${p.supplier} ${p.plan}`; })(),
+    plan: (v) => v === 'unsure' ? 'Plan not sure' : String(v).startsWith('guess:') ? `${(getPlanById(String(v).slice(6)) || {}).supplier}, plan not sure` : (() => { const p = getPlanById(v); return `${p.supplier} ${p.plan}`; })(),
     heat: (v) => ({ gas: 'Gas or oil', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heaters' })[v],
     solar: (v) => ({ no: 'No solar', have: 'Solar', thinking: 'Solar planned' })[v],
     roof: (v) => ({ S: 'South', SE: 'South-east', SW: 'South-west', EW: 'East and west', unsure: 'Not sure, south assumed' })[v],
@@ -6003,7 +6012,9 @@ function renderFlow(){
         return `<button class="fl-crumb" onclick="state._flow_sup=null;renderApp()">${ic('chevL', 14)} All suppliers</button>
           <div class="fl-k">${esc(sup)}: which plan? It’s on your bill, near the top.</div>
           <div class="fl-opts">${mine.map((p) => opt('plan', p.id, esc(p.plan))).join('')}
-          ${opt('plan', mine[0].id, 'Not sure which plan', `We’ll use ${esc(mine[0].plan)}`)}</div>`;
+          ${!['ev', 'dynamic'].includes(mine[0].type)
+            ? opt('plan', 'guess:' + mine[0].id, 'Not sure which plan', `We’ll assume ${esc(mine[0].plan)}`)
+            : opt('plan', 'unsure', 'Not sure which plan', 'We’ll assume a standard plan')}</div>`;
       }
       return `<div class="fl-sups">${sups.map((n, i) => `<button class="fl-sup ${f.plan && f.plan !== 'unsure' && (getPlanById(f.plan) || {}).supplier === n ? 'on' : ''}" onclick="flowSupplier(${i})"><span class="fl-sup-mark">${esc(n.split(/\s+/).map((w) => w[0]).join('').slice(0, 2))}</span>${esc(n)}</button>`).join('')}</div>
         <button class="sg-link" onclick="flowAnswer('plan', 'unsure')">I’m not sure: assume a standard plan</button>`;
