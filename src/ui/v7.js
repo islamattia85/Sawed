@@ -598,10 +598,43 @@ export function createV7(api) {
         : `<span class="v7-brand v7-brand-static" aria-hidden="true">${api.ic('chart', 18)}</span>`}
       <div class="v7-top-title">Analytics</div>
       <div class="v7-top-end">${api.renderProfileNavBtn()}</div>
+      ${anPlanChip()}
       <nav class="ax-tabs" aria-label="Analytics">
         ${tabs.map((t) => `<button class="ax-tab ${t.id === tab ? 'on' : ''}" ${t.id === tab ? 'aria-current="page"' : ''} onclick="anTab('${t.id}')">${api.ic(t.icon, 18)}<span>${t.label}</span></button>`).join('')}
       </nav>
     </header>`;
+  }
+
+  /** What the home being simulated includes, in words. */
+  function homeWith() {
+    const st = S();
+    const sys = st.has_solar && api.totalPanels() > 0;
+    return [sys ? (st.solar_planned || st.solar_is_estimate ? 'the planned panels' : 'its panels') : '',
+      st.ev_active ? (st.ev_in_bill ? 'the car' : 'the planned car') : ''].filter(Boolean).join(' and ');
+  }
+
+  /** The one plan every tab is worked out on, and the way to change it. */
+  function anPlanChip() {
+    let ap = null; try { ap = api.anPlan(); } catch (e) { return ''; }
+    const p = ap.plan;
+    return `<button class="ax-plan" onclick="v7Sheet('anplan')" aria-label="Plan: ${esc(p.supplier)} ${esc(p.plan)}. Change">
+        <span><small>${ap.picked ? 'Plan you picked' : ap.bestIsChoice ? 'Your chosen plan' : 'Best plan for this home'}${homeWith() ? ` · with ${homeWith()}` : ''}</small><b>${esc(p.supplier)} · ${esc(p.plan)}</b></span>
+        <em>Change ${api.ic('chevD', 14)}</em></button>`;
+  }
+
+  /** Any plan, priced on this home, the best one marked. */
+  function anPlanSheet() {
+    const st = S();
+    const rec = api.getRecommendation();
+    const ap = api.anPlan();
+    const bestId = ap.best.id;
+    return `<div class="v7-sheet-head"><div class="v7-eyebrow">Analytics</div>
+        <h2 class="v7-h">Which plan should the figures use?</h2>
+        <p class="v7-muted">Every plan priced on this home${homeWith() ? `, with ${homeWith()}` : ''}. Only Analytics changes; Home keeps its advice.</p></div>
+      <div class="ax-plans">${rec.ranked.map((r) => `<button class="ax-plan-row ${r.plan.id === ap.plan.id ? 'on' : ''}" onclick="anPick('${r.plan.id}')">
+          <span><b>${esc(r.plan.supplier)}</b><small>${esc(r.plan.plan)}</small>
+          ${r.plan.id === bestId ? '<i class="ax-tag">Best for this home</i>' : ''}${r.plan.id === st.baseline ? '<i class="ax-tag is-now">Your plan now</i>' : ''}</span>
+          <em>${eur(r.net)}</em></button>`).join('')}</div>`;
   }
 
   function anHead(tab, sub, q) {
@@ -662,15 +695,16 @@ export function createV7(api) {
     if (!AN_TABS.some((x) => x.id === t)) t = 'bill';
     let body;
     try {
-      const d = t === 'car' ? null : api.analyticsData();
+      const d = api.analyticsData();
       body = t === 'bill' ? anBill(d) : t === 'hours' ? anHours(d) : t === 'solar' ? anSolar(d)
-        : t === 'car' ? anCar() : anAccuracy(d);
+        : t === 'car' ? anCar(d) : anAccuracy(d);
     } catch (e) {
       console.error('[analytics]', e);
       body = `${anHead(t)}${note('This part could not be worked out just now. Try again in a moment.')}`;
     }
+    const msg = st._an_note ? `<div class="v7-note is-check ax-msg">${api.ic('info', 16)}<div>${esc(st._an_note)}</div></div>` : '';
     return `${anTop(t)}
-    <div class="screen v7 ax ax-${t}${t === 'solar' ? ' v7-solar' : ''}" data-tab="${t}">${body}</div>
+    <div class="screen v7 ax ax-${t}${t === 'solar' ? ' v7-solar' : ''}" data-tab="${t}">${msg}${body}</div>
     ${nav()}`;
   }
 
@@ -695,7 +729,7 @@ export function createV7(api) {
     const partsTitle = big.key === 'fixed' ? `Fixed charges are the biggest part: ${big.p}`
       : flat || big.key === 'rise' ? `Electricity is ${pct(T.energy, gross)}% of it; fixed charges the rest`
         : `Electricity at ${RATE_NAME[big.key] || big.label} is the biggest part: ${big.p}`;
-    const credit = d.installed && T.credit > 0.5 ? `<div class="ax-row ax-row-credit"><i class="ax-sw" style="background:var(--ax-sold)"></i>
+    const credit = d.sys && T.credit > 0.5 ? `<div class="ax-row ax-row-credit"><i class="ax-sw" style="background:var(--ax-sold)"></i>
         <span class="ax-row-l"><b>Paid for what you sell back</b><small>Export payments, taken off the bill</small></span>
         <span class="ax-row-v"><b class="is-gain">−${eur(T.credit)}</b></span></div>` : '';
 
@@ -707,43 +741,30 @@ export function createV7(api) {
       : r >= 1.5 ? `${MONTH[hiI]} costs ${r.toFixed(1)} times what ${MONTH[loI]} does`
         : r >= 1.1 ? `${MONTH[hiI]} costs ${Math.round((r - 1) * 100)}% more than ${MONTH[loI]}` : 'Every month costs about the same';
 
-    const ch = d.cheaper;
-    const n = api.getRecommendation().ranked.length;
-    const diff = T.total - ch.net;
-    const as = planned ? 'as it is today, before the panels' : d.installed ? 'with its panels' : 'as it is';
-    let cheap;
-    if (ch.plan.id === plan.id) {
-      cheap = anCard('You’re already on the cheapest plan for this home', note(`Checked against all ${n} plans, for this home ${as}.`));
-    } else if (diff < 0) {
-      // A withdrawn rate can beat everything on sale. Say so, or it reads as a bug.
-      cheap = anCard('Nothing on sale today beats your plan',
-        note(`It costs ${eur(-diff)} a year less than the cheapest plan on sale, ${esc(ch.plan.supplier)} ${esc(ch.plan.plan)}. If it is a rate no longer offered, keep it while you can.`));
-    } else if (diff < 5) {
-      cheap = anCard('Nothing on the market costs much less', note(`The cheapest of ${n} plans, ${esc(ch.plan.supplier)} ${esc(ch.plan.plan)}, saves under €5 a year for this home ${as}.`));
-    } else {
-      const dE = T.energy - ch.energy;
-      const dS = ch.standing - T.standing;
-      const dC = ch.credit - T.credit;
-      cheap = anCard(`${esc(ch.plan.supplier)} would cost ${eur(diff)} less a year`,
-        hbars([
-          { name: `You now: ${esc(plan.supplier)}`, val: eur(T.total), v: T.total, token: '--bandink-day' },
-          { name: `${esc(ch.plan.supplier)} ${esc(ch.plan.plan)}`, val: eur(ch.net), v: ch.net, token: '--accent' },
-        ])
-        + note(`Its electricity costs ${eur(Math.abs(dE))} ${dE >= 0 ? 'less' : 'more'}; its standing charge is ${eur(Math.abs(dS))} ${dS >= 0 ? 'more' : 'less'}.${d.installed && Math.abs(dC) >= 5 ? ` It pays ${eur(Math.abs(dC))} ${dC >= 0 ? 'more' : 'less'} for what you sell.` : ''}${ch.outlook > 5 ? ' That includes a price rise it has already announced.' : ''} The cheapest of ${n} plans for this home ${as}.`));
-    }
+    const R = d.ref, B = d.best;
+    const vsNow = R.net - T.total;
+    const nowName = `${esc(R.plan.supplier)} · ${esc(R.plan.plan)}`;
+    const cmpRows = [
+      { name: `Now, as billed: ${nowName}${planned ? ', no panels yet' : ''}${st.ev_active && !st.ev_in_bill ? ', with the planned car' : ''}`, val: eur(R.net), v: R.net, token: '--bandink-day' },
+      { name: `This home on ${esc(plan.supplier)} · ${esc(plan.plan)}`, val: eur(T.total), v: T.total, token: d.picked ? '--v7-mid' : '--accent' },
+    ];
+    if (d.picked) cmpRows.push({ name: `Best for this home: ${esc(B.plan.supplier)} · ${esc(B.plan.plan)}`, val: eur(B.net), v: B.net, token: '--accent' });
+    const cheap = anCard(vsNow > 5 ? `${eur(vsNow)} a year less than you pay now` : vsNow < -5 ? `${eur(-vsNow)} a year more than you pay now` : 'About what you pay now',
+      `${hbars(cmpRows)}${d.picked ? `<button class="ax-inline ax-go" onclick="anPick('')">Go back to the best plan, ${eur(T.total - B.net)} a year less ${api.ic('chevR', 14)}</button>
+        <button class="ax-inline ax-go" onclick="choosePlan('${plan.id}');anPick('')">Use ${esc(plan.supplier)} everywhere, Home included ${api.ic('chevR', 14)}</button>` : ''}`);
 
     let health = null;
     try { const rec = api.getRecommendation(); health = api.computeEnergyScore(rec.best, rec.baseCost); } catch (e) { health = null; }
     return `${anHead('bill')}
       ${anAnswer({
-        k: planned ? 'You pay today, before the planned panels' : d.installed ? 'You pay, with your panels' : 'You pay',
+        k: `This home${homeWith() ? `, with ${homeWith()},` : ''} pays`,
         big: eur(T.total), unit: 'a year',
-        line: `On ${esc(plan.supplier)} ${esc(plan.plan)}${st.baseline_known ? '' : ' (our guess at your plan)'}, for ${kwh(T.kwh)}. That is ${api.fmtCent(T.total / Math.max(1, T.kwh))} for every kWh you use, fixed charges included.`,
+        line: `On ${esc(plan.supplier)} · ${esc(plan.plan)}, ${d.picked ? 'the plan you picked' : d.bestIsChoice ? 'your chosen plan' : 'the best plan for this home'}, for ${kwh(T.kwh)}. That is ${api.fmtCent(T.total / Math.max(1, T.kwh))} for every kWh you use, fixed charges included.`,
       })}
       ${anCard(partsTitle, `${stack(parts, parts.map((p) => `${p.label} ${p.val}`).join(', '))}${rows(parts)}${credit}`)}
       ${anCard(monthTitle, `${vbars(mo.map((v, i) => ({ v: Math.max(0, v), token: '--accent', tip: `${MONTH[i]}: ${v < 0 ? `${eur(-v)} credit` : eur(v)}` })),
         { label: `Electricity cost by month, from ${eur(mo[loI])} to ${eur(mo[hiI])}` })}${axis(MONTH.map((m) => m[0]))}
-        ${note(`Electricity${d.installed ? ', less export payments' : ''}, month by month. Fixed charges add ${eur(fixed / 12)} a month on top.`)}`)}
+        ${note(`Electricity${d.sys ? ', less export payments' : ''}, month by month. Fixed charges add ${eur(fixed / 12)} a month on top.`)}`)}
       ${cheap}
       ${health ? `<button class="ax-link-row ax-health" onclick="v7Sheet('score')" aria-label="Plan health ${health.overall} of 100">
         ${scoreRing({ value: health.overall, size: 44 })}
@@ -759,7 +780,7 @@ export function createV7(api) {
     const T = d.today;
     const plan = d.plan;
     const flat = api.isFlatPlan(plan);
-    const bought = d.installed;  // with panels, the bill follows what is bought, not what is used
+    const bought = d.sys;  // with panels, the bill follows what is bought, not what is used
     const hrs = bought ? T.hourImp : T.hourUse;
     const bands24 = Array.from({ length: 24 }, (_, h) => api.bandAt(h, plan));
     const rate = (b) => plan.rates[b] ?? plan.rates.day;
@@ -920,9 +941,9 @@ export function createV7(api) {
         <button class="v7-cta-2 v7-cta-alt ax-cta2 v7-quote-tile" onclick="v7Sheet('quote')">${api.ic('clip', 16)} I already have a quote</button>`;
     }
     const planned = st.solar_planned || st.solar_is_estimate;
-    const sd = api.solarData();
+    const sd = api.solarDataFor(d.plan.id);
     const { cur, sysCost, view, best } = sd;
-    const range = api.solarRange();
+    const range = d.picked ? null : api.solarRange();
     const pick = (v) => (v === 'realistic' ? cur : (range && range[v]) || (sd.range && sd.range[v]) || null);
     const shown = pick(view) || cur;
     const pb = shown.payback;
@@ -965,16 +986,16 @@ export function createV7(api) {
     const battLine = so.battOut > 1 ? note(`${api.ic('battery', 14)} The battery hands back ${kwh(so.battOut)} a year${so.arbitrage ? ': afternoon solar, and cheap night power in winter' : ' of solar, in the evening'}.`) : '';
     const more = !!st._solar_more;
     const planName = `${esc(best.plan.supplier)} ${esc(best.plan.plan)}`;
-    const planLine = best.isChosen ? `Worked out on ${planName}, the plan you picked.`
+    const planLine = d.picked ? `Worked out on ${planName}, the plan picked above.` : best.isChosen ? `Worked out on ${planName}, your chosen plan.`
       : `Worked out on ${planName}, the best plan ${planned ? 'once the panels are in' : 'with your panels'}.`;
 
     return `${anHead('solar', sub, planned ? '' : 'Are the panels paying off, and how?')}
       ${anAnswer({
         k: 'Pays for itself in',
         big: pb < 50 ? pb.toFixed(1) : '—', unit: pb < 50 ? 'years' : 'never pays back',
-        extra: `<div class="ax-wx wx-range" role="group" aria-label="Weather year">${wx}</div>
+        extra: `${d.picked ? '' : `<div class="ax-wx wx-range" role="group" aria-label="Weather year">${wx}</div>`}
           <div class="ax-line">${eur(benefit)} a year back on ${eur(sysCost)} after grant (${eur(st.install_cost)} less a ${eur(st.grant_seai)} SEAI grant).</div>
-          <div class="ax-line ax-line-2">${planLine} <button class="ax-inline" onclick="openPlanPicker()">Use a different plan</button></div>
+          <div class="ax-line ax-line-2">${planLine} <button class="ax-inline" onclick="v7Sheet('anplan')">Use a different plan</button></div>
           ${st.chosen_plan ? api.renderChoiceStrip() : ''}
           <button class="v7-system" onclick="openMySystem()">
             <span class="v7-chip">${api.totalPanels()} panels</span>
@@ -1004,10 +1025,10 @@ export function createV7(api) {
   }
 
   /* --- Car: what does it cost to run here? --- */
-  function anCar() {
+  function anCar(d) {
     const st = S();
     const rec = api.getRecommendation();
-    const plan = rec.best.plan;
+    const plan = d.plan;
     let ev = null;
     try { ev = api.evEconomics(plan.id); } catch (e) { ev = null; }
     if (!ev || !(ev.evKwh > 0)) {
@@ -1084,10 +1105,10 @@ export function createV7(api) {
     const tc = api.tariffCounts();
     const when = api.latestVerifiedLabel();
     const T = d.today;
-    const ch = d.cheaper;
+    const ch = d.ref;
     const line2 = (x, credit) => `${eur(x.energy)} electricity + ${eur(x.standing)} standing + ${eur(x.pso)} levy${x.outlook > 0.5 ? ` + ${eur(x.outlook)} announced rise` : ''}${credit > 0.5 ? ` − ${eur(credit)} export` : ''}`;
-    const sums = [{ name: `${esc(d.plan.supplier)} ${esc(d.plan.plan)}, now`, line: line2(T, T.credit), total: eur(T.total) }];
-    if (ch.plan.id !== d.plan.id) sums.push({ name: `${esc(ch.plan.supplier)} ${esc(ch.plan.plan)}`, line: line2(ch, ch.credit), total: eur(ch.net) });
+    const sums = [{ name: `Now, as billed: ${esc(ch.plan.supplier)} · ${esc(ch.plan.plan)}`, line: line2(ch, ch.credit), total: eur(ch.net) },
+      { name: `This home on ${esc(d.plan.supplier)} · ${esc(d.plan.plan)}`, line: line2(T, T.credit), total: eur(T.total) }];
     const rec = api.getRecommendation();
     return `${anHead('accuracy')}
       ${anAnswer({ k: 'Yearly figures, within', big: `±${a.pct}%`, unit: 'either way',
@@ -1096,7 +1117,7 @@ export function createV7(api) {
       ${anCard(`${tc.live} plans, checked against suppliers’ own rates`, `<p class="ax-p">Each plan’s rates are read from its supplier’s published price list${when ? `, ${/–/.test(when) ? 'between' : 'on'} ${esc(when)}` : ''}. ${tc.dynamicLeftOut ? `${tc.live - tc.dynamicLeftOut} are ranked; ${tc.dynamicLeftOut} dynamic plans are left out unless you turn them on in Settings.` : 'All of them are ranked.'}</p>
         <button class="ax-inline ax-go" onclick="setScreen('plans')">Every plan’s date, in Plans ${api.ic('chevR', 14)}</button>`)}
       ${anCard('The sum behind your answer', `${sums.map((x) => `<div class="ax-sum"><b>${x.name}</b><div><span>${x.line}</span><b>${x.total}</b></div></div>`).join('')}
-        ${sums.length > 1 ? `<div class="ax-sum-d">Difference: ${eur(T.total - ch.net)} a year, the figure on the Bill tab.</div>` : ''}
+        ${sums.length > 1 ? `<div class="ax-sum-d">Difference: ${eur(Math.abs(ch.net - T.total))} a year ${ch.net >= T.total ? 'less' : 'more'} than now, the figure on the Bill tab.</div>` : ''}
         ${working(rec)}${api.renderSolarWorking()}`)}
       ${anCard('Take it with you', `<div class="ax-two">
           <button class="ax-tile" onclick="openPdfReportModal()">${api.ic('doc', 18)}<b>Full report, PDF</b></button>
@@ -1120,6 +1141,7 @@ export function createV7(api) {
     if (sh.kind === 'plan') body = planSheet(sh.id);
     else if (sh.kind === 'assume') body = assumeSheet();
     else if (sh.kind === 'score') body = scoreSheet();
+    else if (sh.kind === 'anplan') body = anPlanSheet();
     else if (sh.kind === 'months') body = monthsSheet();
     else if (sh.kind === 'quote') body = quoteSheet();
     else if (sh.kind === 'switch') body = switchSheet(sh.id);

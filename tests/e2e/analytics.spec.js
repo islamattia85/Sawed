@@ -19,16 +19,19 @@ test('the Bill tab prices the same home as Home’s staircase', async ({ page })
   const rungs = await page.evaluate(() => [...document.querySelectorAll('.v7-hero .v7-ladder [data-rung]')]
     .map((r) => Math.round(+r.dataset.value)));
   await page.locator('.ax-door', { hasText: 'Bill' }).click();
-  // "You pay today, before the planned panels" is Home's "Now, no solar".
-  await expect(page.locator('.ax-ans-k')).toHaveText('You pay today, before the planned panels');
-  expect(euros(await page.locator('.ax-ans .ax-big').textContent())).toBe(rungs[0]);
-  // The cheapest plan without panels is Home's second step.
+  // The simulated home (planned panels in) on its best plan is Home's last step,
+  // and "now, as billed" is Home's first.
+  await expect(page.locator('.ax-ans-k')).toHaveText('This home, with the planned panels, pays');
+  expect(euros(await page.locator('.ax-ans .ax-big').textContent())).toBe(rungs[3]);
   const bars = await page.locator('.ax-hbar b').allTextContents();
-  if (bars.length === 2) expect(euros(bars[1])).toBe(rungs[1]);
+  expect(euros(bars[0])).toBe(rungs[0]);
   // The parts add up to the year, to the euro (each part is rounded once).
-  const parts = await page.locator('.ax-card').first().locator('.ax-row-v b').allTextContents();
+  const card = page.locator('.ax-card').first();
+  const parts = await card.locator('.ax-row:not(.ax-row-credit) .ax-row-v b').allTextContents();
+  const credit = await card.locator('.ax-row-credit .ax-row-v b').allTextContents();
   const total = euros(await page.locator('.ax-ans .ax-big').textContent());
-  expect(Math.abs(parts.reduce((a, t) => a + euros(t), 0) - total)).toBeLessThanOrEqual(parts.length);
+  const sum = parts.reduce((a, t) => a + euros(t), 0) - credit.reduce((a, t) => a + euros(t), 0);
+  expect(Math.abs(sum - total)).toBeLessThanOrEqual(parts.length + 1);
   expect(errors).toEqual([]);
 });
 
@@ -110,5 +113,27 @@ test('with a planned car, staying put never looks cheaper than the best plan', a
   expect(r[1]).toBeLessThanOrEqual(r[0] + 0.5);
   expect(r[3]).toBeLessThanOrEqual(r[2] + 0.5);
   await page.locator('.ax-door', { hasText: 'Bill' }).click();
-  expect(euros(await page.locator('.ax-ans .ax-big').textContent())).toBe(Math.round(r[0]));
+  const bars = await page.locator('.ax-hbar b').allTextContents();
+  expect(euros(bars[0])).toBe(Math.round(r[0]));
+  expect(euros(await page.locator('.ax-ans .ax-big').textContent())).toBe(Math.round(r[3]));
+});
+
+test('a plan picked in Analytics changes every tab, not Home, and lapses when the home changes', async ({ page }) => {
+  const errors = await boot(page, { ...PLANNED, current_screen: 'analytics', _an_tab: 'bill' });
+  const homeBest = await page.evaluate(() => window.getBestPlan().plan.id);
+  await page.locator('.ax-plan').click();
+  const row = page.locator('.ax-plan-row').nth(3);
+  const id = await row.evaluate((el) => el.getAttribute('onclick').match(/'([^']+)'/)[1]);
+  await row.click();
+  await expect(page.locator('.ax-plan')).toContainText('Plan you picked');
+  expect(await page.evaluate(() => window.getBestPlan().plan.id)).toBe(homeBest);
+  await page.locator('.ax-tab', { hasText: 'Solar' }).click();
+  await expect(page.locator('.ax-ans')).toContainText('the plan picked above');
+  // Leaving the panels out changes the home: back to its best plan, and it says so.
+  await page.evaluate(() => { window.toggleSolarModel(); window.setScreen('plans'); });
+  await page.locator('.v7-nav-item', { hasText: 'Analytics' }).click();
+  await expect(page.locator('.ax-msg')).toContainText('went back to its best plan');
+  await expect(page.locator('.ax-plan')).not.toContainText('Plan you picked');
+  expect(id).toBeTruthy();
+  expect(errors).toEqual([]);
 });

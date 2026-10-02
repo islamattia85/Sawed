@@ -24,45 +24,33 @@ const EV_PLANNER = {
   ev_active: true, ev_in_bill: false, ev_km_per_year: 15000,
 };
 
-/** The Bill tab's figures: what you pay, and the cheapest plan's year if one is shown. */
+/** The Bill tab: what this home pays on its plan, and the bars it is compared with. */
 async function bill(page) {
   return page.evaluate(() => {
     const big = document.querySelector('.ax-ans .ax-big');
     const euros = (t) => Number((t.match(/€([\d,]+)/) || [0, '0'])[1].replace(/,/g, ''));
-    const cards = [...document.querySelectorAll('.ax-card')];
-    const cheap = cards.find((c) => /cheapest|less a year|beats your plan|much less/i.test(c.querySelector('.ax-t').textContent));
-    const bars = cheap ? [...cheap.querySelectorAll('.ax-hbar b')].map((b) => euros(b.textContent)) : [];
-    return { today: euros(big.textContent), bars, title: cheap ? cheap.querySelector('.ax-t').textContent : null };
+    const card = [...document.querySelectorAll('.ax-card')].find((c) => /pay now/i.test(c.querySelector('.ax-t').textContent));
+    const bars = card ? [...card.querySelectorAll('.ax-hbar b')].map((b) => euros(b.textContent)) : [];
+    return { home: euros(big.textContent), bars, title: card ? card.querySelector('.ax-t').textContent : null };
   });
 }
 
 test('switching never costs more than staying, for a driver planning an EV', async ({ page }) => {
   const errors = await boot(page, EV_PLANNER);
   const b = await bill(page);
-  expect(b.title, 'the cheapest-plan card did not render').not.toBeNull();
-  if (b.bars.length === 2) {
-    expect(b.bars[0], 'the "you now" bar is not what you pay').toBe(b.today);
-    expect(b.bars[1], `"${b.title}" — a cheapest plan cannot lose to the one you are on`).toBeLessThanOrEqual(b.bars[0]);
-  }
+  expect(b.title, 'the comparison with now did not render').not.toBeNull();
+  expect(b.bars[1], 'the "this home" bar is not what this home pays').toBe(b.home);
+  expect(b.bars[1], `"${b.title}": the best plan cannot lose to the one you are on`).toBeLessThanOrEqual(b.bars[0]);
   expect(errors).toEqual([]);
 });
 
 test('the same house is priced on both sides of the comparison', async ({ page }) => {
   await boot(page, EV_PLANNER);
-  // Pin the mechanism: what you pay must move when the EV load moves.
-  const withEv = (await bill(page)).today;
+  // Pin the mechanism: "now" must move when the EV load moves.
+  const withEv = (await bill(page)).bars[0];
   await page.evaluate(() => { window.state.ev_active = false; window.invalidate(); window.renderApp(); });
-  const withoutEv = (await bill(page)).today;
-  expect(withEv, 'what you pay ignored the EV that the cheapest plan was priced with').toBeGreaterThan(withoutEv);
-});
-
-test('a plan that beats everything on sale says why instead of looking like a bug', async ({ page }) => {
-  await boot(page, EV_PLANNER);
-  const b = await bill(page);
-  // Staying put can legitimately win on a withdrawn rate. Whenever it does,
-  // the card says so rather than showing a "cheaper" plan that costs more.
-  if (b.bars.length === 2 && b.bars[1] > b.bars[0]) throw new Error('a dearer plan is shown as the cheaper one');
-  if (/beats your plan/.test(b.title)) await expect(page.locator('.ax-card', { hasText: 'beats your plan' })).toContainText('keep it while you can');
+  const withoutEv = (await bill(page)).bars[0];
+  expect(withEv, '"now" ignored the EV that this home was priced with').toBeGreaterThan(withoutEv);
 });
 
 test('every figure names the same choices, not two different "best" plans', async ({ page }) => {

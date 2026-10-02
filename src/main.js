@@ -96,7 +96,7 @@ async function sbInit(){
  * the person to choose. Saved quotes from both are always kept. */
 
 // What describes this screen rather than the household is never synced.
-const NO_SYNC = ['_flow', '_flow_edit', '_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_solar_more', '_an_tab', '_an_from', '_an_day_open', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
+const NO_SYNC = ['_flow', '_flow_edit', '_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_solar_more', '_an_tab', '_an_from', '_an_pick', '_an_note', '_an_day_open', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
   '_tariff_refreshing', '_expert_open', '_account_id', '_saved_at'];
 let _sync = { status: 'idle', at: null };
 let _syncTimer = null;
@@ -2448,40 +2448,62 @@ function _plannedLadder(){
  * billed now: a planned system is not bought yet, so it is left out; an
  * installed one is part of the home. Memoised on the whole model: the
  * no-panels side re-simulates the year. */
+/*
+ * Analytics follows the home being simulated (Home's switches: planned or
+ * installed panels, the car) on one plan: the best for that home unless the
+ * reader picks another in Analytics. A pick is a what-if for Analytics only,
+ * and it lapses when the home changes, because the best plan may change with it.
+ */
+function anConfig(){
+  return JSON.stringify([!!state.has_solar, totalPanels(), +state.battery_kwh || 0, !!state.solar_planned, !!state.ev_active, !!state.ev_in_bill, +state.ev_km_per_year || 0, state.baseline]);
+}
+/** The plan Analytics shows: { plan, best, picked }. Clears a pick the home has outgrown. */
+function anPlan(){
+  const best = getBestPlan();
+  const pk = state._an_pick;
+  if (pk && pk.cfg !== anConfig()){
+    delete state._an_pick;
+    state._an_note = `The home changed, so Analytics went back to its best plan: ${best.plan.supplier} ${best.plan.plan}.`;
+  }
+  const picked = state._an_pick ? getPlanById(state._an_pick.id) : null;
+  return { plan: picked || best.plan, best: best.plan, picked: !!picked && picked.id !== best.plan.id, bestIsChoice: !!best.isChosen };
+}
+let _sdMemo = { k: null, v: null };
+/** The solar figures worked out on a given plan: the engine's own, as if that plan were chosen. */
+function solarDataFor(id){
+  const best = getBestPlan();
+  if (!id || id === best.plan.id) return v7SolarData();
+  const k = modelKey() + '|' + id + '|' + (state._scenario_view || '');
+  if (_sdMemo.k === k) return _sdMemo.v;
+  const v = withSimState({ chosen_plan: id, _scenario_view: 'realistic' }, () => { const d = v7SolarData(); return { ...d, best: { ...d.best } }; });
+  _sdMemo = { k, v };
+  return v;
+}
+function anPick(id){
+  if (!id || id === getBestPlan().plan.id) delete state._an_pick;
+  else state._an_pick = { id, cfg: anConfig() };
+  delete state._an_note;
+  v7Sheet(null); saveState(); renderApp(); window.scrollTo(0, 0);
+}
+
 let _anMemo = { k: null, v: null };
 function analyticsData(){
-  const k = modelKey();
+  const { plan } = anPlan();
+  const k = modelKey() + '|' + plan.id;
   if (_anMemo.k === k && _anMemo.v) return _anMemo.v;
-  _anMemo = { k, v: _analyticsData() };
+  _anMemo = { k, v: _analyticsData(plan) };
   return _anMemo.v;
 }
-function _analyticsData(){
+function _analyticsData(plan){
   if (CACHE.dirty) rebuildBase();
   const sys = !!state.has_solar && totalPanels() > 0;
   const installed = sys && !state.solar_planned && !state.solar_is_estimate;
-  const plan = getPlanById(state.baseline);
-  let t;
-  if (installed){
-    const s = sim(plan.id);
-    const ac = annualCost(s, plan);
-    t = { cost: s.cost, revenue: s.revenue, band: s.band, use: s.cons, imp: s.grid_import,
-      gen: s.gen, exp: s.grid_export, ch: s.battery_charge, dis: s.battery_discharge,
-      energy: ac.energy_cost, standing: ac.standing, pso: ac.pso, outlook: ac.outlook_extra, credit: ac.export_revenue, total: ac.net };
-  } else if (state.ev_active && !state.ev_in_bill){
-    // A planned car: priced in, as on Home's "Now" bar and the cheapest plan.
-    t = withSimState({ count_A: 0, count_B: 0, battery_kwh: 0, has_solar: false }, () => {
-      const s = sim(plan.id); const ac = annualCost(s, plan);
-      return { cost: Float32Array.from(s.cost), revenue: null, band: s.band ? s.band.slice() : null, use: Float32Array.from(s.cons), imp: Float32Array.from(s.grid_import),
-        energy: ac.energy_cost, standing: ac.standing, pso: ac.pso, outlook: ac.outlook_extra, credit: 0, total: ac.net };
-    });
-  } else {
-    // The bill as it stands: the same figure as Home's "Now" bar.
-    const b = baselineSim(plan.id);
-    const use = (state.ev_active && state.ev_in_bill) ? CACHE.cons : CACHE.consNoEv;
-    const energy = sumF(b.cost);
-    t = { cost: b.cost, revenue: null, band: b.band, use, imp: use,
-      energy, standing: plan.standing, pso: PSO_LEVY, outlook: 0, credit: 0, total: energy + plan.standing + PSO_LEVY };
-  }
+  const ap = anPlan();
+  const s = sim(plan.id);
+  const ac = annualCost(s, plan);
+  const t = { cost: s.cost, revenue: s.revenue, band: s.band, use: s.cons, imp: s.grid_import,
+    gen: s.gen, exp: s.grid_export, ch: s.battery_charge, dis: s.battery_discharge, soc: s.soc,
+    energy: ac.energy_cost, standing: ac.standing, pso: ac.pso, outlook: ac.outlook_extra, credit: ac.export_revenue, total: ac.net };
   const byBand = {}, kwhBand = {};
   const month = new Array(12).fill(0);
   const dayCost = new Array(365).fill(0);
@@ -2505,31 +2527,32 @@ function _analyticsData(){
   }
   let hi = 0, lo = 0;
   for (let d = 1; d < 365; d++){ if (dayCost[d] > dayCost[hi]) hi = d; if (dayCost[d] < dayCost[lo]) lo = d; }
-  // The cheapest plan for that same home: without the planned panels, or
-  // with the installed ones. Hand-picked plans aside, it is the ranking's top.
-  const cheapest = () => {
-    const best = getBestPlan({ ignoreChoice: true });
-    const ac = annualCost(sim(best.plan.id), best.plan);
-    return { plan: best.plan, net: ac.net, energy: ac.energy_cost, standing: ac.standing, pso: ac.pso, credit: ac.export_revenue, outlook: ac.outlook_extra };
-  };
-  const cheaper = (sys && !installed) ? withSimState({ count_A: 0, count_B: 0, battery_kwh: 0, has_solar: false }, cheapest) : cheapest();
+  // What you pay now, as billed: the reference every saving is measured from.
+  const basePlan = getPlanById(state.baseline);
+  const ref = installed
+    ? (() => { const r = annualCost(sim(basePlan.id), basePlan); return { plan: basePlan, net: r.net, energy: r.energy_cost, standing: r.standing, pso: r.pso, credit: r.export_revenue, outlook: r.outlook_extra }; })()
+    : (state.ev_active && !state.ev_in_bill)
+      // A planned car: priced in, as Home's "Now" bar does, so both sides are the same home.
+      ? withSimState({ count_A: 0, count_B: 0, battery_kwh: 0, has_solar: false }, () => { const r = annualCost(sim(basePlan.id), basePlan); return { plan: basePlan, net: r.net, energy: r.energy_cost, standing: r.standing, pso: r.pso, credit: 0, outlook: r.outlook_extra }; })
+      : (() => { const e = sumF(baselineSim(basePlan.id).cost); return { plan: basePlan, net: e + basePlan.standing + PSO_LEVY, energy: e, standing: basePlan.standing, pso: PSO_LEVY, credit: 0, outlook: 0 }; })();
+  // The best plan for this home, for comparison when another is picked.
+  const bestAc = annualCost(sim(ap.best.id), ap.best);
+  const best = { plan: ap.best, net: bestAc.net };
   let solar = null;
   if (sys){
-    const best = getBestPlan();
-    const bs = best.sim;
-    const gen = sumF(bs.gen), exp = sumF(bs.grid_export), curt = sumF(bs.curtailed);
-    solar = { plan: best.plan, gen, exp, curt, kept: Math.max(0, gen - exp - curt), revenue: sumF(bs.revenue),
-      battIn: state.battery_kwh > 0 ? sumF(bs.battery_charge) : 0, battOut: state.battery_kwh > 0 ? sumF(bs.battery_discharge) : 0,
-      cons: sumF(bs.cons), arbitrage: state.battery_kwh > 0 && arbitrageOn() };
+    const gen = sumF(s.gen), exp = sumF(s.grid_export), curt = sumF(s.curtailed);
+    solar = { plan, gen, exp, curt, kept: Math.max(0, gen - exp - curt), revenue: sumF(s.revenue),
+      battIn: state.battery_kwh > 0 ? sumF(s.battery_charge) : 0, battOut: state.battery_kwh > 0 ? sumF(s.battery_discharge) : 0,
+      cons: sumF(s.cons), arbitrage: state.battery_kwh > 0 && arbitrageOn() };
   }
-  return { sys, installed, plan, _t: t,
+  return { sys, installed, plan, picked: ap.picked, bestIsChoice: ap.bestIsChoice, _t: t,
     today: { total: t.total, energy: t.energy, standing: t.standing, pso: t.pso, outlook: t.outlook, credit: t.credit,
       byBand, kwhBand, month, hourUse, hourImp, hourCost, kwh: sumF(t.use), imp: sumF(t.imp),
       dearest: { day: hi, cost: dayCost[hi] }, cheapest: { day: lo, cost: dayCost[lo] } },
-    cheaper, solar };
+    ref, best, solar };
 }
 
-/** One day of that same home, hour by hour: what it used and bought, and what each hour cost. */
+/** One day of that same home on that plan, hour by hour. */
 function analyticsDay(dayIdx){
   const d = analyticsData();
   const t = d._t;
@@ -2544,25 +2567,10 @@ function analyticsDay(dayIdx){
       use: t.use[i] || 0, imp: t.imp[i] || 0,
       gen: t.gen ? t.gen[i] || 0 : 0, exp: t.exp ? t.exp[i] || 0 : 0,
       ch: t.ch ? t.ch[i] || 0 : 0, dis: t.dis ? t.dis[i] || 0 : 0,
+      soc: t.soc ? t.soc[i] || 0 : 0,
       cost: (t.cost[i] || 0) - (t.revenue ? t.revenue[i] || 0 : 0) });
   }
-  // With panels (installed, or planned on the plan that suits them), the day as the
-  // panels and battery would run it: v7's day inspector, hour by hour.
-  let solar = null;
-  if (d.sys){
-    const best = d.installed ? { plan: d.plan, sim: sim(d.plan.id) } : getBestPlan();
-    const s = best.sim, p = best.plan;
-    solar = { plan: p, planned: !d.installed, cap: +state.battery_kwh || 0, hours: [] };
-    for (let h = 0; h < 24; h++){
-      const i = day * 24 + h;
-      const band = (s.band && s.band[i]) || bandAt(h, p);
-      solar.hours.push({ h, band, rate: p.rates[band] ?? p.rates.day,
-        gen: s.gen[i] || 0, use: s.cons[i] || 0, imp: s.grid_import[i] || 0, exp: s.grid_export[i] || 0,
-        ch: s.battery_charge ? s.battery_charge[i] || 0 : 0, dis: s.battery_discharge ? s.battery_discharge[i] || 0 : 0,
-        soc: s.soc ? s.soc[i] || 0 : 0,
-        cost: (s.cost[i] || 0) - (s.revenue ? s.revenue[i] || 0 : 0) });
-    }
-  }
+  const solar = d.sys ? { plan: d.plan, planned: !d.installed, cap: +state.battery_kwh || 0, hours } : null;
   return { day, hours, yearMax: d._yearMax, solar };
 }
 
@@ -2609,6 +2617,8 @@ const removeEv = toggleEvModel;
 function anTab(t, from){
   if (from !== undefined) state._an_from = from;
   if (t === 'car' && !state.ev_active) t = 'bill';
+  // The "plan went back" note is read on arrival, and cleared by the next tab change.
+  if (state.current_screen === 'analytics' || state.current_screen === 'solar') delete state._an_note;
   state._an_tab = t;
   const screen = t === 'solar' ? 'solar' : 'analytics';
   if (state.current_screen === screen){ saveState(); renderApp(); }
@@ -10288,7 +10298,7 @@ const V7 = createV7({
   renderResultEmpty: v7ResultEmpty,
   hasModelledSystem: v7HasModelledSystem,
   // What a plan costs this home as simulated — solar, battery and EV included.
-  analyticsData: () => analyticsData(), analyticsDay, solarRange,
+  analyticsData: () => analyticsData(), analyticsDay, solarRange, anPlan: () => anPlan(), solarDataFor,
   accuracyWithMeter: () => accuracyWithMeter(),
   renderSolarImprove: () => { try { return renderImproveList(generateAdvice(getBestPlan())); } catch (e) { return ''; } },
   renderSolarWorking: () => renderSolarWorking(),
@@ -12538,6 +12548,7 @@ window.flowSupplier = flowSupplier;
 window.sgKeep = sgKeep;
 window.sgGrant = sgGrant;
 window.anTab = anTab;
+window.anPick = anPick;
 window.removeEv = removeEv;
 window.toggleEvModel = toggleEvModel;
 window.tryUpgrade = tryUpgrade;

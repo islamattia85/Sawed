@@ -148,21 +148,13 @@ test('the plan can be chosen from the solar screen, near the top', async ({ page
   expect(top, 'the plan is not named in the solar answer').not.toBeNull();
   expect(top).toBeLessThan(900);
 
+  // v8: a what-if for Analytics: the figures follow it, Home's advice does not.
+  const best = await page.evaluate(() => window.getBestPlan().plan.id);
   await page.getByRole('button', { name: /Use a different plan/i }).first().click();
-  await expect(page.locator('#plan-picker')).toBeVisible();
-
-  const third = await page.evaluate(() => window.getRecommendation().ranked[2].plan.id);
-  await page.locator('.pp-row').nth(2).click();
-
-  await expect(page.locator('#plan-picker')).toHaveCount(0);
-  const after = await page.evaluate(() => ({
-    best: window.getBestPlan().plan.id,
-    rank: window.getRecommendation().chosenRank,
-  }));
-  expect(after.best).toBe(third);
-  expect(after.rank).toBe(3);
-  await expect(page.locator('.choice-strip')).toBeVisible();
-
+  await expect(page.locator('#v7-sheet .ax-plan-row')).not.toHaveCount(0);
+  await page.locator('#v7-sheet .ax-plan-row').nth(2).click();
+  await expect(page.locator('.ax-ans')).toContainText('the plan picked above');
+  expect(await page.evaluate(() => window.getBestPlan().plan.id)).toBe(best);
   expect(errors).toEqual([]);
 });
 
