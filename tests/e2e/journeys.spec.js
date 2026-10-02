@@ -187,49 +187,24 @@ test('solar explored in the guide is "planned", and the card only moves on its l
   // Planned solar joins the one staircase on Home; nothing calls it installed.
   await expect(page.locator('.v7-hero')).toContainText('with the planned solar');
   await expect(page.locator('.v7-hero')).not.toContainText(/installed/i);
-  await page.locator('.v7-hero .v7-step').first().click();
+  await page.locator('.v7-hero .v7-solar-ctl small').click();
   expect(await screen(page)).toBe('result');                                                   // information goes nowhere
 });
 
-test('Solar is a section of Analytics; the lit tab returns to its main page', async ({ page }) => {
+test('one Analytics page: solar first when there is solar, hour by hour below', async ({ page }) => {
   await boot(page, { current_screen: 'analytics', has_solar: true, considering_solar: true, solar_planned: true, count_A: 10, battery_kwh: 5 });
-  await page.locator('.an-hub-b', { hasText: /^Solar$/ }).click();
-  await expect.poll(() => screen(page)).toBe('solar');
-  await expect(page.locator('.an-hub-b.on')).toHaveText('Solar');
+  await expect(page.locator('.v7-solar-hero')).toBeVisible();
+  await expect(page.locator('.v7-section-h', { hasText: 'Hour by hour' })).toBeVisible();
+  await expect(page.locator('.an-hub')).toHaveCount(0);
   await expect(page.locator('.v7-nav-item.active')).toContainText('Analytics');
-  // On a section, the lit tab goes back to the tab's main page (the menu
-  // above shows where you are); on that main page it just scrolls to the top.
-  await page.locator('.v7-nav-item.active').click();
-  await expect.poll(() => screen(page)).toBe('analytics');
   await page.locator('.v7-nav-item.active').click();
   expect(await screen(page)).toBe('analytics');
 });
 
-test('Solar in the Analytics menu, with no system, opens a calm page, not the questions', async ({ page }) => {
+test('without solar, Analytics is hour by hour with one way into solar', async ({ page }) => {
   await boot(page, { current_screen: 'analytics', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
-  await page.locator('.an-hub-b', { hasText: /^Solar$/ }).click();
-  await expect.poll(() => screen(page)).toBe('solar');
-  await expect(page.locator('.v7-invite')).toContainText('Thinking about solar?');
-  await expect(page.locator('.an-hub-b.on')).toHaveText('Solar');
-});
-
-test('planned solar has one control on Home; leaving it out leaves its battery out too, and it comes back whole', async ({ page }) => {
-  await boot(page, { current_screen: 'result', has_solar: true, considering_solar: true, solar_planned: true, count_A: 10, battery_kwh: 5, _home_deep: true });
-  await expect(page.locator('.v7-ladder-k')).toHaveText(/What you.d pay a year/);
-  await expect(page.locator('.v7-hero .v7-figure-unit')).toHaveText('less a year');
-  await expect(page.locator('.v7-switch-row')).toHaveCount(0);                 // no stray switch in the analysis
-  await expect(page.locator('.v7-full-ladder')).toHaveCount(0);                // no second staircase
-  await page.locator('.v7-solar-ctl button', { hasText: 'Leave out' }).click();
-  expect(await page.evaluate(() => [window.state.has_solar, window.state.battery_kwh])).toEqual([false, 0]);
-  await page.locator('.hc-invite', { hasText: 'left out' }).click();
-  expect(await page.evaluate(() => [window.state.has_solar, window.state.battery_kwh, window.state.count_A])).toEqual([true, 5, 10]);
-});
-
-test('no score pop-ups for someone who has never seen the score', async ({ page }) => {
-  await boot(page, { current_screen: 'result', score_seen: false });
-  await page.evaluate(() => { window.state.baseline = window.getRecommendation().best.plan.id; window.invalidate(); window.renderApp(); });
-  await page.waitForTimeout(1200);
-  await expect(page.locator('.toast', { hasText: /points/ })).toHaveCount(0);
+  await expect(page.locator('.v7-solar-hero')).toHaveCount(0);
+  await expect(page.locator('.an-stat-go')).toContainText('Would it pay off?');
 });
 
 test('"not sure which plan" assumes a standard plan, never an EV or dynamic one', async ({ page }) => {

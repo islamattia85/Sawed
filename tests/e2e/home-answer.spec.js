@@ -113,9 +113,10 @@ test('nothing was deleted — the working and the health sheet hold all of it', 
   expect(errors).toEqual([]);
 });
 
-test('freshness is disclosed on the answer, not buried in the working', async ({ page }) => {
+test('freshness is disclosed with the plans, not buried in the working', async ({ page }) => {
   await boot(page);
-  const chip = page.locator('.fresh-chip');
+  await page.evaluate(() => window.setScreen('plans'));
+  const chip = page.locator('.fresh-chip').first();
   await expect(chip).toBeVisible();
 
   // Tapping it still leads to the per-plan dates — the honesty is intact, it is

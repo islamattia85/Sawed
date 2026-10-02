@@ -78,7 +78,11 @@ test('the result screen never claims every plan was checked when they were not',
       .toContainText(/\d+ days ago|not re-checked|confirm this plan/i);
     await expect(chip).toHaveClass(/is-stale/);
   } else {
-    await expect(page.locator('.fresh-chip')).not.toHaveClass(/is-stale/);
+    // Fresh rates: Home stays quiet (no chip standing there for no reason);
+    // Plans carries the date.
+    await expect(page.locator('.fresh-chip.is-stale')).toHaveCount(0);
+    await page.evaluate(() => window.setScreen('plans'));
+    await expect(page.locator('.fresh-chip').first()).toBeVisible();
   }
 });
 

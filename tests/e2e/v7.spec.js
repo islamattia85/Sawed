@@ -778,7 +778,7 @@ test('v8 Home adapts: a card per part of the home, invitations for what it lacks
   await boot(page, { has_solar: true, considering_solar: true, solar_planned: true, count_A: 12, battery_kwh: 5, ev_active: true, ev_km_per_year: 15000, _home_deep: false });
   // Planned solar is part of the answer's staircase; the car keeps its card.
   await expect(page.locator('.hc')).toHaveCount(1);
-  await expect(page.locator('.v7-hero .v7-steps')).toContainText('paid back in');
+  await expect(page.locator('.v7-hero .v7-steps')).toContainText('pays back in');
   await expect(page.locator('.hc-invite')).toHaveCount(0);
   await page.locator('.hc-go', { hasText: 'Solar analysis' }).click();
   expect(await page.evaluate(() => window.state.current_screen)).toBe('solar');
@@ -787,5 +787,5 @@ test('v8 Home adapts: a card per part of the home, invitations for what it lacks
   await page.locator('.v7-home-back', { hasText: 'Home' }).click();
   expect(await page.evaluate(() => window.state.current_screen)).toBe('result');
   await page.locator('.v7-nav-item', { hasText: 'Analytics' }).click();
-  await expect(page.locator('.an-hub')).toContainText('Solar');
+  await expect(page.locator('.v7-solar-hero')).toBeVisible();
 });

@@ -2854,6 +2854,10 @@ const OPTIMISATIONS = {
   }
 };
 
+/** Apply a suggested upgrade (more panels, a bigger battery) to the system. */
+function tryUpgrade(o){
+  for (const [k, v] of Object.entries(o || {})) sysSet(k, v);
+}
 function computeOptimisations(){
   const ck = JSON.stringify([state.strategy_mode, state.charge_from_grid, state.hot_water_strategy,
     state.export_enabled, state.battery_kwh, state.heating_type, usageKey(), state.region,
@@ -2930,9 +2934,9 @@ function computeOptimisations(){
       const r = simulateWithOverrides(overrides);
       const gain = currentNet - r.net;
       if (netExtra > 0 && gain > 0){
-        upgrades.push({ label, netExtra, gain, payback: netExtra / gain });
+        upgrades.push({ label, netExtra, gain, payback: netExtra / gain, overrides });
       } else if (netExtra > 0){
-        upgrades.push({ label, netExtra, gain: Math.max(0, gain), payback: Infinity });
+        upgrades.push({ label, netExtra, gain: Math.max(0, gain), payback: Infinity, overrides });
       }
     };
     if (batt < 15) tryUpgrade(`+5 kWh battery (→ ${batt + 5} kWh)`, { battery_kwh: batt + 5 }, kwp, batt + 5);
@@ -3012,6 +3016,7 @@ function renderImproveList(advice){
         <div class="v7-imp-sub">~${fmtCurrency(u.netExtra)} extra after grant · ${u.payback === Infinity || u.payback > 30
           ? "it doesn't pay for itself"
           : ok ? `pays for itself in <b>${fmtPb(u.payback)}</b>` : `pays back in ${fmtPb(u.payback)}, too long at today's prices`}</div>
+        ${ok && u.overrides ? `<button class="v7-imp-btn" onclick='tryUpgrade(${JSON.stringify(u.overrides)})'>Try it on my system</button>` : ''}
       </div>`;
     (ok ? worth : notWorth).push({ rank: ok ? u.payback : 99, gain: u.gain, html });
   }
@@ -3032,7 +3037,7 @@ function renderImproveList(advice){
       <summary>Looked at, not worth it (${notWorth.length})</summary>
       ${notWorth.map(x => x.html).join('')}
     </details>` : ''}
-    ${good.length ? `<div class="v7-imp-good">${ic('checkC', 15)} <span>Already set up well: ${good.join(' · ')}</span></div>` : ''}
+    ${good.length ? `<div class="v7-imp-good">${ic('checkC', 15)} <span>${state.solar_planned ? 'Already right in this plan' : 'Already set up well'}: ${good.join(' · ')}</span></div>` : ''}
     ${opts.suggest.length ? `<div class="v7-fine">Each figure is simulated on your home. Applying one can change the others.</div>` : ''}`;
 }
 
@@ -5644,7 +5649,7 @@ function sgKeep(){
   try { localStorage.removeItem('pk_sg_before'); } catch (e) {}
   state.current_screen = 'result';
   saveState(); renderApp(); window.scrollTo(0, 0);
-  showToast('Solar added as a plan. It’s marked “planned” until you have panels', { type: 'accent', icon: ic('sun', 16) });
+
 }
 function sgRoof(face){
   const map = { S: [180, 0, 0], SE: [135, 0, 0], SW: [225, 0, 0], EW: [90, 270, 1], E: [90, 0, 0], W: [270, 0, 0] };
@@ -7795,7 +7800,7 @@ function analyticsHub(on){
     `<button class="an-hub-b ${k === on ? 'on' : ''}" onclick="${go}">${l}</button>`).join('')}</nav>`;
 }
 
-function renderAnalytics(){
+function renderAnalytics(opts = {}){
   ensureAnalyticsState();
   if (CACHE.dirty) rebuildBase();
 
@@ -7904,10 +7909,7 @@ function renderAnalytics(){
   const recommendedId = _rec.best ? _rec.best.plan.id : null;
   const isRecommended = (recommendedId === plan.id);
 
-  const hub = analyticsHub('hours');
-  return `${topbar('Analytics', 'blue', true)}
-  ${hub}
-  <div class="screen">
+  const body = `
     <div class="an-hero">
       <div class="an-hero-label">Annual flows · ${plan.supplier} ${plan.plan}${isRecommended ? ' · ★ RECOMMENDED' : ''}</div>
       <div style="font-family:var(--display);font-size:20px;font-weight:600;color:var(--ink);line-height:1.2;letter-spacing:-.01em">${Math.round(annualCons).toLocaleString()} kWh used / yr</div>
@@ -8223,7 +8225,10 @@ function renderAnalytics(){
       </div>
     </div>`}
 
-    <p class="disclaimer">Simulated, not metered — hourly figures vary ±5–8% with the weather.</p>
+    <p class="disclaimer">Simulated, not metered — hourly figures vary ±5–8% with the weather.</p>`;
+  if (opts.bodyOnly) return body;
+  return `${topbar('Analytics', 'blue', true)}
+  <div class="screen">${body}
   </div>
   ${bottomNav()}`;
 }
@@ -11246,7 +11251,8 @@ const V7 = createV7({
   renderResultEmpty: v7ResultEmpty,
   hasModelledSystem: v7HasModelledSystem,
   // What a plan costs this home as simulated — solar, battery and EV included.
-  analyticsHub: (on) => analyticsHub(on),
+  analyticsHub: () => '',
+  analyticsBody: () => renderAnalytics({ bodyOnly: true }),
   plannedLadder: () => plannedLadder(),
   householdScore: () => householdScore(),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
@@ -11299,10 +11305,7 @@ function toggleSolarModel(){
   invalidate();
   saveState();
   renderApp();
-  showToast(on
-    ? `Solar ${state.solar_is_estimate ? 'modelled (estimated)' : 'back in'}: ${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ' · ' + state.battery_kwh + ' kWh battery' : ''}`
-    : 'Solar left out: every figure is now without panels or battery. Your system is kept.',
-    { type: 'accent', icon: ic('sun', 16) });
+  // No toast: the bars and the solar line change in front of you.
 }
 
 /* ---- Reading an installer's quote ---------------------------------------
@@ -11724,6 +11727,9 @@ function renderSystemSheet(){
       <button class="v7-seg-btn ${state.solar_planned || state.solar_is_estimate ? 'active on' : ''}" onclick="setSolarInstalled(false)">I'm planning it</button>
       <button class="v7-seg-btn ${!state.solar_planned && !state.solar_is_estimate ? 'active on' : ''}" onclick="setSolarInstalled(true)">It's installed</button>
     </div>
+    <p class="sy-status-why">${state.solar_planned || state.solar_is_estimate
+      ? 'Planning: Home shows what switching saves now and what the panels would add once bought. Payback counts the price.'
+      : 'Installed: the panels are part of your home. Home shows what switching saves on top of them, and your meter readings can check they’re working.'}</p>
     ${renderAccuracy()}
     ${state.has_solar && totalPanels() > 0 ? renderOptimisedSuggestion() : ''}
 
@@ -11796,7 +11802,7 @@ function renderHomeSheet(){
   const field = (label, help, control) => `<label class="sy-field"><span><b>${label}</b>${help ? `<small>${help}</small>` : ''}</span>${control}</label>`;
   return `<div class="v7-sheet-head">
       <div class="v7-eyebrow">My home</div>
-      <h2 class="v7-h">The things that don't change</h2>
+      <h2 class="v7-h">Your home</h2>
     </div>
     ${renderAccuracy()}
 
@@ -11967,7 +11973,7 @@ function setScreen(name){
     state.solar_view = 'mine';
     if (state.my_system) applySystemConfig(state.my_system);
     // P1.6: silent revert looked like a glitch — let the user know
-    showToast('Back to your system.', { type:'accent', icon:ic('home',16), title:'' });
+
   }
   // Opening the Solar tab never models anything by itself. It used to call
   // exploreSolar() here for anyone without a system, so a reader who had said
@@ -12303,7 +12309,7 @@ function renderApp(){
     case 'plans':        html = V7.plans(); break;
     case 'plan-detail':  html = renderPlanDetail(); break;
     case 'solar':        html = V7.solar(); break;
-    case 'analytics':    html = renderAnalytics(); break;
+    case 'analytics':    html = state.has_solar && totalPanels() > 0 ? V7.solar() : renderAnalytics(); break;
     case 'monitor':      html = renderMonitor(); break;
     case 'compare':      html = renderCompare(); break;
     case 'more':         html = renderMore(); break;
@@ -13564,6 +13570,7 @@ window.sgCancel = sgCancel;
 window.flowSupplier = flowSupplier;
 window.sgKeep = sgKeep;
 window.sgGrant = sgGrant;
+window.tryUpgrade = tryUpgrade;
 window.useGoalDesign = useGoalDesign;
 window.startSolarGuide = startSolarGuide;
 window.startFlow = startFlow;

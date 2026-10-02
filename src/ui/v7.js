@@ -213,12 +213,10 @@ export function createV7(api) {
       let d = null; try { d = api.solarData(); } catch (e) {}
       const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
       steps = `<div class="v7-steps">
-        ${pl.noSolar.plan.id === st.baseline
-          ? `<div class="v7-step"><b>${api.ic('checkC', 16)}</b><span>You’re already on the cheapest plan until the panels are in.</span></div>`
-          : `<div class="v7-step"><b>${eur(Math.max(0, pl.today - pl.noSolar.net))} less</b><span>a year from switching to <b>${esc(pl.noSolar.plan.supplier)}</b> ${esc(pl.noSolar.plan.plan)}. Free, and you can do it today.</span></div>`}
-        <div class="v7-step"><b>${eur(Math.max(0, pl.noSolar.net - pl.best.net))} less</b><span>again, a year, once the panels are in${pl.best.plan.id !== pl.noSolar.plan.id ? `, on <b>${esc(pl.best.plan.supplier)}</b> ${esc(pl.best.plan.plan)}` : ''}. ${d ? `${eur(d.sysCost)} after the grant${pb ? `, paid back in ${pb.toFixed(1)} years` : ''}.` : ''}</span></div>
-        <div class="v7-solar-ctl">${api.ic('sun', 16)}<span><b>Planned solar</b> · ${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}</span>
-          <button onclick="toggleSolarModel()">Leave out</button></div>
+        ${pl.noSolar.plan.id === st.baseline ? `<div class="v7-step"><b>${api.ic('checkC', 16)}</b><span>You’re already on the cheapest plan until the panels are in.</span></div>` : ''}
+        ${(() => { let d = null; try { d = api.solarData(); } catch (e) {} const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
+          return `<div class="v7-solar-ctl">${api.ic('sun', 18)}<span><b>Planned solar</b><small>${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}${d ? ` · ${eur(d.sysCost)} after grant` : ''}${pb ? ` · pays back in ${pb.toFixed(1)} yrs` : ''}</small></span>
+          <button onclick="toggleSolarModel()">Leave out</button></div>`; })()}
         <button class="hc-go" onclick="state._solar_from='result';setScreen('solar')">Solar analysis ${api.ic('chevR', 14)}</button>
       </div>`;
     }
@@ -260,6 +258,7 @@ export function createV7(api) {
       </button>
 
       <div class="v7-notices">
+        ${/is-stale/.test(api.freshnessChip(best.plan)) ? api.freshnessChip(best.plan) : ''}
         ${api.priceChangeChip(best.plan)}
         ${api.renderContractAlert()}
         ${st.chosen_plan ? api.renderChoiceStrip() : ''}
@@ -279,13 +278,13 @@ export function createV7(api) {
       ${deep && acc ? (() => { const a = api.modelAccuracy(); return `<div class="v7-acc-why">${api.ic('info', 16)}<span><b>Why ±${acc}%?</b> ${a.tip ? `It allows for: ${esc(a.parts.filter((x) => x.err >= 2).map((x) => x.label.toLowerCase()).join('; '))}.` : 'This is as close as a model gets: it’s built on your real meter readings, and only the weather is left to vary.'}
         ${a.tip ? `<button onclick="${a.tip.go}">${esc(a.tip.tip)} to tighten it ${api.ic('chevR', 14)}</button>` : ''}</span></div>`; })() : ''}
       ${deep ? `
-      ${withSolar && !pl ? `<section class="v7-card v7-full-ladder"><div class="v7-card-title">The whole saving, step by step</div>${savingsLadder({ rungs: lad.rungs })}</section>` : ''}
+      ${withSolar && !pl ? `<div class="v7-full-ladder" hidden aria-hidden="true">${savingsLadder({ rungs: lad.rungs })}</div>` : ''}
       <div class="qr-actions v7-links">
         <a href="#" onclick="event.preventDefault();setScreen('plans')">See all ${rec.ranked.length} plans ranked for you</a>
-        ${saving > 10 ? `<a href="#" onclick="event.preventDefault();setScreen('how-to-switch')">How switching works</a>` : ''}
+
       </div>
       <div class="v7-basis" aria-label="What these figures are worked out for">${homeChips({ withSolar: false })}</div>
-      <div class="v7-notices">${api.freshnessChip(best.plan)}</div>
+
       <div class="v7-carousel" role="region" aria-label="Your year and your day">
         ${api.renderBillShape(best)}
         ${api.renderDayShape(best)}
@@ -534,6 +533,7 @@ export function createV7(api) {
           <span><i class="v7-dot" style="background:var(--bandink-peak)"></i>peak</span>
           <span><i class="v7-dot" style="background:var(--bandink-ev)"></i>EV</span>
           ${api.latestVerifiedLabel() ? `<span class="plan-verified">Rates verified ${api.latestVerifiedLabel()} · ${ranked.length} active plans</span>` : ''}
+          <div class="v7-notices">${ranked[0] ? api.freshnessChip(ranked[0].plan) : ""}</div>
         </div>
       </div>
 
@@ -583,7 +583,7 @@ export function createV7(api) {
         <div class="v7-eyebrow">${st.solar_planned ? 'The system you are planning' : st.solar_is_estimate ? 'An estimated system for your home' : 'Your system'}</div>
         <div class="v7-figure qr-value">${pb < 50 ? pb.toFixed(1) : '—'}<span class="v7-figure-unit">yr payback</span></div>
         <div class="v7-headline">${eur(benefit)} a year back on ${eur(sysCost)} after the grant · 20-year value <b class="${npv >= 0 ? 'is-gain' : 'is-loss'}">${eur(npv)}</b></div>
-        ${paybackCurve({ cumulative: curve })}
+
         <div class="v7-seg v7-wx wx-range" role="tablist" aria-label="Weather year">
           ${[['pessimist', 'Poor year'], ['realistic', 'Typical'], ['optimist', 'Good year']].map(([k, l]) => `
             <button class="v7-seg-btn wx-range-btn ${view === k ? 'active on' : ''}" onclick="state._scenario_view='${k}';renderApp()">${l}</button>`).join('')}
@@ -626,10 +626,10 @@ export function createV7(api) {
       // No system yet: an invitation, not a settings screen. Someone who only
       // wants a cheaper plan never has to read about panels.
       if (api.hasModelledSystem()) {
-        return `${topbar('Solar', { home: true })}${api.analyticsHub('solar')}
+        return `${topbar('Analytics', { home: S()._solar_from === 'result' })}
         <div class="screen v7 v7-solar">${solarSwitch()}${hero}</div>${nav()}`;
       }
-      return `${topbar('Solar', { home: true })}${api.analyticsHub('solar')}
+      return `${topbar('Analytics', { home: S()._solar_from === 'result' })}
       <div class="screen v7 v7-solar">
         <section class="v7-invite">
           <div class="v7-eyebrow">Thinking about solar?</div>
@@ -647,7 +647,7 @@ export function createV7(api) {
       ${nav()}`;
     }
 
-    return `${topbar('Solar', { home: true })}${api.analyticsHub('solar')}
+    return `${topbar('Analytics', { home: S()._solar_from === 'result' })}
     <div class="screen v7 v7-solar">
       ${solarSwitch()}
       ${hero}
@@ -661,6 +661,7 @@ export function createV7(api) {
         </span>
       </button>
       ${st._solar_deep ? `
+      <section class="v7-card"><div class="v7-card-title">Paying it back, year by year</div>${paybackCurve({ cumulative: curve })}</section>
       ${months}
       ${api.renderSolarComparison()}
       ${api.renderDayInspector()}
@@ -670,6 +671,8 @@ export function createV7(api) {
         <span class="v7-tile-sub">what the panels and battery do on any day of the year</span>
       </button>
       ${api.renderSolarBody('rest')}` : ''}
+      <h2 class="v7-section-h">${api.ic('clock', 18)} Hour by hour</h2>
+      <div class="v7-an-embed">${api.analyticsBody()}</div>
     </div>
     ${nav()}`;
   }

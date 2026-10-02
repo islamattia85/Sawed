@@ -1267,3 +1267,11 @@ section.hc { cursor: default; }
 .fl-r-big.is-saving { color: var(--accent); }
 .v7-evnote { display: flex; gap: 6px; align-items: flex-start; margin-top: var(--space-2); font-size: var(--text-caption); color: var(--ink-soft); line-height: 1.45; }
 .v7-evnote > svg { flex: none; margin-top: 2px; color: var(--accent); }
+.sy-status-why { margin: 6px 2px 0; font-size: var(--text-caption); color: var(--ink-soft); line-height: 1.45; }
+.v7-solar-ctl { align-items: center; padding: var(--space-3); }
+.v7-solar-ctl span { display: grid; gap: 2px; }
+.v7-solar-ctl small { font-size: var(--text-caption); color: var(--ink-soft); }
+.v7-steps { border-top: 0; padding-top: 0; justify-items: stretch; }
+.v7-steps .hc-go { justify-self: center; }
+.v7-section-h { display: flex; align-items: center; gap: 8px; margin: var(--space-5) 0 var(--space-2); font: 700 var(--text-lead) var(--display); color: var(--ink); }
+.v7-section-h svg { color: var(--accent); }
