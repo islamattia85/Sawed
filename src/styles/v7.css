@@ -1545,3 +1545,8 @@ button.ax-side { padding: 0; border: 0; background: none; cursor: pointer; font:
 .sys-busy-step.now { color: var(--ink); font-weight: 700; } .sys-busy-step.now i { border-color: var(--accent); border-top-color: transparent; animation: sysspin .7s linear infinite; }
 .sys-busy-step.done { color: var(--ink); } .sys-busy-step.done i { background: var(--accent); border-color: var(--accent); }
 @keyframes sysspin { to { transform: rotate(360deg); } }
+
+/* My system while a change is worked out. */
+#v7-sheet.is-updating .v7-sheet { cursor: progress; }
+#v7-sheet.is-updating .v7-sheet-head::after { content: "Updating…"; display: inline-block; margin-top: 6px; padding: 2px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: var(--text-caption); font-weight: 700; }
+#v7-sheet.is-updating .sys-r, #v7-sheet.is-updating .sy-net, #v7-sheet.is-updating .sy-acc { opacity: .45; transition: opacity .1s; }

@@ -2225,6 +2225,7 @@ function cachedScenario(hasSolar, hasEv){
   return out;
 }
 
+const noSolarScenarioMemo = new Map();
 function computeSolarPaybackScenarios(){
   const sysCost = state.install_cost - state.grant_seai;
 
@@ -2248,10 +2249,17 @@ function computeSolarPaybackScenarios(){
   _scenarioDepth += 1;
   let A, B, C, D;
   try {
-    A = runScenario(false, true);   // no solar, with EV
-    B = runScenario(true,  true);   // with solar, with EV
-    C = runScenario(false, false);  // no solar, no EV
-    D = runScenario(true,  false);  // with solar, no EV
+    // The no-solar runs depend on the house alone, not on the system, so they
+    // are kept per house: changing the battery or the panels re-ran them
+    // every time, two of the four year-long simulations for nothing.
+    const hk = homeKey() + '|' + JSON.stringify([state.chosen_plan, state._ghi_override, state._csv_imported, usageKey()]);
+    if (noSolarScenarioMemo.size > 20) noSolarScenarioMemo.clear();
+    const ns = noSolarScenarioMemo.get(hk) || {};
+    A = ns.A || runScenario(false, true);   // no solar, with EV
+    B = runScenario(true,  true);           // with solar, with EV
+    C = ns.C || runScenario(false, false);  // no solar, no EV
+    D = runScenario(true,  false);          // with solar, no EV
+    noSolarScenarioMemo.set(hk, { A, C });
   } finally {
     _scenarioDepth -= 1;
   }
@@ -2437,7 +2445,7 @@ function _plannedLadder(){
   const today = (state.ev_active && !state.ev_in_bill)
     ? withSimState({ count_A: 0, count_B: 0, battery_kwh: 0, has_solar: false }, () => annualCost(sim(basePlan.id), basePlan).net)
     : sumF(baselineSim(state.baseline).cost) + basePlan.standing + PSO_LEVY;
-  const noSolar = withSimState({ count_A: 0, count_B: 0, battery_kwh: 0, has_solar: false }, () => { const b = getBestPlan(); return { net: b.net, plan: b.plan }; });
+  const noSolar = noSolarBest();
   const withS = getBestPlan();
   const mine = annualCost(sim(basePlan.id), basePlan).net;
   return { today, noSolar, mine, best: { net: withS.net, plan: withS.plan } };
@@ -5370,12 +5378,60 @@ let _sweepScheduled = false;
  * and a half seconds — fine to wait for, unacceptable to block the first paint
  * with. The screen shows a working answer immediately and this upgrades it.
  */
+/**
+ * The twelve sizes, one per step. Run all at once they held the screen for
+ * seconds on a phone, and a tap made in that time waited for all twelve.
+ * Between steps the browser handles taps and paints; a change to the home
+ * starts the run again from its current state.
+ */
+let _sweepJob = null;
+function sweepGoalStep(){
+  const ck = goalSweepCk();
+  if (CACHE._goalSweep_ck === ck && CACHE._goalSweep) return true;
+  if (!_sweepJob || _sweepJob.ck !== ck){
+    const two = state.count_B > 0;
+    _sweepJob = { ck, i: 0, designs: [], noSolar: null, list: GOAL_PANELS.flatMap((p) => GOAL_BATTS.map((b) => [p, b])),
+      az: state.azimuth_A || 180, tilt: state.tilt_A || 30, two, azB: state.azimuth_B, tiltB: state.tilt_B,
+      shareB: two ? state.count_B / Math.max(1, totalPanels()) : 0 };
+  }
+  const J = _sweepJob;
+  if (J.noSolar == null){
+    J.noSolar = noSolarNet();
+    return false;
+  }
+  if (J.i < J.list.length){
+    const [p, b] = J.list[J.i++];
+    const nB = Math.round(p * J.shareB), nA = p - nB;
+    const kwp = p * (state.panel_w || 440) / 1000;
+    const cost = estimateInstallCost(kwp, b), grant = calcSeaiGrant(kwp, b).total, net = cost - grant;
+    const ch = { count_A: nA, count_B: nB, azimuth_A: J.az, tilt_A: J.tilt, battery_kwh: b, has_solar: true, install_cost: cost, grant_seai: grant };
+    if (J.two){ ch.azimuth_B = J.azB; ch.tilt_B = J.tiltB; }
+    const best = withSimState(ch, () => getBestPlan());
+    const benefit = Math.max(0, J.noSolar - best.net);
+    const payback = benefit > 0 ? net / benefit : 999;
+    J.designs.push({ panels: p, a: nA, b: nB, batt: b, kwp: +kwp.toFixed(1), cost, grant, net,
+      benefit: Math.round(benefit), payback: +payback.toFixed(1), npv: computeNpv20(benefit, net, b), planId: best.plan.id,
+      planLabel: best.plan.supplier + ' — ' + best.plan.plan });
+    if (J.i < J.list.length) return false;
+  }
+  const designs = J.designs;
+  CACHE._goalSweep = { designs, byPayback: designs.slice().sort((a, b) => a.payback - b.payback || a.net - b.net),
+    byNpv: designs.slice().sort((a, b) => b.npv - a.npv || a.payback - b.payback), noSolarCost: Math.round(J.noSolar) };
+  CACHE._goalSweep_ck = J.ck;
+  _sweepJob = null;
+  return true;
+}
+
 function scheduleGoalSweep(){
   if (_sweepScheduled) return;
   _sweepScheduled = true;
   const run = () => {
-    try { sweepGoalDesigns(); } catch (e) { /* additive */ }
+    let done = true;
+    try { done = sweepGoalStep(); } catch (e) { done = true; }
+    // A frame between steps, so a tap or a slide is painted before the next one.
+    if (!done){ requestAnimationFrame(() => setTimeout(run, 0)); return; }
     _sweepScheduled = false;
+    if (state._sheet && state._sheet.kind === 'system') { renderApp(); return; }
     // Swap the placeholder for the result rather than re-rendering the screen.
     // A full repaint a second after landing detaches whatever the reader was
     // reaching for — it broke a click on the day inspector mid-gesture.
@@ -9722,6 +9778,36 @@ function systemOutcome(){
 }
 
 /**
+ * The home with no panels: its best plan and what it pays. The same for every
+ * system, so it is worked out once per household, not on every change to the
+ * system. Home, the systems list and the sizing run all read it.
+ */
+function homeKey(){
+  return JSON.stringify(state, (key, v) => (key && (key[0] === '_' || UI_ONLY.has(key) || SYS_KEYS.includes(key) || SYS_EXTRA.includes(key)
+    || ['solar_quotes', 'saved_systems', 'my_system', 'solar_view', 'solar_planned', 'solar_is_estimate', 'considering_solar', 'fine', 'chosen_plan', 'panel_degradation'].includes(key)) ? undefined : v)) + '|' + _tariffGen;
+}
+let _nsMemo = { k: null, v: null };
+function noSolarBest(){
+  const k = homeKey();
+  if (_nsMemo.k === k) return _nsMemo.v;
+  const v = withSimState({ count_A: 0, count_B: 0, battery_kwh: 0, has_solar: false }, () => { const b = getBestPlan(); return { net: b.net, plan: b.plan }; });
+  _nsMemo = { k, v };
+  return v;
+}
+function noSolarNet(){ return noSolarBest().net; }
+/** A system's figures from one simulation: the best plan with it, against the home with none. */
+function quickOutcome(){
+  const best = getBestPlan();
+  const ben = Math.max(0, noSolarNet() - best.net);
+  const grantOn = !(state.grant_is_manual && !(state.grant_seai > 0));
+  const cost = Math.max(0, (state.install_cost || 0) - (grantOn ? (state.grant_seai || 0) : 0));
+  const deg = state.panel_degradation || 0.005;
+  let saved = 0; for (let y = 1; y <= 20; y++) saved += ben * Math.pow(1 - deg, y - 1);
+  const batt = state.battery_kwh > 0 ? 400 * state.battery_kwh : 0;
+  return { payback: ben > 0 ? cost / ben : 999, benefit: ben, cost, life: saved - cost - batt, plan: `${best.plan.supplier} ${best.plan.plan}` };
+}
+
+/**
  * Every saved quote, run on this home. Each is a full year's simulation, so
  * the work happens after the screen paints and is kept until the home or the
  * quotes change.
@@ -9766,7 +9852,7 @@ function systemSpec(c){
 function systemEntries(withSuggestions){
   const out = [];
   if (withSuggestions){
-    for (const g of designGoals()) out.push({ key: 's:' + g.keys[0], group: 'suggested', name: g.labels.join(' · '), why: g.why,
+    for (const g of designGoals()) out.push({ key: 's:' + g.keys[0], group: 'suggested', name: g.labels.join(' · '), why: g.why, design: g.d,
       changes: { ...designToConfig(g.d), cost_is_manual: false, grant_is_manual: false } });
   }
   for (const q of state.solar_quotes || []){
@@ -9796,23 +9882,34 @@ function isInUse(e){
   if (e.changes.cost_is_manual && Math.round(+e.changes.install_cost || 0) !== Math.round(+state.install_cost || 0)) return false;
   return true;
 }
-let _soMemo = { k: null, v: null }, _soPending = false;
+let _soMemo = { k: null, v: {} }, _soJob = null;
 function systemsOutcomes(){
-  const k = modelKey() + '|' + goalSweepCk();
-  if (_soMemo.k === k) return _soMemo.v;
-  if (!_soPending){
-    _soPending = true;
-    setTimeout(() => {
-      const v = {};
-      try {
-        if (v7HasModelledSystem()) v.current = systemOutcome();
-        for (const e of systemEntries(true)) v[e.key] = withSimState(e.changes, systemOutcome);
-      } catch (err) { console.warn('systems', err); }
-      _soMemo = { k: modelKey() + '|' + goalSweepCk(), v }; _soPending = false;
-      if (state._sheet && state._sheet.kind === 'system') renderApp();
-    }, 250);
+  const ready = CACHE._goalSweep_ck === goalSweepCk() && CACHE._goalSweep;
+  const k = modelKey() + '|' + (ready ? goalSweepCk() : 'wait');
+  if (_soMemo.k === k && !_soJob) return _soMemo.v;
+  if (!_soJob || _soJob.k !== k){
+    const entries = systemEntries(!!ready);
+    const v = {};
+    // Suggestions come with their figures from the sizing run: no new simulation.
+    for (const e of entries.filter((x) => x.group === 'suggested')){
+      const d = e.design, deg = state.panel_degradation || 0.005;
+      let saved = 0; for (let y = 1; y <= 20; y++) saved += d.benefit * Math.pow(1 - deg, y - 1);
+      v[e.key] = { payback: d.payback, benefit: d.benefit, cost: d.net, life: saved - d.net - (d.batt > 0 ? 400 * d.batt : 0) };
+    }
+    const todo = [['current', null], ...entries.filter((x) => x.group !== 'suggested').map((e) => [e.key, e.changes])];
+    _soMemo = { k, v };
+    _soJob = { k, todo };
+    const step = () => {
+      const J = _soJob;
+      if (!J || J.k !== modelKey() + '|' + ((CACHE._goalSweep_ck === goalSweepCk() && CACHE._goalSweep) ? goalSweepCk() : 'wait')){ _soJob = null; return; }
+      const [key, ch] = J.todo.shift();
+      try { _soMemo.v[key] = ch ? withSimState(ch, quickOutcome) : (v7HasModelledSystem() ? quickOutcome() : null); } catch (err) { console.warn('systems', err); }
+      if (J.todo.length) requestAnimationFrame(() => setTimeout(step, 0));
+      else { _soJob = null; if (state._sheet && state._sheet.kind === 'system') renderApp(); }
+    };
+    setTimeout(step, 120);
   }
-  return null;
+  return _soMemo.v;
 }
 
 /**
@@ -11000,6 +11097,21 @@ function renderAccuracy(){
 }
 
 /** Commit one system value: clamp, keep the price and grant in step, re-run. */
+/**
+ * Redraw after a change to the system, but answer the tap first: a new size
+ * re-simulates the year on every plan, which takes a moment on a phone, and
+ * a slider that sat frozen for that moment felt broken. The sheet says it is
+ * updating in the next frame; the work follows.
+ */
+let _soonQueued = false;
+function renderSoon(){
+  const sh = document.getElementById('v7-sheet');
+  if (sh) sh.classList.add('is-updating');
+  if (_soonQueued) return;
+  _soonQueued = true;
+  requestAnimationFrame(() => setTimeout(() => { _soonQueued = false; renderApp(); }, 0));
+}
+
 function sysSet(key, v){
   v = +v;
   if (isNaN(v)) return;
@@ -11032,7 +11144,7 @@ function sysSet(key, v){
   if ((state.solar_view || 'mine') === 'mine') snapshotMySystem();
   invalidate();
   saveState();
-  renderApp();
+  renderSoon();
 }
 
 /** While a slider is dragged, update its readout only — the model runs on release. */
@@ -13022,6 +13134,8 @@ window.showPlanDetail = showPlanDetail;
 window.pickObHeating = pickObHeating;
 window.setAnalyticsDay = setAnalyticsDay;
 window.anMonth = anMonth;
+window.quickOutcome = quickOutcome;
+window.sweepGoalStep = sweepGoalStep;
 window.useSystem = useSystem;
 window.saveSystemAs = saveSystemAs;
 window.removeSavedSystem = removeSavedSystem;
