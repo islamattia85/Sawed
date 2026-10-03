@@ -5690,6 +5690,20 @@ function sgRoof(face){
   invalidate(); saveState();
   sgGo(2);
 }
+/** Two roof faces in the guide: any pair of directions, panels split evenly to start. */
+const SG_DIRS = [['S', 'South', 180], ['SE', 'South-east', 135], ['SW', 'South-west', 225], ['E', 'East', 90], ['W', 'West', 270]];
+function sgTwo(face, dir){
+  const t = Math.max(2, totalPanels());
+  const az = Object.fromEntries(SG_DIRS.map(([k, , a]) => [k, a]));
+  if (!state._sg_two) state._sg_two = { a: 'E', b: 'W' };
+  if (face) state._sg_two[face] = dir;
+  state.azimuth_A = az[state._sg_two.a]; state.azimuth_B = az[state._sg_two.b];
+  state.count_A = Math.ceil(t / 2); state.count_B = Math.floor(t / 2);
+  state._sg_face = '2F';
+  (state.fine = state.fine || {}).roof = true;
+  if ((state.solar_view || 'mine') === 'mine') snapshotMySystem();
+  invalidate(); saveState(); renderApp();
+}
 function sgBattery(k){ sysSet('battery_kwh', k); }
 function sgGrant(){
   if ((state.grant_seai || 0) > 0){ state.grant_seai = 0; state.grant_is_manual = true; }
@@ -5723,15 +5737,20 @@ function renderSolarGuide(){
       <button class="sg-link sg-skip" onclick="sgCancel()">Not now</button>`;
   } else if (step === 1){
     const faces = [['S', 'South', 'Best all day'], ['SE', 'South-east', 'Strong mornings'], ['SW', 'South-west', 'Strong afternoons'],
-      ['EW', 'East and west', 'Panels on both sides'], ['E', 'East', 'Mornings'], ['W', 'West', 'Evenings']];
-    const az = (f) => ({ S: 0, SE: -45, SW: 45, EW: 0, E: -90, W: 90 })[f];
+      ['E', 'East', 'Mornings'], ['W', 'West', 'Evenings'], ['2F', 'Two roof faces', 'Panels on two sides']];
+    const az = (f) => ({ S: 0, SE: -45, SW: 45, E: -90, W: 90 })[f];
+    const two = state._sg_face === '2F' && state._sg_two;
+    const dirRow = (face, label) => `<div class="sg-two-row"><span>${label}</span><div class="sg-chips">${SG_DIRS.map(([k, l]) =>
+      `<button class="sg-chip ${two[face] === k ? 'on' : ''}" aria-pressed="${two[face] === k}" onclick="sgTwo('${face}','${k}')">${l}</button>`).join('')}</div></div>`;
     body = `${head('Step 1 · Your roof', 'Which way does your roof face?', 'The side that gets the sun. A compass app helps.')}
-      <div class="sg-tiles">${faces.map(([f, l, s]) => `<button class="sg-tile ${state._sg_face === f ? 'on' : ''}" onclick="sgRoof('${f}')">
+      <div class="sg-tiles">${faces.map(([f, l, s]) => `<button class="sg-tile ${state._sg_face === f ? 'on' : ''}" onclick="${f === '2F' ? 'sgTwo()' : `sgRoof('${f}')`}">
         <svg viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="26" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="2"/>
-          ${f === 'EW' ? '<path d="M30 30 L8 30 M30 30 L52 30" stroke="var(--brand-gold)" stroke-width="5" stroke-linecap="round"/>'
+          ${f === '2F' ? '<path d="M30 30 L14 18 M30 30 L46 18" stroke="var(--brand-gold)" stroke-width="5" stroke-linecap="round"/>'
             : `<path d="M30 30 L30 13" stroke="var(--brand-gold)" stroke-width="5" stroke-linecap="round" transform="rotate(${az(f) + 180} 30 30)"/>`}
           <text x="30" y="56" text-anchor="middle" font-size="10" fill="currentColor" opacity=".6">S</text></svg>
         <b>${l}</b><small>${s}</small></button>`).join('')}</div>
+      ${two ? `<div class="sg-two">${dirRow('a', 'First face')}${dirRow('b', 'Second face')}
+        <p class="sg-sub">Panels are split evenly to start; set the exact numbers in My system.</p>${next()}</div>` : ''}
       <button class="sg-link" onclick="sgRoof('unsure')">Not sure: assume south</button>
       <button class="sg-link sg-skip" onclick="sgGo(5)">Skip: just estimate it for me</button>`;
   } else if (step === 2){
@@ -5952,7 +5971,7 @@ function flowAnswer(q, v){
     }
   }
   if (q === 'roof'){
-    const m = { S: [180, 0], SE: [135, 0], SW: [225, 0], EW: [90, 270] }[v] || [180, 0];
+    const m = { S: [180, 0], SE: [135, 0], SW: [225, 0], EW: [90, 270], SESW: [135, 225] }[v] || [180, 0];
     const t = totalPanels() || _flowSuggest();
     state.azimuth_A = m[0];
     if (m[1]){ state.azimuth_B = m[1]; state.count_A = Math.ceil(t / 2); state.count_B = Math.floor(t / 2); } else { state.count_A = t; state.count_B = 0; }
@@ -6012,7 +6031,7 @@ function renderFlow(){
     plan: (v) => v === 'unsure' ? 'Plan not sure' : String(v).startsWith('guess:') ? `${(getPlanById(String(v).slice(6)) || {}).supplier}, plan not sure` : (() => { const p = getPlanById(v); return `${p.supplier} ${p.plan}`; })(),
     heat: (v) => ({ gas: 'Gas or oil', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heaters' })[v],
     solar: (v) => ({ no: 'No solar', have: 'Solar', thinking: 'Solar planned' })[v],
-    roof: (v) => ({ S: 'South', SE: 'South-east', SW: 'South-west', EW: 'East and west', unsure: 'Not sure, south assumed' })[v],
+    roof: (v) => ({ S: 'South', SE: 'South-east', SW: 'South-west', EW: 'East and west', SESW: 'South-east and south-west', unsure: 'Not sure, south assumed' })[v],
     panels: (v) => `${v} panels`, battery: (v) => +v ? `${v} kWh` : 'No battery',
     ev: (v) => ({ no: 'No EV', have: 'EV', thinking: 'EV planned' })[v],
     km: (v) => `${(+v).toLocaleString('en-IE')} km a year`, car: (v) => ({ 14: 'Small', 17: 'Family car', 20: 'SUV or large' })[v],
@@ -6021,6 +6040,7 @@ function renderFlow(){
     ev: { no: 'x', have: 'car', thinking: 'spark' }, battery: { 0: 'x', 5: 'battery', 10: 'battery' }, car: { 14: 'car', 17: 'car', 20: 'car' }, km: { 8000: 'pin', 16000: 'pin', 25000: 'pin' } };
   const compass = (v) => `<svg class="fl-compass" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="2"/>${v === 'EW'
     ? '<path d="M20 20H6M20 20h14" stroke="var(--brand-gold)" stroke-width="4" stroke-linecap="round"/>'
+    : v === 'SESW' ? '<path d="M20 20l9 9M20 20l-9 9" stroke="var(--brand-gold)" stroke-width="4" stroke-linecap="round"/>'
     : `<path d="M20 20V8" stroke="var(--brand-gold)" stroke-width="4" stroke-linecap="round" transform="rotate(${({ S: 180, SE: 135, SW: 225 })[v] || 180} 20 20)"/>`}</svg>`;
   const opt = (q, v, title, sub = '') => {
     const icn = q === 'roof' ? compass(v) : optIco[q] && optIco[q][v] ? `<span class="fl-ico">${ic(optIco[q][v], 20)}</span>` : '';
@@ -6055,7 +6075,7 @@ function renderFlow(){
     }
     if (q === 'heat') return `<div class="fl-opts fl-two fl-tiles">${opt('heat', 'gas', 'Gas or oil')}${opt('heat', 'heatpump', 'Heat pump')}${opt('heat', 'storage', 'Storage heaters')}${opt('heat', 'direct', 'Electric heaters')}</div>`;
     if (q === 'solar') return `<div class="fl-opts">${opt('solar', 'no', 'No')}${opt('solar', 'have', 'I have them', 'We’ll add what they make')}${opt('solar', 'thinking', 'Thinking about it', 'We’ll show the payback')}</div>`;
-    if (q === 'roof') return `<div class="fl-opts fl-two fl-tiles">${opt('roof', 'S', 'South')}${opt('roof', 'EW', 'East and west')}${opt('roof', 'SE', 'South-east')}${opt('roof', 'SW', 'South-west')}</div>
+    if (q === 'roof') return `<div class="fl-opts fl-two fl-tiles">${opt('roof', 'S', 'South')}${opt('roof', 'EW', 'East and west')}${opt('roof', 'SE', 'South-east')}${opt('roof', 'SW', 'South-west')}${opt('roof', 'SESW', 'South-east and south-west')}</div>
       <button class="sg-link" onclick="flowAnswer('roof', 'unsure')">Not sure: assume south</button>`;
     if (q === 'panels'){ const s = _flowSuggest(); return `<div class="fl-opts fl-three">${[s - 4, s, s + 4].map((n) => opt('panels', n, `${n}`, n === s ? 'suggested' : '')).join('')}</div>`; }
     if (q === 'battery') return `<div class="fl-opts fl-three">${opt('battery', 0, 'None')}${opt('battery', 5, '5 kWh', 'typical')}${opt('battery', 10, '10 kWh')}</div>`;
@@ -12840,6 +12860,7 @@ window.showPlanDetail = showPlanDetail;
 window.pickObHeating = pickObHeating;
 window.setAnalyticsDay = setAnalyticsDay;
 window.anMonth = anMonth;
+window.sgTwo = sgTwo;
 window.azFromWords = azFromWords;
 window.quoteFaces = quoteFaces;
 window.downloadMyData = downloadMyData;

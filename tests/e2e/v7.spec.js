@@ -725,8 +725,10 @@ test('v8 solar guide: four steps, each on a suggestion, then the answer and the 
   await expect(page.locator('.sg-h')).toContainText('Would solar pay off here');
   await page.getByRole('button', { name: /^Start/ }).click();
   await expect(page.locator('.sg-h')).toContainText('Which way does your roof face');
-  await page.locator('.sg-tile', { hasText: 'East and west' }).click();
+  // Two roof faces starts on east and west.
+  await page.locator('.sg-tile', { hasText: 'Two roof faces' }).click();
   expect(await page.evaluate(() => [window.state.azimuth_A, window.state.azimuth_B, window.state.count_B > 0])).toEqual([90, 270, true]);
+  await page.locator('.sg-two .sg-next').click();
   await expect(page.locator('.sg-h')).toContainText('How many panels');
   await page.getByRole('button', { name: /^Next/ }).click();
   await page.locator('.sg-opt', { hasText: '10 kWh' }).click();
