@@ -1166,7 +1166,7 @@ section.hc { cursor: default; }
 .v7-ladder-k { margin: var(--space-3) 0 4px; font-size: var(--text-caption); font-weight: 700; color: var(--ink-soft); }
 .v7-step > b { white-space: nowrap; }
 .v7-solar-ctl { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-lg); background: var(--well); font-size: var(--text-data); color: var(--ink-soft); }
-.v7-solar-ctl > svg { flex: none; color: var(--brand-gold); }
+.v7-solar-ctl b > svg { vertical-align: -2px; color: var(--brand-gold); }
 .v7-solar-ctl span { flex: 1; min-width: 0; }
 .v7-solar-ctl b { color: var(--ink); }
 .v7-solar-ctl button { flex: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 700 var(--text-caption) var(--display); cursor: pointer; }
@@ -1178,7 +1178,7 @@ section.hc { cursor: default; }
 .v7-solar-ctl { align-items: center; padding: var(--space-3); }
 .v7-solar-ctl span { display: grid; gap: 2px; }
 .v7-solar-ctl small { font-size: var(--text-caption); color: var(--ink-soft); }
-.v7-steps { border-top: 0; padding-top: 0; justify-items: stretch; }
+.v7-steps { border-top: 0; padding-top: 0; padding-left: 0; justify-items: stretch; }
 .v7-steps .hc-go { justify-self: center; }
 
 /* ==========================================================================
@@ -1401,7 +1401,7 @@ section.hc { cursor: default; }
 .ax-door b svg { color: var(--accent); }
 .ax-door small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-caption); color: var(--ink-soft); }
 
-.v7-ev-ctl > svg { color: var(--accent); }
+.v7-ev-ctl b > svg { color: var(--accent); }
 .v7-step-go { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); }
 
 /* Planned solar: four bars, short names, the plan underneath */

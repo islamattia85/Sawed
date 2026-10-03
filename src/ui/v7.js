@@ -230,14 +230,14 @@ export function createV7(api) {
       let ev = null; try { ev = api.evEconomics(rec.best.plan.id); } catch (e) {}
       const w = rec.best.plan.windows || {};
       const win = w.ev || w.night;
-      evRow = `<div class="v7-solar-ctl v7-ev-ctl">${api.ic('car', 18)}<span><b>${st.ev_in_bill ? 'Your EV' : 'Planned EV'}</b><small>${ev ? `${eur(ev.evElectricityCost)} a year to charge · ${eur(ev.evVsPetrolNet)} less than petrol` : ''}${win ? ` · charge ${hhmm(win[0])}–${hhmm(win[1])}` : ''}</small></span>
+      evRow = `<div class="v7-solar-ctl v7-ev-ctl"><span><b>${api.ic('car', 16)} ${st.ev_in_bill ? 'Your EV' : 'Planned EV'}</b><small>${ev ? `${eur(ev.evElectricityCost)} a year to charge · ${eur(ev.evVsPetrolNet)} less than petrol` : ''}${win ? ` · charge ${hhmm(win[0])}–${hhmm(win[1])}` : ''}</small></span>
         <button onclick="toggleEvModel()">Leave out</button></div>`;
     }
     let solarRow = '';
     if (pl) {
       let d = null; try { d = api.solarData(); } catch (e) {}
       const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
-      solarRow = `<div class="v7-solar-ctl">${api.ic('sun', 18)}<span><b>Planned solar</b><small>${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}${d ? ` · ${eur(d.sysCost)} after grant` : ''}${pb ? ` · pays back in ${pb.toFixed(1)} yrs` : ''}</small></span>
+      solarRow = `<div class="v7-solar-ctl"><span><b>${api.ic('sun', 16)} Planned solar</b><small>${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}${d ? ` · ${eur(d.sysCost)} after grant` : ''}${pb ? ` · pays back in ${pb.toFixed(1)} yrs` : ''}</small></span>
         <button onclick="toggleSolarModel()">Leave out</button></div>`;
     }
     const steps = solarRow || evRow ? `<div class="v7-steps">
