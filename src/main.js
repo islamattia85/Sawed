@@ -8781,6 +8781,81 @@ function useSystem(key){
     }, 380);
   }, 380);
 }
+/* ── QUICK EDIT ─────────────────────────────────────────────
+ * Tapping the panels or battery chip opens a small sheet: panels on each
+ * roof face and the battery, changed as a draft. Nothing moves until
+ * "Use this"; "Save as" keeps the draft under a name without using it. */
+const QS_BATTS = [0, 5, 7, 10, 13, 15];
+const _faceName = (az) => ['North', 'North-east', 'East', 'South-east', 'South', 'South-west', 'West', 'North-west'][Math.round((((+az || 0) % 360) + 360) % 360 / 45) % 8];
+function openQuickSystem(){
+  state._qs = { a: +state.count_A || 0, b: +state.count_B || 0, batt: +state.battery_kwh || 0 };
+  v7Sheet('quicksys');
+}
+function qsStep(k, d){
+  const q = state._qs; if (!q) return;
+  if (k === 'batt'){
+    const opts = [...new Set([...QS_BATTS, +state.battery_kwh || 0])].sort((x, y) => x - y);
+    q.batt = opts[Math.max(0, Math.min(opts.length - 1, opts.indexOf(q.batt) + d))];
+  } else {
+    const max = 30, other = k === 'a' ? q.b : q.a;
+    q[k] = Math.max(k === 'a' ? 1 : 0, Math.min(max - other, q[k] + d));
+  }
+  renderApp();
+}
+function qsChanged(){ const q = state._qs; return q && (q.a !== (+state.count_A || 0) || q.b !== (+state.count_B || 0) || q.batt !== (+state.battery_kwh || 0)); }
+function renderQuickSystem(){
+  const q = state._qs; if (!q) return '';
+  const two = (+state.count_B || 0) > 0;
+  const kwp = ((q.a + q.b) * (+state.panel_w || 460)) / 1000;
+  const price = estimateInstallCost(kwp, q.batt);
+  const quoted = state.cost_is_manual && state.install_cost > 0;
+  const stepper = (k, label, sub, val, unit) => `<div class="qs-row"><div><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</div>
+      <div class="qs-step" role="group" aria-label="${label}">
+        <button type="button" onclick="qsStep('${k}',-1)" aria-label="Fewer">${ic('minus', 16)}</button>
+        <output aria-live="polite">${val}${unit}</output>
+        <button type="button" onclick="qsStep('${k}',1)" aria-label="More">${ic('plus', 16)}</button>
+      </div></div>`;
+  return `<div class="v7-sheet-head"><div class="v7-eyebrow">Quick change</div><h2 class="v7-h">Panels and battery</h2></div>
+    <div class="qs">
+      ${stepper('a', two ? `${_faceName(state.azimuth_A)} face` : 'Panels', two ? '' : _faceName(state.azimuth_A) + '-facing', q.a, '')}
+      ${two ? stepper('b', `${_faceName(state.azimuth_B)} face`, '', q.b, '') : ''}
+      ${stepper('batt', 'Battery', '', q.batt ? q.batt : 'None', q.batt ? ' kWh' : '')}
+      <p class="qs-sum">${q.a + q.b} panels, ${kwp.toFixed(1)} kWp${q.batt ? ` and a ${q.batt} kWh battery` : ''}. Guide price about ${eur(Math.round(price / 100) * 100)} before the grant.</p>
+      ${quoted && qsChanged() ? `<p class="qs-note">Your quote’s price is for the old size, so we’ll use the guide price instead.</p>` : ''}
+      <div class="qs-actions">
+        <button class="v7-cta-2" onclick="qsApply()" ${qsChanged() ? '' : 'disabled'}>Use this</button>
+        <button class="v7-cta-2 v7-cta-alt" onclick="qsSaveAs()" ${qsChanged() ? '' : 'disabled'}>Save as a new system</button>
+      </div>
+      <button class="v7-link qs-more" onclick="openMySystem()">Roof direction, slope and more</button>
+    </div>`;
+}
+function qsDraftChanges(){
+  const q = state._qs;
+  return { count_A: q.a, count_B: q.b, battery_kwh: q.batt };
+}
+function qsApply(){
+  if (!qsChanged()) return;
+  rememberForUndo('Panels and battery changed');
+  const priceWasQuote = state.cost_is_manual;
+  Object.assign(state, qsDraftChanges());
+  if (priceWasQuote){ state.cost_is_manual = false; state.solar_is_estimate = true; }
+  state._qs = null; state._sheet = null;
+  applyEstimatedSolarCost(); snapshotMySystem(); invalidate(); saveState(); renderApp();
+  showToast(`Updated. <button class="toast-undo" onclick="undoLast()">Undo</button>`, { type: 'accent', icon: ic('checkC', 16) });
+}
+function qsSaveAs(){
+  if (!qsChanged()) return;
+  const n = (state.saved_systems || []).length + 1;
+  const cfg = Object.assign(currentSystemCfg(), qsDraftChanges());
+  const kwp = ((cfg.count_A + cfg.count_B) * (+state.panel_w || 460)) / 1000;
+  cfg.install_cost = estimateInstallCost(kwp, cfg.battery_kwh);
+  const name = `${cfg.count_A + cfg.count_B} panels${cfg.battery_kwh ? ` + ${cfg.battery_kwh} kWh` : ''}`;
+  (state.saved_systems = state.saved_systems || []).push({ id: 's' + Date.now(), name: name.slice(0, 40), cfg, at: new Date().toISOString() });
+  state._qs = null; state._sheet = null;
+  saveState(); renderApp();
+  showToast(`Saved as ${esc(name)}. It’s in My system.`, { type: 'accent', icon: ic('checkC', 16) });
+}
+
 /** Keep the system as it is now, under a name. */
 function saveSystemAs(){
   const el = document.getElementById('sys-name');
@@ -9540,7 +9615,7 @@ const V7 = createV7({
   renderSavingsBreakdown, renderAssumptions,
   renderTrustPanel, renderLogicBreakdown, renderNightRateCard, renderEvSavingsCard, evEconomics,
   renderDayInspector,
-  renderSystemSheet, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet, renderJourneySheet, renderQuestSheet, renderMeterSheet, renderHabitsSheet,
+  renderSystemSheet, renderQuickSystem, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet, renderJourneySheet, renderQuestSheet, renderMeterSheet, renderHabitsSheet,
   alertCount: () => { try { return unseenAlerts().length; } catch (e) { return 0; } },
 });
 
@@ -11996,6 +12071,10 @@ window.quickOutcome = quickOutcome;
 window.sweepGoalStep = sweepGoalStep;
 window.useSystem = useSystem;
 window.saveSystemAs = saveSystemAs;
+window.openQuickSystem = openQuickSystem;
+window.qsStep = qsStep;
+window.qsApply = qsApply;
+window.qsSaveAs = qsSaveAs;
 window.removeSavedSystem = removeSavedSystem;
 window.useQuote = useQuote;
 window.designToConfig = designToConfig;

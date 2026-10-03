@@ -332,7 +332,7 @@ test('when nothing beats the current plan, the answer is to stay — not €0 an
 
 test('My system: sliders, battery stops, grant switch and fine-tune change the model', async ({ page }) => {
   await boot(page, { current_screen: 'solar' });
-  await page.locator('.v7-system').click();
+  await page.locator('.v7-system .v7-chip-edit').click();
   const sheet = page.locator('#v7-sheet');
   await expect(sheet).toContainText('My system');
   await expect(sheet.locator('.sy-acc')).toContainText('±');

@@ -1119,11 +1119,11 @@ export function createV7(api) {
           </div>
           <div class="ax-line ax-line-2">${planLine} <button class="ax-inline" onclick="v7Sheet('anplan')">Use a different plan</button></div>
           ${st.chosen_plan ? api.renderChoiceStrip() : ''}
-          <button class="v7-system" onclick="openMySystem()">
-            <span class="v7-chip">${api.totalPanels()} panels</span>
-            <span class="v7-chip">${st.battery_kwh > 0 ? `${st.battery_kwh} kWh battery` : 'no battery'}</span>
-            <span class="v7-chip v7-chip-edit">${api.ic('tune', 14)} Change</span>
-          </button>
+          <div class="v7-system">
+            <button class="v7-chip" onclick="openQuickSystem()" aria-label="${api.totalPanels()} panels. Change">${api.totalPanels()} panels</button>
+            <button class="v7-chip" onclick="openQuickSystem()" aria-label="${st.battery_kwh > 0 ? `${st.battery_kwh} kWh battery` : 'No battery'}. Change">${st.battery_kwh > 0 ? `${st.battery_kwh} kWh battery` : 'no battery'}</button>
+            <button class="v7-chip v7-chip-edit" onclick="openMySystem()">${api.ic('tune', 14)} Change</button>
+          </div>
           ${st.solar_is_estimate ? `<p class="ax-note solar-correct">Sized from your usage. Already have panels, or a quote for a specific system? <button class="ax-inline" onclick="openMySystem()">Set the exact system</button></p>` : ''}`,
       })}
       <section class="ax-card v7-months-card" role="button" tabindex="0" onclick="v7OpenMonth(event)" aria-label="Tap a month">
@@ -1268,6 +1268,7 @@ export function createV7(api) {
     else if (sh.kind === 'switch') body = switchSheet(sh.id);
     else if (sh.kind === 'switched') body = switchedSheet(sh.id);
     else if (sh.kind === 'system') body = api.renderSystemSheet();
+    else if (sh.kind === 'quicksys') body = api.renderQuickSystem();
     else if (sh.kind === 'home') body = api.renderHomeSheet();
     else if (sh.kind === 'handover') body = api.renderHandoverSheet();
     else if (sh.kind === 'journey') body = api.renderJourneySheet(sh.id);
