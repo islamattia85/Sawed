@@ -6,7 +6,7 @@ const base = {
   is_solar_quote: true, installer: 'Acme Solar', quote_date: null, panel_count: 12, panel_watts: 440,
   panel_model: null, system_kwp: 5.28, inverter_model: null, inverter_kw: null, battery_kwh: 5, battery_model: null,
   price_total_eur: 11800, grant_eur: 1800, price_after_grant_eur: 10000, vat_included: true, orientation: 'south',
-  roof_pitch_deg: null, estimated_annual_kwh: null, extras: [],
+  roof_pitch_deg: null, roof_faces: null, estimated_annual_kwh: null, extras: [],
   evidence: { panel_count: '12 x 440W', panel_watts: '440W', battery_kwh: '5kWh', price_total_eur: '€11,800', grant_eur: '€1,800' },
   warnings: [],
 };

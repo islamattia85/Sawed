@@ -1494,6 +1494,19 @@ export function createV7(api) {
           ${field('qf-price', 'Price inc VAT, before grant', x.price_total_eur, '€', x.evidence?.price_total_eur, 50)}
           ${field('qf-grant', 'SEAI grant', x.grant_eur, '€', x.evidence?.grant_eur, 50)}
         </div>
+        ${(() => {
+          const qf = api.quoteFaces(x);
+          if (!qf) return '';
+          const name = (f) => esc(f.name || 'one way');
+          return `<div class="v7-qf-faces">
+            <div class="v7-qf-label">Two roof faces</div>
+            <div class="v7-qf-grid">
+              ${field('qf-fa', `Facing ${name(qf.faces[0])}`, qf.faces[0].panels, 'panels', null, 1)}
+              ${field('qf-fb', `Facing ${name(qf.faces[1])}`, qf.faces[1].panels, 'panels', null, 1)}
+            </div>
+            ${qf.assumed ? `<div class="v7-qf-ev is-missing">The quote names both directions but not how many panels face each, so they are split evenly. Change them to match the quote.</div>` : ''}
+          </div>`;
+        })()}
         ${[x.panel_model, x.inverter_model, x.battery_model, x.orientation, ...(x.extras || [])].filter(Boolean).length
           ? `<div class="v7-fine">Also on the quote: ${esc([x.panel_model, x.inverter_model, x.battery_model, x.orientation && `facing ${x.orientation}`, ...(x.extras || [])].filter(Boolean).join(' · '))}</div>` : ''}
         <button class="switch-cta v7-cta" onclick="v7ApplyQuote('save')">${api.ic('checkC', 18)} Save to my quotes</button>

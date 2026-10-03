@@ -35,6 +35,11 @@ export const QuoteSchema = z.object({
 
   orientation: z.string().nullable().describe('Roof direction(s) the panels face, e.g. "south" or "east/west".'),
   roof_pitch_deg: num.describe('Roof or panel tilt in degrees, if stated.'),
+  roof_faces: z.array(z.object({
+    panels: num.describe('Panels on this roof face, as stated.'),
+    orientation: z.string().nullable().describe('Direction this face points, as stated, e.g. "south-west".'),
+    tilt_deg: num,
+  })).nullable().describe('Only when the quote splits the panels across roof faces: one entry per face, as stated. null for a single face or when no split is stated.'),
   estimated_annual_kwh: num.describe("The installer's own estimate of yearly generation in kWh."),
   extras: z.array(z.string()).describe('Other items included: diverter, EV charger, bird mesh, scaffolding, etc.'),
 
@@ -55,6 +60,7 @@ Rules:
 - Report only what the document states. Never estimate, infer from typical values, or fill a gap: leave the field null and, if it matters, add a warning.
 - Prices are in euro. price_total_eur is the full price including VAT, before the SEAI grant. If the quote only states a price after the grant and the grant, add them; say so in warnings.
 - panel_watts is the rating of one panel; if only the total kWp and the count are given, leave panel_watts null.
+- roof_faces: fill it only when the quote itself states panels on more than one roof face (e.g. "11 south-west, 11 south-east"). Never divide the panels yourself; if directions are given without counts, give each face with panels null.
 - battery_kwh is usable capacity. If a battery is listed with only a model name, leave it null and warn.
 - For each evidence field, copy the short piece of text the value came from, verbatim.
 - Do not copy names, addresses, phone numbers, emails, MPRNs or signatures into any field. Installer company name is allowed.

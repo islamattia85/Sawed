@@ -9727,11 +9727,18 @@ function quoteToSystem(id){
     // A quote is a system not yet bought.
     state.solar_planned = true;
     state.count_A = q.panels > 0 ? q.panels : Math.max(1, Math.round((+q.kwp || 0) * 1000 / w)); state.count_B = 0;
+    // A quote over two roof faces is modelled as two faces, each its own way.
+    if (q.faces && q.faces.length === 2){
+      state.count_A = q.faces[0].panels; state.count_B = q.faces[1].panels;
+      state.azimuth_A = q.faces[0].azimuth; state.azimuth_B = q.faces[1].azimuth;
+      state.tilt_B = q.faces[1].tilt || q.faces[0].tilt || q.tilt || state.tilt_A;
+      if (q.faces[0].tilt) state.tilt_A = q.faces[0].tilt;
+    }
     state.battery_kwh = +q.battery || 0;
     state.install_cost = Math.round(+q.price || 0); state.cost_is_manual = true;
     if (q.grant != null){ state.grant_seai = q.grant; state.grant_is_manual = true; } else state.grant_is_manual = false;
-    if (q.tilt) state.tilt_A = q.tilt;
-    if (q.azimuth) state.azimuth_A = q.azimuth;
+    if (q.tilt && !(q.faces && q.faces[0].tilt)) state.tilt_A = q.tilt;
+    if (q.azimuth && !(q.faces && q.faces.length === 2)) state.azimuth_A = q.azimuth;
     const fine = state.fine = state.fine || {};
     if (q.watts > 0) fine.panels = true;
     if (q.tilt && q.azimuth) fine.roof = true;
@@ -10397,6 +10404,7 @@ const V7 = createV7({
   // What a plan costs this home as simulated — solar, battery and EV included.
   analyticsData: () => analyticsData(), analyticsDay, solarRange, anPlan: () => anPlan(), solarDataFor,
   accuracyWithMeter: () => accuracyWithMeter(),
+  quoteFaces: (x) => quoteFaces(x),
   renderSolarImprove: () => { try { return renderImproveList(generateAdvice(getBestPlan())); } catch (e) { return ''; } },
   renderSolarWorking: () => renderSolarWorking(),
   isFlatPlan,
@@ -10506,6 +10514,37 @@ async function v7QuoteFile(input){
   renderApp();
 }
 
+/** A direction in words ("south west", "SW", "s/e", "225°") as an azimuth; null when it is not one. */
+function azFromWords(w){
+  const t = String(w || '').toLowerCase().replace(/[^a-z0-9°]+/g, ' ').trim();
+  const deg = t.match(/(\d{1,3})\s*°?/);
+  if (deg && !/[a-z]/.test(t.replace(/\d|°|deg(rees)?/g, '').trim())) { const d = +deg[1]; return d >= 0 && d < 360 ? d : null; }
+  const k = t.replace(/\s+/g, '').replace(/^s(?=[ew]$)/, 'south').replace(/^n(?=[ew]$)/, 'north').replace(/(south|north)e$/, '$1east').replace(/(south|north)w$/, '$1west');
+  return { north: 0, northeast: 45, east: 90, southeast: 135, south: 180, southwest: 225, west: 270, northwest: 315,
+    n: 0, ne: 45, e: 90, se: 135, s: 180, sw: 225, w: 270, nw: 315 }[k] ?? null;
+}
+/**
+ * The roof faces a read quote describes: as the quote splits them, or, when it
+ * names two directions without saying how many panels go on each, an even
+ * split marked as assumed so the person is asked to check it.
+ */
+function quoteFaces(x){
+  const total = +x.panel_count || 0;
+  const stated = (x.roof_faces || []).map((f) => ({ panels: +f.panels || null, azimuth: azFromWords(f.orientation), name: f.orientation || '', tilt: f.tilt_deg > 0 && f.tilt_deg < 70 ? Math.round(f.tilt_deg) : null }))
+    .filter((f) => f.azimuth != null);
+  let faces = stated.slice(0, 2), assumed = false;
+  if (faces.length < 2){
+    const parts = String(x.orientation || '').split(/\s*(?:\/|,|&|\+|\band\b)\s*/i).map((w) => ({ name: w.trim(), azimuth: azFromWords(w) })).filter((f) => f.azimuth != null);
+    if (parts.length >= 2) faces = parts.slice(0, 2).map((f) => ({ ...f, panels: null, tilt: null }));
+  }
+  if (faces.length < 2) return null;
+  if (faces.some((f) => !(f.panels > 0))){
+    assumed = true;
+    faces[0].panels = Math.ceil(total / 2); faces[1].panels = Math.floor(total / 2);
+  }
+  return { faces, assumed };
+}
+
 function v7QuoteReset(){ _quoteRead = { status: 'idle' }; renderApp(); }
 
 /** Model the home with the confirmed quote: this becomes "your system". */
@@ -10525,10 +10564,14 @@ function v7ApplyQuote(mode){
   }
   const q = _quoteRead.quote || {};
   const w = watts > 0 ? Math.round(watts) : (state.panel_w || 440);
-  const dir = String(q.orientation || '').toLowerCase().trim();
-  const az = { south: 180, 'south-east': 135, southeast: 135, 'south-west': 225, southwest: 225, east: 90, west: 270 }[dir];
+  const az = azFromWords(q.orientation);
+  // Two roof faces, as confirmed in the form.
+  const qf = quoteFaces(q);
+  const fa = v('qf-fa'), fb = v('qf-fb');
+  const faces = qf && fa > 0 && fb > 0 ? [{ panels: Math.round(fa), azimuth: qf.faces[0].azimuth, tilt: qf.faces[0].tilt }, { panels: Math.round(fb), azimuth: qf.faces[1].azimuth, tilt: qf.faces[1].tilt }] : null;
   const rec = { id: 'q' + Date.now(), installer: q.installer || 'Installer', price: Math.round(price),
-    kwp: +(Math.round(panels) * w / 1000).toFixed(2), battery: batt > 0 ? batt : 0, panels: Math.round(panels),
+    kwp: +((faces ? faces[0].panels + faces[1].panels : Math.round(panels)) * w / 1000).toFixed(2), battery: batt > 0 ? batt : 0,
+    panels: faces ? faces[0].panels + faces[1].panels : Math.round(panels), faces,
     watts: watts > 0 ? Math.round(watts) : null, grant: grant != null ? Math.round(grant) : null,
     tilt: q.roof_pitch_deg > 0 && q.roof_pitch_deg < 70 ? Math.round(q.roof_pitch_deg) : null, azimuth: az || null,
     date: q.quote_date || null, source: 'upload' };
@@ -12797,6 +12840,8 @@ window.showPlanDetail = showPlanDetail;
 window.pickObHeating = pickObHeating;
 window.setAnalyticsDay = setAnalyticsDay;
 window.anMonth = anMonth;
+window.azFromWords = azFromWords;
+window.quoteFaces = quoteFaces;
 window.downloadMyData = downloadMyData;
 window.setStrategy = setStrategy;
 window.setHotWater = setHotWater;

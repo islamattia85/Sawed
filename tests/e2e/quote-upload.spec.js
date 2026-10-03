@@ -72,3 +72,35 @@ test('a missing price must be filled in before modelling', async ({ page }) => {
   await page.getByRole('button', { name: /Model my home with this quote/ }).click();
   expect(await page.evaluate(() => window.state.count_A)).toBe(0);
 });
+
+test('a quote over two roof faces is modelled as two faces, as the quote splits them', async ({ page }) => {
+  const errors = await boot(page, NO_SOLAR);
+  const split = { ...READ, panel_count: 22, orientation: 'south-west and south-east',
+    roof_faces: [{ panels: 11, orientation: 'South West', tilt_deg: 30 }, { panels: 11, orientation: 'south east', tilt_deg: 30 }] };
+  await page.route('**/api/extract-quote', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ quote: split }) }));
+  await upload(page);
+  await expect(page.locator('.v7-qf-faces')).toContainText('Two roof faces');
+  await expect(page.locator('#qf-fa')).toHaveValue('11');
+  await expect(page.locator('.v7-qf-faces')).not.toContainText('split evenly');
+  await page.getByRole('button', { name: /Model my home with this quote/ }).click();
+  const st = await page.evaluate(() => ({ a: window.state.count_A, b: window.state.count_B, azA: window.state.azimuth_A, azB: window.state.azimuth_B, tA: window.state.tilt_A, tB: window.state.tilt_B }));
+  expect(st).toEqual({ a: 11, b: 11, azA: 225, azB: 135, tA: 30, tB: 30 });
+  expect(errors).toEqual([]);
+});
+
+test('two directions without counts are split evenly and the person is asked to check', async ({ page }) => {
+  await boot(page, NO_SOLAR);
+  await page.route('**/api/extract-quote', (route) => route.fulfill({ status: 200, contentType: 'application/json',
+    body: JSON.stringify({ quote: { ...READ, panel_count: 15, orientation: 'East/West', roof_faces: null } }) }));
+  await upload(page);
+  await expect(page.locator('.v7-qf-faces')).toContainText('split evenly');
+  await page.locator('#qf-fa').fill('9'); await page.locator('#qf-fb').fill('6');
+  await page.getByRole('button', { name: /Model my home with this quote/ }).click();
+  expect(await page.evaluate(() => [window.state.count_A, window.state.count_B, window.state.azimuth_A, window.state.azimuth_B])).toEqual([9, 6, 90, 270]);
+});
+
+test('directions in words read as azimuths', async ({ page }) => {
+  await boot(page, NO_SOLAR);
+  expect(await page.evaluate(() => ['south', 'South-West', 'SW', 's/e', 'southeast', 'East', 'north west', '200°', 'roof'].map(window.azFromWords)))
+    .toEqual([180, 225, 225, 135, 135, 90, 315, 200, null]);
+});
