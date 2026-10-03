@@ -16,10 +16,10 @@ test('a plan with a welcome credit says so, and its sheet gives the first year w
   const year = euros(await card.locator('.plan-cost').textContent());
   await card.click();
   const note = page.locator('.v7-note.is-gift');
-  await expect(note).toContainText('€30 welcome credit');
-  await expect(note).toContainText(`about €${(year - 30).toLocaleString('en-IE')}`);
+  await expect(note).toContainText('+€30 welcome credit');
+  await expect(note).toContainText(`First year about €${(year - 30).toLocaleString('en-IE')}`);
   // The discount already in the rates is named, so nobody adds it twice.
-  await expect(note).toContainText('include the 16% new-customer discount, which lasts 12 months');
+  await expect(note).toContainText('16% discount already in the rates, for 12 months');
   // The yearly figure is unchanged by the credit.
   expect(euros(await page.locator('.v7-sheet-figs .v7-fig').first().textContent())).toBe(year);
   expect(errors).toEqual([]);

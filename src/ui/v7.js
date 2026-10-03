@@ -1270,8 +1270,8 @@ export function createV7(api) {
         const wc = welcomeFor(plan), intro = introDiscount(plan);
         if (!wc && !intro) return '';
         const lines = [];
-        if (wc) lines.push(`<b>${api.fmtCurrency(wc)} welcome credit</b> for joining, taken off your first bill. It is not in the yearly figure above, so your first year on this plan comes to about <b>${api.fmtCurrency(c.net - wc)}</b>${saving + wc > 0 ? `, ${api.fmtCurrency(saving + wc)} less than your plan now` : ''}. Most suppliers ask you to stay 12 months to keep it.`);
-        if (intro) lines.push(`The rates above include the ${intro.pct}% new-customer discount${intro.months ? ', which lasts 12 months; after that the supplier moves you to its standard rates unless you switch again' : ''}.`);
+        if (wc) lines.push(`<b>+${api.fmtCurrency(wc)} welcome credit.</b> First year about <b>${api.fmtCurrency(c.net - wc)}</b>. Stay 12 months to keep it.`);
+        if (intro) lines.push(`${intro.pct}% discount already in the rates${intro.months ? ', for 12 months' : ''}.`);
         return `<div class="v7-note is-gift">${api.ic('spark', 16)}<div>${lines.join(' ')}</div></div>`;
       })()}
       ${api.isPartnerPlan(plan.id) ? `<div class="v7-fine">We may earn a commission if you switch to this plan. It never changes the order plans are ranked in.</div>` : ''}
