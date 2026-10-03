@@ -9756,10 +9756,11 @@ function currentSystemCfg(){
   SYS_KEYS.concat(SYS_EXTRA).forEach((k) => { c[k] = state[k]; });
   return c;
 }
+const dirName = (az) => ({ N: 'North', NE: 'North-east', E: 'East', SE: 'South-east', S: 'South', SW: 'South-west', W: 'West', NW: 'North-west' })[sectorFromAzimuth(az)] || 'South';
 function systemSpec(c){
   const a = +c.count_A || 0, b = +c.count_B || 0, bat = +c.battery_kwh || 0;
   const dir = (az) => sectorFromAzimuth(az);
-  return `${a + b} panels${b > 0 ? ` (${a} ${dir(c.azimuth_A)} + ${b} ${dir(c.azimuth_B)})` : ` · ${dir(c.azimuth_A)}`} · ${bat > 0 ? `${bat} kWh battery` : 'no battery'}`;
+  return b > 0 ? `${a} ${dir(c.azimuth_A)} + ${b} ${dir(c.azimuth_B)}` : `${dirName(c.azimuth_A)}-facing`;
 }
 /** Every system in the list, grouped; `ready` is false while the suggested sizes are still being worked out. */
 function systemEntries(withSuggestions){
@@ -9866,17 +9867,19 @@ function renderSystemsList(){
   const ready = CACHE._goalSweep_ck === goalSweepCk() && CACHE._goalSweep;
   const entries = systemEntries(!!ready);
   const k = (n) => (Math.abs(n) >= 10000 ? `€${(n / 1000).toFixed(1)}k` : eur(n));
-  const metrics = (o) => o ? `<span class="sys-m"><b>${eur(o.cost)}</b><small>after grant</small></span>
+  const metrics = (o, c) => { const n = (+c.count_A || 0) + (+c.count_B || 0), bat = +c.battery_kwh || 0;
+    const pb = `${n} · ${bat > 0 ? `${bat} kWh` : 'none'}`;
+    return o ? `<span class="sys-m"><b>${eur(o.cost)}</b><small>after grant</small></span>
       <span class="sys-m"><b>${o.payback < 50 ? `${o.payback.toFixed(1)} yrs` : 'never'}</b><small>payback</small></span>
       <span class="sys-m"><b class="${o.life >= 0 ? 'is-gain' : 'is-loss'}">${o.life >= 0 ? '+' : '−'}${k(Math.abs(o.life))}</b><small>after 20 yrs</small></span>
-      <span class="sys-m"><b>${o.own != null ? Math.round(o.own * 100) + '%' : '—'}</b><small>own power</small></span>`
-    : `<span class="sys-wait">Working it out…</span>`;
+      <span class="sys-m"><b>${pb}</b><small>panels · battery</small></span>`
+    : `<span class="sys-wait">Working it out…</span>`; };
   const row = (e) => {
     const use = isInUse(e), ek = escAttr(e.key), sid = e.saved ? escAttr(e.saved) : '', qid = e.quote ? escAttr(e.quote.id) : '';
     return `<div class="sys-row ${use ? 'in-use' : ''} sys-g-${e.group}">
       <button class="sys-main" ${use ? 'aria-current="true"' : `onclick="useSystem('${ek}')"`}>
         <span class="sys-l"><b>${esc(e.name)}${use ? ' <i class="sys-tag">In use</i>' : ''}</b><small>${esc(e.spec)}${e.price ? ` · ${eur(e.price)}` : ''}</small>${e.why ? `<small class="sys-why">${esc(e.why)}</small>` : ''}</span>
-        <span class="sys-r">${metrics(out && out[e.key])}</span>
+        <span class="sys-r">${metrics(out && out[e.key], { ...state, ...e.changes })}</span>
       </button>
       ${e.saved ? `<button class="sys-x" aria-label="Remove ${escAttr(e.name)}" onclick="removeSavedSystem('${sid}')">${ic('x', 12)}</button>` : ''}
       ${e.quote ? `<button class="sys-x" aria-label="Remove ${escAttr(e.name)}" onclick="removeQuote('${qid}')">${ic('x', 12)}</button>` : ''}
@@ -9892,7 +9895,7 @@ function renderSystemsList(){
   const anyUse = entries.some(isInUse);
   return `<section class="sys-list" aria-label="Systems">
     <div class="sys-head"><b>${ic('spark', 14)} Systems for your home</b><small>Tap one to use it. Figures are for this home, on the best plan for each.</small></div>
-    ${!anyUse && v7HasModelledSystem() ? `<div class="sys-row in-use sys-g-current"><div class="sys-main"><span class="sys-l"><b>Your system now <i class="sys-tag">In use</i></b><small>${esc(systemSpec(state))}</small></span><span class="sys-r">${metrics(out && out.current)}</span></div></div>` : ''}
+    ${!anyUse && v7HasModelledSystem() ? `<div class="sys-row in-use sys-g-current"><div class="sys-main"><span class="sys-l"><b>Your system now <i class="sys-tag">In use</i></b><small>${esc(systemSpec(state))}</small></span><span class="sys-r">${metrics(out && out.current, state)}</span></div></div>` : ''}
     ${group('suggested', 'Suggested by Peakless', '')}
     ${group('quotes', 'From your quotes', '')}
     ${group('yours', 'Saved by you', '')}

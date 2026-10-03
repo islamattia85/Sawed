@@ -86,12 +86,12 @@ test('the suggested system is told apart from the one being modelled', async ({ 
   const list = page.locator('.sys-list');
   await expect(list.locator('.sys-g-suggested .sys-row').first()).toBeVisible({ timeout: 60_000 });
   // The reader's own system is its own row, marked in use.
-  await expect(list.locator('.sys-row.in-use')).toContainText(/12 panels[\s\S]*5 kWh battery/);
+  await expect(list.locator('.sys-row.in-use')).toContainText('12 · 5 kWh');
   // Every suggestion has its spec and the same four figures.
   const rows = list.locator('.sys-g-suggested .sys-row');
   expect(await rows.count()).toBeGreaterThanOrEqual(2);
   for (const r of await rows.all()) await expect(r.locator('.sys-m')).toHaveCount(4, { timeout: 60_000 });
   // No two suggestions offer the same system.
-  const all = await list.locator('.sys-g-suggested .sys-row .sys-l > small:first-of-type').allTextContents();
+  const all = await list.locator('.sys-g-suggested .sys-row').evaluateAll((rs) => rs.map((r) => r.querySelector('.sys-l small').textContent + '|' + r.querySelector('.sys-m:last-child b').textContent));
   expect(new Set(all).size).toBe(all.length);
 });
