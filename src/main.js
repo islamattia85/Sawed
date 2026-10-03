@@ -2893,8 +2893,32 @@ const OPTIMISATIONS = {
 };
 
 /** Apply a suggested upgrade (more panels, a bigger battery) to the system. */
-function tryUpgrade(o){
+/**
+ * "Try it" and "Apply" change the home's model; each keeps what was there
+ * before, so one tap puts it back. Only the latest change is kept.
+ */
+let _undo = null;
+function rememberForUndo(label){
+  const snap = JSON.parse(JSON.stringify(state));
+  for (const k of ['current_screen', '_sheet', '_an_tab', '_return_to']) delete snap[k];
+  _undo = { label, snap };
+}
+function undoLast(){
+  if (!_undo) return;
+  Object.assign(state, _undo.snap);
+  _undo = null;
+  invalidate(); saveState();
+  showToast('Back to your system as it was.', { type: 'accent', icon: ic('checkC', 16) });
+  renderApp();
+}
+function undoBar(){
+  return _undo ? `<div class="v7-undo">${ic('checkC', 16)}<span>${esc(_undo.label)}</span><button onclick="undoLast()">Undo</button><button class="v7-undo-x" aria-label="Keep it" onclick="_undoKeep()">${ic('x', 14)}</button></div>` : '';
+}
+function _undoKeep(){ _undo = null; renderApp(); }
+function tryUpgrade(o, label){
+  rememberForUndo(label || 'Change tried on your system');
   for (const [k, v] of Object.entries(o || {})) sysSet(k, v);
+  showToast(`${esc(_undo.label)}. <button class="toast-undo" onclick="undoLast()">Undo</button>`, { type: 'accent', icon: ic('checkC', 16) });
 }
 function computeOptimisations(){
   const ck = JSON.stringify([state.strategy_mode, state.charge_from_grid, state.hot_water_strategy,
@@ -3012,6 +3036,7 @@ function applyOptimisation(id){
   const o = OPTIMISATIONS[id];
   if (!o) return;
   const opt = ((CACHE._opt && CACHE._opt.suggest) || []).find(x => x.id === id);
+  rememberForUndo(`${o.title}: applied`);
   Object.assign(state, o.overrides);
   invalidate();   // may sanitise the change back (e.g. arbitrage needs a battery)
   saveState();
@@ -3020,7 +3045,7 @@ function applyOptimisation(id){
   // so we never show "Applied" while the engine silently reverted it.
   const held = Object.keys(o.overrides).every(k => state[k] === o.overrides[k]);
   if (held){
-    showToast(`Applied — worth about ${opt ? fmtCurrency(opt.delta) : ''}/yr on your setup`, { type:'accent', icon:ic('checkC',16), title:o.title });
+    showToast(`Applied — worth about ${opt ? fmtCurrency(opt.delta) : ''}/yr on your setup. <button class="toast-undo" onclick="undoLast()">Undo</button>`, { type:'accent', icon:ic('checkC',16), title:o.title });
   } else if (id === 'arbitrage' && (state.battery_kwh || 0) === 0){
     showToast('Battery arbitrage needs a home battery — add one in Settings first.', { type:'amber', icon:ic('warn',16), title:'No battery to charge' });
   } else {
@@ -3054,7 +3079,7 @@ function renderImproveList(advice){
         <div class="v7-imp-sub">~${fmtCurrency(u.netExtra)} extra after grant · ${u.payback === Infinity || u.payback > 30
           ? "it doesn't pay for itself"
           : ok ? `pays for itself in <b>${fmtPb(u.payback)}</b>` : `pays back in ${fmtPb(u.payback)}, too long at today's prices`}</div>
-        ${ok && u.overrides ? `<button class="v7-imp-btn" onclick='tryUpgrade(${JSON.stringify(u.overrides)})'>Try it on my system</button>` : ''}
+        ${ok && u.overrides ? `<button class="v7-imp-btn" onclick='tryUpgrade(${JSON.stringify(u.overrides)}, ${JSON.stringify(`Tried ${String(u.label).replace(/<[^>]+>/g, '')}`).replace(/'/g, '&#39;')})'>Try it on my system</button>` : ''}
       </div>`;
     (ok ? worth : notWorth).push({ rank: ok ? u.payback : 99, gain: u.gain, html });
   }
@@ -11554,6 +11579,8 @@ function renderApp(){
 
   root.setAttribute('data-chrome','app');
   root.innerHTML = html;
+  // A change tried on the system stays undoable from any screen until kept or undone.
+  if (_undo){ const sc = root.querySelector('.screen'); if (sc) sc.insertAdjacentHTML('afterbegin', undoBar()); }
   // A sheet opens over whatever surface is showing. A plan's detail or the
   // home's assumptions used to be separate screens; each question cost a round
   // trip and lost the context behind it.
@@ -12701,6 +12728,8 @@ window.anPick = anPick;
 window.removeEv = removeEv;
 window.toggleEvModel = toggleEvModel;
 window.tryUpgrade = tryUpgrade;
+window.undoLast = undoLast;
+window._undoKeep = _undoKeep;
 window.useGoalDesign = useGoalDesign;
 window.startSolarGuide = startSolarGuide;
 window.startFlow = startFlow;

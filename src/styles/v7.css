@@ -1437,3 +1437,11 @@ section.hc { cursor: default; }
 .ax-tag { font-style: normal; font-size: var(--text-caption); font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
 .ax-tag.is-now { background: var(--track-soft); color: var(--ink-soft); }
 .ax-msg { margin-bottom: 0; }
+
+/* Undo for a change tried on the system. */
+.v7-undo { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-lg); background: var(--accent-soft); font-size: var(--text-data); color: var(--ink); }
+.v7-undo > svg { flex: none; color: var(--accent); }
+.v7-undo span { flex: 1; min-width: 0; }
+.v7-undo button, .toast-undo { flex: none; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--accent); background: var(--surface, transparent); color: var(--accent); font: 700 var(--text-caption) var(--display); cursor: pointer; }
+.toast-undo { margin-left: var(--space-2); }
+.v7-undo .v7-undo-x { padding: 6px; border: 0; background: none; color: var(--ink-soft); }
