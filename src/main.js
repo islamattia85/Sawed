@@ -2916,11 +2916,6 @@ function undoBar(){
   return _undo ? `<div class="v7-undo">${ic('checkC', 16)}<span>${esc(_undo.label)}</span><button onclick="undoLast()">Undo</button><button class="v7-undo-x" aria-label="Keep it" onclick="_undoKeep()">${ic('x', 14)}</button></div>` : '';
 }
 function _undoKeep(){ _undo = null; renderApp(); }
-function tryUpgrade(o, label){
-  rememberForUndo(label || 'Change tried on your system');
-  for (const [k, v] of Object.entries(o || {})) sysSet(k, v);
-  showToast(`${esc(_undo.label)}. <button class="toast-undo" onclick="undoLast()">Undo</button>`, { type: 'accent', icon: ic('checkC', 16) });
-}
 function computeOptimisations(){
   const ck = JSON.stringify([state.strategy_mode, state.charge_from_grid, state.hot_water_strategy,
     state.export_enabled, state.battery_kwh, state.heating_type, usageKey(), state.region,
@@ -3055,61 +3050,6 @@ function applyOptimisation(id){
   renderApp();
 }
 
-/**
- * Everything that would make this system pay back faster, in one list, best
- * first. Settings changes cost nothing so they lead; hardware follows by
- * payback. What we advise against is folded away underneath with its reason,
- * and what is already right is a quiet line at the end, not a to-do.
- */
-function renderImproveList(advice){
-  if (!solarExtrasReady()) return `<div class="section-title">Make it pay back faster</div>${SOLAR_EXTRA_WAIT('Comparing every change')}`;
-  const opts = computeOptimisations();
-  const fmtPb = (y) => y < 1 ? 'under a year' : `${y.toFixed(0)} yr`;
-  const worth = [], notWorth = [];
-  for (const o of opts.suggest) worth.push({ rank: 0, gain: o.delta, html: `
-      <div class="v7-imp">
-        <div class="v7-imp-head"><b>${o.title}</b><span class="v7-imp-gain">+${fmtCurrency(o.delta)}/yr</span></div>
-        <div class="v7-imp-sub">Free — a setting, no hardware. ${o.body}</div>
-        <button class="v7-imp-btn" onclick="applyOptimisation('${o.id}')">Apply to my model</button>
-      </div>` });
-  for (const u of (opts.upgrades || [])){
-    const ok = u.payback !== Infinity && u.payback <= 12;
-    const html = `
-      <div class="v7-imp">
-        <div class="v7-imp-head"><b>${u.label}</b><span class="v7-imp-gain ${u.gain > 0 ? '' : 'is-flat'}">+${fmtCurrency(u.gain)}/yr</span></div>
-        <div class="v7-imp-sub">~${fmtCurrency(u.netExtra)} extra after grant · ${u.payback === Infinity || u.payback > 30
-          ? "it doesn't pay for itself"
-          : ok ? `pays for itself in <b>${fmtPb(u.payback)}</b>` : `pays back in ${fmtPb(u.payback)}, too long at today's prices`}</div>
-        ${ok && u.overrides ? `<button class="v7-imp-btn" onclick='tryUpgrade(${JSON.stringify(u.overrides)}, ${JSON.stringify(`Tried ${String(u.label).replace(/<[^>]+>/g, '')}`).replace(/'/g, '&#39;')})'>Try it on my system</button>` : ''}
-      </div>`;
-    (ok ? worth : notWorth).push({ rank: ok ? u.payback : 99, gain: u.gain, html });
-  }
-  for (const a of (advice || [])){
-    if (a.kind === 'optimal') continue;
-    const html = `<div class="v7-imp"><div class="v7-imp-head"><b>${a.headline}</b></div><div class="v7-imp-sub">${a.body}</div></div>`;
-    if (a.kind === 'battery-hold') notWorth.push({ rank: 99, gain: 0, html });
-    else worth.push({ rank: 50, gain: 0, html });
-  }
-  worth.sort((x, y) => x.rank - y.rank || y.gain - x.gain);
-  const good = [...opts.confirmed.map(o => `${o.title} (~${fmtCurrency(o.keep)}/yr)`),
-    ...(advice || []).filter(a => a.kind === 'optimal').map(a => a.headline)];
-  if (!worth.length && !notWorth.length && !good.length) return '';
-  return `
-    <div class="section-title">Make it pay back faster</div>
-    ${worth.length ? worth.map(x => x.html).join('') : `<div class="v7-imp v7-imp-none">Nothing worth changing — this system is already well matched to your home.</div>`}
-    ${notWorth.length ? `<details class="v7-imp-more">
-      <summary>Looked at, not worth it (${notWorth.length})</summary>
-      ${notWorth.map(x => x.html).join('')}
-    </details>` : ''}
-    ${good.length ? `<div class="v7-imp-good">${ic('checkC', 15)} <span>${state.solar_planned ? 'Already right in this plan' : 'Already set up well'}: ${good.join(' · ')}</span></div>` : ''}
-    ${opts.suggest.length ? `<div class="v7-fine">Each figure is simulated on your home. Applying one can change the others.</div>` : ''}`;
-}
-
-/* ============================================================
-   12. HARDWARE ADVISOR — diagnoses the system's weak link
-   from the simulation output and surfaces strategic upgrades.
-   Returns an array of {kind, headline, body} cards.
-   ============================================================ */
 function generateAdvice(best){
   const advice = [];
   if (!best || !best.sim) return advice;
@@ -10489,7 +10429,6 @@ const V7 = createV7({
   analyticsData: () => analyticsData(), analyticsDay, solarRange, anPlan: () => anPlan(), solarDataFor,
   accuracyWithMeter: () => accuracyWithMeter(),
   quoteFaces: (x) => quoteFaces(x),
-  renderSolarImprove: () => { try { return renderImproveList(generateAdvice(getBestPlan())); } catch (e) { return ''; } },
   renderSolarWorking: () => renderSolarWorking(),
   isFlatPlan,
   tariffCounts: () => { const live = TARIFFS.filter((p) => !p.discontinued); const dyn = live.filter((p) => p.type === 'dynamic').length; return { live: live.length, dynamicLeftOut: state.include_dynamic ? 0 : dyn }; },
@@ -12854,7 +12793,6 @@ window.anTab = anTab;
 window.anPick = anPick;
 window.removeEv = removeEv;
 window.toggleEvModel = toggleEvModel;
-window.tryUpgrade = tryUpgrade;
 window.undoLast = undoLast;
 window._undoKeep = _undoKeep;
 window.useGoalDesign = useGoalDesign;

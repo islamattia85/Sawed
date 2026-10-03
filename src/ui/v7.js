@@ -1134,10 +1134,10 @@ export function createV7(api) {
       </section>
       ${anCard(`${pct(so.kept, so.gen)}% used at home, ${pct(so.exp, so.gen)}% sold`, `${stack(goes, goes.map((g) => g.label).join(', '))}${rows(goes)}${battLine}`)}
       <button class="ax-more ${more ? 'open' : ''}" aria-expanded="${more}" onclick="state._solar_more=!state._solar_more;saveState();renderApp()">
-        <span><b>More detail</b><small>A summer and a winter day · make it pay back faster</small></span>
+        <span><b>More detail</b><small>A summer and a winter day, hour by hour</small></span>
         <span class="ax-more-s">${more ? 'Hide' : 'Show'} ${api.ic(more ? 'chevU' : 'chevD', 16)}</span>
       </button>
-      ${more ? `<div class="ax-fold">${api.renderDayInspector()}${api.renderSolarImprove()}</div>` : ''}
+      ${more ? `<div class="ax-fold">${api.renderDayInspector()}</div>` : ''}
       ${planned
         ? `${cta('Get 3 quotes for this system', 'openLeadForm()')}${cta2('Check a quote you already have', "v7Sheet('quote')", 'clip')}`
         : cta('Compare plans with your panels', "setScreen('plans')")}`;
