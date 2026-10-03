@@ -1188,3 +1188,48 @@ export function setTariffs(v){ TARIFFS = v; }
 export function setSolarExtrasReady(v){ _solarExtrasReady = v; }
 export function setSolarExtrasPending(v){ _solarExtrasPending = v; }
 export function adjScenarioDepth(d){ _scenarioDepth += d; }
+
+/* ---- The two background jobs, shared by the page and src/sim-worker.js ----
+ * Same sums in both places: the page uses them when a worker is not
+ * available, the worker otherwise. */
+
+/** A system's figures against what the home pays with no panels. */
+export function outcomeAgainst(noSolarNet){
+  const best = getBestPlan();
+  const ben = Math.max(0, noSolarNet - best.net);
+  const grantOn = !(state.grant_is_manual && !(state.grant_seai > 0));
+  const cost = Math.max(0, (state.install_cost || 0) - (grantOn ? (state.grant_seai || 0) : 0));
+  const deg = state.panel_degradation || 0.005;
+  let saved = 0; for (let y = 1; y <= 20; y++) saved += ben * Math.pow(1 - deg, y - 1);
+  const batt = state.battery_kwh > 0 ? 400 * state.battery_kwh : 0;
+  return { payback: ben > 0 ? cost / ben : 999, benefit: ben, cost, life: saved - cost - batt, plan: `${best.plan.supplier} ${best.plan.plan}` };
+}
+/** What the home pays on its best plan with no panels. */
+export function noSolarNetNow(){
+  return withSimState({ count_A: 0, count_B: 0, battery_kwh: 0, has_solar: false }, () => getBestPlan().net);
+}
+/** The twelve sizes, laid out on the roof as the home uses it. */
+export function sweepSetup(){
+  const two = state.count_B > 0;
+  return { list: GOAL_PANELS.flatMap((p) => GOAL_BATTS.map((b) => [p, b])),
+    az: state.azimuth_A || 180, tilt: state.tilt_A || 30, two, azB: state.azimuth_B, tiltB: state.tilt_B,
+    shareB: two ? state.count_B / Math.max(1, totalPanels()) : 0 };
+}
+/** One size: its price, grant and what it earns on its best plan. */
+export function evaluateDesign(J, p, b, noSolar){
+  const nB = Math.round(p * J.shareB), nA = p - nB;
+  const kwp = p * (state.panel_w || 440) / 1000;
+  const cost = estimateInstallCost(kwp, b), grant = calcSeaiGrant(kwp, b).total, net = cost - grant;
+  const ch = { count_A: nA, count_B: nB, azimuth_A: J.az, tilt_A: J.tilt, battery_kwh: b, has_solar: true, install_cost: cost, grant_seai: grant };
+  if (J.two){ ch.azimuth_B = J.azB; ch.tilt_B = J.tiltB; }
+  const best = withSimState(ch, () => getBestPlan());
+  const benefit = Math.max(0, noSolar - best.net);
+  const payback = benefit > 0 ? net / benefit : 999;
+  return { panels: p, a: nA, b: nB, batt: b, kwp: +kwp.toFixed(1), cost, grant, net,
+    benefit: Math.round(benefit), payback: +payback.toFixed(1), npv: computeNpv20(benefit, net, b), planId: best.plan.id,
+    planLabel: best.plan.supplier + ' — ' + best.plan.plan };
+}
+export function finishSweep(designs, noSolar){
+  return { designs, byPayback: designs.slice().sort((a, b) => a.payback - b.payback || a.net - b.net),
+    byNpv: designs.slice().sort((a, b) => b.npv - a.npv || a.payback - b.payback), noSolarCost: Math.round(noSolar) };
+}

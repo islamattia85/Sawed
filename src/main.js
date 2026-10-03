@@ -18,6 +18,7 @@ import { BRAND, CONTROLLER, MARK_PATHS, iconDataUri, wordmarkHtml } from './bran
 import { IC, ic } from './icons';
 import {
   IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
+  outcomeAgainst, sweepSetup, evaluateDesign, finishSweep,
 } from './model';
 
 /* Peakless — application entry.
@@ -4199,64 +4200,92 @@ let _sweepJob = null;
 function sweepGoalStep(){
   const ck = goalSweepCk();
   if (CACHE._goalSweep_ck === ck && CACHE._goalSweep) return true;
-  if (!_sweepJob || _sweepJob.ck !== ck){
-    const two = state.count_B > 0;
-    _sweepJob = { ck, i: 0, designs: [], noSolar: null, list: GOAL_PANELS.flatMap((p) => GOAL_BATTS.map((b) => [p, b])),
-      az: state.azimuth_A || 180, tilt: state.tilt_A || 30, two, azB: state.azimuth_B, tiltB: state.tilt_B,
-      shareB: two ? state.count_B / Math.max(1, totalPanels()) : 0 };
-  }
+  if (!_sweepJob || _sweepJob.ck !== ck) _sweepJob = { ck, ...sweepSetup(), i: 0, designs: [], noSolar: null };
   const J = _sweepJob;
-  if (J.noSolar == null){
-    J.noSolar = noSolarNet();
-    return false;
-  }
+  if (J.noSolar == null){ J.noSolar = noSolarNet(); return false; }
   if (J.i < J.list.length){
     const [p, b] = J.list[J.i++];
-    const nB = Math.round(p * J.shareB), nA = p - nB;
-    const kwp = p * (state.panel_w || 440) / 1000;
-    const cost = estimateInstallCost(kwp, b), grant = calcSeaiGrant(kwp, b).total, net = cost - grant;
-    const ch = { count_A: nA, count_B: nB, azimuth_A: J.az, tilt_A: J.tilt, battery_kwh: b, has_solar: true, install_cost: cost, grant_seai: grant };
-    if (J.two){ ch.azimuth_B = J.azB; ch.tilt_B = J.tiltB; }
-    const best = withSimState(ch, () => getBestPlan());
-    const benefit = Math.max(0, J.noSolar - best.net);
-    const payback = benefit > 0 ? net / benefit : 999;
-    J.designs.push({ panels: p, a: nA, b: nB, batt: b, kwp: +kwp.toFixed(1), cost, grant, net,
-      benefit: Math.round(benefit), payback: +payback.toFixed(1), npv: computeNpv20(benefit, net, b), planId: best.plan.id,
-      planLabel: best.plan.supplier + ' — ' + best.plan.plan });
+    J.designs.push(evaluateDesign(J, p, b, J.noSolar));
     if (J.i < J.list.length) return false;
   }
-  const designs = J.designs;
-  CACHE._goalSweep = { designs, byPayback: designs.slice().sort((a, b) => a.payback - b.payback || a.net - b.net),
-    byNpv: designs.slice().sort((a, b) => b.npv - a.npv || a.payback - b.payback), noSolarCost: Math.round(J.noSolar) };
+  CACHE._goalSweep = finishSweep(J.designs, J.noSolar);
   CACHE._goalSweep_ck = J.ck;
   _sweepJob = null;
   return true;
 }
 
+/* ---- The background worker ------------------------------------------------
+ * The heavy jobs run in src/sim-worker.js when the browser allows it, so the
+ * page never waits on them; if a worker cannot start, the page does the work
+ * itself, one step per frame. */
+let _simWorker = null, _simSeq = 0;
+const _simWait = new Map();
+function simWorker(){
+  if (_simWorker === false) return null;
+  if (_simWorker) return _simWorker;
+  try {
+    _simWorker = new Worker(new URL('./sim-worker.js', import.meta.url), { type: 'module' });
+    _simWorker.onmessage = (e) => {
+      const w = _simWait.get(e.data.id); if (!w) return;
+      _simWait.delete(e.data.id);
+      if (e.data.error) w.reject(new Error(e.data.error)); else w.resolve(e.data.result);
+    };
+    _simWorker.onerror = () => { _simWorker = false; _simWait.forEach((w) => w.reject(new Error('worker failed'))); _simWait.clear(); };
+  } catch (e) { _simWorker = false; return null; }
+  return _simWorker;
+}
+/** A job for the worker, or null when there is none (the caller then does it here). */
+function runInWorker(job){
+  const w = simWorker();
+  if (!w) return null;
+  let snap;
+  try { snap = structuredClone(state); } catch (e) { snap = JSON.parse(JSON.stringify(state)); }
+  const id = ++_simSeq;
+  window.__simJobs = (window.__simJobs || 0) + 1;
+  return new Promise((resolve, reject) => { _simWait.set(id, { resolve, reject }); w.postMessage({ id, job, state: snap, tariffs: TARIFFS }); });
+}
+
+
+/** The sizes are in: show them where they are waited for. */
+function sweepLanded(){
+  if (state._sheet && state._sheet.kind === 'system') { redrawKeepingFocus(); return; }
+  // Swap the placeholder for the result rather than re-rendering the screen.
+  // A full repaint a second after landing detaches whatever the reader was
+  // reaching for — it broke a click on the day inspector mid-gesture.
+  try {
+    const slot = document.querySelector('.opt-note.is-working');
+    if (slot){
+      const html = renderOptimisedSuggestion();
+      const holder = document.createElement('div');
+      holder.innerHTML = html;
+      const node = holder.firstElementChild;
+      if (node) slot.replaceWith(node); else slot.remove();
+      enhanceA11y();
+    }
+  } catch (e) { /* the placeholder simply stays */ }
+}
+
 function scheduleGoalSweep(){
   if (_sweepScheduled) return;
   _sweepScheduled = true;
+  const ck = goalSweepCk();
+  const viaWorker = runInWorker({ kind: 'sweep' });
+  if (viaWorker){
+    viaWorker.then((res) => {
+      if (goalSweepCk() === ck){ CACHE._goalSweep = res; CACHE._goalSweep_ck = ck; }
+      _sweepScheduled = false;
+      if (goalSweepCk() !== ck){ scheduleGoalSweep(); return; }
+      sweepLanded();
+    }).catch(() => { _sweepScheduled = false; _simWorker = false; scheduleGoalSweep(); });
+    return;
+  }
   const run = () => {
     let done = true;
     try { done = sweepGoalStep(); } catch (e) { done = true; }
     // A frame between steps, so a tap or a slide is painted before the next one.
     if (!done){ requestAnimationFrame(() => setTimeout(run, 0)); return; }
     _sweepScheduled = false;
-    if (state._sheet && state._sheet.kind === 'system') { redrawKeepingFocus(); return; }
-    // Swap the placeholder for the result rather than re-rendering the screen.
-    // A full repaint a second after landing detaches whatever the reader was
-    // reaching for — it broke a click on the day inspector mid-gesture.
-    try {
-      const slot = document.querySelector('.opt-note.is-working');
-      if (slot){
-        const html = renderOptimisedSuggestion();
-        const holder = document.createElement('div');
-        holder.innerHTML = html;
-        const node = holder.firstElementChild;
-        if (node) slot.replaceWith(node); else slot.remove();
-        enhanceA11y();
-      }
-    } catch (e) { /* the placeholder simply stays */ }
+    sweepLanded();
   };
   if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 1500 });
   else setTimeout(run, 60);
@@ -8599,16 +8628,7 @@ function noSolarBest(){
 }
 function noSolarNet(){ return noSolarBest().net; }
 /** A system's figures from one simulation: the best plan with it, against the home with none. */
-function quickOutcome(){
-  const best = getBestPlan();
-  const ben = Math.max(0, noSolarNet() - best.net);
-  const grantOn = !(state.grant_is_manual && !(state.grant_seai > 0));
-  const cost = Math.max(0, (state.install_cost || 0) - (grantOn ? (state.grant_seai || 0) : 0));
-  const deg = state.panel_degradation || 0.005;
-  let saved = 0; for (let y = 1; y <= 20; y++) saved += ben * Math.pow(1 - deg, y - 1);
-  const batt = state.battery_kwh > 0 ? 400 * state.battery_kwh : 0;
-  return { payback: ben > 0 ? cost / ben : 999, benefit: ben, cost, life: saved - cost - batt, plan: `${best.plan.supplier} ${best.plan.plan}` };
-}
+function quickOutcome(){ return outcomeAgainst(noSolarNet()); }
 
 /**
  * Every saved quote, run on this home. Each is a full year's simulation, so
@@ -8708,6 +8728,13 @@ function systemsOutcomes(){
     const todo = [['current', null], ...entries.filter((x) => x.group !== 'suggested').map((e) => [e.key, e.changes])];
     _soMemo = { k, v };
     _soJob = { k, todo };
+    const viaWorker = runInWorker({ kind: 'outcomes', items: todo.map(([key, ch]) => [key, ch || null]) });
+    if (viaWorker){
+      viaWorker.then((res) => {
+        if (_soJob && _soJob.k === k){ Object.assign(_soMemo.v, res); _soJob = null; if (state._sheet && state._sheet.kind === 'system') redrawKeepingFocus(); }
+      }).catch(() => { _simWorker = false; if (_soJob && _soJob.k === k) setTimeout(step, 0); });
+      return _soMemo.v;
+    }
     const step = () => {
       const J = _soJob;
       if (!J || J.k !== modelKey() + '|' + ((CACHE._goalSweep_ck === goalSweepCk() && CACHE._goalSweep) ? goalSweepCk() : 'wait')){ _soJob = null; return; }
@@ -11962,6 +11989,8 @@ window.showPlanDetail = showPlanDetail;
 window.pickObHeating = pickObHeating;
 window.setAnalyticsDay = setAnalyticsDay;
 window.anMonth = anMonth;
+// For tests: forget the sizing run so it can be redone on the page.
+window.__clearSweep = () => { CACHE._goalSweep = null; CACHE._goalSweep_ck = null; };
 window.setGrantEligible = setGrantEligible;
 window.sysConfirmRoof = sysConfirmRoof;
 window.quickOutcome = quickOutcome;
