@@ -424,6 +424,22 @@ export function createV7(api) {
    * shape of its day, and the flags say what is uncertain about it. The
    * ranking is legible without reading a single row.
    */
+  /**
+   * A one-off credit for joining, in euro, when this home would get it: new
+   * customers only, so never on a plan from the supplier it is with now.
+   * Kept out of the yearly figure, which is the price the plan keeps charging.
+   */
+  function welcomeFor(plan) {
+    const now = api.getPlanById(S().baseline);
+    if (!(plan.welcome_credit > 0) || (now && now.supplier === plan.supplier)) return 0;
+    return plan.welcome_credit;
+  }
+  /** The new-customer discount already in a plan's rates, and how long it lasts, from its notes. */
+  function introDiscount(plan) {
+    const m = String(plan.notes || '').match(/(\d+(?:\.\d+)?)% off[^.;]*?(12 months)?[.;,]/i);
+    return m ? { pct: m[1], months: m[2] ? 12 : null } : null;
+  }
+
   function plans() {
     const st = S();
     const d = api.plansData();
@@ -447,7 +463,9 @@ export function createV7(api) {
         const w = Math.max(2, (Math.max(0, r.cost) / ruler) * 100);
         // One quiet line of provenance per plan: when it was checked, and what
         // is uncertain about it. Each of these used to be its own row.
+        const wc = isCurrent ? 0 : welcomeFor(r.plan);
         const meta = [
+          wc ? `<span class="v7-flag is-gift">${api.ic('spark', 12)} +${api.fmtCurrency(wc)} welcome credit</span>` : '',
           r.plan.verified_date ? `<span class="plan-verified">Verified ${api.fmtVerifiedDate(r.plan.verified_date)}</span>` : '',
           api.planDataFlag(r.plan) ? `<span class="v7-flag is-check">${api.ic('warn', 12)} confirm rates</span>` : '',
           r.plan.price_change ? `<span class="v7-flag is-rise">${api.ic('trendUp', 12)} rising ${fmtDate(r.plan.price_change.effective_date)}</span>` : '',
@@ -1248,6 +1266,14 @@ export function createV7(api) {
         <div class="v7-rate"><i class="v7-dot" style="background:var(--ink-dim)"></i>Standing<b>${api.fmtCurrency(plan.standing)}/yr</b></div>
         ${plan.export_rate ? `<div class="v7-rate"><i class="v7-dot" style="background:var(--accent)"></i>Export<b>${api.fmtCent(plan.export_rate)}</b></div>` : ''}
       </div>
+      ${(() => {
+        const wc = welcomeFor(plan), intro = introDiscount(plan);
+        if (!wc && !intro) return '';
+        const lines = [];
+        if (wc) lines.push(`<b>${api.fmtCurrency(wc)} welcome credit</b> for joining, taken off your first bill. It is not in the yearly figure above, so your first year on this plan comes to about <b>${api.fmtCurrency(c.net - wc)}</b>${saving + wc > 0 ? `, ${api.fmtCurrency(saving + wc)} less than your plan now` : ''}. Most suppliers ask you to stay 12 months to keep it.`);
+        if (intro) lines.push(`The rates above include the ${intro.pct}% new-customer discount${intro.months ? ', which lasts 12 months; after that the supplier moves you to its standard rates unless you switch again' : ''}.`);
+        return `<div class="v7-note is-gift">${api.ic('spark', 16)}<div>${lines.join(' ')}</div></div>`;
+      })()}
       ${api.isPartnerPlan(plan.id) ? `<div class="v7-fine">We may earn a commission if you switch to this plan. It never changes the order plans are ranked in.</div>` : ''}
       ${weekendLine(plan, label)}
       ${batteryLine(s, plan)}

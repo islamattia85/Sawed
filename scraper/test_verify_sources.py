@@ -39,3 +39,27 @@ def test_flogas_api_prefers_the_price_in_force():
     pages = {"x": {"url": "x", "json": [{"url": "https://webapi-prd.flogas.ie/pricing-plans/api/v1/plan", "body": json.dumps(body)}]}}
     src = {"api": "flogas", "plan": "Smart 24Hr", "fields": {"day": "24 hr unit rate", "standing": "standing charge"}}
     assert vs.read_recipe(src, pages) == {"values": {"day": 0.2931, "standing": 300.2}}
+
+
+CARDS = {"url": "https://example.ie/plans", "html": 'x"1 Year Electricity 30% plus €125 Welcome credit"y', "text": "\n".join([
+    "Saver 16%", "16%", "More information", "€30 Welcome Bonus", "Smart Meter",
+    "Green Electricity", "5.5%", "More information", "Standard meter",
+])}
+CPAGES = {vs.norm_url(CARDS["url"]): CARDS}
+
+
+def test_welcome_credit_is_read_from_its_own_card():
+    assert vs.read_welcome({"url": CARDS["url"], "anchor": ["Saver 16%"]}, CPAGES) == {"value": 30.0}
+
+
+def test_a_card_without_a_credit_reads_zero_not_the_next_cards():
+    assert vs.read_welcome({"url": CARDS["url"], "anchor": ["Green Electricity"]}, CPAGES) == {"value": 0.0}
+
+
+def test_a_credit_drawn_by_script_is_read_from_the_page_code():
+    rec = {"url": CARDS["url"], "anchor": ["1 Year Electricity 30% plus"], "in": "html", "chars": 40}
+    assert vs.read_welcome(rec, CPAGES) == {"value": 125.0}
+
+
+def test_an_uncaptured_page_is_unreadable():
+    assert "error" in vs.read_welcome({"url": "https://example.ie/gone", "anchor": []}, CPAGES)

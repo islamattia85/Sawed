@@ -170,6 +170,41 @@ def read_flogas(src: dict, pages: dict[str, dict]) -> dict:
     return {"error": f"Flogas plan not in captured API data: {src['plan']!r}"}
 
 
+CREDIT = re.compile(r"€\s?(\d{1,4})\s*(?:Welcome|Switching|Sign[- ]?up)?\s*(?:Bonus|Credit)", re.I)
+
+
+def read_welcome(rec: dict, pages: dict[str, dict]) -> dict:
+    """A plan's one-off credit for new customers, in euro: the first "€N
+    Welcome Bonus/Credit" after the plan's heading, within a few lines (or,
+    with "in": "html", within the page code, for offers the page draws from
+    script). A heading found with no credit after it means the offer ended: 0."""
+    page = pages.get(norm_url(rec["url"]))
+    if not page:
+        return {"error": f"welcome: page not captured: {rec['url']}"}
+    if rec.get("in") == "html":
+        html = page.get("html") or ""
+        pos = 0
+        for a in rec.get("anchor", []):
+            i = html.find(a, pos)
+            if i < 0:
+                return {"value": 0.0}
+            pos = i + len(a)
+        m = CREDIT.search(html[pos:pos + int(rec.get("chars", 200))])
+        return {"value": float(m.group(1)) if m else 0.0}
+    lines = [ln.strip() for ln in page.get("text", "").splitlines() if ln.strip()]
+    pos = 0
+    for a in rec.get("anchor", []):
+        hit = next((i for i in range(pos, len(lines)) if a.lower() in lines[i].lower()), None)
+        if hit is None:
+            return {"value": 0.0}
+        pos = hit + 1
+    for ln in lines[pos:pos + int(rec.get("within", 6))]:
+        m = CREDIT.search(ln)
+        if m:
+            return {"value": float(m.group(1))}
+    return {"value": 0.0}
+
+
 def read_recipe(src: dict, pages: dict[str, dict]) -> dict:
     if src.get("api") == "flogas":
         return read_flogas(src, pages)
@@ -237,15 +272,15 @@ def coverage(tariffs: list, pages: dict[str, dict]) -> list[str]:
 def current(plan: dict, field: str):
     if field.startswith("weekend."):
         return ((plan.get("weekend") or {}).get("rates") or {}).get(field.split(".", 1)[1])
-    if field in ("standing", "export_rate"):
-        return plan.get(field)
+    if field in ("standing", "export_rate", "welcome_credit"):
+        return plan.get(field, 0 if field == "welcome_credit" else None)
     return plan.get("rates", {}).get(field)
 
 
 def assign(plan: dict, field: str, value: float) -> None:
     if field.startswith("weekend."):
         plan.setdefault("weekend", {}).setdefault("rates", {})[field.split(".", 1)[1]] = value
-    elif field in ("standing", "export_rate"):
+    elif field in ("standing", "export_rate", "welcome_credit"):
         plan[field] = value
     else:
         plan.setdefault("rates", {})[field] = value
@@ -315,10 +350,18 @@ def main(argv: list[str]) -> int:
             src_val = vals.get(like, current(plan, like))
             if src_val is not None:
                 vals[f"weekend.{band}"] = src_val
+        welcome = src.get("welcome")
+        if welcome:
+            w = read_welcome(welcome, pages)
+            if "error" in w:
+                unreadable += 1
+                rows.append(f"| {plan['id']} | UNREADABLE | {w['error']} |")
+                continue
+            vals["welcome_credit"] = w["value"]
         diffs = []
         for field, val in vals.items():
             old = current(plan, field)
-            if old is None or abs(float(old) - val) > (0.005 if field == "standing" else TOLERANCE):
+            if old is None or abs(float(old) - val) > (0.005 if field in ("standing", "welcome_credit") else TOLERANCE):
                 diffs.append(f"{field} {old} → {val}")
                 if apply:
                     assign(plan, field, val)

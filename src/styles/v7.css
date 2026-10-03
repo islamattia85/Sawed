@@ -175,6 +175,8 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .v7-note.is-rise { background: var(--amber-faint); color: var(--ink); }
 .v7-note.is-rise .ic { color: var(--amber); flex: none; }
 .v7-note.is-check { background: var(--well); }
+.v7-note.is-gift { background: var(--accent-soft); }
+.v7-note.is-gift > svg { color: var(--accent); }
 
 /* ---------- home ---------- */
 .v7-hero {
@@ -247,6 +249,7 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
   color: var(--ink-soft); background: var(--well); padding: 3px 8px; border-radius: var(--radius-pill);
 }
 .v7-flag.is-rise { color: var(--amber); background: var(--amber-faint); }
+.v7-flag.is-gift { color: var(--accent); background: var(--accent-soft); font-weight: 700; }
 .v7-flag.is-check { color: var(--ink); }
 .v7-verified { font-size: var(--text-caption); color: var(--ink-dim); }
 .v7-more { margin: 0; }
