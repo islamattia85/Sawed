@@ -21,13 +21,12 @@ test('the phone Back gesture steps back through the first-visit flow and never l
 test('Back inside the solar guide goes one step back, then closes it where it was opened', async ({ page }) => {
   await boot(page, { current_screen: 'solar', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
-  await page.getByRole('button', { name: /^Start/ }).click();                       // past the intro
   await page.locator('.sg-tile', { hasText: 'South' }).first().click();            // step 2
   await page.getByRole('button', { name: /^Next/ }).click();                        // step 3
   expect(await page.evaluate(() => window.state._sg)).toBe(3);
   await page.goBack();
   await expect.poll(() => page.evaluate(() => window.state._sg)).toBe(2);
-  await page.goBack(); await page.goBack(); await page.goBack();                    // 1, the intro, out
+  await page.goBack(); await page.goBack();                                         // 1, out
   await expect.poll(() => screen(page)).toBe('solar');
   // Leaving the guide leaves no system behind.
   expect(await page.evaluate(() => window.state.has_solar)).toBe(false);
@@ -141,10 +140,9 @@ test('opening solar from Home and backing out leaves Home exactly as it was', as
   await boot(page, { current_screen: 'result', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
   const before = await page.locator('.v7-basis-line').textContent();
   await page.getByRole('button', { name: /Thinking about solar/ }).click();
-  await expect(page.locator('.sg-h')).toContainText('Would solar pay off here');   // an intro, not the roof
-  await page.getByRole('button', { name: /^Start/ }).click();
+  await expect(page.locator('.sg-h')).toContainText('Which way does your roof face');   // straight to the first question
   await page.locator('.sg-tile', { hasText: 'South' }).first().click();
-  await page.goBack(); await page.goBack(); await page.goBack();
+  await page.goBack(); await page.goBack();
   await expect.poll(() => screen(page)).toBe('result');
   expect(await page.evaluate(() => [window.state.has_solar, window.state.count_A])).toEqual([false, 0]);
   expect(await page.locator('.v7-basis-line').textContent()).toBe(before);
@@ -165,8 +163,8 @@ test('the first visit asks for the supplier, then that supplier\'s plan', async 
 test('"Include solar" with no system asks first instead of inventing one', async ({ page }) => {
   await boot(page, { current_screen: 'result', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
   await page.evaluate(() => window.toggleSolarModel());
-  await expect(page.locator('.sg-h')).toContainText('Would solar pay off here');
-  await page.getByRole('button', { name: 'Not now' }).click();
+  await expect(page.locator('.sg-h')).toContainText('Which way does your roof face');
+  await page.locator('.sg-back').click();
   await expect.poll(() => screen(page)).toBe('result');
   expect(await page.evaluate(() => window.state.has_solar)).toBe(false);
 });
@@ -174,7 +172,6 @@ test('"Include solar" with no system asks first instead of inventing one', async
 test('solar explored in the guide is "planned", and the card only moves on its link', async ({ page }) => {
   await boot(page, { current_screen: 'result', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
   await page.getByRole('button', { name: /Thinking about solar/ }).click();
-  await page.getByRole('button', { name: /^Start/ }).click();
   await page.locator('.sg-tile', { hasText: 'South' }).first().click();
   await page.getByRole('button', { name: /^Next/ }).click();
   await page.locator('.sg-own input').fill('7.5'); await page.locator('.sg-own input').blur();   // own battery size

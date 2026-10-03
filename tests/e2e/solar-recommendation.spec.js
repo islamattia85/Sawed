@@ -34,7 +34,6 @@ import { boot } from './support.js';
 async function modelFromNothing(page) {
   await page.evaluate(() => window.setScreen('solar'));
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
-  await page.getByRole('button', { name: /^Start/ }).click();
   await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
   await page.getByRole('button', { name: /Add to my Home/ }).click();
   await page.locator('.hc-go', { hasText: 'Solar analysis' }).click();
@@ -68,7 +67,6 @@ test('the answer is not blocked by the twelve-design sweep', async ({ page }) =>
 
   await page.evaluate(() => window.setScreen('solar'));
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
-  await page.getByRole('button', { name: /^Start/ }).click();
   await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
   await page.getByRole('button', { name: /Add to my Home/ }).click();
   const started = Date.now();                       // from the tap that opens the analysis

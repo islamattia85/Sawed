@@ -1550,3 +1550,7 @@ button.ax-side { padding: 0; border: 0; background: none; cursor: pointer; font:
 #v7-sheet.is-updating .v7-sheet { cursor: progress; }
 #v7-sheet.is-updating .v7-sheet-head::after { content: "Updating…"; display: inline-block; margin-top: 6px; padding: 2px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: var(--text-caption); font-weight: 700; }
 #v7-sheet.is-updating .sys-r, #v7-sheet.is-updating .sy-net, #v7-sheet.is-updating .sy-acc { opacity: .45; transition: opacity .1s; }
+
+.sy-confirm { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--amber-faint, var(--well)); font-size: var(--text-caption); color: var(--ink); }
+.sy-confirm span { flex: 1; }
+.sy-confirm .sy-stop { flex: none; display: inline-flex; align-items: center; gap: 4px; }

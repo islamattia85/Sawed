@@ -11,7 +11,6 @@ const NO_SOLAR = { has_solar: false, considering_solar: false, count_A: 0, count
 test('the solar guide offers two roof faces, any pair of directions', async ({ page }) => {
   const errors = await boot(page, { ...NO_SOLAR, current_screen: 'result' });
   await page.evaluate(() => window.startSolarGuide());
-  await page.getByRole('button', { name: /^Start/ }).click();
   await page.locator('.sg-tile', { hasText: 'Two roof faces' }).click();
   await expect(page.locator('.sg-two')).toBeVisible();
   await page.locator('.sg-two-row').nth(0).locator('.sg-chip', { hasText: /^South-west$/ }).click();
@@ -35,4 +34,19 @@ test('suggested sizes keep the roof as the home uses it: on two faces, shared th
   expect(r.n).toBeGreaterThan(0);
   expect(r.a + r.b).toBe(r.p);
   expect(Math.abs(r.a - r.b)).toBeLessThanOrEqual(1);
+});
+
+test('the roof is confirmed where it is shown, and the accuracy tip goes straight there', async ({ page }) => {
+  await boot(page, { has_solar: true, considering_solar: true, count_A: 10, azimuth_A: 180, fine: {}, current_screen: 'result' });
+  // The accuracy tip opens My system, not My home.
+  const go = await page.evaluate(() => window.modelAccuracy().parts.find((p) => /Roof/.test(p.label)).go);
+  expect(go).toBe('openMySystem()');
+  await page.evaluate((g) => (0, eval)(g), go);
+  const sheet = page.locator('#v7-sheet');
+  await expect(sheet.locator('.sy-part[aria-label=Panels]')).toContainText('roof assumed');
+  // South is already shown; "This is right" confirms it without changing it.
+  await sheet.getByRole('button', { name: /This is right/ }).click();
+  await expect(sheet.locator('.sy-part[aria-label=Panels]')).toContainText('roof confirmed');
+  expect(await page.evaluate(() => [window.state.fine.roof, window.state.azimuth_A])).toEqual([true, 180]);
+  await expect(sheet.getByRole('button', { name: /This is right/ })).toHaveCount(0);
 });

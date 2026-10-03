@@ -295,7 +295,6 @@ test('modelling solar after a no-solar setup prices the system, even if a quote 
   await boot(page, { has_solar: false, considering_solar: false, count_A: 0, count_B: 0, battery_kwh: 0,
     install_cost: 0, grant_seai: 0, cost_is_manual: true, current_screen: 'solar' });
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
-  await page.getByRole('button', { name: /^Start/ }).click();
   await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
   await page.getByRole('button', { name: /Add to my Home/ }).click();
   await page.locator('.hc-go', { hasText: 'Solar analysis' }).click();
@@ -691,7 +690,6 @@ test('v8 Solar: an invitation without a system; with one, the answer first and t
   await boot(page, { current_screen: 'solar', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
   await expect(page.locator('.v7-invite')).toContainText('What you’ll see');
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
-  await page.getByRole('button', { name: /^Start/ }).click();
   await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
   await page.getByRole('button', { name: /Add to my Home/ }).click();
   await page.evaluate(() => window.setScreen('solar'));
@@ -734,8 +732,6 @@ test('first visit: one revealing page, answers fold into lines you can change, t
 test('v8 solar guide: four steps, each on a suggestion, then the answer and the analysis', async ({ page }) => {
   await boot(page, { current_screen: 'solar', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
-  await expect(page.locator('.sg-h')).toContainText('Would solar pay off here');
-  await page.getByRole('button', { name: /^Start/ }).click();
   await expect(page.locator('.sg-h')).toContainText('Which way does your roof face');
   // Two roof faces starts on east and west.
   await page.locator('.sg-tile', { hasText: 'Two roof faces' }).click();

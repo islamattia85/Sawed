@@ -5645,8 +5645,10 @@ function startSolarGuide(){
   exploreSolar();
   state.solar_planned = true;            // explored here, not bought: never "installed"
   state.current_screen = 'solar-guide';
-  state._sg = 0;
-  guidePush('solar-guide', 0);
+  // Straight to the first question: every way in already says what this is,
+  // and a second screen with the same title was a tap for nothing.
+  state._sg = 1;
+  guidePush('solar-guide', 1);
   saveState();
   renderApp();
 }
@@ -5722,7 +5724,7 @@ function renderSolarGuide(){
   const suggest = Math.max(6, Math.min(16, Math.round(kwh / 450)));
   const head = (k, title, sub) => `
     <div class="sg-top">
-      <button class="sg-back" onclick="${step === 0 ? 'sgCancel()' : `sgGo(${step - 1})`}" aria-label="Back">${ic('chevL', 18)}</button>
+      <button class="sg-back" onclick="${step <= 1 ? 'sgCancel()' : `sgGo(${step - 1})`}" aria-label="Back">${ic('chevL', 18)}</button>
       <div class="sg-progress" aria-label="Step ${step} of ${SG_STEPS}"><i style="width:${step / SG_STEPS * 100}%"></i></div>
       <span class="sg-count">${step}/${SG_STEPS}</span>
     </div>
@@ -5747,7 +5749,7 @@ function renderSolarGuide(){
     const two = state._sg_face === '2F' && state._sg_two;
     const dirRow = (face, label) => `<div class="sg-two-row"><span>${label}</span><div class="sg-chips">${SG_DIRS.map(([k, l]) =>
       `<button class="sg-chip ${two[face] === k ? 'on' : ''}" aria-pressed="${two[face] === k}" onclick="sgTwo('${face}','${k}')">${l}</button>`).join('')}</div></div>`;
-    body = `${head('Step 1 · Your roof', 'Which way does your roof face?', 'The side that gets the sun. A compass app helps.')}
+    body = `${head('Step 1 · Your roof', 'Which way does your roof face?', 'The side that gets the sun. A compass app helps. Nothing changes on your Home unless you keep the answer.')}
       <div class="sg-tiles">${faces.map(([f, l, s]) => `<button class="sg-tile ${state._sg_face === f ? 'on' : ''}" onclick="${f === '2F' ? 'sgTwo()' : `sgRoof('${f}')`}">
         <svg viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="26" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="2"/>
           ${f === '2F' ? '<path d="M30 30 L14 18 M30 30 L46 18" stroke="var(--brand-gold)" stroke-width="5" stroke-linecap="round"/>'
@@ -11074,7 +11076,7 @@ function modelAccuracy(){
   ];
   if (sys){
     parts.push(fine.roof ? { label: 'Roof direction and tilt confirmed', err: 1 }
-      : { label: 'Roof direction and tilt assumed', err: 4, tip: 'Confirm which way the roof faces', go: "v7Sheet('home')" });
+      : { label: 'Roof direction and tilt assumed', err: 4, tip: 'Confirm which way the roof faces', go: "openMySystem()" });
     parts.push(fine.panels ? { label: 'Panel spec confirmed', err: 0.5 }
       : { label: 'Typical panel spec assumed', err: 2, tip: 'Add the panel rating from your quote', go: "sysFine('panels',true)" });
     if (state.battery_kwh > 0) parts.push(fine.battery ? { label: 'Battery spec confirmed', err: 0.5 }
@@ -11178,6 +11180,13 @@ function setSolarInstalled(installed){
   invalidate(); saveState(); renderApp();
 }
 
+/** The roof as shown is right: count it as confirmed without changing anything. */
+function sysConfirmRoof(){
+  (state.fine = state.fine || {}).roof = true;
+  if ((state.solar_view || 'mine') === 'mine') snapshotMySystem();
+  invalidate(); saveState(); renderApp();
+}
+
 function sysSplit(on){
   if (on){
     const t = totalPanels();
@@ -11276,6 +11285,7 @@ function renderSystemSheet(){
 
     <section class="sy-part" aria-label="Panels">
       <div class="sy-part-title">${ic('sun', 16)} Roof and panels ${(state.fine || {}).roof ? '<span class="sy-ok">roof confirmed</span>' : '<span class="sy-def">roof assumed</span>'}</div>
+      ${(state.fine || {}).roof ? '' : `<div class="sy-confirm"><span>Is this how your roof faces and slopes? Picking the value already shown changes nothing, so confirm it here.</span><button class="sy-stop" onclick="sysConfirmRoof()">${ic('check', 14)} This is right</button></div>`}
       ${(() => {
         // Each roof face: which way, how steep, how many panels. The roof's
         // layout belongs to the system: one quote uses one face, another two.
@@ -13134,6 +13144,7 @@ window.showPlanDetail = showPlanDetail;
 window.pickObHeating = pickObHeating;
 window.setAnalyticsDay = setAnalyticsDay;
 window.anMonth = anMonth;
+window.sysConfirmRoof = sysConfirmRoof;
 window.quickOutcome = quickOutcome;
 window.sweepGoalStep = sweepGoalStep;
 window.useSystem = useSystem;
