@@ -295,7 +295,7 @@ test('modelling solar after a no-solar setup prices the system, even if a quote 
   await boot(page, { has_solar: false, considering_solar: false, count_A: 0, count_B: 0, battery_kwh: 0,
     install_cost: 0, grant_seai: 0, cost_is_manual: true, current_screen: 'solar' });
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
-  await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
+  await page.getByRole('button', { name: /Skip, just estimate it/ }).click();
   await page.getByRole('button', { name: /Add to my Home/ }).click();
   await page.locator('.hc-go', { hasText: 'Solar analysis' }).click();
   const st = await page.evaluate(() => ({ c: window.state.install_cost, n: window.state.count_A }));
@@ -397,7 +397,7 @@ test('Advanced keeps only what My home and My system do not hold', async ({ page
   const titles = await page.locator('.settings-section-title').allTextContents();
   const t = titles.join(' | ');
   expect(t).toMatch(/Battery strategy/);
-  expect(t).toMatch(/consumption shape/i);
+  expect(t).toMatch(/usage pattern/i);
   expect(t).not.toMatch(/Home & bills|Solar system|Electric vehicle/);
   await expect(page.getByText('Simple', { exact: true })).toHaveCount(0);
   // The two sheets are one tap away, and open over a surface that can show them.
@@ -440,7 +440,7 @@ test('My Peakless: a guest sees the household, the quotes and why an account hel
   await page.locator('.me-entry').click();
   expect(await page.evaluate(() => window.state.current_screen)).toBe('me');
   const me = page.locator('.screen.me');
-  await expect(me.locator('.me-guest')).toContainText('saved on this phone only');
+  await expect(me.locator('.me-guest')).toContainText('only saved on this phone');
   await expect(me.locator('.me-card')).toHaveCount(3);
   await expect(me.locator('.me-row', { hasText: 'Compare systems' })).toContainText('1 quote');
   // The More tab stays lit: My Peakless lives under it.
@@ -494,7 +494,7 @@ test('a quote is saved without touching the system; modelling it keeps the old s
   expect(st).toEqual({ n: 14, b: 10, q: 1 });
 
   await page.evaluate((q) => { window.__setQuoteRead({ status: 'review', quote: q }); window.v7Sheet('quote'); }, read);
-  await page.getByRole('button', { name: /Model my home with this quote/ }).click();
+  await page.getByRole('button', { name: /Use this quote/ }).click();
   st = await page.evaluate(() => ({ n: window.state.count_A, b: window.state.battery_kwh, planned: window.state.solar_planned,
     prev: window.state.solar_quotes.find((x) => x.source === 'previous')?.installer }));
   expect(st).toEqual({ n: 10, b: 5, planned: true, prev: 'Your installed system' });
@@ -542,7 +542,7 @@ test('the tally: recording a switch makes it the plan, sets the contract, and co
   const to = await sheet.locator('#jr-plan').inputValue();
   const monthAgo = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
   await sheet.locator('#jr-date').fill(monthAgo);
-  await sheet.getByRole('button', { name: 'Add to my tally' }).click();
+  await sheet.getByRole('button', { name: 'Add to my total' }).click();
   const st = await page.evaluate(() => ({ base: window.state.baseline, j: window.state.journey, end: window.state.contract_end, total: window.journeyTotal() }));
   expect(st.base).toBe(to);
   expect(st.j).toHaveLength(1);
@@ -583,7 +583,7 @@ test('step 5: a recorded switch is checked against the meter, and the score show
   expect(sc.parts.find((p) => p.key === 'timing').pts).toBeGreaterThan(0);
   const chk = await page.evaluate(() => window.realityChecks()[0].r);
   expect(chk.days).toBe(30);
-  await expect(page.locator('.gm')).toContainText('Checked on 30 days of your meter');
+  await expect(page.locator('.gm')).toContainText('Your meter, over 30 days');
 });
 
 test('step 5: suggestions are fetched once, kept for the quarter, and carry no personal details', async ({ page }) => {
@@ -660,7 +660,7 @@ test('suggestions written for another plan are set aside, not shown as current',
     window.renderApp();
   });
   await expect(page.locator('.adv')).not.toContainText('Old tip');
-  await expect(page.locator('.adv')).toContainText('no longer apply');
+  await expect(page.locator('.adv')).toContainText('out of date');
 });
 
 test('v8 Home: one answer first, then four doors into the analysis, nothing lost', async ({ page }) => {
@@ -686,7 +686,7 @@ test('v8 Solar: an invitation without a system; with one, the answer first and t
   await boot(page, { current_screen: 'solar', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
   await expect(page.locator('.v7-invite')).toContainText('What you’ll see');
   await page.getByRole('button', { name: /Estimate it for my roof/ }).click();
-  await page.getByRole('button', { name: /Skip: just estimate it/ }).click();
+  await page.getByRole('button', { name: /Skip, just estimate it/ }).click();
   await page.getByRole('button', { name: /Add to my Home/ }).click();
   await page.evaluate(() => window.setScreen('solar'));
   await expect(page.locator('.ax-ans .qr-value')).toBeVisible();
@@ -699,7 +699,7 @@ test('v8 Solar: an invitation without a system; with one, the answer first and t
 
 test('first visit: one revealing page, answers fold into lines you can change, then the answer', async ({ page }) => {
   await bootFresh(page);
-  await page.getByRole('button', { name: /Get my answer/ }).click();
+  await page.getByRole('button', { name: /Get started/ }).click();
   await page.locator('#flow-bill').fill('420');
   await page.getByRole('button', { name: 'Next' }).click();
   await expect(page.locator('.fl-chip').first()).toContainText('€420');
@@ -771,7 +771,7 @@ test('v8 EV guide: four steps, then what it costs and saves; backing out changes
 
 test('the flow reveal: planned solar leads with the most you could save, the same figure Home shows', async ({ page }) => {
   await bootFresh(page);
-  await page.getByRole('button', { name: /Get my answer/ }).click();
+  await page.getByRole('button', { name: /Get started/ }).click();
   await page.locator('#flow-bill').fill('420'); await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: /not sure: assume a standard plan/i }).click();
   await page.locator('.fl-opt', { hasText: 'Gas or oil' }).click();

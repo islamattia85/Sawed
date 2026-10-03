@@ -25,7 +25,7 @@ test('a home without the grant gets none anywhere: the system, a quote, the sugg
   await page.evaluate(() => { window.v7Sheet(null); window.anTab('solar'); });
   await expect(page.locator('.ax-eq')).toContainText('no SEAI grant');
   await page.evaluate(() => window.openMySystem());
-  await expect(page.locator('#v7-sheet .sy-grant')).toContainText('does not qualify');
+  await expect(page.locator('#v7-sheet .sy-grant')).toContainText('doesn’t qualify');
   await expect(page.locator('#v7-sheet .sys-head')).toContainText('does not get the SEAI grant');
   // Back on: the standard grant returns.
   await page.evaluate(() => window.setGrantEligible(true));

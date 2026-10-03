@@ -93,7 +93,7 @@ export function createV7(api) {
       withSolar && st.battery_kwh > 0 ? `${st.battery_kwh} kWh battery` : '',
       st.ev_active ? 'EV' : '',
     ].filter(Boolean);
-    return `<button class="v7-home-chips" onclick="v7Sheet('home')" aria-label="My home — change">
+    return `<button class="v7-home-chips" onclick="v7Sheet('home')" aria-label="My home">
       ${chips.map((c) => `<span class="v7-chip">${c}</span>`).join('')}
       <span class="v7-chip v7-chip-edit">${api.ic('tune', 14)} Edit</span>
     </button>`;
@@ -219,10 +219,10 @@ export function createV7(api) {
         <div class="qr-value v7-figure"><span>${api.fmtCurrency(mineNow)}</span><span class="v7-figure-unit">a year where you are</span></div>
         <div class="v7-headline">No plan on the market costs less for this home. The closest is <b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}, ${eur(Math.max(0, -saving))} a year more.</div>`
       : `
-        <div class="v7-eyebrow">${pl ? 'The most you could save: switch plan and add the planned solar' : saving > 10 ? (withSolar ? 'Switching plan saves, with your solar' : 'You could pay less') : 'Your best plan'}</div>
+        <div class="v7-eyebrow">${pl ? 'Switch plan and add your planned solar to save' : saving > 10 ? (withSolar ? 'Switching plan saves, with your solar' : 'You could pay less') : 'Your best plan'}</div>
         <div class="qr-value v7-figure ${saving > 10 ? 'is-saving' : ''}" data-countup="${Math.round(Math.max(0, saving))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, saving))}</span><span class="v7-figure-unit">${saving > 10 ? 'less a year' : 'a year'}</span></div>
         ${pl ? '' : `<div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Best for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`}
-        ${!pl && best.plan.type === 'ev' && !st.ev_active ? `<div class="v7-evnote">${api.ic('info', 14)} You don’t need an electric car for this plan. It’s named for cars, but its cheap night hours suit ${st.battery_kwh > 0 ? 'your battery' : 'your home'} too.</div>` : ''}`;
+        ${!pl && best.plan.type === 'ev' && !st.ev_active ? `<div class="v7-evnote">${api.ic('info', 14)} You don’t need an EV for this plan. It’s named for cars, but its cheap night hours suit ${st.battery_kwh > 0 ? 'your battery' : 'your home'} too.</div>` : ''}`;
     // The parts of the home that are choices, each on one line with its own
     // "Leave out": planned solar, and the car. Same row, same switch.
     let evRow = '';
@@ -324,10 +324,10 @@ export function createV7(api) {
     return `<section class="ax-doors-wrap" aria-label="Why these figures?">
       <div class="ax-doors-h"><b>Why these figures?</b><small>Every hour of your year, on all ${rec.ranked.length} plans</small></div>
       <div class="ax-doors">
-        ${door('bill', 'euro', 'Bill', T ? eur(T.total) : 'in parts', `Bill: where the money goes${T ? `, ${eur(T.total)} a year` : ''}`)}
-        ${door('hours', 'clock', 'Hours', hours, `Hours: when you use it, ${hours}`)}
+        ${door('bill', 'euro', 'Bill', T ? eur(T.total) : 'in parts', `Bill${T ? `, ${eur(T.total)} a year` : ''}`)}
+        ${door('hours', 'clock', 'Hours', hours, `Hours, ${hours}`)}
         ${door('solar', 'sun', 'Solar', solar, `Solar: ${solar}`)}
-        ${door('accuracy', 'shield', 'Accuracy', `±${acc}%`, `Accuracy: within ±${acc}%`)}
+        ${door('accuracy', 'shield', 'Accuracy', `±${acc}%`, `Accuracy, within ${acc}%`)}
       </div>
     </section>`;
   }
@@ -350,7 +350,7 @@ export function createV7(api) {
       const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
       out += `<section class="hc">
         <span class="hc-k"><span>${api.ic('sun', 16)} ${planned ? 'If you add solar' : 'Your solar panels'}</span><i class="hc-tag ${planned ? 'is-plan' : ''}">${planned ? 'planned' : 'installed'}</i></span>
-        <span class="hc-line">${planned ? 'Separate from switching: what panels would do, if you buy them' : 'What your panels bring back, on top of switching'}</span>
+        <span class="hc-line">${planned ? 'What panels would save, if you get them' : 'What your panels bring back, on top of switching'}</span>
         <span class="hc-fig">${planned ? `${pb ? pb.toFixed(1) : '—'}<small>years to pay for itself</small>` : `${eur(d ? d.cur.solarBenefit : 0)}<small>a year from your panels</small>`}</span>
         <span class="hc-facts">
           ${planned ? `<span><b>${eur(d ? d.cur.solarBenefit : 0)}</b>back a year</span>` : `<span><b>${pb ? pb.toFixed(1) : '—'} yrs</b>to pay back</span>`}
@@ -884,7 +884,7 @@ export function createV7(api) {
       ${anAnswer({
         k: `This home${homeWith() ? `, with ${homeWith()},` : ''} pays`,
         big: eur(T.total), unit: 'a year',
-        line: `On ${esc(plan.supplier)} · ${esc(plan.plan)}, ${d.picked ? 'the plan you picked' : d.bestIsChoice ? 'your chosen plan' : 'the best plan for this home'}, for ${kwh(T.kwh)}. That is ${api.fmtCent(T.total / Math.max(1, T.kwh))} for every kWh you use, fixed charges included.`,
+        line: `On ${esc(plan.supplier)} · ${esc(plan.plan)}, ${d.picked ? 'the plan you picked' : d.bestIsChoice ? 'your chosen plan' : 'the best plan for this home'}, for ${kwh(T.kwh)}. That’s ${api.fmtCent(T.total / Math.max(1, T.kwh))} a kWh, fixed charges included.`,
       })}
       ${anCard(partsTitle, `${stack(parts, parts.map((p) => `${p.label} ${p.val}`).join(', '))}${rows(parts)}${credit}`)}
       ${anCard(bill.title, bill.html)}
@@ -916,7 +916,7 @@ export function createV7(api) {
     let ans;
     if (flat) {
       ans = { k: 'One price, every hour', big: api.fmtCent(plan.rates.day), unit: 'a kWh, all day',
-        line: `On a flat plan, when you use it does not change the bill. ${nightShare}% of your use already falls between 23:00 and 08:00, the hours night-rate plans sell cheaper.` };
+        line: `On a flat plan, timing doesn’t change the bill. ${nightShare}% of your use is already between 11pm and 8am, when night-rate plans are cheaper.` };
     } else if (dearB === 'peak' && (T.byBand.peak || 0) > 0) {
       ans = { k: `At peak, ${bandHours(plan, 'peak')}`, big: `${pct(T.byBand.peak, T.energy)}%`, unit: 'of your electricity spend',
         line: `Peak costs ${api.fmtCent(rate('peak'))} a kWh, ${BAND_NAME[cheapB].toLowerCase()} ${api.fmtCent(rate(cheapB))}. Each kWh moved from peak to ${cheapB === 'ev' ? 'the EV window' : BAND_NAME[cheapB].toLowerCase()} saves ${api.fmtCent(rate('peak') - rate(cheapB))}.` };
@@ -940,7 +940,7 @@ export function createV7(api) {
     const legend = present.sort((x, y) => BAND_ORDER.indexOf(x) - BAND_ORDER.indexOf(y))
       .map((x) => `<span><i class="v7-dot" style="background:var(${flat ? '--bandink-day' : bandToken(x)})"></i>${flat ? 'Every hour' : BAND_NAME[x] || x} ${api.fmtCent(rate(x))}</span>`).join('');
     const perDay = sum(hrs);
-    const avg = anCard(dayTitle, `<p class="ax-chart-what">An average day across the year: the electricity you ${bought ? 'buy from the grid' : 'use'} in each hour, ${perDay.toFixed(1)} kWh a day in all. The tallest bar is ${hrs[top].toFixed(1)} kWh.</p>${vbars(hrs.map((v, h) => ({ v, token: flat ? '--bandink-day' : bandToken(bands24[h]),
+    const avg = anCard(dayTitle, `<p class="ax-chart-what">What you ${bought ? 'buy from the grid' : 'use'} each hour on an average day: ${perDay.toFixed(1)} kWh in all, ${hrs[top].toFixed(1)} kWh in the busiest hour.</p>${vbars(hrs.map((v, h) => ({ v, token: flat ? '--bandink-day' : bandToken(bands24[h]),
       tip: `${hhmm(h)} · ${v.toFixed(2)} kWh on an average day · ${BAND_NAME[bands24[h]] || bands24[h]} rate` })),
     { label: `${bought ? 'Bought' : 'Used'} by hour on an average day, most at ${hhmm(top)}` })}${hourAxis()}
       <div class="v7-legend">${legend}</div>${why.length ? note(`That is ${why.join(', and ')}.`) : ''}`);
@@ -1024,7 +1024,7 @@ export function createV7(api) {
           <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><polyline points="${socPts}" fill="none" stroke="var(--ink)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>
         </div>
         ${vbars(H.map((x) => ({ v: x.dis, token: '--ax-sold', tip: `${hhmm(x.h)} · giving back ${x.dis.toFixed(2)} kWh` })), { height: 32, max: bMax, label: 'Battery giving back by hour' })}
-        <p class="ax-note">Bars above: charging. Below: giving back. The line is how full it is${full && full.soc > 0.05 ? `, fullest at ${hhmm(full.h)} (${full.soc.toFixed(1)} of ${S0.cap} kWh)` : ''}.</p>
+        <p class="ax-note">Up: charging. Down: running the house. Line: how full${full && full.soc > 0.05 ? `, fullest at ${hhmm(full.h)} (${full.soc.toFixed(1)} of ${S0.cap} kWh)` : ''}.</p>
       </div>` : ''}
       <div class="ax-day-k">The rate, hour by hour</div>
       ${rateStrip({ bands: H.map((x) => x.band), rates: H.reduce((o, x) => ({ ...o, [x.band]: x.rate }), {}), height: 18 })}
@@ -1055,8 +1055,8 @@ export function createV7(api) {
           <h2 class="ax-t">What you’ll see</h2>
           <ol class="ax-steps">
             <li>Years to pay for itself, with the SEAI grant counted</li>
-            <li>Month by month: what the panels make against what you use</li>
-            <li>Where the solar goes: used at home or sold</li>
+            <li>What the panels make against what you use, by month</li>
+            <li>Where your solar goes</li>
             <li>A summer and a winter day, every hour of it</li>
             <li>The best plan once the panels are in</li>
           </ol>
@@ -1126,7 +1126,7 @@ export function createV7(api) {
           </button>
           ${st.solar_is_estimate ? `<p class="ax-note solar-correct">Sized from your usage. Already have panels, or a quote for a specific system? <button class="ax-inline" onclick="openMySystem()">Set the exact system</button></p>` : ''}`,
       })}
-      <section class="ax-card v7-months-card" role="button" tabindex="0" onclick="v7OpenMonth(event)" aria-label="Month by month: tap to go through each month">
+      <section class="ax-card v7-months-card" role="button" tabindex="0" onclick="v7OpenMonth(event)" aria-label="Tap a month">
         <h2 class="ax-t">${monthsTitle}</h2>
         ${monthBars({ a: m.gen, b: m.cons, tokenA: '--ax-made', tokenB: '--bandink-day' })}
         <div class="v7-legend"><span><i class="v7-dot" style="background:var(--ax-made)"></i>Made by the panels · ${kwh(sum(m.gen))}</span>
@@ -1156,7 +1156,7 @@ export function createV7(api) {
     }
     const cheapRate = plan.rates.ev ?? plan.rates.night ?? plan.rates.day;
     const win = plan.windows?.ev || plan.windows?.night;
-    const cheapName = plan.windows?.ev ? `${hhmm(win[0])}–${hhmm(win[1])}, its EV window`
+    const cheapName = plan.windows?.ev ? `${hhmm(win[0])}–${hhmm(win[1])}, its cheap EV hours`
       : plan.windows?.night ? `${hhmm(win[0])}–${hhmm(win[1])}, its night rate` : 'Any hour, on its flat rate';
     const at6 = plan.rates[api.bandAt(18, plan)] ?? plan.rates.day;
     const lost = ev.evKwh * (at6 - cheapRate);
@@ -1170,7 +1170,7 @@ export function createV7(api) {
       ${anAnswer({
         k: st.ev_in_bill ? 'To charge it' : 'To charge it, once you have it',
         big: eur(ev.evElectricityCost), unit: 'a year',
-        line: `${eur(Math.abs(net))} ${net >= 0 ? 'less' : 'more'} than petrol: the ${Math.round(ev.litres).toLocaleString('en-IE')} litres you no longer buy would cost ${eur(ev.petrolCost)} at €${(st.fuel_price || 1.83).toFixed(2)}. ${Math.round(ev.km).toLocaleString('en-IE')} km a year, ${kwh(ev.evKwh)}.`,
+        line: `${eur(Math.abs(net))} ${net >= 0 ? 'less' : 'more'} than petrol. ${Math.round(ev.km).toLocaleString('en-IE')} km a year would take ${Math.round(ev.litres).toLocaleString('en-IE')} litres, about ${eur(ev.petrolCost)} at €${(st.fuel_price || 1.83).toFixed(2)} a litre.`,
       })}
       ${lost > 1
         ? anCard(`Charging at 6 pm would cost ${eur(lost)} more a year`, `${hbars([
@@ -1188,8 +1188,8 @@ export function createV7(api) {
   function accRow(p) {
     const L = p.label;
     const conf = /confirmed/.test(L);
-    if (/^Weather/.test(L)) return { name: 'Weather and the model', how: 'A typical Irish year; real years vary', state: 'Always' };
-    if (/smart-meter/.test(L)) return { name: 'Your usage', how: 'From your smart-meter data', state: 'Measured' };
+    if (/^Weather/.test(L)) return { name: 'Weather and our estimates', how: 'A typical Irish year; real years vary', state: 'Always' };
+    if (/smart-meter/.test(L)) return { name: 'Your usage', how: 'Your meter data', state: 'Measured' };
     if (/yearly kWh/.test(L)) return { name: 'Your usage', how: 'Your yearly kWh, spread over a typical day', state: 'Estimated' };
     if (/from your bill/.test(L)) return { name: 'Your usage', how: 'Worked out from your bill', state: 'Estimated' };
     if (/^Roof/.test(L)) return { name: 'Roof direction and tilt', how: conf ? 'You confirmed it' : 'A typical roof assumed', state: conf ? 'Confirmed' : 'Assumed' };
@@ -1218,7 +1218,7 @@ export function createV7(api) {
     }).join('');
     const price = a.priceTypical ? `<div class="ax-acc">
         <div class="ax-acc-top"><b>System price</b><span class="ax-pill is-assumed">Assumed</span><b class="ax-acc-err"></b></div>
-        <small>A typical price for this size. It moves the payback, not the bills</small>
+        <small>A typical price for this size. Changes the payback, not your bills.</small>
         <button class="ax-act" onclick="openMySystem()">Add the price from your quote</button>
       </div>` : '';
 
@@ -1334,7 +1334,7 @@ export function createV7(api) {
       ${switchButton(plan, '', 'v7-cta-2')}
       <div class="v7-sheet-links">
         ${plan.id !== st.baseline ? `<a href="#" onclick="event.preventDefault();recordSwitch('${plan.id}')">I've switched to this plan</a>` : ''}
-        ${st.chosen_plan === plan.id || (api.getRecommendation().cheapest || {}).plan?.id === plan.id ? '' : `<a href="#" onclick="event.preventDefault();v7Choose('${plan.id}')">Compare my home on this plan</a>`}
+        ${st.chosen_plan === plan.id || (api.getRecommendation().cheapest || {}).plan?.id === plan.id ? '' : `<a href="#" onclick="event.preventDefault();v7Choose('${plan.id}')">Try my home on this plan</a>`}
         <a href="#" onclick="event.preventDefault();v7Sheet(null);showPlanDetail('${plan.id}')">Full rate card</a>
       </div>`;
   }
@@ -1400,18 +1400,18 @@ export function createV7(api) {
       </div>
       <ol class="v7-steps">
         <li><b>Pick exactly this plan:</b> “${esc(plan.plan)}”. Suppliers list several; the figures here are for this one.</li>
-        <li><b>Have to hand:</b> your MPRN (11 digits starting 10, on any electricity bill), a recent meter reading if asked, and your bank details for direct debit.</li>
+        <li><b>Have to hand:</b> your MPRN (11 digits starting 10, on your bill), maybe a meter reading, and bank details.</li>
         <li><b>Meter:</b> this plan needs ${meter}.</li>
-        <li><b>Nothing to cancel:</b> your new supplier tells your old one. There's no break in supply, and you have 14 days to change your mind.</li>
+        <li><b>Nothing to cancel:</b> Your new supplier tells your old one. The power stays on, and you have 14 days to change your mind.</li>
         ${plan.exit ? `<li><b>Contract:</b> ${plan.length || 12} months; leaving early costs €${plan.exit}.</li>` : ''}
       </ol>
       <button class="switch-cta v7-cta" onclick="handleSwitchClick('${plan.id}', '${switchName}', ${Math.round(saving)});v7Sheet('switched','${plan.id}')">
         ${partner ? `Continue with ${api.brand} ${api.ic('chevR', 18)}` : `Open ${esc(plan.supplier)}'s website ${api.ic('external', 18)}`}
       </button>
       <div class="v7-fine">${partner
-        ? `${esc(plan.supplier)} pays ${esc(api.brand)} when you switch through us. You pay the same price, and it never changes how plans are ranked.`
+        ? `${esc(plan.supplier)} pays ${esc(api.brand)} if you switch through us. Your price is the same, and it doesn’t change the ranking.`
         : `${esc(api.brand)} earns nothing from this switch. We show it because it's the right plan for your home.`}</div>
-      ${plan.id !== S().baseline ? `<div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();recordSwitch('${plan.id}')">Already switched? Update my home</a></div>` : ''}`;
+      ${plan.id !== S().baseline ? `<div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();recordSwitch('${plan.id}')">Already switched? Tell us</a></div>` : ''}`;
   }
 
   /** Back from the supplier's site: did the switch happen? One tap records it. */
@@ -1448,7 +1448,7 @@ export function createV7(api) {
     return `<div class="v7-sheet-head">
         <div class="v7-eyebrow">Your home</div>
         <h2 class="v7-h">Plan health</h2>
-        <p class="v7-muted">How well your plan and habits fit this home, scored on the figures here. Your ${api.brand} score (in Me) is separate: it tracks what you've done.</p>
+        <p class="v7-muted">How well your plan and habits suit this home. Your ${api.brand} score in Me is different: it counts what you’ve done.</p>
       </div>
       <section class="v7-score">
         ${scoreRing({ value: score.overall })}
@@ -1473,7 +1473,7 @@ export function createV7(api) {
     const q = api.quoteRead();
     const head = `<div class="v7-sheet-head">
         <div class="v7-eyebrow">Installer quote</div>
-        <h2 class="v7-h">${q.status === 'review' ? 'Check what we read' : 'Model your home with a real quote'}</h2>
+        <h2 class="v7-h">${q.status === 'review' ? 'Check what we read' : 'Try my home with a quote'}</h2>
       </div>`;
     if (q.status === 'reading') {
       return `${head}<div class="v7-quote-wait" role="status"><span class="v7-spin" aria-hidden="true"></span>Reading ${esc(q.name || 'your quote')}… this takes up to half a minute.</div>`;
@@ -1483,7 +1483,7 @@ export function createV7(api) {
       const field = (id, label, val, unit, ev, step) => `<label class="v7-qf">
           <span class="v7-qf-label">${label}</span>
           <span class="v7-qf-input"><input id="${id}" type="number" inputmode="decimal" min="0" step="${step}" value="${val ?? ''}" placeholder="not on the quote">${unit ? `<i>${unit}</i>` : ''}</span>
-          ${ev ? `<span class="v7-qf-ev">“${esc(ev)}”</span>` : val == null ? '<span class="v7-qf-ev is-missing">Not found on the quote — fill it in</span>' : ''}
+          ${ev ? `<span class="v7-qf-ev">“${esc(ev)}”</span>` : val == null ? '<span class="v7-qf-ev is-missing">Not on the quote. Please add it.</span>' : ''}
         </label>`;
       return `${head}
         ${x.installer ? `<div class="v7-muted">${esc(x.installer)}${x.quote_date ? ` · ${esc(x.quote_date)}` : ''}</div>` : ''}
@@ -1505,15 +1505,15 @@ export function createV7(api) {
               ${field('qf-fa', `Facing ${name(qf.faces[0])}`, qf.faces[0].panels, 'panels', null, 1)}
               ${field('qf-fb', `Facing ${name(qf.faces[1])}`, qf.faces[1].panels, 'panels', null, 1)}
             </div>
-            ${qf.assumed ? `<div class="v7-qf-ev is-missing">The quote names both directions but not how many panels face each, so they are split evenly. Change them to match the quote.</div>` : ''}
+            ${qf.assumed ? `<div class="v7-qf-ev is-missing">The quote doesn’t say how many panels face each way, so we’ve split them evenly. Change them to match.</div>` : ''}
           </div>`;
         })()}
         ${[x.panel_model, x.inverter_model, x.battery_model, x.orientation, ...(x.extras || [])].filter(Boolean).length
           ? `<div class="v7-fine">Also on the quote: ${esc([x.panel_model, x.inverter_model, x.battery_model, x.orientation && `facing ${x.orientation}`, ...(x.extras || [])].filter(Boolean).join(' · '))}</div>` : ''}
         <button class="switch-cta v7-cta" onclick="v7ApplyQuote('save')">${api.ic('checkC', 18)} Save to my quotes</button>
-        <button class="v7-cta-2 v7-cta-alt" onclick="v7ApplyQuote('model')">Model my home with this quote</button>
+        <button class="v7-cta-2 v7-cta-alt" onclick="v7ApplyQuote('model')">Use this quote</button>
         <div class="v7-fine">${api.hasModelledSystem()
-          ? `Saving keeps your current system as it is. Modelling switches to this quote and keeps ${S().solar_planned || S().solar_is_estimate ? 'your current plan' : 'your installed system'} in My quotes, so you can switch back.`
+          ? `Saving keeps your current system. Using it switches to this quote and keeps ${S().solar_planned || S().solar_is_estimate ? 'your current plan' : 'your installed system'} in My quotes, so you can switch back.`
           : 'Saving keeps it for later. Modelling makes it the system every figure is built on.'}</div>
         <div class="v7-sheet-links">
           <a href="#" onclick="event.preventDefault();v7QuoteReset()">Upload a different file</a>
@@ -1528,7 +1528,7 @@ export function createV7(api) {
         <b>Choose the quote</b>
         <span>A PDF, or a photo of each page</span>
       </label>
-      <div class="v7-fine">We read the panels, battery, price and grant, show you the exact words each came from, and you confirm them before anything is modelled. The file is sent to our AI reader (Anthropic's Claude) to be read and is not stored.</div>
+      <div class="v7-fine">We read the panels, battery, price and grant, show you where we found each one, and you check them first. We use AI (Anthropic’s Claude) to read the file. It isn’t kept.</div>
       <div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();v7Sheet(null);setScreen('auditor')">Type the figures in instead</a></div>`;
   }
 
@@ -1592,7 +1592,7 @@ export function createV7(api) {
       <button class="v7-cta-2" onclick="v7Sheet('home')">Change any of it ${api.ic('chevR', 16)}</button>
       ${!st.ev_active ? `<div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();startEvGuide()">Thinking about an EV? See what it would change</a></div>` : ''}
       <div class="v7-sheet-links">
-        <a href="#" onclick="event.preventDefault();v7Sheet(null);setScreen('csv-import')">Import smart-meter data for exact figures</a>
+        <a href="#" onclick="event.preventDefault();v7Sheet(null);setScreen('csv-import')">Add your meter file for exact figures</a>
         ${st.has_solar ? `<a href="#" onclick="event.preventDefault();openMySystem()">Change the solar system</a>` : ''}
       </div>`;
   }

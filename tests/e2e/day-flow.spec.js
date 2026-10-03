@@ -7,7 +7,7 @@ test('the day chart balances every hour, and tapping an hour says it in words', 
   await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
   const box = page.locator('.section-title', { hasText: 'A summer and a winter day' }).first().locator('xpath=following-sibling::div[1]');
   await box.scrollIntoViewIfNeeded();
-  await expect(box).toContainText('Tap any hour');
+  await expect(box).toContainText('Tap an hour');
   await expect(box).toContainText('↑ buying · ↓ selling');
   await box.locator('svg rect[onclick]').nth(18).click();
   await expect(box).toContainText('18:00–19:00');

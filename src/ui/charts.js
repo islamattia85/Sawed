@@ -194,7 +194,7 @@ export function bandDonut({ slices = [], size = 128 } = {}) {
       data-value="${n(s.value)}" tabindex="0"><title>${esc(s.label)}: ${Math.round(frac * 100)}%</title></path>`;
   }).join('');
   return `<svg class="v6-donut" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"
-    role="group" aria-label="Usage by tariff band">${arcs}</svg>`;
+    role="group" aria-label="Usage by time of day">${arcs}</svg>`;
 }
 
 /* ------------------------------------------------------------------

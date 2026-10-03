@@ -44,7 +44,7 @@ test('a read quote is shown for checking, with its evidence, before anything is 
 
   // Correct one figure, then model.
   await page.locator('#qf-panels').fill('12');
-  await page.getByRole('button', { name: /Model my home with this quote/ }).click();
+  await page.getByRole('button', { name: /Use this quote/ }).click();
   const st = await page.evaluate(() => ({ n: window.state.count_A, w: window.state.panel_w, b: window.state.battery_kwh,
     c: window.state.install_cost, g: window.state.grant_seai, m: window.state.cost_is_manual, est: window.state.solar_is_estimate,
     az: window.state.azimuth_A, scr: window.state.current_screen }));
@@ -68,8 +68,8 @@ test('a missing price must be filled in before modelling', async ({ page }) => {
   await page.route('**/api/extract-quote', (route) => route.fulfill({ status: 200, contentType: 'application/json',
     body: JSON.stringify({ quote: { ...READ, price_total_eur: null, evidence: { ...READ.evidence, price_total_eur: null } } }) }));
   await upload(page);
-  await expect(page.locator('#v7-sheet')).toContainText('Not found on the quote');
-  await page.getByRole('button', { name: /Model my home with this quote/ }).click();
+  await expect(page.locator('#v7-sheet')).toContainText('Not on the quote');
+  await page.getByRole('button', { name: /Use this quote/ }).click();
   expect(await page.evaluate(() => window.state.count_A)).toBe(0);
 });
 
@@ -81,8 +81,8 @@ test('a quote over two roof faces is modelled as two faces, as the quote splits 
   await upload(page);
   await expect(page.locator('.v7-qf-faces')).toContainText('Two roof faces');
   await expect(page.locator('#qf-fa')).toHaveValue('11');
-  await expect(page.locator('.v7-qf-faces')).not.toContainText('split evenly');
-  await page.getByRole('button', { name: /Model my home with this quote/ }).click();
+  await expect(page.locator('.v7-qf-faces')).not.toContainText('evenly');
+  await page.getByRole('button', { name: /Use this quote/ }).click();
   const st = await page.evaluate(() => ({ a: window.state.count_A, b: window.state.count_B, azA: window.state.azimuth_A, azB: window.state.azimuth_B, tA: window.state.tilt_A, tB: window.state.tilt_B }));
   expect(st).toEqual({ a: 11, b: 11, azA: 225, azB: 135, tA: 30, tB: 30 });
   expect(errors).toEqual([]);
@@ -93,9 +93,9 @@ test('two directions without counts are split evenly and the person is asked to 
   await page.route('**/api/extract-quote', (route) => route.fulfill({ status: 200, contentType: 'application/json',
     body: JSON.stringify({ quote: { ...READ, panel_count: 15, orientation: 'East/West', roof_faces: null } }) }));
   await upload(page);
-  await expect(page.locator('.v7-qf-faces')).toContainText('split evenly');
+  await expect(page.locator('.v7-qf-faces')).toContainText('evenly');
   await page.locator('#qf-fa').fill('9'); await page.locator('#qf-fb').fill('6');
-  await page.getByRole('button', { name: /Model my home with this quote/ }).click();
+  await page.getByRole('button', { name: /Use this quote/ }).click();
   expect(await page.evaluate(() => [window.state.count_A, window.state.count_B, window.state.azimuth_A, window.state.azimuth_B])).toEqual([9, 6, 90, 270]);
 });
 

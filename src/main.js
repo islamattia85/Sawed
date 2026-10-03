@@ -235,7 +235,7 @@ function renderHandoverSheet(){
       <div class="v7-eyebrow">Signed in</div>
       <h2 class="v7-h">Which home should we keep?</h2>
     </div>
-    <p class="me-p">This phone and your account each have a different setup. Pick the one that is your home. Saved quotes from both are kept either way.</p>
+    <p class="me-p">This phone and your account have different homes. Which one is yours? Saved quotes from both are kept.</p>
     <button class="me-choice" onclick="handoverKeep('local')">
       <span class="me-choice-tag">On this phone</span>
       <b>${esc(setupSummary(state))}</b>
@@ -534,7 +534,7 @@ function renderAuthModal(){
         <input class="auth-input" id="profile-name-input" type="text" value="${displayName}" placeholder="Your name">
       </div>
       <button class="auth-btn" onclick="doUpdateProfile()">Save profile</button>
-      <button class="auth-secondary-btn" onclick="doSyncState()">Sync my settings to cloud</button>
+      <button class="auth-secondary-btn" onclick="doSyncState()">Save my home to my account</button>
       <div style="height:1px;background:var(--line);margin:16px 0"></div>
       <button class="auth-secondary-btn" onclick="doSignOut()" style="color:#ff6b6b;border-color:#ff444440">Sign out</button>
       <button class="auth-secondary-btn" onclick="_authModalOpen=false;setScreen('privacy')" style="margin-top:8px">Delete my account…</button>
@@ -566,7 +566,7 @@ async function doGoogleSignIn(){
   if (btn){ btn.disabled = true; btn.innerHTML = '<span style="opacity:.6">Connecting…</span>'; }
   if (!_sb) await sbInit();
   if (!_sb){
-    showAuthMsg('Could not reach the sign-in service. Check your connection and try again — everything in the app works without an account.', 'err');
+    showAuthMsg('Can’t reach sign-in right now. Everything else still works.', 'err');
     if (btn){ btn.disabled = false; btn.innerHTML = origHTML; }
     return;
   }
@@ -615,7 +615,7 @@ function authErrorText(err){
   const raw = String((err && err.message) || err || '').toLowerCase();
   if (!raw) return 'Something went wrong. Try again in a moment.';
   if (raw.includes('failed to fetch') || raw.includes('networkerror') || raw.includes('load failed')) {
-    return 'Could not reach the sign-in service. Check your connection and try again — everything in the app works without an account.';
+    return 'Can’t reach sign-in right now. Everything else still works.';
   }
   if (raw.includes('invalid login') || raw.includes('invalid credentials')) {
     return 'That email and password do not match an account.';
@@ -673,7 +673,7 @@ async function doForgotPassword(){
   try { err = await sbResetPassword(email); }
   catch (e) { err = e; }
   if (err){ showAuthMsg(authErrorText(err), 'err', authErrorDetail(err)); return; }
-  showAuthMsg('Reset link sent — check your inbox.', 'ok');
+  showAuthMsg('Check your inbox for the reset link.', 'ok');
 }
 
 async function doUpdateProfile(){
@@ -1683,7 +1683,7 @@ function renderNpvBreakdown(annualBenefit, sysCostNet, batteryKwh, panelDegradat
 
   return `<div class="card" style="margin-bottom:14px;cursor:default;padding:18px 20px;border-color:var(--accent);background:linear-gradient(140deg,var(--panel) 0%,var(--panel-2) 100%);box-shadow:0 0 24px -12px var(--accent-glow)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <div style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.14em;text-transform:uppercase;font-weight:700">How the 20-yr NPV is built</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.14em;text-transform:uppercase;font-weight:700">How the 20-year figure adds up</div>
       <button onclick="toggleNpvBreakdown()" style="background:transparent;border:1px solid var(--line);color:var(--ink-soft);font-family:var(--mono);font-size:12px;padding:5px 10px;border-radius:4px;cursor:pointer;letter-spacing:.04em">HIDE ▴</button>
     </div>
 
@@ -1691,7 +1691,7 @@ function renderNpvBreakdown(annualBenefit, sysCostNet, batteryKwh, panelDegradat
       <div>Net install (Y0)</div><div style="text-align:right;color:var(--loss)">−${fmtCurrency(sysCostNet)}</div>
       <div>Discounted savings (Y1–Y20)</div><div style="text-align:right;color:var(--accent)">+${fmtCurrency(totalDiscountedSavings)}</div>
       ${batteryKwh > 0 ? `<div>Battery replacement (Y12, ${batteryKwh} kWh × €400)</div><div style="text-align:right;color:var(--loss)">−${fmtCurrency(batterySwapDiscounted)}</div>` : ''}
-      <div style="border-top:1px solid var(--line);padding-top:8px;font-weight:700;color:var(--ink)">= 20-yr NPV</div><div style="text-align:right;border-top:1px solid var(--line);padding-top:8px;font-weight:700;color:${finalNpv > 0 ? 'var(--accent)' : 'var(--loss)'}">${fmtCurrency(finalNpv)}</div>
+      <div style="border-top:1px solid var(--line);padding-top:8px;font-weight:700;color:var(--ink)">= 20-year value</div><div style="text-align:right;border-top:1px solid var(--line);padding-top:8px;font-weight:700;color:${finalNpv > 0 ? 'var(--accent)' : 'var(--loss)'}">${fmtCurrency(finalNpv)}</div>
     </div>
 
     <div style="margin-top:14px;padding:10px 12px;background:var(--well);border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.55;font-family:var(--mono);letter-spacing:.02em">
@@ -1699,8 +1699,8 @@ function renderNpvBreakdown(annualBenefit, sysCostNet, batteryKwh, panelDegradat
       <div>· Annual benefit (Y1): <b style="color:var(--ink)">${fmtCurrency(annualBenefit)}</b> = solar electricity benefit only (same EV state, with vs without solar — petrol savings excluded)</div>
       <div>· Discount rate: <b style="color:var(--ink)">3%/yr</b> (Irish bond yields + small premium)</div>
       <div>· Panel degradation: <b style="color:var(--ink)">${(deg*100).toFixed(1)}%/yr</b> (LG/Jinko Tier-1 spec)</div>
-      ${batteryKwh > 0 ? `<div>· Battery swap: <b style="color:var(--ink)">€${batterySwapNominal} nominal</b> at Y12 (€400/kWh in 2026 € — assumes price decay matches inflation)</div>` : ''}
-      <div>· Tariff rates: held constant in real terms (inflation cancels with nominal rate growth)</div>
+      ${batteryKwh > 0 ? `<div>· Battery swap: <b style="color:var(--ink)">€${batterySwapNominal} nominal</b> in year 12, at about €400 per kWh in today’s money</div>` : ''}
+      <div>Prices: kept flat after inflation</div>
     </div>
 
     <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--well);border-radius:8px">
@@ -1741,25 +1741,25 @@ const OPTIMISATIONS = {
     overrides: { strategy_mode: 'arbitrage', charge_from_grid: true },
     off: { strategy_mode: 'self-consume', charge_from_grid: false },
     title: 'Switch your battery to arbitrage',
-    body: (d, alt) => `Your battery currently only stores solar surplus. Arbitrage also charges it from the grid in the cheap night/EV window and discharges at peak — buying low, using high.${alt ? ' Best plan becomes ' + alt + '.' : ''} One setting in your inverter app.`
+    body: (d, alt) => `Right now your battery only stores spare solar. It could also fill up at night when power is cheap and run the house at teatime.${alt ? ' Best plan becomes ' + alt + '.' : ''} One setting in your inverter app.`
   },
   selfconsume: {
     overrides: { strategy_mode: 'self-consume', charge_from_grid: false },
     off: { strategy_mode: 'arbitrage', charge_from_grid: true },
     title: 'Switch your battery to self-consume only',
-    body: (d, alt) => `On your current setup, grid-charging the battery loses more in round-trip efficiency than the cheap window saves. Filling it from solar surplus only comes out ahead.${alt ? ' Best plan becomes ' + alt + '.' : ''}`
+    body: (d, alt) => `On your setup, filling the battery from the grid loses more than it saves. Leave it on solar only.${alt ? ' Best plan becomes ' + alt + '.' : ''}`
   },
   smart_hw: {
     overrides: { hot_water_strategy: 'smart' },
     off: { hot_water_strategy: 'none' },
-    title: 'Heat your water on a smart timer (2–5am)',
-    body: (d, alt) => `A smart immersion timer (~€100–150 one-off) shifts your hot-water heating into the cheapest overnight window instead of peak hours.${alt ? ' Best plan becomes ' + alt + '.' : ''}`
+    title: 'Heat water at night on a timer',
+    body: (d, alt) => `A timer on the immersion (about €100–150) heats your water overnight, when power is cheapest.${alt ? ' Best plan becomes ' + alt + '.' : ''}`
   },
   enable_export: {
     overrides: { export_enabled: true },
     off: { export_enabled: false },
     title: 'Register for export payments (CEG)',
-    body: (d, alt) => `Your surplus solar is currently being wasted. Registering your system with your supplier (free, one form via ESB Networks) gets you paid for every exported kWh.${alt ? ' Best plan becomes ' + alt + '.' : ''}`
+    body: (d, alt) => `You’re giving away your spare solar. Register with your supplier (one free form) and they’ll pay you for it.${alt ? ' Best plan becomes ' + alt + '.' : ''}`
   }
 };
 
@@ -1894,7 +1894,7 @@ function removeOptimisation(id){
   state._opt_open = '';
   invalidate();
   saveState();
-  showToast(conf ? `Removed — your model loses about ${fmtCurrency(conf.keep)}/yr` : 'Removed from your model', { type:'amber', icon:ic('x',16) });
+  showToast(conf ? `Removed. That’s about ${fmtCurrency(conf.keep)}/yr` : 'Removed', { type:'amber', icon:ic('x',16) });
   renderApp();
 }
 
@@ -1911,9 +1911,9 @@ function applyOptimisation(id){
   // so we never show "Applied" while the engine silently reverted it.
   const held = Object.keys(o.overrides).every(k => state[k] === o.overrides[k]);
   if (held){
-    showToast(`Applied — worth about ${opt ? fmtCurrency(opt.delta) : ''}/yr on your setup. <button class="toast-undo" onclick="undoLast()">Undo</button>`, { type:'accent', icon:ic('checkC',16), title:o.title });
+    showToast(`Done. That’s worth about ${opt ? fmtCurrency(opt.delta) : ''}/yr on your setup. <button class="toast-undo" onclick="undoLast()">Undo</button>`, { type:'accent', icon:ic('checkC',16), title:o.title });
   } else if (id === 'arbitrage' && (state.battery_kwh || 0) === 0){
-    showToast('Battery arbitrage needs a home battery — add one in Settings first.', { type:'amber', icon:ic('warn',16), title:'No battery to charge' });
+    showToast('You need a battery for this. Add one in My system.', { type:'amber', icon:ic('warn',16), title:'No battery to charge' });
   } else {
     showToast('That setting doesn\'t apply to your current setup.', { type:'amber', icon:ic('warn',16) });
   }
@@ -2053,7 +2053,7 @@ function auditQuote(quotedPrice, numPanels, batteryKwh){
   if (quotedPrice <= expLo * 0.95){
     verdict = 'excellent';
     headline = 'Aggressive / Excellent Pricing';
-    advice = 'This quote is below typical market range. Verify the installer is SEAI-registered, confirm all panel and battery brands are tier-1 (e.g., Sigenergy, Longi, JA Solar, GivEnergy), and that scaffolding and certification costs are included.';
+    advice = 'This is cheaper than most. Check the installer is SEAI-registered, which panel and battery brands they use, and that scaffolding and certification are included.';
   } else if (quotedPrice <= expHi){
     verdict = 'fair';
     headline = 'Fair Market Value';
@@ -2626,7 +2626,7 @@ function renderIntro(){
           </div>
         </div>
         <div class="intro-title">Your personal<br>energy advisor.</div>
-        <div class="intro-sub">Find your cheapest Irish electricity plan — with or without solar. In 30 seconds.</div>
+        <div class="intro-sub">Find your cheapest electricity plan, with or without solar.</div>
       </div>`;
     footerHTML = `
       <div class="intro-footer">
@@ -2637,9 +2637,9 @@ function renderIntro(){
   } else if (s === 2){
     // ── Features ──
     const feats = [
-      { bg:'#0d2a1a', icon: `<svg viewBox="0 0 48 48" fill="none" stroke="#00e676" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M8 36V20"/><path d="M18 36V10"/><path d="M28 36V26"/><path d="M38 36V16"/></svg>`, title:'Find your cheapest tariff', body:'All Irish residential plans modelled against your actual usage — not averages.' },
-      { bg:'#1a1a0d', icon: `<svg viewBox="0 0 48 48" fill="none" stroke="#ffe066" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="24" r="7"/><path d="M24 6v4M24 38v4M42 24h-4M10 24H6M36.6 11.4l-2.8 2.8M14.2 33.8l-2.8 2.8M36.6 36.6l-2.8-2.8M14.2 14.2l-2.8-2.8"/></svg>`, title:'Real solar payback', body:'Your roof, your tariff, your numbers — not generic marketing estimates.' },
-      { bg:'#0d1a2a', icon: `<svg viewBox="0 0 48 48" fill="none" stroke="#8ab4f8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="14" width="32" height="22" rx="4"/><path d="M16 36v4M32 36v4M12 40h24"/><path d="M16 26l5 5 11-12"/></svg>`, title:'Audit any installer quote', body:'Independent benchmark against 2026 Irish market prices — spot overpriced quotes instantly.' },
+      { bg:'#0d2a1a', icon: `<svg viewBox="0 0 48 48" fill="none" stroke="#00e676" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M8 36V20"/><path d="M18 36V10"/><path d="M28 36V26"/><path d="M38 36V16"/></svg>`, title:'Find your cheapest plan', body:'Every Irish plan, priced on how you use power.' },
+      { bg:'#1a1a0d', icon: `<svg viewBox="0 0 48 48" fill="none" stroke="#ffe066" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="24" r="7"/><path d="M24 6v4M24 38v4M42 24h-4M10 24H6M36.6 11.4l-2.8 2.8M14.2 33.8l-2.8 2.8M36.6 36.6l-2.8-2.8M14.2 14.2l-2.8-2.8"/></svg>`, title:'Real solar payback', body:'Your roof, your usage, your figures.' },
+      { bg:'#0d1a2a', icon: `<svg viewBox="0 0 48 48" fill="none" stroke="#8ab4f8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><rect x="8" y="14" width="32" height="22" rx="4"/><path d="M16 36v4M32 36v4M12 40h24"/><path d="M16 26l5 5 11-12"/></svg>`, title:'Audit any installer quote', body:'See if an installer’s quote is fair.' },
     ];
     heroHTML = `
       <div class="intro-hero" style="justify-content:flex-start;padding-top:8px">
@@ -2706,7 +2706,7 @@ function renderWelcome(){
         <span class="pk-land-icon">${ic('logo', 26, 'stroke-width:1.6')}</span>
         ${wordmarkHtml('pk-word-xl pk-word-inv')}
       </div>
-      <svg class="pk-land-curve" viewBox="0 0 320 120" role="img" aria-label="A day of electricity prices: the evening peak flattens into a level line">
+      <svg class="pk-land-curve" viewBox="0 0 320 120" aria-hidden="true">
         <path class="pk-curve-ghost" d="${peak}"/>
         <path class="pk-curve-live" d="${peak}">
           <animate attributeName="d" from="${peak}" to="${flat}" begin="0.5s" dur="1.4s" fill="freeze"
@@ -2718,10 +2718,10 @@ function renderWelcome(){
         <text x="320" y="116" text-anchor="end" class="pk-curve-axis">midnight</text>
       </svg>
       <h1 class="pk-land-title">Take the peak<br>out of your bill.</h1>
-      <p class="pk-land-sub">Every Irish electricity plan, run against your home hour by hour, with or without solar, a battery or an EV. Free and independent.</p>
+      <p class="pk-land-sub">We price every Irish electricity plan on how your home uses power, with or without solar, a battery or an EV. Free.</p>
     </div>
     <div class="pk-land-actions">
-      <button class="pk-btn-gold" onclick="startFlow()">Get my answer in 30 seconds</button>
+      <button class="pk-btn-gold" onclick="startFlow()">Get started</button>
       <button class="pk-link" onclick="${state.onboarding_complete ? "setScreen('solar');v7Sheet('quote')" : 'navigateAuditor()'}">${ic('clip', 14)} Already have a solar quote? Check it</button>
       <button class="pk-land-link" onclick="startOnboarding()">Full guided setup, with solar and EV ${ic('chevR', 14)}</button>
       ${state.onboarding_complete ? `<button class="pk-land-link" onclick="setScreen('result')">${ic('chevL', 14)} Back to my results</button>` : ''}
@@ -2822,7 +2822,7 @@ function renderOnboarding(){
       <div class="ob-nav">
         ${_ob.step > 1 ? `<button class="ob-back-btn" onclick="obBack()">← Back</button>` : ''}
         <button class="switch-cta" style="flex:1;margin-bottom:0" onclick="obNext()">
-          ${_ob.step < OB_TOTAL_STEPS ? 'Continue →' : 'Show me my best plan →'}
+          ${_ob.step < OB_TOTAL_STEPS ? 'Continue →' : 'Show my best plan'}
         </button>
       </div>
     </div>
@@ -2884,7 +2884,7 @@ function obStep5CurrentPlan(){
     <h1 class="ob-title">What plan are you <em>on now</em>?</h1>
 
     <div class="ob-plan-notsure ${!_ob.baseline_known ? 'active' : ''}" onclick="setObBaseline(null)" style="margin-bottom:10px">
-      <span>Not sure — I'll set it later</span>
+      <span>Not sure, set it later</span>
       <span style="font-family:var(--mono);font-size:12px;letter-spacing:.04em">${!_ob.baseline_known ? '✓' : '›'}</span>
     </div>
 
@@ -2905,7 +2905,7 @@ function obStep5CurrentPlan(){
     ${_ob.baseline_known ? `
     <div style="margin-top:12px;padding:12px 14px;background:var(--accent-faint);border:1px solid var(--line);border-radius:12px">
       <div style="font-size:12px;font-weight:700;color:var(--ink)">Any discount on this plan?</div>
-      <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.5">Discount off unit rates — it's on your bill.</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.5">A discount off the unit rate. It’s on your bill.</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:9px">
         ${[0,5,10,15,20,25,30,40].map(p => `
           <div onclick="_ob.baseline_discount=${p};renderApp();" style="padding:7px 12px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--mono);cursor:pointer;border:1.5px solid ${(+_ob.baseline_discount||0)===p ? 'var(--accent)' : 'var(--line)'};background:${(+_ob.baseline_discount||0)===p ? 'var(--accent-soft)' : 'var(--panel)'};color:${(+_ob.baseline_discount||0)===p ? 'var(--accent)' : 'var(--ink-soft)'}">${p === 0 ? 'None' : p + '%'}</div>`).join('')}
@@ -2959,7 +2959,7 @@ function obStep2Usage(){
     <h1 class="ob-title">Usage comes from your <em>smart meter</em></h1>
     <p class="ob-sub">Using your 30-minute meter readings. Manual entry is off.</p>
     ${csvLockCard()}
-    <p class="ob-help" style="margin-top:12px">Continue when you're ready.</p>`;
+`;
   }
 
   const head = `
@@ -2978,7 +2978,7 @@ function obStep2Usage(){
       </label>
     </div>
     <div id="csv-parse-result" style="margin-top:4px;margin-bottom:8px"></div>
-    <p class="ob-help">No file handy? Switch to <b>€ Bill</b> above, or continue and import later from More → Import smart-meter data.</p>`;
+    <p class="ob-help">No file handy? Switch to <b>€ Bill</b> above. You can also add it later in Me.</p>`;
   }
 
   if (m === 'kwh'){
@@ -3108,7 +3108,7 @@ function obStep6Solar(){
         <p style="font-size:12px;color:var(--ink-dim);margin:0 0 10px;line-height:1.6;font-family:var(--display)">How should the battery charge?</p>
         <div onclick="_ob.strategy='auto';_ob.charge_from_grid=true;renderApp();" style="padding:12px 10px;margin-bottom:8px;border:1.5px solid ${_ob.strategy === 'auto' ? 'var(--accent)' : 'var(--line)'};border-radius:8px;cursor:pointer;background:${_ob.strategy === 'auto' ? 'var(--accent-soft)' : 'transparent'}">
           <div style="font-size:13px;font-weight:700;color:${_ob.strategy === 'auto' ? 'var(--accent)' : 'var(--ink)'}">Automatic (recommended)</div>
-          <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.5">We cost every plan with the setting that suits it: charging overnight from the grid where there's a cheap window, solar only where there isn't.</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.5">Where a plan has cheap night hours, we fill the battery then. Otherwise it fills from solar.</div>
         </div>
         <div style="display:flex;gap:8px">
           <div onclick="_ob.strategy='arbitrage';_ob.charge_from_grid=true;renderApp();" style="flex:1;padding:12px 10px;border:1.5px solid ${_ob.strategy === 'arbitrage' ? 'var(--accent)' : 'var(--line)'};border-radius:8px;cursor:pointer;background:${_ob.strategy === 'arbitrage' ? 'var(--accent-soft)' : 'transparent'}">
@@ -3135,7 +3135,7 @@ function obStep6Solar(){
             <input id="ob-grant" class="ob-mini-input" type="number" inputmode="numeric" min="0" max="5000" step="100" value="${_ob.install_grant >= 0 ? _ob.install_grant : calcSeaiGrant((_ob.count_A + _ob.count_B) * 440/1000, _ob.battery_kwh).total}">
           </div>
         </div>
-        <p style="font-size:12px;color:var(--ink-dim);margin-top:6px;line-height:1.5;font-family:var(--display)">SEAI 2025: €900/kWp on the first 2 kWp, max €1,800.</p>
+        <p style="font-size:12px;color:var(--ink-dim);margin-top:6px;line-height:1.5;font-family:var(--display)">SEAI grant: €900 per kWp for the first 2 kWp, up to €1,800.</p>
       </div>
     ` : ''}`;
 }
@@ -3269,7 +3269,7 @@ function updateBillPreview(){
     if (!_ob.annual_kwh || _ob.annual_kwh < 500){ el.style.display = 'none'; return; }
     el.style.display = 'block';
     el.innerHTML = `
-      <div style="font-size:12px;color:var(--accent);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Using your real consumption — no € guessing</div>
+      <div style="font-size:12px;color:var(--accent);font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Using your real usage</div>
       <div style="font-family:var(--mono);font-size:17px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums">${(+_ob.annual_kwh).toLocaleString()} kWh/yr</div>
       <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;font-family:var(--mono)">shaped across the year by your ${_ob.heating} heating profile</div>`;
     return;
@@ -3279,7 +3279,7 @@ function updateBillPreview(){
   const bills = inferBillsFromEuro(_ob.bill, _ob.heating);
   const total = Object.values(bills).reduce((a,b)=>a+b,0);
   el.innerHTML = `
-    <div style="font-size:12px;color:var(--accent);font-family:var(--display);letter-spacing:.02em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Rough first estimate — refined against your plan at the end</div>
+    <div style="font-size:12px;color:var(--accent);font-family:var(--display);letter-spacing:.02em;text-transform:uppercase;font-weight:700;margin-bottom:6px">A first guess. We’ll fine-tune it at the end.</div>
     <div style="font-family:var(--mono);font-size:17px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums">${total.toLocaleString()} kWh/yr</div>
     <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;font-family:var(--mono)">~€${(_ob.bill * 6).toLocaleString()} per year</div>`;
 }
@@ -3413,7 +3413,7 @@ function commitOnboarding(){
 }
 
 function confirmExitOnboarding(){
-  if (confirm('Exit setup? You can come back any time — your progress isn\'t saved yet.')){
+  if (confirm('Leave setup? Nothing’s saved yet.')){
     state.current_screen = state.onboarding_complete ? 'result' : 'welcome';
     saveState();
     renderApp();
@@ -3516,7 +3516,7 @@ function renderStalenessBanner(){
   if (!stale) return '';
   return `<div class="staleness-banner">
     <span class="staleness-icon">${ic('warn',13)}</span>
-    <div><b>${stale.staleCount} of ${stale.total} plans not re-checked recently</b> — oldest verified ${fmtVerifiedDate(stale.date)}, ${stale.days} days ago. Suppliers can change rates without notice.
+    <div><b>${stale.staleCount} of ${stale.total} plans not re-checked recently</b> . The oldest was checked ${fmtVerifiedDate(stale.date)}.
       <a href="#" onclick="event.preventDefault(); setScreen('plans')">See each plan's date →</a>
     </div>
   </div>`;
@@ -3571,7 +3571,7 @@ async function refreshTariffs(){
         // requests — dead links after site reorganisations, and entirely our
         // problem to fix. Telling users it was anti-bot defence turned a bug
         // into a fact of life and kept anyone from looking at it for weeks.
-        showToast(`Couldn't read ${unreached} supplier site${unreached>1?'s':''}. Showing the rates we last verified — that's a fault on our side, and it's logged.`, { type:'amber', icon:ic('warn',16), title:'Check incomplete' });
+        showToast(`Couldn't read ${unreached} supplier site${unreached>1?'s':''}. Showing the rates we last checked.`, { type:'amber', icon:ic('warn',16), title:'Check incomplete' });
       } else {
         showToast(`Rates up to date · ${confirmed} plan${confirmed!==1?'s':''} confirmed`, { type:'accent', icon:ic('checkC',16), title:'Refreshed' });
       }
@@ -3641,7 +3641,7 @@ function renderEvSavingsCard(best){
   const electricityCostIncrease = econ.evElectricityCost;
 
   return `<div style="margin-top:14px;padding:14px 16px;background:rgba(41,182,246,.06);border:1.5px solid var(--blue);border-radius:12px">
-    <div style="font-family:var(--mono);font-size:12px;color:var(--blue);letter-spacing:.08em;text-transform:uppercase;font-weight:700;margin-bottom:4px">${ic('car',12,'vertical-align:-2px')} ${state.ev_in_bill ? 'Your EV vs running a petrol car' : 'If you get the EV — what changes'}</div>
+    <div style="font-family:var(--mono);font-size:12px;color:var(--blue);letter-spacing:.08em;text-transform:uppercase;font-weight:700;margin-bottom:4px">${ic('car',12,'vertical-align:-2px')} ${state.ev_in_bill ? 'Your EV vs running a petrol car' : 'If you get an EV'}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
       <div style="padding:10px;background:${state.ev_in_bill ? 'var(--well)' : 'rgba(255,23,68,.06)'};border-radius:8px">
         <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em">${state.ev_in_bill ? 'Charging cost (in your bill)' : 'Electricity added to your bill'}</div>
@@ -3683,7 +3683,7 @@ function computeEnergyScore(best, baseCost){
     : mineNow <= 0 ? clamp(100 - gap / 10)       // already a net earner: score the euros left on the table
     : clamp(100 * Math.max(0, best.net) / mineNow);
   parts.push({ key:'plan', label:'Plan efficiency', score:planScore,
-    why: planScore >= 99 ? "You're on the best plan for your usage" : `You pay ${fmtCurrency(Math.round(mineNow))}, best is ${fmtCurrency(Math.round(best.net))} — switching closes the gap`,
+    why: planScore >= 99 ? "You're on the best plan for your usage" : `You pay ${fmtCurrency(Math.round(mineNow))}. The best plan is ${fmtCurrency(Math.round(best.net))}.`,
     fix: planScore >= 99 ? null : { label:`Switch and save ${fmtCurrency(Math.round(gap))}/yr`, go:"setScreen('plans')" } });
   // Solar: performance if installed, potential if not
   if (state.has_solar && totalPanels() > 0){
@@ -3697,7 +3697,7 @@ function computeEnergyScore(best, baseCost){
     const mult = (IRISH_REGIONS[state.region] || {}).ghi_multiplier || 1;
     parts.push({ key:'solar', label:'Solar potential', score: clamp(80 + (mult - 1) * 200),
       why: `${IRISH_REGIONS[state.region] ? IRISH_REGIONS[state.region].name : 'Your region'} yield ${mult >= 1 ? '+' : ''}${Math.round((mult-1)*100)}% vs national`,
-      fix: { label:'Model a system for your roof', go:"setScreen('solar')" } });
+      fix: { label:'Add solar', go:"setScreen('solar')" } });
   }
   // EV readiness: is the charging actually landing in a cheap window?
   if (state.ev_active){
@@ -3706,7 +3706,7 @@ function computeEnergyScore(best, baseCost){
     const bestHasWindow = !!(best.plan.windows && (best.plan.windows.ev || best.plan.windows.night));
     const evScore = clamp(baseHasWindow ? 92 : (bestHasWindow ? 58 : 45));
     parts.push({ key:'ev', label:'EV readiness', score:evScore,
-      why: baseHasWindow ? 'Your plan has a cheap charging window' : 'Your current plan has no night/EV window — the recommended switch captures one',
+      why: baseHasWindow ? 'Your plan has a cheap charging window' : 'Your plan has no cheap night hours. The best plan does.',
       fix: baseHasWindow ? null : { label:'See plans with a cheap EV window', go:"setScreen('plans')" } });
   }
   // Export optimisation
@@ -3715,7 +3715,7 @@ function computeEnergyScore(best, baseCost){
     const cur = (getPlanById(state.baseline).export_rate || 0);
     parts.push({ key:'export', label:'Export optimisation',
       score: state.export_enabled === false ? 15 : clamp(100 * cur / Math.max(0.01, bestExport)),
-      why: state.export_enabled === false ? 'Export payments not registered — free money missed' : `Your export rate ${fmtCent(cur)} vs best available ${fmtCent(bestExport)}`,
+      why: state.export_enabled === false ? 'You’re not being paid for the solar you sell' : `Your export rate ${fmtCent(cur)} vs best available ${fmtCent(bestExport)}`,
       fix: state.export_enabled === false ? { label:'How to register for export payments', go:"setScreen('how-to-switch')" } : null });
   }
   const overall = clamp(parts.reduce((a,p)=>a+p.score,0) / parts.length);
@@ -3812,7 +3812,7 @@ function renderGoalDesigner(){
         ${goal === 'npv'
           ? `The fastest-payback design (${other.panels} panels${other.batt ? ' + ' + other.batt + ' kWh' : ''}) breaks even in <b>${other.payback} yr</b> but earns <b>€${(win.npv - other.npv).toLocaleString()} less</b> over 20 years.`
           : `The value-maximising design (${other.panels} panels${other.batt ? ' + ' + other.batt + ' kWh' : ''}) takes <b>${other.payback} yr</b> to break even but earns <b>€${(other.npv - win.npv).toLocaleString()} more</b> over 20 years.`}
-      </div>` : `<div style="margin-top:10px;padding:0 2px;font-size:12px;color:var(--ink-soft)">Both goals point to the same design for your home — an easy decision.</div>`}
+      </div>` : `<div style="margin-top:10px;padding:0 2px;font-size:12px;color:var(--ink-soft)">Both goals give the same system.</div>`}
       <div style="margin-top:8px;font-family:var(--display);font-size:12px;color:var(--ink-dim);line-height:1.6;letter-spacing:.02em">~ Prices are 2026 install estimates + auto SEAI grant — not quotes · benefit is electricity-only · 20-yr value discounted at 3%</div>`;
   }
 
@@ -3853,7 +3853,7 @@ function renderGoalDesigner(){
         <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim)">${isEstD ? 'Install ~' + fmtCurrency(state.install_cost) + ' est. · grant −' + fmtCurrency(state.grant_seai) : 'Know your exact spec?'}</div>
         <button onclick="goRefineSolar()" style="flex-shrink:0;padding:8px 13px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid var(--blue);background:transparent;color:var(--blue);cursor:pointer">Set my exact system →</button>
       </div>
-      ${isEstD ? `<div onclick="markSolarAsMine()" style="margin-top:8px;text-align:center;font-size:12px;color:var(--ink-soft);text-decoration:underline;cursor:pointer">These match my real system — mark as confirmed</div>` : ''}
+      ${isEstD ? `<div onclick="markSolarAsMine()" style="margin-top:8px;text-align:center;font-size:12px;color:var(--ink-soft);text-decoration:underline;cursor:pointer">These match my real system</div>` : ''}
     </div>`;
 }
 
@@ -3919,7 +3919,7 @@ function renderLogicBreakdown(){
           <div style="font-size:12px;color:var(--ink-dim);margin-top:2px">Round-trip eff: ${Math.round(state.battery_eff*100*state.battery_eff*100)/100}%</div>
         </div>
       </div>` : ''}
-      ${curt > 0 ? `<div style="margin-top:8px;padding:9px 12px;background:rgba(255,145,0,.06);border-radius:8px;font-size:12px;color:var(--ink-soft)">⚠ ${curt.toLocaleString()} kWh curtailed (export limit or export disabled) — enable export to capture this.</div>` : ''}
+      ${curt > 0 ? `<div style="margin-top:8px;padding:9px 12px;background:rgba(255,145,0,.06);border-radius:8px;font-size:12px;color:var(--ink-soft)">⚠ ${curt.toLocaleString()} kWh wasted because it can’t be sold. Register with your supplier to get paid for it.</div>` : ''}
       ` : ''}
     </div>`;
 }
@@ -3979,8 +3979,8 @@ function freshnessChip(plan){
   if (flag){
     const supplier = (plan && plan.supplier) || 'the supplier';
     const label = flag === 'disputed'
-      ? `Confirm this plan's rates with ${supplier} \u2014 sources disagree`
-      : `Confirm this plan's rates with ${supplier} \u2014 not re-checked`;
+      ? `Check these rates with ${supplier}. We found two different prices.`
+      : `Check these rates with ${supplier}. Not checked recently.`;
     return `<button class="fresh-chip is-stale" onclick="setScreen('plans')">
       <span class="fresh-dot" aria-hidden="true"></span>${label}<span class="fresh-chev">\u203a</span>
     </button>`;
@@ -4024,7 +4024,7 @@ function priceChangeChip(plan){
     <span class="fresh-dot" aria-hidden="true"></span>
     <span>${(plan.supplier || 'The supplier')} ${verb} this plan's rates
     ${uneven ? 'by up to ' : ''}${pct}% on ${when}
-    — already counted in the yearly figure above.</span>
+    Already in the yearly cost above.</span>
   </div>`;
 }
 
@@ -4052,7 +4052,7 @@ function renderAssumptions(setupLabel){
     </div>
     <div class="based-on-src">
       ${state._csv_imported
-        ? `Usage from the smart-meter data you imported.`
+        ? `Using your smart-meter data.`
         : `Usage estimated from your €${state.bimonthly_bill_eur} two-month bill.
            <a href="#" onclick="event.preventDefault();setScreen('csv-import')">Import smart-meter data</a> for exact figures.`}
     </div>
@@ -4063,8 +4063,8 @@ function renderAssumptions(setupLabel){
     </div>
     <details class="based-on-how">
       <summary>How the figure is worked out</summary>
-      <p>Every plan is simulated hour by hour, all 8,760 hours of a year, against your usage and your panels' output: sunshine calibrated per region (PVGIS), the sun's position for your roof, and panel heat losses. The battery follows the strategy above. Dynamic plans follow wholesale prices with the CRU 50c cap.</p>
-      <p><b>Not modelled:</b> real weather (a typical year, ±5–8% against any actual one), shading on your roof, future price changes, and EV charging smarter than cheap-window timing. Check big decisions with an installer.</p>
+      <p>We work out every plan for each hour of a typical year, using your usage, your roof and Irish sunshine where you live. Batteries follow the setting above. Plans that follow the wholesale price use the 50c cap.</p>
+      <p><b>Not modelled:</b> real weather (a year can be 5–8% off), shade on your roof, and future price changes. Talk to an installer before big decisions.</p>
       <p class="based-on-data">Data: PVGIS · SEMOpx · CRU${latest ? ` · prices verified ${fmtVerifiedDate(latest)}` : ''}</p>
     </details>
   </div>`;
@@ -4168,7 +4168,7 @@ function applyBestDesign(){
   snapshotMySystem();
   saveState();
   renderApp();
-  showToast(`${d.kwp} kWp${d.batt ? ' + ' + d.batt + ' kWh battery' : ''} — ${d.payback.toFixed(1)} yr payback`,
+  showToast(`${d.kwp} kWp${d.batt ? ' + ' + d.batt + ' kWh battery' : ''}, pays back in ${d.payback.toFixed(1)} years`,
     { type:'accent', icon:ic('checkC',16) });
 }
 
@@ -4339,7 +4339,7 @@ function designGoals(){
     { key: 'value', icon: 'trendUp', label: 'Best value', why: 'Most back over 20 years, without overspending', d: bestDesign() },
     { key: 'payback', icon: 'clock', label: 'Fastest payback', why: 'Pays for itself soonest', d: pool.slice().sort((a, b) => a.payback - b.payback || a.net - b.net)[0] },
     { key: 'cost', icon: 'euro', label: 'Lowest cost', why: 'Smallest outlay that still pays off', d: pool.slice().sort((a, b) => a.net - b.net || a.payback - b.payback)[0] },
-    { key: 'own', icon: 'battery', label: 'Most of your own power', why: 'Biggest system: least bought from the grid', d: sweep.designs.slice().sort((a, b) => (b.panels - a.panels) || (b.batt - a.batt))[0] },
+    { key: 'own', icon: 'battery', label: 'Most of your own power', why: 'Biggest system: buy the least from the grid', d: sweep.designs.slice().sort((a, b) => (b.panels - a.panels) || (b.batt - a.batt))[0] },
   ].filter((g) => g.d);
   const out = [];
   for (const g of pick){
@@ -4437,7 +4437,7 @@ function commitGoalDesign(){
   state.solar_view = 'mine';
   if (!state.considering_solar) state.considering_solar = true;
   saveState(); renderApp();
-  showToast('This design is now your system — shown across the whole app', { type:'accent', icon:ic('sun',16) });
+  showToast('This is now your system', { type:'accent', icon:ic('sun',16) });
 }
 
 // Back-compat shim (older onclick strings in cached DOM)
@@ -4568,7 +4568,7 @@ function renderSolarGuide(){
     body = `<div class="sg-top"><button class="sg-back" onclick="sgCancel()" aria-label="Back">${ic('chevL', 18)}</button></div>
       <div class="sg-intro-ico">${ic('sun', 34)}</div>
       <h1 class="sg-h">Would solar pay off here?</h1>
-      <p class="sg-sub">Four quick questions: which way your roof faces, how many panels, a battery, and the price. Each starts on a sensible guess, so you can just tap Next.</p>
+      <p class="sg-sub">Four quick questions. Each one has a sensible answer already picked, so you can just tap Next.</p>
       <ul class="sg-promise"><li>${ic('check', 14)} About a minute</li><li>${ic('check', 14)} Nothing changes on your Home unless you keep the answer</li><li>${ic('check', 14)} Leave any time with Back</li></ul>
       <button class="fp-cta sg-next" onclick="sgGo(1)">Start ${ic('chevR', 18)}</button>
       <button class="sg-link sg-skip" onclick="sgCancel()">Not now</button>`;
@@ -4588,8 +4588,8 @@ function renderSolarGuide(){
         <b>${l}</b><small>${s}</small></button>`).join('')}</div>
       ${two ? `<div class="sg-two">${dirRow('a', 'First face')}${dirRow('b', 'Second face')}
         <p class="sg-sub">Panels are split evenly to start; set the exact numbers in My system.</p>${next()}</div>` : ''}
-      <button class="sg-link" onclick="sgRoof('unsure')">Not sure: assume south</button>
-      <button class="sg-link sg-skip" onclick="sgGo(5)">Skip: just estimate it for me</button>`;
+      <button class="sg-link" onclick="sgRoof('unsure')">Not sure (assume south)</button>
+      <button class="sg-link sg-skip" onclick="sgGo(5)">Skip, just estimate it</button>`;
   } else if (step === 2){
     const n = totalPanels();
     body = `${head('Step 2 · Panels', 'How many panels?', `For ${kwh.toLocaleString('en-IE')} kWh a year we suggest <b>${suggest}</b>. Most Irish roofs fit 8 to 16.`)}
@@ -4615,14 +4615,14 @@ function renderSolarGuide(){
       <label class="sg-own ${state.cost_is_manual ? 'on' : ''}"><span>Price including VAT, before the grant</span>
         <em>€</em><input type="number" inputmode="numeric" min="0" step="100" value="${Math.round(state.install_cost || 0)}" onchange="sysSet('install_cost', this.value)" aria-label="Price including VAT"></label>
       <button class="v7-switch-row sg-grant" role="switch" aria-checked="${(state.grant_seai || 0) > 0}" onclick="sgGrant()">
-        <span class="v7-switch-text"><b>SEAI grant</b><small>${(state.grant_seai || 0) > 0 ? `${eur(state.grant_seai)} taken off` : 'This home does not get it: built from 2021, or already claimed'}</small></span>
+        <span class="v7-switch-text"><b>SEAI grant</b><small>${(state.grant_seai || 0) > 0 ? `${eur(state.grant_seai)} taken off` : 'This home doesn’t qualify: built in 2021 or later, or already claimed'}</small></span>
         <span class="v7-switch ${(state.grant_seai || 0) > 0 ? 'on' : ''}" aria-hidden="true"><i></i></span></button>
       <button class="sg-link" onclick="v7Sheet('quote')">${ic('clip', 14)} I have a quote: read it for me</button>
       ${next('Show me the answer')}`;
   } else {
     let d = null; try { d = v7SolarData(); } catch (e) {}
     const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
-    body = `${head('Your answer', pb ? `It pays for itself in` : 'Here is what it does', '')}
+    body = `${head('Your answer', pb ? `It pays for itself in` : 'What it does', '')}
       <div class="sg-reveal">
         <div class="sg-reveal-fig"><b>${pb ? pb.toFixed(1) : '—'}</b><span>years</span></div>
         <div class="sg-facts">
@@ -4630,11 +4630,11 @@ function renderSolarGuide(){
           <div><b>${eur(d ? d.sysCost : 0)}</b><small>to install, after the grant</small></div>
           <div><b class="${d && d.npv >= 0 ? 'is-gain' : ''}">${eur(d ? d.npv : 0)}</b><small>ahead over 20 years</small></div>
         </div>
-        ${d && d.best && d.best.plan ? `<div class="sg-found">${ic('spark', 14)}<span>Found for you: with panels, your best plan is <b>${esc(d.best.plan.supplier)} ${esc(d.best.plan.plan)}</b>. This answer assumes you switch to it, and counts only what the panels add.</span></div>` : ''}
+        ${d && d.best && d.best.plan ? `<div class="sg-found">${ic('spark', 14)}<span>With panels, your best plan is <b>${esc(d.best.plan.supplier)} ${esc(d.best.plan.plan)}</b>. This answer assumes you switch to it, and counts only what the panels add.</span></div>` : ''}
         <div class="sg-sys">${totalPanels()} panels${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh battery` : ' · no battery'} · ${({ S: 'south', SE: 'south-east', SW: 'south-west', EW: 'east and west', E: 'east', W: 'west' })[state._sg_face] || 'south'}-facing</div>
       </div>
       <button class="fp-cta sg-next" onclick="sgKeep()">Add to my Home as a plan ${ic('checkC', 18)}</button>
-      <button class="sg-link sg-skip" onclick="sgCancel()">Not now: leave my Home as it was</button>`;
+      <button class="sg-link sg-skip" onclick="sgCancel()">Not now</button>`;
   }
   return `<div class="fp-wrap sg">${body}</div>${V7.sheet()}`;
 }
@@ -4729,7 +4729,7 @@ function renderEvGuide(){
         ${opt(kw >= 6, "egSet('ev_charger_kw', 7.4, 5)", 'A wall charger', '7.4 kW · a full charge overnight in a few cheap hours')}
         ${opt(kw < 6, "egSet('ev_charger_kw', 2.3, 5)", 'A normal plug', '2.3 kW · slower, so some charging spills into dearer hours')}
       </div>
-      <div class="sg-note">No charger yet? Pick the wall charger: the SEAI grant helps with one.</div>`;
+      <div class="sg-note">No charger yet? Get a wall charger. There’s a grant for it.</div>`;
   } else {
     let ev = null, plan = null, cheap = null;
     try {
@@ -4737,7 +4737,7 @@ function renderEvGuide(){
       cheap = plan.windows && plan.windows.ev ? `${hhmm(plan.windows.ev[0])}–${hhmm(plan.windows.ev[1])}` : plan.windows && plan.windows.night ? `${hhmm(plan.windows.night[0])}–${hhmm(plan.windows.night[1])}` : null;
     } catch (e) {}
     const save = ev ? ev.evVsPetrolNet : 0;
-    body = `${head('Your answer', save > 0 ? 'Against petrol, you save' : 'Here is what it costs', '')}
+    body = `${head('Your answer', save > 0 ? 'Against petrol, you save' : 'What it costs', '')}
       <div class="sg-reveal">
         <div class="sg-reveal-fig"><b>${eur(Math.abs(save))}</b><span>a year</span></div>
         <div class="sg-facts">
@@ -4853,7 +4853,7 @@ function renderFlow(){
   const plan = getPlanById(state.baseline);
   const label = {
     bill: ['What’s your electricity bill?', 'Every two months, electricity only.'],
-    plan: ['Who do you pay now?', 'Not sure is fine: we’ll estimate.'],
+    plan: ['Who do you pay now?', 'Not sure? We’ll estimate.'],
     heat: ['How is the home heated?', ''],
     solar: ['Solar panels?', ''],
     roof: ['Which way does the roof face?', 'The side that gets the sun.'],
@@ -4913,10 +4913,10 @@ function renderFlow(){
     if (q === 'heat') return `<div class="fl-opts fl-two fl-tiles">${opt('heat', 'gas', 'Gas or oil')}${opt('heat', 'heatpump', 'Heat pump')}${opt('heat', 'storage', 'Storage heaters')}${opt('heat', 'direct', 'Electric heaters')}</div>`;
     if (q === 'solar') return `<div class="fl-opts">${opt('solar', 'no', 'No')}${opt('solar', 'have', 'I have them', 'We’ll add what they make')}${opt('solar', 'thinking', 'Thinking about it', 'We’ll show the payback')}</div>`;
     if (q === 'roof') return `<div class="fl-opts fl-two fl-tiles">${opt('roof', 'S', 'South')}${opt('roof', 'EW', 'East and west')}${opt('roof', 'SE', 'South-east')}${opt('roof', 'SW', 'South-west')}${opt('roof', 'SESW', 'South-east and south-west')}</div>
-      <button class="sg-link" onclick="flowAnswer('roof', 'unsure')">Not sure: assume south</button>`;
+      <button class="sg-link" onclick="flowAnswer('roof', 'unsure')">Not sure (assume south)</button>`;
     if (q === 'panels'){ const s = _flowSuggest(); return `<div class="fl-opts fl-three">${[s - 4, s, s + 4].map((n) => opt('panels', n, `${n}`, n === s ? 'suggested' : '')).join('')}</div>`; }
     if (q === 'battery') return `<div class="fl-opts fl-three">${opt('battery', 0, 'None')}${opt('battery', 5, '5 kWh', 'typical')}${opt('battery', 10, '10 kWh')}</div>`;
-    if (q === 'ev') return `<div class="fl-opts">${opt('ev', 'no', 'No')}${opt('ev', 'have', 'I have one', 'Its charging is in my bill')}${opt('ev', 'thinking', 'Thinking about one', 'We’ll show the cost and petrol saved')}</div>`;
+    if (q === 'ev') return `<div class="fl-opts">${opt('ev', 'no', 'No')}${opt('ev', 'have', 'I have one', 'It’s already in my bill')}${opt('ev', 'thinking', 'Thinking about one', 'We’ll show the cost and petrol saved')}</div>`;
     if (q === 'km') return `<div class="fl-opts fl-three">${[8000, 16000, 25000].map((k) => opt('km', k, `${k / 1000}k km`)).join('')}</div>`;
     if (q === 'car') return `<div class="fl-opts fl-three">${opt('car', 14, 'Small')}${opt('car', 17, 'Family')}${opt('car', 20, 'SUV')}</div>`;
     return '';
@@ -4969,8 +4969,8 @@ function renderFlow(){
     </section>
     ${sbInitialized() && !_sbUser ? `<section class="fl-save">
       <span class="fl-save-ico">${ic('shield', 20)}</span>
-      <div><b>Optional: a free account</b>
-        <span>Right now your home is saved on this phone only. An account keeps it safe, opens it on any device, and tells you when a cheaper plan appears.</span>
+      <div><b>Free account (optional)</b>
+        <span>Your home is only saved on this phone. With an account it’s backed up, works on any device, and we’ll tell you when a cheaper plan comes along.</span>
         <button class="fl-save-link" onclick="flowFinish('save')">Create a free account ${ic('chevR', 14)}</button></div></section>` : ''}`;
   }
   const done = steps.filter((s) => s in f).length;
@@ -5119,7 +5119,7 @@ function makeShareCardCanvas(savings){
 
   // Footer.
   let live = 0; try { live = getRecommendation().ranked.length; } catch (e) { live = TARIFFS.filter(tt => !tt.discontinued).length; }
-  t('Every hour of my year, priced on all ' + live + ' Irish plans.', 72, H - 96, 28, '#A2ACA6', 500);
+  t('My whole year, priced on every plan ' + live + ' Irish plans.', 72, H - 96, 28, '#A2ACA6', 500);
   t('Check yours free at peakless', 72, H - 52, 34, '#ffd166', 700);
   return cv;
 }
@@ -5141,7 +5141,7 @@ function shareSavingsCard(){
       a.href = URL.createObjectURL(blob);
       a.download = 'peakless-analysis.png';
       a.click();
-      showToast('Savings card saved \u2014 share it anywhere', { type:'accent', icon:ic('spark',16) });
+      showToast('Saved. Share it anywhere.', { type:'accent', icon:ic('spark',16) });
     }
   }, 'image/png');
 }
@@ -5221,7 +5221,7 @@ function renderTrustPanel(){
           Every plan is simulated hour-by-hour (8,760 hours/yr) against your usage and solar generation. PVGIS-calibrated GHI per region, NOAA solar position for your roof orientation, Erbs model for diffuse/direct split, NOCT thermal derating on the panels. Battery dispatch follows your chosen strategy. Dynamic plans use SEMOpx-tracking wholesale curves with the CRU 50c/kWh cap.
         </div>
         <div class="trust-method" style="margin-top:8px">
-          <b>What we don't model</b>
+          <b>What we leave out</b>
           Real weather (we use TMY = typical met year, ±5-8% vs actual), micro-shading on your specific roof, future rate changes by suppliers, smart EV-charging optimization beyond cheap-window scheduling. Always validate big decisions with an installer.
         </div>
         <div class="trust-sources">Data: PVGIS · SEMOpx · CRU${latestVerified ? ' · Tariffs verified ' + fmtVerifiedDate(latestVerified) : ''}</div>
@@ -5426,7 +5426,7 @@ function renderSolarWorking(){
         <div class="card-delta">vs no solar, ${state.ev_active ? 'with EV' : 'no EV'}</div>
       </div>
       <div class="card" onclick="toggleNpvBreakdown()" style="cursor:pointer">
-        <div class="card-label">∑ 20-yr NPV (3%) <span style="float:right;color:var(--accent);font-size:12px">tap for math ↓</span></div>
+        <div class="card-label">20-year value <span style="float:right;color:var(--accent);font-size:12px">How it’s worked out</span></div>
         <div class="card-value ${npv20 > 0 ? 'accent' : 'red'}">${fmtCurrency(npv20)}</div>
         <div class="card-delta">After Y12 battery swap</div>
       </div>
@@ -5492,9 +5492,9 @@ function openTariffPopup(planId){
   modal.innerHTML = `
     <div class="modal" style="max-height:82vh;overflow-y:auto">
       <div class="modal-handle"></div>
-      <div style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px">${plan.type === 'dynamic' ? 'Dynamic wholesale tariff' : flat ? 'Flat tariff' : 'Time-of-use tariff'}${isCurrent ? ' · your current plan' : ''}</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px">${plan.type === 'dynamic' ? 'Wholesale price plan' : flat ? 'Same price all day' : 'Cheaper at certain times'}${isCurrent ? ' · your current plan' : ''}</div>
       <h3 style="margin-bottom:2px">${plan.supplier} — <em>${plan.plan}</em></h3>
-      <p style="margin-bottom:10px">Rates incl. VAT — exactly what the simulation uses.</p>
+      <p style="margin-bottom:10px">Rates include VAT.</p>
       ${rows}
       <div style="display:flex;justify-content:space-between;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--line-soft)">
         <div><div style="font-size:13px;font-weight:600;color:var(--ink)">Export (CEG)</div><div style="font-size:12px;color:var(--ink-dim);font-family:var(--mono)">Paid for surplus solar</div></div>
@@ -5504,7 +5504,7 @@ function openTariffPopup(planId){
         <div><div style="font-size:13px;font-weight:600;color:var(--ink)">Standing charge</div><div style="font-size:12px;color:var(--ink-dim);font-family:var(--mono)">Fixed yearly; the €19.10 PSO levy is added on top</div></div>
         <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)">${fmtCurrency(plan.standing)}/yr</div>
       </div>
-      ${plan.type === 'dynamic' ? `<div style="padding:9px 12px;background:var(--blue-soft);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:4px">Half-hourly wholesale pricing on top of the base rates above — hourly prices move with the market.</div>` : ''}
+      ${plan.type === 'dynamic' ? `<div style="padding:9px 12px;background:var(--blue-soft);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:4px">Plus a price that changes every half hour with the wholesale market.</div>` : ''}
       ${plan.notes ? `<div style="padding:9px 12px;background:var(--well);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.55;margin-top:8px"><b style="color:var(--ink)">Supplier note.</b> ${plan.notes}</div>` : ''}
       <button class="modal-btn" style="margin-top:14px" onclick="document.getElementById('tariff-popup').remove(); openPlanDetail('${planId}')">Full details &amp; edit rates →</button>
       <button class="modal-skip" onclick="document.getElementById('tariff-popup').remove()">Close</button>
@@ -5576,7 +5576,7 @@ function setEvMode(m){
   calibrateBillsToBaseline();
   saveState();
   showToast(m === 'have'
-    ? 'Charging counted inside your bill — base load carved accordingly'
+    ? 'Charging is in your bill, so we’ve taken it out of the rest'
     : 'Charging added on top of your bill', { type:'accent', icon:ic('car',16) });
   renderApp();
 }
@@ -5614,7 +5614,7 @@ function requestInstallerQuotes(){
       address: state.address
     }
   });
-  showToast('Saved on this device. Installer matching isn\u2019t live yet — you can copy these details into a quote request.', { type:'blue', icon:ic('info',16) });
+  showToast('Saved on this phone. We can’t connect you with installers yet, so copy these details into a quote request.', { type:'blue', icon:ic('info',16) });
 }
 
 /* ============================================================
@@ -5632,7 +5632,7 @@ function renderChoiceStrip(){
   if (!rec.best) return '';
   if (!rec.isManualChoice){
     return `<div class="choice-strip hint">
-      Tap a plan for detail, or to go with it.
+      Tap a plan to see more or choose it.
     </div>`;
   }
   const premium = rec.choicePremium;
@@ -5782,7 +5782,7 @@ function renderPlanDetail(){
     </div>
 
     <p class="disclaimer">
-      <b>Editing rates:</b> Changes you make here override the supplier's official rate for this analysis only. Useful for "what if my rate goes up 10%?" scenarios or to enter a custom contract rate. Tap "Reset to default" to restore the original verified-2026 rates. All edits persist on this device only.
+      <b>Editing rates:</b> Change a rate here to try “what if”. It only affects this plan, on this phone. Tap Reset to go back.
     </p>
   </div>
   ${bottomNav()}`;
@@ -5942,7 +5942,7 @@ function renderDetailsBlock(){
         <div class="details-row"><span>Stored in battery</span><b>${Math.round(totalBatteryCharge).toLocaleString()} kWh</b></div>
         <div class="details-row"><span>Discharged from battery</span><b>${Math.round(totalBatteryDischarge).toLocaleString()} kWh</b></div>
         <div class="details-row"><span>Exported to grid</span><b class="accent">${Math.round(totalExport).toLocaleString()} kWh</b></div>
-        <div class="details-row"><span>Curtailed (lost — over export limit)</span><b class="amber">${Math.round(totalCurtailed).toLocaleString()} kWh</b></div>
+        <div class="details-row"><span>Wasted (over the export limit)</span><b class="amber">${Math.round(totalCurtailed).toLocaleString()} kWh</b></div>
         <div class="details-row"><span>Imported from grid</span><b class="amber">${Math.round(totalImport).toLocaleString()} kWh</b></div>
         <div class="details-row"><span>Total household consumption</span><b>${Math.round(totalCons).toLocaleString()} kWh</b></div>
       </div>
@@ -5980,13 +5980,13 @@ function renderDetailsBlock(){
         <div class="details-icon">+</div>
       </div>
       <div class="details-body">
-        <div class="details-row"><span>Roof A — panels</span><b>${state.count_A}</b></div>
-        <div class="details-row"><span>Roof A — orientation</span><b>${sectorFromAzimuth(state.azimuth_A)} (${state.azimuth_A}°)</b></div>
-        <div class="details-row"><span>Roof A — tilt</span><b>${state.tilt_A}°</b></div>
+        <div class="details-row"><span>Roof A panels</span><b>${state.count_A}</b></div>
+        <div class="details-row"><span>Roof A direction</span><b>${sectorFromAzimuth(state.azimuth_A)} (${state.azimuth_A}°)</b></div>
+        <div class="details-row"><span>Roof A slope</span><b>${state.tilt_A}°</b></div>
         ${state.count_B > 0 ? `
-          <div class="details-row"><span>Roof B — panels</span><b>${state.count_B}</b></div>
-          <div class="details-row"><span>Roof B — orientation</span><b>${sectorFromAzimuth(state.azimuth_B)} (${state.azimuth_B}°)</b></div>
-          <div class="details-row"><span>Roof B — tilt</span><b>${state.tilt_B}°</b></div>
+          <div class="details-row"><span>Roof B panels</span><b>${state.count_B}</b></div>
+          <div class="details-row"><span>Roof B direction</span><b>${sectorFromAzimuth(state.azimuth_B)} (${state.azimuth_B}°)</b></div>
+          <div class="details-row"><span>Roof B slope</span><b>${state.tilt_B}°</b></div>
         ` : ''}
         <div class="details-row"><span>Panel rating</span><b>${state.panel_w} W (${state.panel_tech})</b></div>
         <div class="details-row"><span>Total system size</span><b class="accent">${totalKwp().toFixed(2)} kWp</b></div>
@@ -6210,7 +6210,7 @@ function renderDayInspector(){
   const hitRects = Array.from({ length: 24 }, (_, h) =>
     `<rect x="${xPos(h).toFixed(1)}" y="${PAD_T}" width="${barW.toFixed(1)}" height="${CH}" fill="transparent" style="cursor:pointer" onclick="state._di_hour=${sel === h ? 'null' : h};renderApp()"><title>${String(h).padStart(2, '0')}:00</title></rect>`).join('');
   const kw = (v) => `${Math.abs(v).toFixed(1)} kWh`;
-  const readout = sel == null ? `<div style="font-size:12px;color:var(--ink-dim);margin-top:6px">Tap any hour to see where the power came from and went.</div>` : (() => {
+  const readout = sel == null ? `<div style="font-size:12px;color:var(--ink-dim);margin-top:6px">Tap an hour to see where the power came from.</div>` : (() => {
     const h = sel, parts = [];
     if (gen[h] > 0.05) parts.push(`solar made ${kw(gen[h])}`);
     if (hasBattery && dis[h] > 0.05) parts.push(`the battery gave ${kw(dis[h])}`);
@@ -6257,7 +6257,7 @@ function renderDayInspector(){
       ${xLabels.map(l => `<text x="${l.x.toFixed(1)}" y="${(PAD_T + CH + 18).toFixed(1)}" text-anchor="middle" fill="currentColor" font-size="10">${l.label}</text>`).join('')}
       ${hitRects}
     </svg>
-    <div style="font-size:12px;color:var(--ink-dim)">Above the line: what supplies the home. Below: what the home uses, and what is sold or stored.</div>
+    <div style="font-size:12px;color:var(--ink-dim)">Up: where power comes from. Down: where it goes.</div>
     ${readout}
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px">
       ${[
@@ -6330,7 +6330,7 @@ async function doGeneratePdf(email){
     showToast('Preparing your report\u2026', { type:'accent', icon:ic('doc',16) });
     ensureJsPdf().then(ok => {
       if (ok) doGeneratePdf(email);   // fire and forget: the retry owns its own errors
-      else showToast('Couldn\u2019t start the PDF engine \u2014 please reload and try again', { type:'amber', icon:ic('warn',16) });
+      else showToast('Couldn’t make the PDF. Reload and try again.', { type:'amber', icon:ic('warn',16) });
     });
     return;
   }
@@ -6386,7 +6386,7 @@ async function doGeneratePdf(email){
     const switchSteps = (guide && guide.steps ? guide.steps : [
       { title:'Find your MPRN', body:'The 11-digit Meter Point Reference Number is printed on your current electricity bill. You need it to switch.' },
       { title:'Check the rates still match', body:'Rates change. Confirm the unit rates and standing charge on the supplier\u2019s own site before signing up.' },
-      { title:'Sign up with the new supplier', body:'Complete the switch online \u2014 it takes about ten minutes. They notify your current supplier for you.' },
+      { title:'Sign up with the new supplier', body:'Switch online. It takes about ten minutes, and they tell your old supplier for you.' },
       { title:'Wait for the changeover', body:'Completion takes 10\u201315 working days. Your supply is never interrupted and no one visits the property.' },
     ]).map(s => ({ title: s.title, body: s.body }));
 
@@ -6415,7 +6415,7 @@ async function doGeneratePdf(email){
       invalidate(); rebuildBase();
       sensitivity = [
         { label: 'If your usage is 20% lower', best: lo.best, current: lo.current },
-        { label: 'As modelled in this report', best: best.net, current: baseCost },
+        { label: 'Best plan', best: best.net, current: baseCost },
         { label: 'If your usage is 20% higher', best: hi.best, current: hi.current },
       ];
     } catch(e){ sensitivity = null; }
@@ -6459,7 +6459,7 @@ async function doGeneratePdf(email){
           effect: 'More evening demand met from store',
           value: trial(() => { state.battery_kwh = savedBatt + 5; },
                        () => { state.battery_kwh = savedBatt; }),
-          note: 'Energy benefit only — before the cost of the battery itself.',
+          note: 'What it saves on power. The battery’s own price isn’t taken off.',
         });
         if (savedBatt > 0){
           levers.push({
@@ -6555,7 +6555,7 @@ async function doGeneratePdf(email){
       scenario, npvSeries, breakevenYear,
       regionName: (IRISH_REGIONS[state.region] || IRISH_REGIONS.east).name,
       usageBasis: state._csv_imported
-        ? 'Your real ESB smart-meter data (HDF)'
+        ? 'Your ESB smart-meter data'
         : (state.usage_input_mode === 'kwh'
             ? 'Your stated annual kWh, shaped by heating profile'
             : 'Estimated from your bill, calibrated to your current plan'),
@@ -6570,15 +6570,15 @@ async function doGeneratePdf(email){
     const how = await deliverPdf(doc, 'solar-optimiser-report-' + new Date().toISOString().slice(0,10) + '.pdf');
     if (how === 'cancelled') return;
     showToast(
-      how === 'shared' ? 'Report ready — choose where to save it'
-        : how === 'opened' ? 'Report opened in a new tab — use Share to save it'
+      how === 'shared' ? 'Report ready. Choose where to save it.'
+        : how === 'opened' ? 'Report opened in a new tab. Use Share to save it.'
         : 'Report downloaded',
       { type:'accent', icon:ic('checkC',16) });
     fireEvent('pdf_generated', { has_solar: !!state.has_solar, ev: !!state.ev_active });
     if (email) submitPdfRequest(email);
   } catch (err){
     console.error('PDF generation failed', err);
-    showToast('Couldn\u2019t build the report \u2014 a plain-text summary was downloaded instead',
+    showToast('Couldn’t make the PDF, so we downloaded a text version instead',
       { type:'amber', icon:ic('warn',16) });
     try { downloadTextReport(email); } catch(_){}
   }
@@ -6659,7 +6659,7 @@ function downloadTextReport(email){
   const saving = Math.max(0, (best.baseCost || 0) - best.net);
   const kwp = totalKwp();
   const L = [];
-  L.push(`${BRAND.name.toUpperCase()} — SUMMARY REPORT`);
+  L.push(`${BRAND.name.toUpperCase()} SUMMARY`);
   L.push(new Date().toLocaleDateString('en-IE'));
   L.push('========================================');
   L.push('');
@@ -6681,7 +6681,7 @@ function downloadTextReport(email){
   a.href = url; a.download = 'solar-optimiser-' + new Date().toISOString().slice(0,10) + '.txt'; a.rel = 'noopener';
   document.body.appendChild(a); a.click();
   setTimeout(() => { try { document.body.removeChild(a); } catch(_){} URL.revokeObjectURL(url); }, 5000);
-  showToast('PDF unavailable on this device — saved a text summary to Downloads instead', { type:'blue', icon:ic('doc',16), title:'Text report saved' });
+  showToast('Couldn’t make the PDF here, so we saved a text version to Downloads', { type:'blue', icon:ic('doc',16), title:'Text report saved' });
 }
 
 /* ============================================================
@@ -6703,7 +6703,7 @@ function renderStrategyControls(){
       <div class="strat-opt ${isArb ? 'active' : ''}" onclick="setStrategy('arbitrage', true)" style="${!hasBatt ? 'opacity:0.4;pointer-events:none' : ''}">
         <div class="strat-opt-icon">${ic('bolt',18)}</div>
         <div class="strat-opt-title">Arbitrage</div>
-        <div class="strat-opt-sub">Fills in cheap windows, discharges at peak. Best on TOU/EV plans.</div>
+        <div class="strat-opt-sub">Fills up when power is cheap, powers the house when it’s dear. Best with a night-rate plan.</div>
       </div>
       <div class="strat-opt ${!isAuto && !isArb ? 'active' : ''}" onclick="setStrategy('self-consume', false)" style="${!hasBatt ? 'opacity:0.4;pointer-events:none' : ''}">
         <div class="strat-opt-icon">${ic('sun',18)}</div>
@@ -6716,7 +6716,7 @@ function renderStrategyControls(){
     <div style="margin-top:14px">
       <div style="font-size:12px;color:var(--ink-soft);font-family:var(--mono);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px">Hot water strategy</div>
       <div class="strat-row" style="grid-template-columns:1fr 1fr 1fr">
-        ${[['none','None','HW from gas/oil boiler — no electric load'],
+        ${[['none','None','Hot water from gas or oil'],
            ['smart','Smart','15% of load shifted to 2-5am window'],
            ['legacy','Legacy','Immersion timer boost at peak hours']].map(([v,lbl,sub]) => `
           <div class="strat-opt ${state.hot_water_strategy === v ? 'active' : ''}" onclick="setHotWater('${v}')">
@@ -6773,7 +6773,7 @@ function renderShapeControls(){
   const sum = b.night + b.morning + b.day + b.evening;
   return `
     <p style="font-size:12px;color:var(--ink-soft);margin:0 0 12px;line-height:1.5">
-      Override the heating-type default if you have smart-meter data showing your actual pattern. Sliders distribute your daily kWh across four time blocks. Must sum to 100%.
+      Only change this if your meter data shows a different pattern. The four parts must add up to 100%.
     </p>
 
     <div class="shape-bucket">
@@ -6906,7 +6906,7 @@ function renderAuditor(){
     <button class="v7-tile v7-tile-wide" style="margin-bottom:14px" onclick="v7Sheet('quote')">
       <span class="v7-tile-ico">${ic('clip', 18)}</span>
       <span class="v7-tile-big">Upload the quote instead</span>
-      <span class="v7-tile-sub">We read the figures from the PDF or a photo, and model your home with it</span>
+      <span class="v7-tile-sub">Upload the PDF or a photo and we’ll check it against your home</span>
     </button>
     <div class="card" style="padding:18px">
       <div class="aud-input-row">
@@ -6929,15 +6929,15 @@ function renderAuditor(){
     <div class="card" style="background:rgba(41,182,246,.04);border-color:var(--blue);margin-top:14px">
       <div class="card-label" style="color:var(--blue)">How we benchmark</div>
       <div style="font-size:13px;color:var(--ink-soft);line-height:1.8">
-        Panels + inverter: €950-€1,200/kWp installed<br>
+        Panels and inverter: €950–€1,200 per kWp, fitted<br>
         Battery: €350-€480/kWh capacity<br>
         Scaffolding + SEAI cert + wiring: €1,100-€1,300 fixed<br>
-        SEAI grant: −€1,800 (auto, if 3.55+ kWp with battery)
+        SEAI grant: up to €1,800
       </div>
     </div>
 
     <p class="disclaimer">
-      <b>Note.</b> Benchmarks are estimates. Premium quotes can be justified (complex roofs, EV charger included, high-end inverters). Use this as a negotiation aid, not a final verdict.
+      <b>Note.</b> These are typical prices. A quote can be higher for good reason, like a hard roof or an EV charger. Use this to ask questions, not as a final word.
     </p>
   </div>
   ${bottomNav()}`;
@@ -6983,7 +6983,7 @@ function renderAuditResult(r){
         <div class="card-delta">${_aud_panels} panels @ 440W</div>
       </div>
       <div class="card">
-        <div class="card-label">€/kWp ratio</div>
+        <div class="card-label">Price per kWp</div>
         <div class="card-value ${r.perKwp > 2200 ? 'amber' : r.perKwp < 1400 ? 'accent' : ''}">${fmtCurrency(r.perKwp)}<span class="unit">/kWp</span></div>
         <div class="card-delta">Fair ~€1,150-€1,500 ex-battery</div>
       </div>
@@ -7003,7 +7003,7 @@ function renderAuditResult(r){
         <div class="card-delta">€${r.totalAnnualBenefit.toFixed(0)}/yr benefit</div>
       </div>
       <div class="card">
-        <div class="card-label">20-yr NPV</div>
+        <div class="card-label">20-year value</div>
         <div class="card-value ${r.npv20 > 5000 ? 'accent' : r.npv20 > 0 ? 'amber' : 'red'}">${fmtCurrency(r.npv20)}</div>
         <div class="card-delta">Lifetime gain after install</div>
       </div>
@@ -7063,15 +7063,15 @@ function renderRefine(){
   const region = IRISH_REGIONS[state.region || 'east'];
   const stratSummary = state.battery_kwh > 0
     ? `${({ auto: 'Automatic', arbitrage: 'Charge cheap, use at peak', self: 'Self-consume' })[state.strategy_mode] || state.strategy_mode}${state.charge_from_grid ? ' · charges from the grid' : ''}`
-    : 'No battery modelled';
+    : 'No battery';
   const tariffDates = TARIFFS.map(t => t.verified_date).filter(Boolean).sort();
   const tariffSummary = tariffDates.length
     ? `${TARIFFS.length} plans · last verified ${fmtVerifiedDate(tariffDates[tariffDates.length-1])}`
     : `${TARIFFS.length} plans bundled`;
   const csvSummary = state._csv_imported
-    ? `✓ Smart meter data imported · ${Math.round(Object.values(state.bills).reduce((a,b)=>a+b,0)).toLocaleString()} kWh/yr`
+    ? `✓ Using your meter data · ${Math.round(Object.values(state.bills).reduce((a,b)=>a+b,0)).toLocaleString()} kWh/yr`
     : 'Replace bill estimate with real 30-min interval data';
-  const shapeSummary = 'Edit only if you have evidence — default profile is calibrated for Irish homes';
+  const shapeSummary = 'Leave this unless you know better. It’s set for a typical Irish home.';
   const link = (onclick, icon, title, sub) => `<button class="adv-link" onclick="${onclick}">
       <span class="adv-link-ico">${icon}</span>
       <span class="adv-link-text"><b>${title}</b><small>${sub}</small></span>${ic('chevR', 16)}</button>`;
@@ -7082,17 +7082,17 @@ function renderRefine(){
       ${link('openMyHome()', ic('home', 18), 'My home', `${esc(region ? region.name : '')} · ${esc(state.heating_type)} heating · ${Math.round(v7AnnualKwh()).toLocaleString('en-IE')} kWh a year${state.ev_active ? ' · EV' : ''}`)}
       ${link('openMySystem()', ic('sun', 18), 'My system', state.considering_solar && totalPanels() > 0
         ? `${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh battery` : ''} · ${eur(state.install_cost)}`
-        : 'No solar modelled yet')}
+        : 'No solar yet')}
     </div>
     <p class="adv-intro">Settings most homes never need. Each starts on a value that suits a typical Irish home.</p>
 
     ${section('strategy', ic('bolt',17), 'Battery strategy', stratSummary, renderStrategyControls())}
 
-    ${section('tariffs', ic('radar',17), 'Tariff data freshness', tariffSummary, `
+    ${section('tariffs', ic('radar',17), 'How fresh the prices are', tariffSummary, `
       <div style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line-soft);margin-bottom:10px">
         <div style="flex:1">
           <div style="font-size:13px;font-weight:700;color:var(--ink)">Include dynamic-price plans</div>
-          <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.5">Wholesale-tracking plans (hourly market price) are excluded from rankings until pricing clarity improves. Their real cost depends on market swings nobody can predict.</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.5">Plans that follow the wholesale price aren’t ranked. Nobody can predict what they’ll cost.</div>
         </div>
         <div onclick="state.include_dynamic=!state.include_dynamic;invalidate();saveState();renderApp()" style="flex-shrink:0;width:44px;height:26px;border-radius:999px;cursor:pointer;background:${state.include_dynamic ? 'var(--accent)' : 'var(--track-soft)'};position:relative;transition:background .15s">
           <div style="position:absolute;top:3px;left:${state.include_dynamic ? '21px' : '3px'};width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s"></div>
@@ -7113,11 +7113,11 @@ function renderRefine(){
             const changes = (s.potential_changes || []).length;
             if (changes > 0) html += `<br><span style="color:var(--amber)">${changes} possible rate change${changes>1?'s':''} flagged</span>`;
           }
-          return html || '<span style="color:var(--ink-dim)">Tariff data bundled with this release.</span>';
+          return html || '<span style="color:var(--ink-dim)">Prices as of this version.</span>';
         })()}
       </div>
       <div style="padding:10px 12px;background:var(--well);border:1px solid var(--hair);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.6">
-        Checked every morning: each supplier's own price page is read and every plan compared. A price change is reviewed by a person before it reaches the app, so a misread page can never change your figures. The date above is when the rates in the app were last updated.
+        We check every supplier’s price page each morning. A person checks any change before it goes into the app. Rates last updated on the date above.
       </div>
       ${(state._tariff_status?.potential_changes || []).length > 0 ? `
         <div style="margin-top:10px;padding:10px 12px;background:rgba(255,145,0,.08);border:1px solid rgba(255,145,0,.35);border-radius:8px;font-family:var(--mono);font-size:12px;line-height:1.7">
@@ -7130,18 +7130,18 @@ function renderRefine(){
       ` : ''}
     `)}
 
-    ${section('csv', ic('csv',17), 'Smart meter data', csvSummary, `
+    ${section('csv', ic('csv',17), 'Smart-meter data', csvSummary, `
       <div onclick="setScreen('csv-import')" style="padding:12px;background:rgba(90,156,255,.05);border:1px solid rgba(90,156,255,.3);border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:12px">
         <div>${ic('csv',18)}</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:600;color:var(--ink)">${state._csv_imported ? 'Update or replace imported CSV' : 'Import ESB smart meter CSV'}</div>
-          <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">${state._csv_imported ? `Currently using real 30-min data — ${Math.round(Object.values(state.bills).reduce((a,b)=>a+b,0)).toLocaleString()} kWh/yr` : 'Use real data from esbnetworks.ie instead of a bill estimate'}</div>
+          <div style="font-size:13px;font-weight:600;color:var(--ink)">${state._csv_imported ? 'Update or replace imported CSV' : 'Add your ESB meter file'}</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">${state._csv_imported ? `Using your meter readings: ${Math.round(Object.values(state.bills).reduce((a,b)=>a+b,0)).toLocaleString()} kWh/yr` : 'Use your ESB meter file instead of a guess from your bill'}</div>
         </div>
         <div style="color:var(--ink-soft);font-size:17px">›</div>
       </div>
     `)}
 
-    ${section('shape', ic('chart',17), 'Advanced — consumption shape', shapeSummary, renderShapeControls())}
+    ${section('shape', ic('chart',17), 'Usage pattern', shapeSummary, renderShapeControls())}
 
     <div style="margin-top:18px;padding:12px 14px;background:var(--accent-faint);border:1px solid var(--accent);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.55;text-align:center">
       <b style="color:var(--accent);font-family:var(--mono);letter-spacing:.08em">✓ AUTOSAVE</b><br>
@@ -7218,7 +7218,7 @@ function rfSet(key, v, min, max){
   if (v === state[key]) return;
   if (state.solar_is_estimate && (key === 'count_A' || key === 'count_B' || key === 'battery_kwh')){
     state.solar_is_estimate = false;
-    showToast('Saved as your installed system — the estimate label is removed', { type:'accent', icon:ic('checkC',16), title:'Your system' });
+    showToast('Saved as installed', { type:'accent', icon:ic('checkC',16), title:'Your system' });
   }
   state[key] = v;
   invalidate();
@@ -7284,7 +7284,7 @@ function refineChanged(){
       .some(([id,key]) => { const el = get(id); return el && el.value !== '' && +el.value !== state[key]; });
     if (changed){
       state.solar_is_estimate = false;
-      showToast('Saved as your installed system — the estimate label is removed', { type:'accent', icon:ic('checkC',16), title:'Your system' });
+      showToast('Saved as installed', { type:'accent', icon:ic('checkC',16), title:'Your system' });
     }
   }
   // Manual cost/grant edits lock those fields against auto-recalculation
@@ -7329,12 +7329,12 @@ function refineChanged(){
       if (!state.ev_km_per_year) state.ev_km_per_year = 15000;
       if (!state.ev_kwh_per_100km) state.ev_kwh_per_100km = 17;
       if (!state.ev_charger_kw) state.ev_charger_kw = 7;
-      showToast(`Using defaults: ${state.ev_km_per_year.toLocaleString()} km/yr, ${state.ev_kwh_per_100km} kWh/100km. Edit below.`, { type:'amber', icon:ic('car',16), title:'EV added to model' });
+      showToast(`Using defaults: ${state.ev_km_per_year.toLocaleString()} km/yr, ${state.ev_kwh_per_100km} kWh/100km. Edit below.`, { type:'amber', icon:ic('car',16), title:'EV added' });
     }
     if (!state.ev_active && wasActive){
       state.ev_km_per_year = 0;
       state._ev_just_enabled = false;
-      showToast('EV removed from the model. Headline figures reflect house only.', { type:'blue', icon:ic('car',16), title:'EV removed' });
+      showToast('EV removed', { type:'blue', icon:ic('car',16), title:'EV removed' });
     }
   }
   // If user actually edits an EV field, clear the just-enabled prompt
@@ -7416,7 +7416,7 @@ function confirmResetAll(){
    ============================================================ */
 function openEmailModal(source){
   if (state.email_captured){
-    showToast('Already on the list — thanks!');
+    showToast('You’re already on the list.');
     return;
   }
   const m = document.createElement('div');
@@ -7449,9 +7449,9 @@ function submitModalEmail(source){
   captureEmail(email, source);
   closeEmailModal();
   if (source === 'installer_quotes'){
-    showToast('Saved on this device. Installer matching isn\u2019t live yet.');
+    showToast('Saved on this phone. We can’t connect you with installers yet.');
   } else {
-    showToast('Got it — we\'ll email you the report.');
+    showToast('Thanks. We’ll email you the report.');
   }
 }
 
@@ -7617,7 +7617,7 @@ function renderMonitor(){
   } else if (state._contract_edit){
     contractHtml = `<div class="mon-toggle" style="flex-wrap:wrap;gap:10px">
       <div style="width:100%"><div class="mon-toggle-label">When does your contract end?</div>
-        <div class="mon-toggle-sub">It's on your bill or in your sign-up email — roughly is fine</div></div>
+        <div class="mon-toggle-sub">It’s on your bill or your welcome email. A rough date is fine.</div></div>
       <input type="date" id="contract-date-input" style="flex:1;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--well);color:var(--ink);font-family:var(--mono);font-size:13px"/>
       <button onclick="saveContractDate()" style="padding:10px 16px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent)">Save</button>
       <button onclick="cancelContractEdit()" style="padding:10px 12px;border-radius:999px;font-size:12px;font-weight:600;font-family:var(--display);border:1px solid var(--line);background:transparent;color:var(--ink-soft)">Cancel</button>
@@ -7625,7 +7625,7 @@ function renderMonitor(){
   } else {
     contractHtml = `<div class="mon-toggle" onclick="setContractReminder()" style="cursor:pointer">
       <div><div class="mon-toggle-label">Add a contract-end reminder</div>
-        <div class="mon-toggle-sub">Set your contract end date — we'll flag it here from 30 days out</div></div>
+        <div class="mon-toggle-sub">When does your contract end? We’ll remind you 30 days before.</div></div>
       <div style="font-family:var(--mono);font-size:17px;color:var(--accent)">+</div>
     </div>`;
   }
@@ -7635,7 +7635,7 @@ function renderMonitor(){
   const events = [];
   events.push({ c:'var(--accent)', when:'Just now',
     title: onBest ? 'Re-checked the whole market' : `Found a cheaper plan for you`,
-    sub: onBest ? `${countLabel} plans simulated against your usage — you're still best off where you are.`
+    sub: onBest ? `${countLabel} plans checked. You’re already on the best one.`
                 : `${best.plan.supplier} ${best.plan.plan} now leads for your home.` });
   events.push({ c:'var(--blue)', when:'Your ranking',
     title: rank ? `Your plan sits #${rank} of ${countLabel}` : `Your plan is outside the ranking of ${countLabel}`,
@@ -7659,12 +7659,12 @@ function renderMonitor(){
 
   return `${topbar('Price watch', 'blue', true)}
   <div class="screen">
-    <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin:2px 2px 14px">We watch every Irish tariff and flag what's worth acting on.</div>
+    <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin:2px 2px 14px">We check every Irish plan and tell you when one is worth switching to.</div>
     ${contractAlert}
     <div class="mon-toggle">
       <div>
         <div class="mon-toggle-label">Market monitoring</div>
-        <div class="mon-toggle-sub">${on ? 'Active · we watch every Irish tariff for you' : 'Paused · tap to resume'}</div>
+        <div class="mon-toggle-sub">${on ? 'On. We check every plan for you.' : 'Paused · tap to resume'}</div>
       </div>
       <div class="mon-switch ${on ? 'on' : 'off'}" onclick="toggleMonitoring()"><div class="mon-switch-knob"></div></div>
     </div>
@@ -7687,19 +7687,19 @@ function renderMonitor(){
 
     <div class="section-title">What we check for you</div>
     <div class="mon-watch">
-      <div class="mon-watch-item"><span class="mon-watch-ic">${ic('bolt',14)}</span><div><b>A better plan appeared.</b> A new or repriced tariff now beats your current one for your usage.</div></div>
+      <div class="mon-watch-item"><span class="mon-watch-ic">${ic('bolt',14)}</span><div><b>A better plan appeared.</b> A plan is now cheaper than yours.</div></div>
       <div class="mon-watch-item"><span class="mon-watch-ic">${ic('bell',14)}</span><div><b>Your contract is ending.</b> Before you roll onto a default rate, we flag it here so you can re-check.</div></div>
       <div class="mon-watch-item"><span class="mon-watch-ic">${ic('sun',14)}</span><div><b>Seasonal solar insight.</b> If you have panels, how your roof performed and what it saved.</div></div>
     </div>
     <div style="font-size:12px;color:var(--ink-soft);text-align:center;margin-top:12px;line-height:1.6;padding:0 6px">
-      These checks run here, in the app — we don't email you or send push notifications, and there's no account required. Open Price watch whenever you want a fresh read.
+      These checks happen in the app. We don’t email or send notifications. Open Price watch to check again.
     </div>
 
     <div class="secondary-card blue" onclick="setScreen('independence')" style="margin-top:16px">
       <div class="secondary-card-icon">${ic('shield',19)}</div>
       <div class="secondary-card-body">
         <div class="secondary-card-title">How we make money</div>
-        <div class="secondary-card-sub">Our independence, in plain English</div>
+        <div class="secondary-card-sub">How we make money</div>
       </div>
       <div class="secondary-card-arrow">›</div>
     </div>
@@ -7758,33 +7758,32 @@ function renderContractAlert(){
   if (proj && proj.std && proj.delta > 20){
     projLine = ` Rolling onto ${proj.std.supplier} standard rates would cost about <b>+${fmtCurrency(Math.round(proj.delta))}/yr</b> on your usage.`;
   } else if (proj && proj.onStandard){
-    projLine = ` You're already on standard rates — the gap to the best plan is the cost of staying put.`;
+    projLine = ` You’re on standard rates. Switching to the best plan saves ….`;
   }
   return `<div class="mon-status action" style="margin-bottom:12px">
     <div class="mon-status-title">${ic('bell',14)} Contract review ${days > 0 ? 'due in ' + days + ' day' + (days === 1 ? '' : 's') : 'overdue'}</div>
-    <div class="mon-status-meta">Suppliers count on you rolling over without looking.${projLine} Re-check before ${fmtShortDate(state.contract_end_date)} — switching takes 10–15 working days.</div>
+    <div class="mon-status-meta">Suppliers count on you not checking.${projLine} Look again before ${fmtShortDate(state.contract_end_date)}. A switch takes 2–3 weeks.</div>
   </div>`;
 }
 
 /* ── INDEPENDENCE / TRUST ─────────────────────────────────── */
 function renderIndependence(){
   const cards = [
-    ['green', ic('plans',19), 'We rank by your cost','The plan that saves you the most is always #1 — even when it earns us nothing. A commission never changes a ranking.'],
-    ['blue', ic('swap',19), 'We earn on switches','When you switch through us, the supplier pays a referral fee (typically €20–50). We show you whenever a plan earns us a commission.'],
-    ['blue', ic('sun',19), 'We earn on solar leads','If you ask us to introduce you to installers, they pay us per introduction — never for a better ranking or a kinder review.'],
-    ['green', ic('shield',19), 'We never sell your data','Your usage stays on your device. We share your contact details with a third party only at the moment you explicitly tap to ask.'],
+    ['green', ic('plans',19), 'Rankings','The plan that saves you most is always first, whether we earn from it or not.'],
+    ['blue', ic('swap',19), 'Switching','If a supplier pays us when you switch, we say so on that plan. Your price is the same, and the ranking doesn’t change.'],
+    ['blue', ic('sun',19), 'Installer quotes','If you ask for installer quotes, installers pay us for the introduction. It never affects rankings or what we say about a quote.'],
+    ['green', ic('shield',19), 'Your data','Your usage stays on your phone. We only share your contact details when you ask us to.'],
   ];
-  return `${topbar('Our independence', 'blue', true)}
+  return `${topbar('How we make money', 'blue', true)}
   <div class="screen">
     <div class="qr-hero" style="border-color:var(--blue);box-shadow:var(--hero-shadow),0 0 32px -10px var(--blue-glow);text-align:left;padding:20px">
-      <div class="qr-eyebrow" style="color:var(--blue)">The catch, stated plainly</div>
-      <div style="font-family:var(--display);font-size:17px;font-weight:600;color:var(--ink);line-height:1.35;margin-top:6px">We only make money when you actually save money. Here's exactly how.</div>
+      <div class="qr-eyebrow" style="color:var(--blue)">How we make money</div>
+      <div style="font-family:var(--display);font-size:17px;font-weight:600;color:var(--ink);line-height:1.35;margin-top:6px">Here’s where our money comes from.</div>
     </div>
     ${cards.map(([cls,ic,t,b]) => `<div class="indep-card ${cls}">
       <div class="indep-ic">${ic}</div>
       <div><div class="indep-title">${t}</div><div class="indep-body">${b}</div></div>
     </div>`).join('')}
-    <p class="disclaimer"><b>Why we show this.</b> Most apps bury "how we make money" in a help page. For an independent advisor, it belongs in the open — so you can judge our advice knowing exactly what's behind it.</p>
   </div>
   ${bottomNav()}`;
 }
@@ -7803,18 +7802,18 @@ function assessQuote(q){
 
   if (kwp < recKwp*0.65){
     return { cls:'under', verdict:'Underspec',
-      take:`At ${kwp.toFixed(1)} kWp this is small for your roof — we'd model around ${recKwp.toFixed(1)} kWp for your usage. Cheaper upfront, but you'd under-build and leave savings on the table.` };
+      take:`At ${kwp.toFixed(1)} kWp this is small for your roof. About ${recKwp.toFixed(1)} kWp would suit you. Cheaper now, but you’d save less.` };
   }
   if (pct > 0.15){
     return { cls:'high', verdict:`${Math.round(pct*100)}% high`,
-      take:`This is above our independent estimate of ${fmtCurrency(fairLow)}–${fmtCurrency(fairHigh)} for ${kwp.toFixed(1)} kWp${batt>0?` + ${batt} kWh battery`:''}. Worth asking them to itemise, or get one more quote.` };
+      take:`This is more than we’d expect: ${fmtCurrency(fairLow)}–${fmtCurrency(fairHigh)} for ${kwp.toFixed(1)} kWp${batt>0?` + ${batt} kWh battery`:''}. Ask them to itemise it, or get another quote.` };
   }
   if (pct < -0.18){
-    return { cls:'under', verdict:'Below market',
-      take:`Notably cheaper than our ${fmtCurrency(fairLow)}–${fmtCurrency(fairHigh)} estimate. That can be a great deal — just confirm panel/inverter brands and the workmanship warranty before signing.` };
+    return { cls:'under', verdict:'Cheaper than most',
+      take:`Cheaper than we’d expect (${fmtCurrency(fairLow)}–${fmtCurrency(fairHigh)}). Could be a good deal. Check the panel and inverter brands and the warranty before you sign.` };
   }
   return { cls:'fair', verdict:'Fair price',
-    take:`Sits inside our independent estimate of ${fmtCurrency(fairLow)}–${fmtCurrency(fairHigh)} for this system. A reasonable, well-matched quote for your home.` };
+    take:`A fair price. We’d expect ${fmtCurrency(fairLow)}–${fmtCurrency(fairHigh)} for this system.` };
 }
 
 function renderQuotes(){
@@ -7839,8 +7838,8 @@ function renderQuotes(){
   return `${topbar('Compare quotes', 'amber', true)}
   <div class="screen">
     <div class="qr-hero" style="border-color:var(--amber);text-align:left;padding:18px">
-      <div class="qr-eyebrow" style="color:var(--amber)">Independent second opinion</div>
-      <div style="font-family:var(--display);font-size:17px;font-weight:600;color:var(--ink);line-height:1.35;margin-top:6px">Add an installer quote and we'll check it against our own model — not theirs.</div>
+      <div class="qr-eyebrow" style="color:var(--amber)">Check a quote</div>
+      <div style="font-family:var(--display);font-size:17px;font-weight:600;color:var(--ink);line-height:1.35;margin-top:6px">Add an installer’s quote and we’ll tell you if it’s fair.</div>
     </div>
 
     <div class="refine-panel" style="padding:16px">
@@ -7862,7 +7861,7 @@ function renderQuotes(){
 
     <div class="refine-panel" style="padding:13px 15px;background:rgba(90,156,255,.04);border-color:rgba(90,156,255,.2);margin-top:8px">
       <div style="font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--blue);font-weight:700;margin-bottom:5px">WHY YOU CAN TRUST THIS</div>
-      <div style="font-size:12px;color:var(--ink-soft);line-height:1.5">Installers pay us per introduction — never to rank higher or to soften a verdict. The benchmark is our own model of Irish 2026 prices.</div>
+      <div style="font-size:12px;color:var(--ink-soft);line-height:1.5">Installers pay us for introductions, but never to rank higher. Prices are compared with typical Irish prices this year.</div>
     </div>
   </div>
   ${bottomNav()}`;
@@ -7873,7 +7872,7 @@ function addQuote(){
   const price = parseFloat((document.getElementById('q-price')||{}).value) || 0;
   const kwp = parseFloat((document.getElementById('q-kwp')||{}).value) || 0;
   const batt = parseFloat((document.getElementById('q-batt')||{}).value) || 0;
-  if (!price || !kwp){ showToast('Add at least a price and kWp', { type:'amber', icon:ic('warn',16) }); return; }
+  if (!price || !kwp){ showToast('Add at least the price and size', { type:'amber', icon:ic('warn',16) }); return; }
   if (!Array.isArray(state.solar_quotes)) state.solar_quotes = [];
   state.solar_quotes.push({ id:'q'+Date.now(), installer:name||'Installer', price, kwp, battery:batt });
   saveState();
@@ -7895,7 +7894,7 @@ function renderCompare(){
   const saveBar = `
     <div class="card" style="margin-bottom:14px">
       <div style="font-size:12px;font-weight:700;color:var(--ink);margin-bottom:3px">Save this configuration</div>
-      <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px">Snapshots your current setup — ${liveSummary.hasSolar ? liveSummary.panels + ' panels' : 'no solar'}${liveSummary.battery > 0 ? ' · ' + liveSummary.battery + ' kWh' : ''}${liveSummary.ev ? ' · EV' : ''}, best plan ${liveSummary.bestPlanName}. Load or compare it later.</div>
+      <div style="font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px">Saves your current setup: ${liveSummary.hasSolar ? liveSummary.panels + ' panels' : 'no solar'}${liveSummary.battery > 0 ? ' · ' + liveSummary.battery + ' kWh' : ''}${liveSummary.ev ? ' · EV' : ''}, best plan ${liveSummary.bestPlanName}. Load or compare it later.</div>
       <div style="display:flex;gap:8px">
         <input id="scenario-name-input" class="modal-input" style="flex:1;margin:0" type="text" placeholder="Name it (optional)" maxlength="40">
         <button class="switch-cta" style="margin:0;white-space:nowrap;padding:12px 18px;width:auto;flex:0 0 auto" onclick="saveCurrentScenario()">${ic('plus',15)} Save</button>
@@ -7908,7 +7907,7 @@ function renderCompare(){
       <div class="qr-hero" style="border-color:var(--blue);box-shadow:var(--hero-shadow),0 0 32px -10px var(--blue-glow);text-align:left;padding:20px;margin-bottom:14px">
         <div class="qr-eyebrow" style="color:var(--blue)">Scenarios</div>
         <div style="font-family:var(--display);font-size:17px;font-weight:600;color:var(--ink);line-height:1.35;margin-top:6px">Design a case, save it, compare them side by side.</div>
-        <div style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin-top:8px">Panels, battery, EV, plan — save a few setups and see them ranked on cost, payback, best plan and more.</div>
+        <div style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin-top:8px">Save a few setups and compare them.</div>
       </div>
       ${saveBar}
       <div class="card" style="text-align:center;padding:28px 20px;opacity:.85">
@@ -7975,7 +7974,7 @@ function renderCompareTable(selIds){
     { k:'Saving vs current', get:s=>s.savings,                 fmt:fmtEur,                     better:'high' },
     { k:'Solar benefit/yr', get:s=>s.solarBenefit,             fmt:fmtEur,                     better:'high' },
     { k:'Payback',       get:s=>s.payback,                     fmt:v=>v==null?'—':v.toFixed(1)+' yr', better:'low' },
-    { k:'20-yr NPV',     get:s=>s.npv20,                       fmt:fmtEur,                     better:'high' },
+    { k:'20-year value',     get:s=>s.npv20,                       fmt:fmtEur,                     better:'high' },
     { k:'Annual kWh',    get:s=>s.annualKwh,                   fmt:v=>v?Math.round(v).toLocaleString():'—', better:null }
   ];
 
@@ -8072,14 +8071,14 @@ function computeAlerts(){
     if (old.length && old.some((e) => lastDay < addDays(e.at, 14))){
       out.push({ id: `meter:${quarterKey()}`, kind: 'meter', level: 'info',
         title: 'Check your savings against your meter',
-        body: 'Download your smart-meter file from esbnetworks.ie (My Account → Downloads) and upload it. We will re-price what you actually used and show what you really saved.',
+        body: 'Download your meter file from esbnetworks.ie (My Account, then Downloads) and add it here. We’ll show what you really saved.',
         go: "v7Sheet('meter')", cta: 'Upload meter data' });
     }
     if (state.contract_end){
       const days = Math.round((Date.parse(state.contract_end) - Date.parse(today)) / 864e5);
       if (days <= 45 && days >= -60) out.push({ id: `contract:${state.contract_end}`, kind: 'contract', level: 'warn',
         title: days >= 0 ? `Your contract ends in ${days} day${days === 1 ? '' : 's'}` : 'Your contract has ended',
-        body: `${fmtDay(state.contract_end)}. ${days >= 0 ? 'After it' : 'Since then'} you are usually moved to the supplier's standard rate, which costs more. A new plan can be lined up now.`,
+        body: `${fmtDay(state.contract_end)}. ${days >= 0 ? 'After it' : 'Since then'} you’re usually moved to the standard rate, which costs more. You can line up a new plan now.`,
         go: "setScreen('plans')", cta: 'Find a new plan' });
     }
   } catch (e) {}
@@ -8175,7 +8174,7 @@ function renderJourneySheet(kind){
     return `<div class="v7-sheet-head"><div class="v7-eyebrow">The tally</div><h2 class="v7-h">When were the panels switched on?</h2></div>
       <p class="me-p">The system becomes your installed system, and its yearly saving is counted from this date.</p>
       <label class="sy-field"><span><b>Date</b></span><input type="date" id="jr-date" value="${today}" max="${today}"></label>
-      <button class="v7-cta-2" onclick="journeyCommit('install')">Add to my tally</button>`;
+      <button class="v7-cta-2" onclick="journeyCommit('install')">Add to my total</button>`;
   }
   // The plans ranked best for this home come first, the top one chosen: that
   // is almost always the one the person just switched to. Every other plan
@@ -8196,7 +8195,7 @@ function renderJourneySheet(kind){
       <optgroup label="All other plans">${rest.map((p) => opt(p, -1)).join('')}</optgroup>
     </select></label>
     <label class="sy-field"><span><b>Date</b></span><input type="date" id="jr-date" value="${today}" max="${today}"></label>
-    <button class="v7-cta-2" onclick="journeyCommit('switch')">Add to my tally</button>`;
+    <button class="v7-cta-2" onclick="journeyCommit('switch')">Add to my total</button>`;
 }
 
 function renderAlertsBlock(){
@@ -8209,7 +8208,7 @@ function renderAlertsBlock(){
         <button class="al-go" onclick="${a.go}">${a.cta} ${ic('chevR', 14)}</button></div>
     </div>`).join('') : `<div class="me-empty">Nothing needs you right now. We check every time prices change.</div>`;
   const email = _sbUser
-    ? `<label class="sy-toggle al-email"><span><b>Email me these</b><small>Price changes on my plan and my contract ending. Never marketing.</small></span>
+    ? `<label class="sy-toggle al-email"><span><b>Email me these</b><small>Price changes on my plan and my contract ending. No marketing.</small></span>
         <input type="checkbox" role="switch" ${state.alerts_email ? 'checked' : ''} onchange="state.alerts_email=this.checked;saveState();renderApp()"></label>`
     : `<div class="al-email-guest">Sign in to get these by email too.</div>`;
   return `<section class="me-list al-list">${body}${email}</section>`;
@@ -8222,7 +8221,7 @@ function renderTallyBlock(){
   const perYear = j.reduce((a, e) => a + (e.per_year || 0), 0);
   return `<section class="me-tally">
     ${j.length ? `<div class="me-tally-fig">${eur(total)}<small>saved so far</small></div>
-      <div class="me-tally-sub">About ${eur(perYear)} a year from what you've done · estimated from the model</div>
+      <div class="me-tally-sub">About ${eur(perYear)} a year saved so far (estimated)</div>
       <div class="me-tally-list">${j.map((e, i) => `<div class="me-tally-row"><span><b>${esc(e.label)}</b><small>${fmtDay(e.at)} · ${eur(e.per_year)} a year</small></span>
         <button class="me-mini me-x" aria-label="Remove" onclick="removeJourney(${i})">${ic('x', 14)}</button></div>`).join('')}</div>`
       : `<div class="me-tally-empty"><b>Your savings tally</b><small>Tell us when you switch plan or your panels go in, and we'll keep count of what it's saving you.</small></div>`}
@@ -8230,7 +8229,7 @@ function renderTallyBlock(){
       <button class="me-mini" onclick="v7Sheet('journey','switch')">${ic('swap', 14)} I switched plan</button>
       ${sysPlanned ? `<button class="me-mini" onclick="v7Sheet('journey','install')">${ic('sun', 14)} My panels are in</button>` : ''}
     </div>
-    ${j.length ? `<div class="me-fine">The tally uses the model's figure for each step. Importing your ESB smart-meter data will check it against what really happened.</div>` : ''}
+    ${j.length ? `<div class="me-fine">These are estimates. Add your ESB meter file and we’ll check them against what really happened.</div>` : ''}
   </section>`;
 }
 
@@ -8376,12 +8375,12 @@ function renderMeterSheet(){
     <ol class="ms-steps">
       <li>Sign in at <b>myaccount.esbnetworks.ie</b> (free; your MPRN is on your bill).</li>
       <li>Open <b>My Meter</b>, then <b>Downloads</b>, and download <b>30-minute readings (kW)</b>.</li>
-      <li>Come back and choose the file below.</li>
+      <li>Then come back here and choose the file.</li>
     </ol>
     <label class="v7-cta-2 ms-pick">${ic('csv', 16)} Choose the file
       <input id="csv-file-input" type="file" accept=".csv,.CSV" onchange="handleCsvFile(event)" hidden></label>
     <div id="csv-parse-result"></div>
-    <div class="v7-fine">The file stays on this phone (and in your account if you're signed in). Less than a year of readings still works.</div>`;
+    <div class="v7-fine">The file stays on this phone, and in your account if you’re signed in. Less than a year is fine.</div>`;
 }
 
 /**
@@ -8417,8 +8416,8 @@ function renderHabitsSheet(){
       <span class="is-dear"><b>${fmtCent(dear)}</b>${dearWin}</span>
     </div>
     <div class="me-list">${moves.map((m) => `<div class="me-row"><span><b>${m.what}</b><small>${m.how}</small></span><b class="ms-eur">${eur(m.eur)}/yr</b></div>`).join('')}</div>
-    <p class="me-p">All of them together: about <b>${eur(total)} a year</b>, on ${esc(plan.supplier)} ${esc(plan.plan)}. Your next meter upload shows how much moved, and your score goes up with it.</p>
-    <button class="v7-cta-2" onclick="questDone('habits')">Done: I've set my timers</button>`;
+    <p class="me-p">Together: about <b>${eur(total)} a year</b>, on ${esc(plan.supplier)} ${esc(plan.plan)}. Your next meter upload shows how much moved, and your score goes up with it.</p>
+    <button class="v7-cta-2" onclick="questDone('habits')">Done, my timers are set</button>`;
 }
 
 /* Reward feedback: when something the person did raises the score, say so. */
@@ -8483,8 +8482,8 @@ function renderScoreBlock(){
     ${sc.done.length ? `<div class="gm-h">Done</div><div class="gm-done">${sc.done.map((d) => `<span>${ic('checkC', 14)} ${d}</span>`).join('')}</div>` : ''}
 
     ${checks.filter((c) => c.kind === 'switch').map(({ e, r }) => r
-      ? `<div class="sc-check"><b>${esc(e.label)}</b><small>Checked on ${r.days} days of your meter: really ${eur(r.perYear)} a year, against ${eur(e.per_year)} expected${r.ratio != null ? ` (${Math.round(r.ratio * 100)}%)` : ''}.</small></div>`
-      : `<div class="sc-check"><b>${esc(e.label)}</b><small>Not checked yet: needs two weeks of meter data from ${fmtDay(e.at)}.</small></div>`).join('')}
+      ? `<div class="sc-check"><b>${esc(e.label)}</b><small>Your meter, over ${r.days} days: ${eur(r.perYear)} a year, against ${eur(e.per_year)} expected${r.ratio != null ? ` (${Math.round(r.ratio * 100)}%)` : ''}.</small></div>`
+      : `<div class="sc-check"><b>${esc(e.label)}</b><small>Not checked yet. We need two weeks of meter data from ${fmtDay(e.at)}.</small></div>`).join('')}
   </section>`;
 }
 
@@ -8543,12 +8542,12 @@ function renderAdviceBlock(){
   const fresh = a && a.quarter === quarterKey();
   const effort = { easy: 'Easy', some: 'Some effort', big: 'A bigger step' };
   return `<section class="adv">
-    ${stale ? `<div class="me-empty">Your plan or setup has changed since the last suggestions, so they no longer apply. Ask again for ones that fit.</div>` : ''}
+    ${stale ? `<div class="me-empty">Your plan or setup changed, so these tips are out of date. Get new ones.</div>` : ''}
     ${fresh && a.items.length ? a.items.map((x) => `<div class="adv-item">
         <div class="adv-item-top"><b>${esc(x.title)}</b>${x.saving_eur ? `<em>${eur(x.saving_eur)}/yr</em>` : ''}</div>
         <small>${esc(x.why)}</small>
         <span class="adv-tag">${effort[x.effort] || ''}</span>
-      </div>`).join('') : `${stale ? '' : `<div class="me-empty">${fresh ? 'Nothing more to suggest this quarter: you are doing what saves most.' : 'Three things worth doing this quarter, worked out from your plan, your prices and how your home uses power.'}</div>`}`}
+      </div>`).join('') : `${stale ? '' : `<div class="me-empty">${fresh ? 'Nothing more to suggest. You’re already doing what saves most.' : 'Three things worth doing this quarter, worked out from your plan, your prices and how your home uses power.'}</div>`}`}
     <button class="me-add" ${_adviceBusy ? 'disabled' : ''} onclick="getAdvice()">${_adviceBusy ? 'Working it out…' : `${ic('spark', 16)} ${fresh ? 'Ask again' : "Get this quarter's suggestions"}`}</button>
     <div class="adv-fine">Written by AI (Anthropic's Claude) from the figures here, with no personal details sent. Check anything before acting on it.</div>
   </section>`;
@@ -8835,7 +8834,7 @@ function renderSystemsList(){
   if (!ready) scheduleGoalSweep();
   const anyUse = entries.some(isInUse);
   return `<section class="sys-list" aria-label="Systems">
-    <div class="sys-head"><b>${ic('spark', 14)} Systems for your home</b><small>Tap one to use it. ${state.grant_eligible !== false ? 'Prices before the grant; payback and 20 years count it.' : 'This home does not get the SEAI grant, so none is counted.'} Each on the best plan for this home.</small></div>
+    <div class="sys-head"><b>${ic('spark', 14)} Systems for your home</b><small>Tap one to use it. ${state.grant_eligible !== false ? 'Prices before the grant; payback and 20 years count it.' : 'This home does not get the SEAI grant, so none is counted.'} Each is on its best plan.</small></div>
     ${!anyUse && v7HasModelledSystem() ? `<div class="sys-row in-use sys-g-current"><div class="sys-main"><span class="sys-l"><b>Your system now <i class="sys-tag">In use</i></b><small>${esc(systemSpec(state))}</small></span><span class="sys-r">${metrics(out && out.current, state, !state.cost_is_manual)}</span></div></div>` : ''}
     ${group('suggested', 'Suggested by Peakless', '')}
     ${group('quotes', 'From your quotes', '')}
@@ -8968,7 +8967,7 @@ function householdScene(){
         <text class="hs-sub" x="309" y="229" text-anchor="middle">gives ${Math.round(cyc).toLocaleString("en-IE")} kWh</text>` : ''}
       ${ev ? `<text class="hs-sub" x="304" y="296" text-anchor="middle">EV ${k(evKwh)}</text>` : ''}
 
-      ${tap('openMySystem()', 'My system: panels and battery', 100, 56, 180, 70)}
+      ${tap('openMySystem()', 'My system', 100, 56, 180, 70)}
       ${tap('openMyHome()', 'My home', 118, 124, 144, 110)}
       ${tap("setScreen('plans')", 'Your plan and the grid', 14, 112, 64, 166)}
       ${batt ? tap('openMySystem()', 'Battery', 286, 130, 46, 104) : ''}
@@ -9003,7 +9002,7 @@ function renderMe(){
       </section>`
     : `<section class="me-head me-guest">
         <div class="me-guest-top">${wordmarkHtml('pk-word-top')}<span class="me-badge">Guest</span></div>
-        <p class="me-p">Everything here is saved on this phone only. An account keeps it safe and opens the same home on any device. It is free, and nothing changes in how plans are ranked.</p>
+        <p class="me-p">Your home is only saved on this phone. A free account backs it up and opens it on any device. Rankings are the same either way.</p>
         ${sbInitialized() ? `<div class="me-auth">
           <button class="v7-cta-2" onclick="meOpenAuth('signup')">Create a free account</button>
           <button class="me-ghost" onclick="meOpenAuth('login')">I have an account</button>
@@ -9024,11 +9023,11 @@ function renderMe(){
   return `${topbar('My ' + BRAND.name, 'sage', true)}
   <div class="screen me">
     ${head}
-    ${_handover ? `<button class="me-warn" onclick="v7Sheet('handover')">${ic('warn', 16)} This phone and your account have different homes. Choose which to keep. Nothing is saved to your account until you do.</button>` : ''}
+    ${_handover ? `<button class="me-warn" onclick="v7Sheet('handover')">${ic('warn', 16)} This phone and your account have different homes. Choose which to keep. </button>` : ''}
 
     ${state.onboarding_complete ? `<div class="section-title">Alerts${unseenAlerts().length ? ` <span class="al-count">${unseenAlerts().length} new</span>` : ''}</div>
     ${renderAlertsBlock()}
-    <button class="me-row me-link me-pricewatch" onclick="setScreen('monitor')"><span><b>Price watch</b><small>Every Irish plan, watched daily: price rises, better plans, your contract end</small></span>${ic('chevR', 16)}</button>
+    <button class="me-row me-link me-pricewatch" onclick="setScreen('monitor')"><span><b>Price watch</b><small>We check every Irish plan daily for price rises, cheaper plans and your contract end</small></span>${ic('chevR', 16)}</button>
     <div class="section-title">Savings</div>
     ${renderTallyBlock()}
     <div class="section-title">Your ${BRAND.name} score</div>
@@ -9040,7 +9039,7 @@ function renderMe(){
     ${state.onboarding_complete ? householdScene() : ''}
     <div class="me-cards">
       ${card('openMyHome()', ic('home', 18), 'My home', `${esc(region ? region.name : '')} · ${kwh.toLocaleString('en-IE')} kWh a year`, 'Edit')}
-      ${card('openMySystem()', ic('sun', 18), 'My system', hasSys ? `${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh` : ''}` : 'No solar yet', hasSys ? 'Edit' : 'Model one')}
+      ${card('openMySystem()', ic('sun', 18), 'My system', hasSys ? `${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh` : ''}` : 'No solar yet', hasSys ? 'Edit' : 'Add solar')}
       ${card('startEvGuide()', ic('car', 18), 'My EV', state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No EV', state.ev_active ? 'Edit' : 'Add one')}
     </div>
 
@@ -9057,7 +9056,7 @@ function renderMe(){
     <div class="section-title">Settings and more</div>
     <section class="me-list">
       <button class="me-row me-link" onclick="reRunOnboarding()"><span><b>Re-run setup</b><small>Go through the setup questions again, starting from your answers</small></span>${ic('chevR', 16)}</button>
-      <button class="me-row me-link" onclick="startFresh()"><span><b>Start fresh</b><small>For testing: signs out and clears this phone, back to the first screen</small></span>${ic('chevR', 16)}</button>
+      <button class="me-row me-link" onclick="startFresh()"><span><b>Start fresh</b><small>Signs you out and clears this phone</small></span>${ic('chevR', 16)}</button>
       <button class="me-row me-link" onclick="setScreen('more')"><span><b>Settings, help and more</b><small>Advanced settings, appearance, privacy, how to switch, methodology</small></span>${ic('chevR', 16)}</button>
     </section>
 
@@ -9082,22 +9081,22 @@ function renderMore(){
   const groups = [
     ['Your data', [
       [ic('radar',19),'Price watch','Price changes, announced rises and alerts','monitor'],
-      [ic('csv',19),'Import smart-meter data','Your ESB file: the most accurate result','csv-import'],
+      [ic('csv',19),'Import smart-meter data','Your ESB meter file: the most accurate figures','csv-import'],
     ]],
     ['Do it', [
-      [ic('clip',19),"Upload an installer's quote",'We read it, check it and model it', null, "v7Sheet('quote')"],
+      [ic('clip',19),"Upload an installer's quote",'We’ll read it and check it against your home', null, "v7Sheet('quote')"],
       [ic('swap',19),'How to switch supplier','About ten minutes, nothing to cancel','how-to-switch'],
     ]],
   ];
   const folded = [
-    [ic('tune',19),'Advanced','Battery strategy, tariff options, usage shape','refine'],
+    [ic('tune',19),'Advanced','Battery, plan options, usage pattern','refine'],
     [ic('sun',19),'Start page','Quick answer, full setup, quote check','welcome'],
     [ic('scales',19),'Saved quotes', nQuotes ? nQuotes + ' saved, compared side by side' : 'Compare quotes side by side','quotes'],
     [ic('clip',19),'Type a quote in by hand','Check it against 2026 Irish prices','auditor'],
     [ic('flask',19),'How the figures are worked out','Data sources and the method','methodology'],
-    [ic('shield',19),'Our independence','How we make money, in plain English','independence'],
+    [ic('shield',19),'Our independence','How we make money','independence'],
     [ic('shield',19),'Privacy and your data','What we keep, who sees it, delete your account','privacy'],
-    [ic('home',19),'Installer portal','For installers: leads sent to your company','installer'],
+    [ic('home',19),'Installer portal','For installers','installer'],
   ];
   const th = state.theme === 'dark' ? 'dark' : 'light';
   return `${topbar('More', 'sage', true)}
@@ -9142,7 +9141,7 @@ function renderMore(){
       </div>`)).join('')}
     </details>
     <div style="font-size:13px;color:var(--ink-dim);text-align:center;margin-top:18px;line-height:1.7">
-      ${BRAND.name} · Independent · Ireland<br>${_sbUser ? 'Your setup is saved on this phone and in your account.' : 'Your data stays on this device.'}
+      ${BRAND.name} · Ireland<br>${_sbUser ? 'Your setup is saved on this phone and in your account.' : 'Your data stays on this phone.'}
       <!-- Which build you are actually running. A fix can be deployed and
            verified and still not be what is on someone's phone: the installed
            app caches the page, and an offline or flaky load falls back to that
@@ -9150,12 +9149,12 @@ function renderMore(){
            is no way to tell "the bug is back" from "you are on last week's
            code", and I spent a session unable to distinguish them. -->
       <span style="display:block;margin-top:6px;font-family:var(--mono);font-size:12px;color:var(--ink-dim)"
-            onclick="hardRefreshApp()" title="Tap to force the latest version">v${__APP_VERSION__} · build ${__BUILD_ID__}</span>
+            onclick="hardRefreshApp()" title="Get the latest version">v${__APP_VERSION__} · build ${__BUILD_ID__}</span>
     </div>
     ${STRATEGY_TRACE.length ? `
       <details style="margin-top:10px">
         <summary style="font-size:13px;color:var(--ink-dim);cursor:pointer;padding:8px 0">
-          Battery strategy — what changed it (${STRATEGY_TRACE.length})
+          Why the battery setting changed (${STRATEGY_TRACE.length})
         </summary>
         <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.7;padding:8px 10px;background:var(--well);border-radius:var(--radius-md);overflow-x:auto">
           ${STRATEGY_TRACE.slice(-12).reverse().map(e =>
@@ -9187,11 +9186,11 @@ function renderFastPath(){
       ${!kwhMode && !state._fp_csv_mode ? '' : `<div style="display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--well);margin-bottom:12px">
         <button onclick="fpSetUsageMode('bill')" style="padding:7px 13px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${!kwhMode && !state._fp_csv_mode?'var(--accent)':'transparent'};color:${!kwhMode && !state._fp_csv_mode?'#fff':'var(--ink-soft)'}">€ Bill</button>
         <button onclick="fpSetUsageMode('kwh')" style="padding:7px 13px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${kwhMode && !state._fp_csv_mode?'var(--accent)':'transparent'};color:${kwhMode && !state._fp_csv_mode?'#fff':'var(--ink-soft)'}">kWh / year</button>
-        <button onclick="fpSetUsageMode('csv')" style="padding:7px 13px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${state._fp_csv_mode?'var(--accent)':'transparent'};color:${state._fp_csv_mode?'#fff':'var(--ink-soft)'}">Smart CSV</button>
+        <button onclick="fpSetUsageMode('csv')" style="padding:7px 13px;font-size:12px;font-weight:700;font-family:var(--display);border:none;border-radius:999px;cursor:pointer;background:${state._fp_csv_mode?'var(--accent)':'transparent'};color:${state._fp_csv_mode?'#fff':'var(--ink-soft)'}">Meter file</button>
       </div>`}
       ${state._fp_csv_mode ? `
       <div style="text-align:left">
-        <div style="font-size:12px;color:var(--ink-soft);line-height:1.7">Most accurate — real 30-min readings. From <b>myaccount.esbnetworks.ie</b> → My Meter → <b>Download HDF Data</b>. Less than a year still works — we scale it to a full-year profile.</div>
+        <div style="font-size:12px;color:var(--ink-soft);line-height:1.7">Most accurate. Your real half-hourly readings, from <b>myaccount.esbnetworks.ie</b> → My Meter → <b>Download HDF Data</b>. Less than a year still works — we scale it to a full-year profile.</div>
         <label class="btn-secondary" style="display:block;text-align:center;cursor:pointer;margin-top:10px;padding:12px 16px;border:1px dashed var(--blue);color:var(--blue);border-radius:8px">
           Choose CSV file
           <input id="csv-file-input" type="file" accept=".csv,.CSV" style="display:none" onchange="handleCsvFile(event)">
@@ -9202,7 +9201,7 @@ function renderFastPath(){
         <input class="fp-billinput" id="fp-bill" inputmode="numeric" value="${kwh}" oninput="fpSync(this.value)" style="text-align:right"/>
         <span class="fp-cur" style="font-size:15px;align-self:center">kWh</span>
       </div>
-      <div class="fp-billhint">total per year · from your annual statement or smart meter</div>
+      <div class="fp-billhint">a year, from your yearly statement or meter</div>
       <input class="fp-billslider" type="range" min="1500" max="15000" step="100" value="${Math.min(15000, Math.max(1500, kwh))}" oninput="document.getElementById('fp-bill').value=this.value"/>` : `
       <div class="fp-billrow">
         <span class="fp-cur">€</span>
@@ -9218,13 +9217,13 @@ function renderFastPath(){
       <div class="fp-assume" style="grid-column:span 2" onclick="fpTogglePlanPicker()">
         <span class="fp-assume-ic">${ic('bolt',16)}</span>
         <div style="flex:1;min-width:0"><div class="fp-assume-k">Current plan</div>
-        <div class="fp-assume-v" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${state.baseline_known ? (getPlanById(state.baseline).supplier + ' — ' + getPlanById(state.baseline).plan) : "Not sure — we'll estimate"}</div></div>
+        <div class="fp-assume-v" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${state.baseline_known ? (getPlanById(state.baseline).supplier + ' — ' + getPlanById(state.baseline).plan) : "Not sure, estimate it"}</div></div>
         <span style="color:var(--ink-dim);font-family:var(--mono);font-size:12px">${state._fp_plan_open ? '▴' : '▾'}</span>
       </div>
       ${state._fp_plan_open ? `
       <div class="ob-plan-picker" style="grid-column:span 2;max-height:280px">
         <div class="ob-plan-notsure ${!state.baseline_known ? 'active' : ''}" onclick="fpPickPlan(null)">
-          <span>Not sure — estimate for me</span>
+          <span>Not sure, estimate it</span>
         </div>
         ${TARIFFS.filter(t => !t.discontinued).map(p => `
           <div class="ob-plan-option ${state.baseline === p.id && state.baseline_known ? 'active' : ''}" onclick="fpPickPlan('${p.id}')">
@@ -9237,14 +9236,14 @@ function renderFastPath(){
       <div class="fp-assume" style="grid-column:span 2" onclick="fpCycle('discount')">
         <span class="fp-assume-ic">${ic('spark',16)}</span>
         <div style="flex:1;min-width:0"><div class="fp-assume-k">Your discount on this plan</div>
-        <div class="fp-assume-v">${(+state.baseline_discount_pct || 0) > 0 ? state.baseline_discount_pct + '% off unit rates' : 'None — sticker rates'}</div></div>
+        <div class="fp-assume-v">${(+state.baseline_discount_pct || 0) > 0 ? state.baseline_discount_pct + '% off unit rates' : 'None'}</div></div>
         <span style="color:var(--ink-dim);font-family:var(--mono);font-size:12px">tap</span>
       </div>` : ''}
       <div class="fp-assume" onclick="fpCycle('heating')"><span class="fp-assume-ic">${ic('flame',16)}</span><div><div class="fp-assume-k">Heating</div><div class="fp-assume-v">${heatLabel}</div></div></div>
       <div class="fp-assume" onclick="fpCycle('ev')"><span class="fp-assume-ic">${ic('car',16)}</span><div><div class="fp-assume-k">EV</div><div class="fp-assume-v">${state.ev_active ? Math.round((state.ev_km_per_year||15000)/1000)+'k km · ' + (state.ev_in_bill ? 'have it' : 'planning') : 'None'}</div></div></div>
     </div>
 
-    <button class="fp-cta" onclick="fastPathGo()">See my savings →</button>
+    <button class="fp-cta" onclick="fastPathGo()">See my savings</button>
     <div class="fp-foot">No account needed · free</div>
   </div>`;
 }
@@ -9265,7 +9264,7 @@ function csvLockCard(compact){
   const kwh = state.bills && Object.keys(state.bills).length ? Math.round(Object.values(state.bills).reduce((a,b)=>a+b,0)) : 0;
   const cov = state._csv_days ? ` · ${state._csv_days} days of data${state._csv_periods && state._csv_periods < 6 ? `, ${6 - state._csv_periods} period${6 - state._csv_periods === 1 ? '' : 's'} extrapolated` : ''}` : '';
   return `<div style="padding:${compact ? '12px 14px' : '14px 16px'};background:var(--blue-soft);border:1.5px solid var(--blue);border-radius:12px">
-    <div style="display:flex;align-items:center;gap:8px"><span>${ic('csv',16)}</span><div style="font-size:12px;font-weight:700;color:var(--ink)">Usage locked to your smart-meter CSV</div></div>
+    <div style="display:flex;align-items:center;gap:8px"><span>${ic('csv',16)}</span><div style="font-size:12px;font-weight:700;color:var(--ink)">Using your meter file</div></div>
     <div style="font-size:12px;color:var(--ink-soft);margin-top:5px;line-height:1.55"><b style="color:var(--ink)">${kwh.toLocaleString()} kWh/yr</b> from ${state._csv_filename || 'your imported file'}${cov}. Manual € / kWh entry is disabled so it can't silently fight the real data.</div>
     <button onclick="clearCsvImport()" style="margin-top:9px;padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;font-family:var(--display);border:1px solid var(--blue);background:transparent;color:var(--blue);cursor:pointer">Remove CSV & enter manually</button>
   </div>`;
@@ -9357,7 +9356,7 @@ function fpCycle(which){
       if (!state.ev_km_per_year) state.ev_km_per_year = 15000;
       if (!state.ev_kwh_per_100km) state.ev_kwh_per_100km = 17;
       showToast(next === 'have'
-        ? 'Your bill already covers its charging — we model it inside your usage'
+        ? 'It’s already in your bill'
         : "We'll add its charging on top of what your bill shows",
         { type:'amber', icon:ic('car',16), title: next === 'have' ? 'You have an EV' : 'Planning an EV' });
     }
@@ -9382,7 +9381,7 @@ function fpCycle(which){
 }
 function fastPathGo(){
   if (state._fp_csv_mode && !state._csv_imported){
-    showToast('Upload your HDF CSV first — or switch to € Bill / kWh above', { type:'amber', icon:ic('csv',16), title:'No file imported yet' });
+    showToast('Add your meter file first, or enter your bill instead', { type:'amber', icon:ic('csv',16), title:'No file imported yet' });
     return;
   }
   if (!state._csv_imported){
@@ -9622,7 +9621,7 @@ async function v7QuoteFile(input){
     let media_type = file.type, blob = file;
     if (file.type.startsWith('image/')) ({ media_type, blob } = await _quoteImage(file));
     else if (file.type !== 'application/pdf') throw new Error('Send a PDF, or a photo of each page.');
-    if (blob.size > 3_200_000) throw new Error('That file is too large. Under 3 MB, please — a photo of each page works too.');
+    if (blob.size > 3_200_000) throw new Error('That file is too big. Keep it under 3 MB, or take a photo of each page.');
     const res = await fetch('/api/extract-quote', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ media_type, data: await _b64(blob) }),
@@ -9723,7 +9722,7 @@ function renderPrivacy(){
   return `${topbar('Privacy', 'accent', true)}
   <div class="screen">
     <div class="card"><div class="privacy-copy">
-      <p><b>Short version.</b> Your home's figures stay on this phone unless you sign in. We share your details with installers only when you ask for quotes. No ads. We never sell personal data.</p>
+      <p><b>Short version.</b> Your home stays on this phone unless you sign in. We only share your details with installers when you ask for quotes. No ads, and we never sell your data.</p>
 
       <h3>Who we are</h3>
       <p>${BRAND.name} is run by ${who}. We are the controller of your personal data. Contact: ${mail}.</p>
@@ -9740,7 +9739,7 @@ function renderPrivacy(){
           ${row('Anonymous usage counts', 'To improve the app (consent)', '26 months')}
           ${row('Record of your consent choices', 'To show we asked (legal obligation)', '36 months')}
           ${row('Scrambled internet address', 'To stop abuse (legitimate interest)', '1 day')}
-          ${row('Error reports: what broke and where, nothing about you', 'To fix faults (legitimate interest)', '30 days')}
+          ${row('Error reports: what went wrong, nothing about you', 'To fix faults (legitimate interest)', '30 days')}
         </tbody>
       </table>
 
@@ -9756,7 +9755,7 @@ function renderPrivacy(){
       <p>Transfers to the USA are covered by the EU–US Data Privacy Framework or the EU's standard contractual clauses. Switching supplier happens on the supplier's own site: we send them nothing. Some suppliers pay us a commission; it never changes the ranking.</p>
 
       <h3>Your rights</h3>
-      <p>You can see, download, correct or delete your data, object to its use, and withdraw consent at any time, using the buttons below or by emailing us. We reply within one month. You can also complain to the Data Protection Commission at <a href="https://www.dataprotection.ie" target="_blank" rel="noopener">dataprotection.ie</a>.</p>
+      <p>You can see, download, correct or delete your data, object to how we use it, or withdraw consent at any time. Use the buttons below or email us. We’ll reply within a month. You can also complain to the Data Protection Commission at <a href="https://www.dataprotection.ie" target="_blank" rel="noopener">dataprotection.ie</a>.</p>
       <p>Plan rankings are calculations to help you choose. Nothing is decided for you.</p>
       <p class="privacy-date">Updated ${esc(C.updated)}.</p>
     </div></div>
@@ -9847,7 +9846,7 @@ function renderInstallerPortal(){
   if (!_sbUser){
     return `${topbar('Installer portal', 'accent', true)}
     <div class="screen"><div class="card">
-      <p style="margin:0 0 12px;line-height:1.6">Installers partnered with ${BRAND.name} see the quote requests sent to them here. Sign in with the email your company registered with us.</p>
+      <p style="margin:0 0 12px;line-height:1.6">Installers who work with ${BRAND.name} see the quote requests sent to them here. Sign in with the email your company registered with us.</p>
       <button class="switch-cta v7-cta" onclick="_authModalOpen=true;renderApp()">Sign in</button>
     </div></div>${bottomNav()}`;
   }
@@ -9869,7 +9868,7 @@ function renderInstallerPortal(){
           ${sp.payback_years ? `Modelled payback ${sp.payback_years} yr · ` : ''}${sp.annual_kwh ? `${sp.annual_kwh.toLocaleString('en-IE')} kWh/yr · ` : ''}quality ${r.quality_score}/100 · €${Number(r.price_eur).toFixed(0)}</div>
         ${open ? `<div class="portal-contact">${escAttr(r.name || '')}<br><a href="mailto:${escAttr(r.email)}">${escAttr(r.email)}</a>${r.phone ? ` · <a href="tel:${escAttr(r.phone)}">${escAttr(r.phone)}</a>` : ''}</div>` : ''}
         <div class="portal-actions">
-          ${r.status === 'sent' ? `<button class="v7-imp-btn" onclick="setLeadStatus('${r.assignment_id}','accepted')">Accept — show contact</button>
+          ${r.status === 'sent' ? `<button class="v7-imp-btn" onclick="setLeadStatus('${r.assignment_id}','accepted')">Accept and show contact details</button>
             <button class="v7-link" onclick="setLeadStatus('${r.assignment_id}','declined')">Decline</button>`
           : STAGES.slice(1).map(([v, t]) => `<button class="v7-link ${r.status === v ? 'is-on' : ''}" onclick="setLeadStatus('${r.assignment_id}','${v}')">${t}</button>`).join('')}
         </div>
@@ -9910,11 +9909,11 @@ function modelAccuracy(){
   const fine = state.fine || {};
   const sys = !!state.has_solar && totalPanels() > 0;
   const parts = [
-    { label: 'Weather and the model itself', err: 3 },
+    { label: 'Weather and our estimates', err: 3 },
     state._csv_imported
-      ? { label: 'Usage from your smart-meter data', err: 1 }
+      ? { label: 'Your meter data', err: 1 }
       : state.usage_input_mode === 'kwh'
-        ? { label: 'Usage from your yearly kWh', err: 5, tip: 'Import your ESB smart-meter file', go: "v7Sheet('meter')" }
+        ? { label: 'Usage from your yearly kWh', err: 5, tip: 'Add your ESB meter file', go: "v7Sheet('meter')" }
         : { label: 'Usage worked out from your bill', err: 9, tip: 'Enter your yearly kWh from a bill, or import meter data', go: "v7Sheet('home')" },
   ];
   if (sys){
@@ -9936,7 +9935,7 @@ function renderAccuracy(){
   return `<div class="sy-acc">
     <div class="sy-acc-top"><span>Estimate accuracy</span><b>±${a.pct}%</b></div>
     <div class="sy-acc-bar" aria-hidden="true"><i style="width:${fill}%"></i></div>
-    ${a.tip ? `<button class="sy-acc-tip" onclick="${a.tip.go}">${ic('spark', 14)} ${esc(a.tip.tip)}</button>` : `<div class="sy-acc-note">${state._csv_imported ? 'Built on your real meter readings: only the weather is left to vary.' : 'As close as a model gets without a year of your own data.'}</div>`}
+    ${a.tip ? `<button class="sy-acc-tip" onclick="${a.tip.go}">${ic('spark', 14)} ${esc(a.tip.tip)}</button>` : `<div class="sy-acc-note">${state._csv_imported ? 'Based on your real meter readings. Only the weather can change it.' : 'As close as we can get without your meter data.'}</div>`}
     ${a.priceTypical ? `<div class="sy-acc-note">Payback uses a typical price for this system. Your quote's price makes it exact.</div>` : ''}
   </div>`;
 }
@@ -10125,12 +10124,12 @@ function renderSystemSheet(){
       <h2 class="v7-h">${t} panels · ${totalKwp().toFixed(1)} kWp${batt > 0 ? ` · ${batt} kWh` : ''}</h2>
     </div>
     <div class="v7-seg sy-status" role="group" aria-label="Is this system installed?">
-      <button class="v7-seg-btn ${state.solar_planned || state.solar_is_estimate ? 'active on' : ''}" onclick="setSolarInstalled(false)">I'm planning it</button>
+      <button class="v7-seg-btn ${state.solar_planned || state.solar_is_estimate ? 'active on' : ''}" onclick="setSolarInstalled(false)">Planning it</button>
       <button class="v7-seg-btn ${!state.solar_planned && !state.solar_is_estimate ? 'active on' : ''}" onclick="setSolarInstalled(true)">It's installed</button>
     </div>
     <p class="sy-status-why">${state.solar_planned || state.solar_is_estimate
       ? 'Planning: Home shows what switching saves now and what the panels would add once bought. Payback counts the price.'
-      : 'Installed: the panels are part of your home. Home shows what switching saves on top of them, and your meter readings can check they’re working.'}</p>
+      : 'Installed. Home shows what switching saves on top, and your meter data can check they’re working.'}</p>
     ${renderAccuracy()}
     ${state.has_solar && totalPanels() > 0 ? renderSystemsList() : ''}
 
@@ -10150,7 +10149,7 @@ function renderSystemSheet(){
             ${_syRange('sy-c' + k, 'count_' + k, `${n} panels`, k === 'A' ? 1 : 0, SYS_MAX_PANELS, 1, 'panels', 'How many')}
           </div>`;
         return `${face('A', state.count_A)}${split ? face('B', state.count_B) : `<button class="sy-add" onclick="sysSplit(true)">${ic('plus', 14)} Add a second roof face</button>`}
-          <div class="sy-fine-note">${t} panels · ${totalKwp().toFixed(1)} kWp in all. Most Irish roofs are pitched 30–40°.</div>`;
+          <div class="sy-fine-note">${t} panels · ${totalKwp().toFixed(1)} kWp in all. Most Irish roofs slope 30–40°.</div>`;
       })()}
       ${_syFine('panels', 'panels', `
         ${_syNum('panel_w', state.panel_w, 200, 700, 5, 'W', 'Rating of one panel', 'On the quote or the panel datasheet. Most new panels: 420–480 W.')}
@@ -10181,14 +10180,14 @@ function renderSystemSheet(){
            <button class="sy-stop" onclick="state.cost_is_manual=true;renderApp();setTimeout(()=>document.querySelector('.sy-part[aria-label=Price] input')?.focus(),40)">I have a price</button></div>`}
       <div class="sy-field sy-grant"><span><b>SEAI grant</b><small>${state.grant_eligible !== false
           ? `${eur(state.grant_seai)} off the price: this home qualifies`
-          : 'None: this home does not qualify'}</small></span>
+          : 'None, this home doesn’t qualify'}</small></span>
         <button class="v7-link" onclick="v7Sheet('home')">Change</button></div>
       ${grantOn && state.grant_is_manual && state.grant_seai !== g ? `<div class="sy-fine-note">Using ${eur(state.grant_seai)} from your quote. The standard grant for this size is ${eur(g)}.</div>` : ''}
       <div class="sy-net">You pay <b>${eur(net)}</b></div>
     </section>
 
     <button class="v7-cta-2" onclick="v7Sheet('quote')">${ic('clip', 16)} Fill this in from an installer's quote</button>
-    <div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();v7Sheet('home')">My home — where it is, how it's heated, your plan</a></div>`;
+    <div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();v7Sheet('home')">My home: where it is, heating, your plan</a></div>`;
 }
 
 function homeSet(key, v){
@@ -10222,7 +10221,7 @@ function renderHomeSheet(){
     <section class="sy-part" aria-label="Electricity use">
       <div class="sy-part-title">${ic('bolt', 16)} Electricity use</div>
       ${state._csv_imported
-        ? `<div class="sy-field"><span><b>From your smart meter</b><small>${Math.round(v7AnnualKwh()).toLocaleString('en-IE')} kWh a year, half-hour by half-hour</small></span>
+        ? `<div class="sy-field"><span><b>From my meter</b><small>${Math.round(v7AnnualKwh()).toLocaleString('en-IE')} kWh a year, half-hour by half-hour</small></span>
            <button class="sy-stop" onclick="v7Sheet(null);setScreen('csv-import')">Replace</button></div>`
         : `<div class="v7-seg" role="group" aria-label="Usage from">
              <button class="v7-seg-btn ${!kwhMode ? 'active on' : ''}" onclick="setUsageMode('bill')">From my bill</button>
@@ -10240,7 +10239,7 @@ function renderHomeSheet(){
     <section class="sy-part" aria-label="SEAI grant">
       <label class="sy-toggle sy-toggle-top">
         <span><b>${ic('euro', 16)} SEAI solar grant</b><small>${state.grant_eligible !== false
-          ? 'This home can get it: built and lived in before 2021, and no solar grant claimed before. Up to €1,800, taken off every system.'
+          ? 'This home qualifies: built and lived in before 2021, no solar grant claimed. Up to €1,800 off.'
           : 'This home does not get it, so no system, quote or suggestion counts one.'}</small></span>
         <input type="checkbox" role="switch" aria-label="This home can get the SEAI solar grant" ${state.grant_eligible !== false ? 'checked' : ''} onchange="setGrantEligible(this.checked)">
       </label>
@@ -10255,7 +10254,7 @@ function renderHomeSheet(){
       </label>
       ${state.ev_active ? `
         <div class="v7-seg" role="group" aria-label="EV status">
-          <button class="v7-seg-btn ${state.ev_in_bill ? 'active on' : ''}" onclick="setEvMode('have')">Have it — in my bill</button>
+          <button class="v7-seg-btn ${state.ev_in_bill ? 'active on' : ''}" onclick="setEvMode('have')">Yes, it’s in my bill</button>
           <button class="v7-seg-btn ${!state.ev_in_bill ? 'active on' : ''}" onclick="setEvMode('plan')">Planning one</button>
         </div>
         ${field('Driving a year', 'Irish average about 16,500 km.', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="100000" step="500" value="${state.ev_km_per_year}" onchange="homeSet('ev_km_per_year',this.value)"><i>km</i></span>`)}
@@ -10263,8 +10262,8 @@ function renderHomeSheet(){
         ${field('Home charger', 'Most home chargers are 7.4 kW.', `<span class="sy-num"><input type="number" inputmode="decimal" min="1.4" max="22" step="0.1" value="${state.ev_charger_kw}" onchange="homeSet('ev_charger_kw',this.value)"><i>kW</i></span>`)}` : ''}
     </section>
 
-    <button class="v7-cta-2" onclick="openMySystem()">${ic('sun', 16)} My system — panels, battery, price</button>
-    <div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();v7Sheet(null);setScreen('refine')">Advanced — battery strategy, usage shape, tariff options</a></div>`;
+    <button class="v7-cta-2" onclick="openMySystem()">${ic('sun', 16)} My system: panels, battery, price</button>
+    <div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();v7Sheet(null);setScreen('refine')">Battery, plan options, usage pattern</a></div>`;
 }
 
 function v7Sheet(kind, id){
@@ -10521,7 +10520,7 @@ function saveCurrentScenario(){
   }
   if (!state.scenarios) state.scenarios = [];
   if (state.scenarios.length >= 12){
-    showToast('You can save up to 12 scenarios — delete one to add another', { type:'amber', icon:ic('warn',16) });
+    showToast('You can save 12. Delete one to add another.', { type:'amber', icon:ic('warn',16) });
     return;
   }
   state.scenarios.push(captureScenario(name));
@@ -10593,7 +10592,7 @@ function buildShareUrl(){
 function copyShareUrl(){
   const url = buildShareUrl();
   if (navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(url).then(() => showToast('Link copied — paste it anywhere to share your analysis'));
+    navigator.clipboard.writeText(url).then(() => showToast('Link copied'));
   } else {
     const ta = document.createElement('textarea');
     ta.value = url;
@@ -10601,7 +10600,7 @@ function copyShareUrl(){
     ta.select();
     document.execCommand('copy');
     ta.remove();
-    showToast('Link copied — paste it anywhere to share your analysis');
+    showToast('Link copied');
   }
   fireEvent('share_link_copied', { region: state.region, has_solar: state.has_solar });
 }
@@ -10995,7 +10994,7 @@ function renderSeaiGrantCard(kwp, batteryKwh){
     <div style="margin-top:6px;font-size:15px;color:var(--ink-soft);line-height:1.6">
       ${capped
         ? `The maximum for a domestic system, at ${kwp.toFixed(1)} kWp.`
-        : `€900 per kWp on your first 2 kWp.`}
+        : `€900 per kWp for your first 2 kWp.`}
       Already filled into the grant field above, and taken off every price in the app — change it there if your installer quotes differently.
       <a href="https://www.seai.ie/grants/solar-electricity-grant/" target="_blank" style="color:var(--blue);white-space:nowrap">seai.ie ↗</a>
     </div>
@@ -11012,9 +11011,9 @@ const SWITCH_GUIDES = {
     color: 'var(--blue)',
     steps: [
       { icon: ic('globe',18), title: 'Go to Electric Ireland', body: 'Visit <b>electricireland.ie</b> → click "Switch" in the nav. Use the UTM-tagged link below to ensure they know you came via Peakless Optimiser.' },
-      { icon: ic('clip',18), title: 'Get your MPRN', body: 'Your MPRN (Meter Point Reference Number) is on your current electricity bill — usually an 11-digit number starting with 10. You\'ll need it to switch.' },
-      { icon: ic('clock',18), title: 'Allow 10–15 days', body: 'Electric Ireland processes switches in 10–15 working days. Your current supplier is notified automatically — you don\'t need to cancel.' },
-      { icon: ic('phone',18), title: 'No engineer needed', body: 'Residential tariff switches require no engineer visit. Your meter stays the same — only the billing contract changes.' },
+      { icon: ic('clip',18), title: 'Get your MPRN', body: 'Your MPRN is on your electricity bill. It’s 11 digits and starts with 10. You’ll need it to switch.' },
+      { icon: ic('clock',18), title: 'Allow 10–15 days', body: 'Electric Ireland takes 2–3 weeks. They tell your old supplier, so you don’t need to cancel.' },
+      { icon: ic('phone',18), title: 'No engineer needed', body: 'No engineer visit. Your meter stays the same.' },
       { icon: '<b style="font-family:var(--mono)">€</b>', title: 'Exit fees?', body: 'If you\'re mid-contract (check your current bill), there may be exit fees. Electric Ireland will confirm during sign-up.' },
     ]
   },
@@ -11025,8 +11024,8 @@ const SWITCH_GUIDES = {
       { icon: ic('globe',18), title: 'Visit Bord Gáis Energy', body: 'Go to <b>bordgaisenergy.ie</b> → "Electricity Plans" → choose your plan. They often have online discounts not available by phone.' },
       { icon: ic('clip',18), title: 'Have your MPRN ready', body: 'The MPRN is on your current bill. Bord Gáis will use this to notify your current supplier.' },
       { icon: ic('clock',18), title: 'Switch takes ~2 weeks', body: 'The switching process is automated between suppliers and usually completes in 10–14 working days.' },
-      { icon: ic('battery',18), title: 'Smart meter required for TOU', body: 'The Smart Homes or TOU tariff requires a smart meter. If you don\'t have one, request a free upgrade through CRU — this can add 2–4 weeks.' },
-      { icon: '<b style="font-family:var(--mono)">€</b>', title: 'Bundle savings', body: 'If you also have Bord Gáis gas, check for bundle discounts — they often give 5–10% off when both fuels are with them.' },
+      { icon: ic('battery',18), title: 'Needs a smart meter', body: 'This plan needs a smart meter. If you haven’t got one, ESB Networks will fit one free, but it can take 2–4 weeks.' },
+      { icon: '<b style="font-family:var(--mono)">€</b>', title: 'Bundle savings', body: 'Have Bord Gáis gas too? Ask about a dual-fuel discount.' },
     ]
   },
   'EN': {
@@ -11034,9 +11033,9 @@ const SWITCH_GUIDES = {
     color: '#00E676',
     steps: [
       { icon: ic('globe',18), title: 'Go to Energia', body: 'Visit <b>energia.ie/energy-plans/electricity</b> and select your plan. Energia typically shows unit rates including VAT on plan pages.' },
-      { icon: ic('clip',18), title: 'MPRN + bank details', body: 'You\'ll need your MPRN (from your bill) and a bank account for direct debit. Energia requires direct debit for monthly billing.' },
+      { icon: ic('clip',18), title: 'MPRN + bank details', body: 'You’ll need your MPRN and bank details. Energia only does direct debit.' },
       { icon: ic('clock',18), title: 'Complete in ~15 days', body: 'Standard residential switches complete in 10–15 working days. Energia sends a welcome email with your account number.' },
-      { icon: ic('sun',16), title: 'CEG export sign-up', body: 'If you have solar, ask to be registered on the CEG (Clean Export Guarantee) scheme when switching. Not all agents enable this automatically.' },
+      { icon: ic('sun',16), title: 'CEG export sign-up', body: 'If you have solar, ask them to pay you for what you export. Not everyone sets this up automatically.' },
       { icon: ic('phone',18), title: 'Customer service', body: 'Energia customer service: 1850 ENERGIA (363 742) or via live chat on their website.' },
     ]
   },
@@ -11047,7 +11046,7 @@ const SWITCH_GUIDES = {
       { icon: ic('globe',18), title: 'Visit SSE Airtricity', body: 'Go to <b>sseairtricity.com/ie/home</b> → click "Get a Quote" → select electricity → choose your plan.' },
       { icon: ic('clip',18), title: 'Gather your details', body: 'You\'ll need your MPRN, current supplier name, and email address. SSE automates the rest of the switch.' },
       { icon: ic('clock',18), title: 'Allow 2 weeks', body: 'Switches typically take 10–15 working days. You\'ll receive a switch confirmation email and then a welcome pack.' },
-      { icon: ic('leaf',18), title: '100% renewable option', body: 'SSE offers a 100% renewable tariff. The DNP (Day/Night/Peak) plan is particularly well-suited to EV owners.' },
+      { icon: ic('leaf',18), title: '100% renewable option', body: 'SSE’s Day/Night/Peak plan suits EV owners.' },
       { icon: '<b style="font-family:var(--mono)">€</b>', title: 'Online discount', body: 'SSE usually offers €50–€100 online sign-up discount. Look for a promo code on their homepage before switching.' },
     ]
   },
@@ -11066,9 +11065,9 @@ const SWITCH_GUIDES = {
     name: 'Flogas',
     color: 'var(--amber)',
     steps: [
-      { icon: ic('globe',18), title: 'Visit Flogas', body: 'Go to <b>flogas.ie/electricity/residential</b> → "Switch & Save". Flogas is one of Ireland\'s smaller suppliers — often offering competitive rates.' },
-      { icon: ic('clip',18), title: 'MPRN from your bill', body: 'You\'ll need your MPRN. If you\'re currently a Flogas gas customer, the switch is faster — they already have your details.' },
-      { icon: ic('clock',18), title: 'Standard 2-week switch', body: 'Flogas switches follow the standard CRU process — 10–15 working days. They handle the notice to your current supplier.' },
+      { icon: ic('globe',18), title: 'Visit Flogas', body: 'Go to <b>flogas.ie/electricity/residential</b> → "Switch & Save".' },
+      { icon: ic('clip',18), title: 'MPRN from your bill', body: 'You\'ll need your MPRN. Already a Flogas gas customer? It’s quicker.' },
+      { icon: ic('clock',18), title: 'Standard 2-week switch', body: 'Takes 2–3 weeks. Flogas tells your old supplier.' },
       { icon: ic('sun',16), title: 'CEG export', body: 'Flogas supports CEG export payments. Ensure it\'s activated when you sign up or call their team to add it post-switch.' },
       { icon: ic('phone',18), title: 'Customer support', body: 'Flogas support: 041 214 5000 · flogas.ie/contact. They\'re known for responsive Irish-based customer service.' },
     ]
@@ -11077,11 +11076,11 @@ const SWITCH_GUIDES = {
     name: 'Pinergy',
     color: 'var(--amber)',
     steps: [
-      { icon: ic('globe',18), title: 'Visit Pinergy', body: 'Go to <b>pinergy.ie/home-electricity</b> and select your plan. Pinergy specialises in smart, PAYG-style plans for tech-savvy households.' },
-      { icon: ic('phone',18), title: 'App required', body: 'Pinergy\'s plans are managed via their smartphone app. The app gives real-time usage data and lets you top up (for PAYG) or manage direct debit.' },
-      { icon: ic('clip',18), title: 'Smart meter required', body: 'Most Pinergy plans require a smart meter (ESBN Smart Meter). If you don\'t have one, apply at <b>esbnetworks.ie</b> — upgrades are free and take 2–4 weeks.' },
-      { icon: ic('clock',18), title: 'Switch timeline', body: 'Once your smart meter is confirmed, Pinergy switches in 10–15 working days via the standard CRU process.' },
-      { icon: ic('sun',16), title: 'Solar & EV-friendly', body: 'Pinergy\'s Life and EV plans are particularly good for solar owners. The Life plan offers a boosted EV window and supports CEG export.' },
+      { icon: ic('globe',18), title: 'Visit Pinergy', body: 'Go to <b>pinergy.ie/home-electricity</b> and choose your plan. Pinergy runs everything through its app.' },
+      { icon: ic('phone',18), title: 'App required', body: 'You manage your account and top-ups in Pinergy’s app.' },
+      { icon: ic('clip',18), title: 'Needs a smart meter', body: 'Most Pinergy plans need a smart meter. If you haven’t got one, apply at <b>esbnetworks.ie</b> — upgrades are free and take 2–4 weeks.' },
+      { icon: ic('clock',18), title: 'Switch timeline', body: 'Once your smart meter is in, the switch takes 2–3 weeks.' },
+      { icon: ic('sun',16), title: 'Solar & EV-friendly', body: 'Pinergy’s Life and EV plans suit solar owners, and pay for what you export.' },
     ]
   }
 };
@@ -11186,14 +11185,14 @@ function renderHowToSwitch(){
       <div class="card-label">${ic('bolt',13)} Good to know about all Irish switches</div>
       <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.8;margin-top:6px">
         ✓ You never lose power during a switch<br>
-        ✓ Your current supplier is notified automatically — no cancellation call needed<br>
+        ✓ They tell your old supplier, so you don’t need to call<br>
         ✓ CRU (energy regulator) guarantees the switch completes within 15 working days<br>
         ✓ If you have solar, confirm CEG export registration with the new supplier<br>
         ✓ Check for exit fees on your current bill before switching
       </div>
     </div>
 
-    <p class="disclaimer">We are independent and take no payment from any supplier. Switching through our links costs you nothing and earns us nothing — the ranking is calculated purely from your simulated annual cost. If that ever changes, this notice changes with it.</p>
+    <p class="disclaimer">Plans are ranked only by what you’d pay. If a supplier pays us when you switch, we say so on that plan. Your price is the same.</p>
   </div>
   ${bottomNav()}`;
 }
@@ -11213,13 +11212,13 @@ function renderCsvImport(){
 
     <div class="qr-hero" style="border-color:var(--blue)">
       <div class="qr-eyebrow" style="color:var(--blue)">Import from ESB Networks</div>
-      <div style="font-family:var(--display);font-size:17px;font-weight:600;color:var(--ink);margin:4px 0">Smart meter CSV import</div>
-      <div class="qr-sub">Replace estimated bills with your actual 30-minute interval data for a more accurate simulation.</div>
+      <div style="font-family:var(--display);font-size:17px;font-weight:600;color:var(--ink);margin:4px 0">Add your meter file</div>
+      <div class="qr-sub">Use your real half-hourly readings instead of an estimate.</div>
     </div>
 
     ${hasImport ? `
       <div class="card" style="background:var(--accent-faint);border-color:var(--accent);margin-top:0">
-        <div class="card-label" style="color:var(--accent)">✓ Smart meter data imported</div>
+        <div class="card-label" style="color:var(--accent)">✓ Smart-meter data imported</div>
         <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.8;margin-top:6px">
           ${Object.entries(state.bills).map(([k,v]) => `${k}: ${Math.round(v).toLocaleString()} kWh`).join(' · ')}<br>
           Total: ${Math.round(Object.values(state.bills).reduce((a,b)=>a+b,0)).toLocaleString()} kWh/yr
@@ -11229,7 +11228,7 @@ function renderCsvImport(){
     ` : ''}
 
     <div class="card" style="margin-top:${hasImport ? '10px' : '0'}">
-      <div class="card-label">Step 1 — download your data from ESB Networks</div>
+      <div class="card-label">1. Download your data from ESB Networks</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.7;margin:8px 0">
         Log in to <b>esbnetworks.ie</b> → "My Meter" → "Download HDF Data" → select "HDF CSV" format for the last 12 months.
       </div>
@@ -11239,7 +11238,7 @@ function renderCsvImport(){
     </div>
 
     <div class="card" style="margin-top:10px">
-      <div class="card-label">Step 2 — upload your HDF CSV file</div>
+      <div class="card-label">2. Upload the file</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.7;margin:8px 0">
         The file is typically named <span style="font-family:var(--mono);font-size:12px;background:var(--well);padding:2px 6px;border-radius:4px">HDF_XXXXXXXX_YYYY-MM-DD.csv</span>. It contains 30-minute readings.
       </div>
@@ -11252,7 +11251,7 @@ function renderCsvImport(){
     <div id="csv-parse-result" style="margin-top:10px"></div>
 
     <div class="card" style="margin-top:10px;background:var(--overlay-tile)">
-      <div class="card-label">CSV format — ESB Networks HDF (current format)</div>
+      <div class="card-label">The file from ESB Networks (HDF format)</div>
       <div style="font-family:var(--mono);font-size:12px;color:var(--ink-dim);line-height:1.9;margin-top:6px;white-space:pre-wrap">MPRN,Meter Serial Number,Read Value,Read Type,Read Date and End Time
 10309xxxxxx,000000000xxxxxxxxx,0.154,Active Import Interval (kWh),01-01-2025 00:30
 10309xxxxxx,000000000xxxxxxxxx,0.142,Active Import Interval (kWh),01-01-2025 01:00
@@ -11284,7 +11283,7 @@ function clearCsvImport(){
   invalidate();
   saveState();
   renderApp();
-  showToast(state.usage_input_mode === 'kwh' ? 'Removed CSV — manual entry unlocked, usage from your yearly kWh figure' : 'Removed CSV — manual entry unlocked, usage estimated from your € bill');
+  showToast(state.usage_input_mode === 'kwh' ? 'Meter file removed. Using your yearly kWh.' : 'Meter file removed. Using your bill.');
 }
 
 function handleCsvFile(evt){
@@ -11298,7 +11297,7 @@ function handleCsvFile(evt){
     parseCsvHdf(text, file.name);
   };
   reader.onerror = () => {
-    if (resultEl) resultEl.innerHTML = `<div class="card" style="color:var(--red);font-family:var(--mono);font-size:12px">✗ Could not read file — make sure it\'s a plain-text CSV.</div>`;
+    if (resultEl) resultEl.innerHTML = `<div class="card" style="color:var(--red);font-family:var(--mono);font-size:12px">✗ Couldn’t read that file. It should be the CSV file from ESB Networks.</div>`;
   };
   reader.readAsText(file);
 }
@@ -11440,11 +11439,11 @@ function parseCsvHdf(text, filename){
     }
 
     if (rowsRead < 12){
-      throw new Error(`Only ${rowsRead} valid readings found — need at least 12. Check the file is ESB HDF format with "Active Import" rows.`);
+      throw new Error(`Only ${rowsRead} readings found. Is this the file from ESB Networks?`);
     }
 
     const maxBucket = Math.max(...buckets);
-    if (maxBucket === 0) throw new Error('All consumption readings are zero — check file format');
+    if (maxBucket === 0) throw new Error('Every reading is zero. Is this the right file?');
 
     // Normalise each bucket to a single year.
     // bucketSum is the total kWh recorded for that bimonth across however many
@@ -11532,7 +11531,7 @@ function parseCsvHdf(text, filename){
       if (total24 > 0){
         state._csv_hourly_shape = hourBuckets.map(v => v / total24);
         // Derive the 4-bucket consumption-shape split from the real data so the
-        // "Advanced — consumption shape" editor reflects the CSV, not the
+        // "Usage pattern" editor reflects the CSV, not the
         // heating-type default. Buckets cover all 24 hours; evening absorbs the
         // rounding remainder so the four values sum to exactly 100.
         const sumHrs = (hrs) => hrs.reduce((a,h)=>a + hourBuckets[h], 0) / total24;
@@ -11572,11 +11571,11 @@ function parseCsvHdf(text, filename){
 
     let coverageHtml;
     if (totalDays < 45){
-      coverageHtml = `<div style="margin-top:10px;padding:10px 12px;background:var(--amber-soft);border:1px solid var(--amber);border-radius:8px;font-size:12px;color:var(--ink);line-height:1.6"><b style="color:var(--amber)">⚠ Only ${totalDays} day${totalDays === 1 ? '' : 's'} of data</b> — far short of a year. We scaled it to a full-year profile (per-day average × season length, missing periods filled from your ${state.heating_type} heating shape), but seasonal accuracy will be poor. Treat results as rough and import 12 months when you can.</div>`;
+      coverageHtml = `<div style="margin-top:10px;padding:10px 12px;background:var(--amber-soft);border:1px solid var(--amber);border-radius:8px;font-size:12px;color:var(--ink);line-height:1.6"><b style="color:var(--amber)">⚠ Only ${totalDays} day${totalDays === 1 ? '' : 's'} of data</b> . That’s well short of a year, so the seasons are a guess. Treat these figures as rough, and add a full year when you can.</div>`;
     } else if (totalDays < 300 || periodsCovered < 6){
-      coverageHtml = `<div style="margin-top:10px;padding:10px 12px;background:var(--blue-soft);border:1px solid var(--blue);border-radius:8px;font-size:12px;color:var(--ink);line-height:1.6"><b style="color:var(--blue)">Partial year:</b> ${totalDays} days across ${periodsCovered} of 6 billing periods. Measured periods were scaled to full length${periodsCovered < 6 ? `; the ${6 - periodsCovered} missing period${6 - periodsCovered === 1 ? ' was' : 's were'} extrapolated from your data + ${state.heating_type} heating profile` : ''}. A full 12 months will sharpen the seasonal picture.</div>`;
+      coverageHtml = `<div style="margin-top:10px;padding:10px 12px;background:var(--blue-soft);border:1px solid var(--blue);border-radius:8px;font-size:12px;color:var(--ink);line-height:1.6"><b style="color:var(--blue)">Partial year:</b> ${totalDays} days across ${periodsCovered} of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.</div>`;
     } else {
-      coverageHtml = `<div style="margin-top:10px;padding:9px 12px;background:var(--accent-soft);border-radius:8px;font-size:12px;color:var(--ink-soft)">✓ ${totalDays} days — full-year coverage${spanDays > 400 ? ` (file spans ~${Math.round(spanDays / 365 * 10) / 10} years — averaged per day, so the result is one typical year)` : ''}.</div>`;
+      coverageHtml = `<div style="margin-top:10px;padding:9px 12px;background:var(--accent-soft);border-radius:8px;font-size:12px;color:var(--ink-soft)">✓ A full year of readings${spanDays > 400 ? ` (file spans ~${Math.round(spanDays / 365 * 10) / 10} years — averaged per day, so the result is one typical year)` : ''}.</div>`;
     }
 
     state.bills = bills;
@@ -11593,8 +11592,7 @@ function parseCsvHdf(text, filename){
           ${BIMONTHLY_KEYS.map((k,i) => `${k}: <b>${Math.round(bills[k]).toLocaleString()} kWh</b>${bucketDays[i].size === 0 ? '<span style="color:var(--amber)">*</span>' : ''}`).join(' · ')}<br>
           <b style="color:var(--accent)">Total: ${Math.round(total).toLocaleString()} kWh/yr</b> — anticipated full-year profile
           <br><span style="color:var(--ink-dim)">Readings in ${_unitIsKw ? 'kW (avg per 30-min interval) — converted ×0.5 to kWh' : 'kWh — used as-is'}</span>
-          ${periodsCovered < 6 ? `<br><span style="color:var(--amber)">* extrapolated — no data for this period</span>` : ''}
-          ${rowsSkipped > 0 ? `<br><span style="color:var(--ink-dim)">(${rowsSkipped.toLocaleString()} rows skipped — export/header rows)</span>` : ''}
+          ${periodsCovered < 6 ? `<br><span style="color:var(--amber)">* estimated, no readings for this period</span>` : ''}
         </div>
         ${coverageHtml}
         <button class="switch-cta" style="margin-top:12px;font-size:13px;padding:12px 16px" onclick="applyImportedBills()">Use this data →</button>
@@ -11616,14 +11614,14 @@ function applyImportedBills(){
     // Mid-setup import: lock it in and carry on with the flow instead of
     // yanking the user out to the result screen.
     state._fp_csv_mode = false;
-    showToast('Smart meter data locked in — continue your setup');
+    showToast('Meter data added. Carry on.');
     renderApp();
     return;
   }
   if (state.current_screen === 'flow'){
     (state._flow = state._flow || {}).bill = 'meter';
     state._flow_edit = null;
-    showToast('Meter data in: built on your real year', { type: 'accent', icon: ic('checkC', 16) });
+    showToast('Meter data added', { type: 'accent', icon: ic('checkC', 16) });
     renderApp();
     return;
   }
@@ -11631,11 +11629,11 @@ function applyImportedBills(){
     // Uploaded from a challenge or an alert: stay where you were; the score
     // and the figures update around you.
     state._sheet = null;
-    showToast('Meter data in: your figures now use your real readings', { type: 'accent', icon: ic('checkC', 16) });
+    showToast('Meter data added. Your figures now use it.', { type: 'accent', icon: ic('checkC', 16) });
     renderApp();
     return;
   }
-  showToast('Smart meter data applied — results updated');
+  showToast('Meter data added');
   setScreen('result');
 }
 
@@ -11652,22 +11650,22 @@ function renderMethodology(){
     <div class="qr-hero" style="border-color:var(--ink-soft);box-shadow:none">
       <div class="qr-eyebrow" style="color:var(--ink-soft)">${BRAND.name}</div>
       <div style="font-family:var(--display);font-size:20px;font-weight:700;color:var(--ink)">Methodology &amp; About</div>
-      <div class="qr-sub">How we calculate your best electricity plan and solar payback — completely transparent.</div>
+      <div class="qr-sub">How we work it out</div>
     </div>
 
     <div class="card" style="margin-top:0">
       <div class="card-label">${ic('bolt',13)} Electricity cost simulation</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.75;margin-top:6px">
-        We simulate <b>8,760 hourly intervals</b> (one per hour of the year) for every plan. Your annual consumption is distributed using an industry-standard Irish load profile (ESBN EAB profile), scaled to your bimonthly bill and adjusted for heating type (gas vs heat-pump vs direct electric).<br><br>
-        For each hour we calculate the import cost at the applicable rate band, plus any export income from solar. The total includes the standing charge and the PSO levy. We run this for all ${TARIFFS.length} plans and rank them by total annual cost.
+        We simulate <b>8,760 hourly intervals</b> We spread your yearly usage across every hour using the standard Irish usage pattern, adjusted for how your home is heated.<br><br>
+        For every hour we work out what you’d pay on each plan, take off anything solar earns, and add the standing charge and PSO levy. Then we rank all ${TARIFFS.length} plans by the yearly total.
       </div>
     </div>
 
     <div class="card">
       <div class="card-label">${ic('sun',13)} Solar generation model</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.75;margin-top:6px">
-        Solar generation uses <b>PVGIS-calibrated irradiance data</b> for Ireland, broken into regional GHI (Global Horizontal Irradiance) multipliers: South +6%, East/West ±0%, North-West −6%. Your panel count, tilt, azimuth, and panel wattage (default 460W N-Type) are used to compute hourly generation.<br><br>
-        We apply a <b>0.4% annual degradation rate</b> (industry conservative) and model battery dispatch as: (1) solar → self-use, (2) excess → charge battery, (3) battery discharges in high-rate hours to offset import.<br><br>
+        Solar generation uses <b>Sunshine figures from the EU’s PVGIS service</b> for your part of Ireland, with your number of panels, roof direction and slope.<br><br>
+        We apply a <b>0.4% annual degradation rate</b> Solar goes to the house first, then the battery. The battery runs the house when power is dearest.<br><br>
         Export income uses the <b>CEG (Clean Export Guarantee)</b> rate from your chosen plan.
       </div>
     </div>
@@ -11677,9 +11675,9 @@ function renderMethodology(){
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.75;margin-top:6px">
         With a battery, we support three strategies:<br><br>
         <b>Self-consume:</b> Charge from solar, discharge to offset import. Never charge from grid.<br><br>
-        <b>Arbitrage:</b> Charge during cheap night/EV tariff windows, discharge during day. Best for TOU and EV tariffs with a cheap overnight rate.<br><br>
+        <b>Arbitrage:</b> Fills up at night when power is cheap and runs the house in the day. Best on a night-rate or EV plan.<br><br>
         <b>Export-priority:</b> Maximise CEG export income by minimising self-use. Good when export rates are high.<br><br>
-        Battery cycle efficiency defaults to 92% round-trip. We cap battery cycles at 1.2/day to model realistic degradation.
+        We assume the battery gets back 92% of what it stores, and cycles at most 1.2 times a day.
       </div>
     </div>
 
@@ -11687,18 +11685,18 @@ function renderMethodology(){
       <div class="card-label">${ic('shield',13)} SEAI grants</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.75;margin-top:6px">
         We use the <b>2024 SEAI Home Solar Scheme</b> structure:<br>
-        • First 2 kWp: €900/kWp (max €1,800 panels)<br>
-        • Next 2 kWp: €300/kWp (max €600 additional)<br>
+        • First 2 kWp: €900 per kWp (up to €1,800)<br>
+        • Next 2 kWp: €300 per kWp (up to €600 more)<br>
         • Battery storage ≥2 kWh: +€600<br>
         • Maximum total grant: €3,000<br><br>
-        Grants are applied to your net cost for NPV and payback calculations. SEAI grants require a registered installer — check <b>seai.ie</b> for the current approved contractor list.
+        The grant is taken off before payback. You need an SEAI-registered installer. Check <b>seai.ie</b> for the current approved contractor list.
       </div>
     </div>
 
     <div class="card">
       <div class="card-label">${ic('chart',13)} Tariff data</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.75;margin-top:6px">
-        We track <b>${TARIFFS.length} Irish residential electricity plans</b> across 7 suppliers. Rates are sourced directly from supplier websites and include 9% VAT. We show a "Verified" date on each plan — our automated checker scrapes supplier sites regularly to flag any significant rate changes.<br><br>
+        We track <b>${TARIFFS.length} Irish residential electricity plans</b> from 7 suppliers. Rates come from supplier websites and include VAT. Each plan shows when we last checked it.<br><br>
         <b>Limitations:</b> Dynamic plans (Bord Gáis SmartSave, EI DynaMo, Energia Flex) use a modelled wholesale price curve, not live SEMOpx data. Actual dynamic plan bills will vary based on real-time market prices.
       </div>
     </div>
@@ -11706,22 +11704,22 @@ function renderMethodology(){
     <div class="card">
       <div class="card-label">${ic('link',13)} Independence &amp; revenue</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.75;margin-top:6px">
-        ${BRAND.name} is independent and currently takes no money from suppliers, installers or anyone else. There is no referral fee behind the switch links. Rankings are calculated purely from your simulated annual cost. If we ever introduce a commercial arrangement, it will be stated here first.<br><br>
-        We do not sell your data. All calculations happen in your browser. Your inputs are stored only in your own device's local storage.
+        Plans are ranked only by what you’d pay. If a supplier pays us when you switch, we say so on that plan. Your price is the same. Installers pay us when you ask them for a quote.<br><br>
+        We don’t sell your data. Your home stays on your phone unless you sign in.
       </div>
     </div>
 
     <div class="card" style="background:rgba(0,230,118,.04);border-color:var(--accent)">
       <div class="card-label" style="color:var(--accent)">${ic('doc',13)} Contact</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.75;margin-top:6px">
-        Found an error in a tariff rate? Have a question about the methodology?<br>
+        Spotted a wrong rate or have a question?<br>
         Email: <b style="color:var(--accent)">hello@solaroptimiser.ie</b><br><br>
         Rate corrections are applied within 48 hours.
       </div>
     </div>
 
     <p class="disclaimer">
-      <b>Disclaimer.</b> All figures are estimates. Actual energy bills, solar generation, and payback periods will vary depending on weather, metering, supplier changes, and individual consumption patterns. ${BRAND.name} is not a regulated financial or energy advisor.
+      <b>Disclaimer.</b> These are estimates. Your real bills and solar will depend on the weather and how you use power. ${BRAND.name} isn’t a regulated financial or energy adviser.
     </p>
   </div>
   ${bottomNav()}`;
@@ -11789,7 +11787,7 @@ function openLeadForm(){
             .map(([v, t]) => `<option value="${v}" ${lf.timeline === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
       <label class="lead-consent"><input id="lead-consent" type="checkbox"> <span>${LEAD_CONSENT_TEXT}</span></label>
       <div id="lead-error" class="lead-error" role="alert"></div>
-      <button class="modal-btn" id="lead-submit" onclick="submitLeadForm()">Send my request →</button>
+      <button class="modal-btn" id="lead-submit" onclick="submitLeadForm()">Send</button>
       <button class="modal-skip" onclick="closeLeadModal()">Not now</button>
       <div class="modal-privacy">We never sell your data. Installers pay us for introductions; that never changes which plan or system we show you. <a href="#" onclick="event.preventDefault();closeLeadModal();setScreen('privacy')">Privacy</a></div>
     </div>`;
@@ -11834,11 +11832,11 @@ async function submitLeadForm(){
     closeLeadModal();
     showToast(out.updated ? `Updated. ${out.matched > 0 ? `The installer${out.matched > 1 ? 's' : ''} already looking at it will see your new details.` : 'We have your latest details.'}`
       : out.matched > 0 ? `Sent to ${out.matched} installer${out.matched > 1 ? 's' : ''} in ${body.county}. They'll contact you directly.`
-      : `Saved. We don't have a partner installer in ${body.county} yet — we'll email you when we do.`,
+      : `Saved. We don’t work with an installer in ${body.county} yet. We’ll email you when we do.`,
       { type: 'accent', icon: ic('checkC', 16) });
   } catch (e) {
     err((e && e.message) || 'Your request could not be sent. Please try again.');
-    if (btn){ btn.disabled = false; btn.textContent = 'Send my request →'; }
+    if (btn){ btn.disabled = false; btn.textContent = 'Send'; }
   }
 }
 
@@ -11861,7 +11859,7 @@ function openPdfReportModal(){
       <div class="modal-handle"></div>
       <h3>Download &amp; email your report</h3>
       <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;line-height:1.6">
-        Your personalised PDF includes: plan comparison, solar payback (if modelled), SEAI grant estimate, and a switching guide.
+        Your report has your plans, solar payback, the grant and how to switch.
         ${best ? `<br><br><b style="color:var(--accent)">Save ${fmtCurrency(publishableSavings())}/yr by switching to ${best.plan.supplier}${state.solar_planned ? ' (excludes your planned solar)' : ''}</b>` : ''}
       </p>
       <div style="padding:10px 12px;background:rgba(41,182,246,.07);border-radius:8px;border:1px solid rgba(41,182,246,.25);margin-bottom:14px;font-size:12px;color:var(--ink-soft);line-height:1.65;font-family:var(--mono)">
@@ -11872,7 +11870,7 @@ function openPdfReportModal(){
       <input id="pdf-email" class="modal-input" type="email" placeholder="you@example.com (optional)" autocomplete="email" value="${state.user_email || ''}">
       <button class="modal-btn" id="pdf-submit-btn" onclick="submitPdfRequest()">Download PDF →</button>
       <button class="modal-skip" onclick="closePdfModal(); doGeneratePdf('')">Download only (no email)</button>
-      <div class="modal-privacy" style="margin-top:8px">This is a static app — the PDF is generated on your device, not sent from a server.</div>
+      <div class="modal-privacy" style="margin-top:8px">The PDF is made on your phone.</div>
     </div>`;
   m.onclick = closePdfModal;
   document.body.appendChild(m);
@@ -12190,7 +12188,7 @@ window.toggleCompareSelect = toggleCompareSelect;
     var manifest = {
       name: BRAND.name + " — Irish Energy Advisor",
       short_name: BRAND.name,
-      description: "Find the cheapest Irish electricity plan for your home — with or without solar, battery or EV.",
+      description: "Find the cheapest electricity plan for your home, with or without solar, a battery or an EV.",
       start_url: ".",
       scope: ".",
       display: "standalone",

@@ -11,7 +11,7 @@ const screen = (page) => page.evaluate(() => window.state.current_screen);
 
 test('the phone Back gesture steps back through the first-visit flow and never leaves the app', async ({ page }) => {
   await bootFresh(page);
-  await page.getByRole('button', { name: /Get my answer/ }).click();
+  await page.getByRole('button', { name: /Get started/ }).click();
   expect(await screen(page)).toBe('flow');
   await page.goBack();
   await expect.poll(() => screen(page)).toBe('welcome');
@@ -150,7 +150,7 @@ test('opening solar from Home and backing out leaves Home exactly as it was', as
 
 test('the first visit asks for the supplier, then that supplier\'s plan', async ({ page }) => {
   await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
-  await page.getByRole('button', { name: /Get my answer/ }).click();
+  await page.getByRole('button', { name: /Get started/ }).click();
   await page.getByRole('button', { name: 'Next' }).click();
   await page.locator('.fl-sup', { hasText: 'Energia' }).click();
   const plans = await page.locator('.fl-opt').allTextContents();
@@ -179,7 +179,7 @@ test('solar explored in the guide is "planned", and the card only moves on its l
   await page.locator('.sg-grant').click();                                                     // grant off
   expect(await page.evaluate(() => [window.state.battery_kwh, window.state.grant_seai])).toEqual([7.5, 0]);
   await page.getByRole('button', { name: /Show me the answer/ }).click();
-  await expect(page.locator('.sg-found')).toContainText('Found for you');
+  await expect(page.locator('.sg-found')).toContainText('With panels, your best plan is');
   await page.getByRole('button', { name: /Add to my Home/ }).click();
   // Planned solar joins the one staircase on Home; nothing calls it installed.
   await expect(page.locator('.v7-hero')).toContainText('planned panels');
@@ -227,7 +227,7 @@ test('a door on Home opens its question and says where it came from', async ({ p
 
 test('"not sure which plan" assumes a standard plan, never an EV or dynamic one', async ({ page }) => {
   await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
-  await page.getByRole('button', { name: /Get my answer/ }).click();
+  await page.getByRole('button', { name: /Get started/ }).click();
   await page.getByRole('button', { name: 'Next' }).click();
   await page.locator('.fl-sup', { hasText: 'Energia' }).click();
   await page.locator('.fl-opt', { hasText: 'Not sure which plan' }).click();
@@ -246,7 +246,7 @@ test('planned solar never offers a switch to the plan you are already on', async
 
 test('"not sure which plan" is kept as a guess, not as a known plan', async ({ page }) => {
   await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
-  await page.getByRole('button', { name: /Get my answer/ }).click();
+  await page.getByRole('button', { name: /Get started/ }).click();
   await page.getByRole('button', { name: 'Next' }).click();
   await page.locator('.fl-sup', { hasText: 'Energia' }).click();
   await page.locator('.fl-opt', { hasText: 'Not sure which plan' }).click();
