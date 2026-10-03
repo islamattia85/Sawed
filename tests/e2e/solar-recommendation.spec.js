@@ -222,7 +222,7 @@ test('the grant card is off the solar tab and beside the field it explains', asy
   // The figure it explained must not vanish with it: the hero carries the net
   // system cost, so it has to say what "net" means.
   expect(onSolar, 'the system price no longer says the grant is included')
-    .toMatch(/after grant/i);
+    .toMatch(/after (the €[\d,]+ SEAI )?grant|no SEAI grant/i);
 
   // The grant lives with the price in My system: a switch that says the amount.
   await page.evaluate(() => window.openMySystem());

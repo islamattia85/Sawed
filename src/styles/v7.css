@@ -1445,3 +1445,14 @@ section.hc { cursor: default; }
 .v7-undo button, .toast-undo { flex: none; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--accent); background: var(--surface, transparent); color: var(--accent); font: 700 var(--text-caption) var(--display); cursor: pointer; }
 .toast-undo { margin-left: var(--space-2); }
 .v7-undo .v7-undo-x { padding: 6px; border: 0; background: none; color: var(--ink-soft); }
+
+/* The payback answer, with where the money ends up beside it. */
+.ax-big-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-3); }
+.ax-side { display: grid; justify-items: end; gap: 2px; text-align: right; }
+.ax-side b { font: 700 var(--text-h3) var(--display); }
+.ax-side small { font-size: var(--text-caption); color: var(--ink-soft); }
+.ax-spark { width: 104px; height: 30px; overflow: visible; }
+.ax-spark-zero { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+.ax-spark-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ax-spark-line.is-short { stroke: var(--loss); }
+.ax-spark-dot { fill: var(--accent); stroke: var(--surface, #fff); stroke-width: 2; }

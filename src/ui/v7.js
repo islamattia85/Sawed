@@ -665,13 +665,33 @@ export function createV7(api) {
     return `<div class="ax-q"><h1 class="ax-h">${esc(q || t.q)}</h1>${s ? `<p class="ax-sub">${s}</p>` : ''}</div>`;
   }
 
-  function anAnswer({ k, big, unit = '', line = '', extra = '' }) {
+  function anAnswer({ k, big, unit = '', line = '', extra = '', side = '' }) {
+    const main = `<div class="ax-big qr-value"><span>${big}</span>${unit ? `<span class="ax-unit">${unit}</span>` : ''}</div>`;
     return `<section class="ax-ans">
       <div class="ax-ans-k">${k}</div>
-      <div class="ax-big qr-value"><span>${big}</span>${unit ? `<span class="ax-unit">${unit}</span>` : ''}</div>
+      ${side ? `<div class="ax-big-row">${main}<div class="ax-side">${side}</div></div>` : main}
       ${line ? `<div class="ax-line">${line}</div>` : ''}
       ${extra}
     </section>`;
+  }
+
+  /**
+   * Beside the payback years: where the money ends up. The 20-year total, in
+   * today's money, over a small line that crosses zero in the payback year.
+   */
+  function lifeSpark(curve, clear) {
+    if (!curve || curve.length < 2) return '';
+    const W = 104, H = 30, lo = Math.min(0, ...curve), hi = Math.max(0, ...curve), span = hi - lo || 1;
+    const x = (i) => (i / (curve.length - 1)) * W, y = (v) => H - ((v - lo) / span) * H;
+    const d = curve.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+    const end = curve[curve.length - 1];
+    return `<svg class="ax-spark" viewBox="-3 -3 ${W + 6} ${H + 6}" aria-hidden="true">
+        <line x1="0" x2="${W}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}" class="ax-spark-zero"/>
+        <path d="${d}" class="ax-spark-line ${end >= 0 ? '' : 'is-short'}"/>
+        ${clear > 0 ? `<circle cx="${x(clear).toFixed(1)}" cy="${y(curve[clear]).toFixed(1)}" r="3.5" class="ax-spark-dot"/>` : ''}
+      </svg>
+      <b class="${end >= 0 ? 'is-gain' : 'is-loss'}">${end >= 0 ? '+' : '−'}${eur(Math.abs(end))}</b>
+      <small>${end >= 0 ? 'ahead' : 'short'} after 20 years${S().battery_kwh > 0 ? ',<br>new battery included' : ''}</small>`;
   }
 
   const anCard = (title, body, cls = '') => `<section class="ax-card ${cls}"><h2 class="ax-t">${title}</h2>${body}</section>`;
@@ -1068,8 +1088,9 @@ export function createV7(api) {
       ${anAnswer({
         k: 'Pays for itself in',
         big: pb < 50 ? pb.toFixed(1) : '—', unit: pb < 50 ? 'years' : 'never pays back',
+        side: lifeSpark(curve, clear),
         extra: `${d.picked ? '' : `<div class="ax-wx wx-range" role="group" aria-label="Weather year">${wx}</div>`}
-          <div class="ax-line">${eur(benefit)} a year back on ${eur(sysCost)} after grant (${eur(st.install_cost)} less a ${eur(st.grant_seai)} SEAI grant).</div>
+          <div class="ax-line">${eur(benefit)} a year back on ${eur(sysCost)}${st.grant_seai > 0 ? ` after the ${eur(st.grant_seai)} SEAI grant` : ', with no SEAI grant'}.</div>
           <div class="ax-line ax-line-2">${planLine} <button class="ax-inline" onclick="v7Sheet('anplan')">Use a different plan</button></div>
           ${st.chosen_plan ? api.renderChoiceStrip() : ''}
           <button class="v7-system" onclick="openMySystem()">
