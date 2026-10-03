@@ -443,7 +443,7 @@ test('My Peakless: a guest sees the household, the quotes and why an account hel
   await expect(page.locator('.v7-nav-item.active')).toContainText('Me');
 
   // A saved quote becomes the modelled system in one tap.
-  await me.getByRole('button', { name: 'Model it' }).click();
+  await me.getByRole('button', { name: 'Make this my system' }).click();
   expect(await page.evaluate(() => window.state.current_screen)).toBe('solar');
   const s = await page.evaluate(() => ({ b: window.state.battery_kwh, c: window.state.install_cost, manual: window.state.cost_is_manual }));
   expect(s).toEqual({ b: 10, c: 9800, manual: true });

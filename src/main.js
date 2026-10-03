@@ -2413,7 +2413,8 @@ function plannedSolarSplit(){
  * tabs never re-simulates a year. A few "_" keys are the model: the meter
  * file's hourly shape changes every hour of the year without touching the bills.
  */
-const UI_ONLY = new Set(['current_screen', 'theme']);
+// Keys that change nothing in any figure: a page, the theme, which alerts were seen, the score toast.
+const UI_ONLY = new Set(['current_screen', 'theme', 'alerts_seen', 'score_seen', 'switch_clicks']);
 const MODEL_PRIVATE = new Set(['_csv_imported', '_csv_hourly_shape', '_ghi_override']);
 function modelKey(){
   return JSON.stringify(state, (key, v) => (key && !MODEL_PRIVATE.has(key) && (key[0] === '_' || UI_ONLY.has(key)) ? undefined : v)) + '|' + _tariffGen;
@@ -9732,6 +9733,74 @@ function fileCurrentSystem(){
 }
 
 /** Make a saved quote (or a filed system) the modelled one. */
+/**
+ * The state a quote describes: the system it would put on this home. Used to
+ * model the quote, and to compare quotes without modelling any of them.
+ */
+function quoteChanges(q){
+  if (q.cfg){
+    const c = {};
+    SYS_KEYS.forEach((k) => { if (q.cfg[k] !== undefined) c[k] = q.cfg[k]; });
+    ['panel_w', 'battery_eff', 'battery_min', 'battery_discharge_kw', 'inverter_kw', 'cost_is_manual', 'grant_is_manual'].forEach((k) => { if (q.cfg[k] !== undefined) c[k] = q.cfg[k]; });
+    return c;
+  }
+  const w = q.watts > 0 ? q.watts : (state.panel_w || 440);
+  // A quote is a system not yet bought.
+  const c = { panel_w: w, has_solar: true, considering_solar: true, solar_is_estimate: false, solar_planned: true,
+    count_A: q.panels > 0 ? q.panels : Math.max(1, Math.round((+q.kwp || 0) * 1000 / w)), count_B: 0,
+    battery_kwh: +q.battery || 0, install_cost: Math.round(+q.price || 0), cost_is_manual: true };
+  // A quote over two roof faces is modelled as two faces, each its own way.
+  if (q.faces && q.faces.length === 2){
+    Object.assign(c, { count_A: q.faces[0].panels, count_B: q.faces[1].panels, azimuth_A: q.faces[0].azimuth, azimuth_B: q.faces[1].azimuth,
+      tilt_B: q.faces[1].tilt || q.faces[0].tilt || q.tilt || state.tilt_A });
+    if (q.faces[0].tilt) c.tilt_A = q.faces[0].tilt;
+  } else if (q.azimuth) c.azimuth_A = q.azimuth;
+  if (q.tilt && !(q.faces && q.faces[0].tilt)) c.tilt_A = q.tilt;
+  if (q.grant != null){ c.grant_seai = q.grant; c.grant_is_manual = true; }
+  else { c.grant_is_manual = false; c.grant_seai = calcSeaiGrant(((c.count_A + c.count_B) * w) / 1000, c.battery_kwh).total; }
+  return c;
+}
+
+/** What a system earns this home: payback, a year's return, and where 20 years leave it. Same sums as the Solar tab. */
+function systemOutcome(){
+  const d = v7SolarData();
+  const ben = d.cur.solarBenefit, cost = d.sysCost, deg = state.panel_degradation || 0.005;
+  let saved = 0; for (let y = 1; y <= 20; y++) saved += ben * Math.pow(1 - deg, y - 1);
+  const batt = state.battery_kwh > 0 ? 400 * state.battery_kwh : 0;
+  return { payback: d.cur.payback, benefit: ben, cost, life: saved - cost - batt, plan: d.best && d.best.plan ? `${d.best.plan.supplier} ${d.best.plan.plan}` : '' };
+}
+
+/**
+ * Every saved quote, run on this home. Each is a full year's simulation, so
+ * the work happens after the screen paints and is kept until the home or the
+ * quotes change.
+ */
+let _qoMemo = { k: null, v: null }, _qoPending = false;
+function quoteOutcomes(){
+  const k = modelKey();
+  if (_qoMemo.k === k) return _qoMemo.v;
+  if (!_qoPending){
+    _qoPending = true;
+    setTimeout(() => {
+      const v = {};
+      try {
+        if (v7HasModelledSystem()) v.current = systemOutcome();
+        for (const q of state.solar_quotes || []) v[q.id] = withSimState(quoteChanges(q), systemOutcome);
+      } catch (e) { /* rows keep their placeholder */ }
+      _qoMemo = { k: modelKey(), v }; _qoPending = false;
+      if (state.current_screen === 'me') renderApp();
+    }, 300);
+  }
+  return null;
+}
+/** Make a saved quote the modelled system, with Undo. */
+function useQuote(id){
+  const q = (state.solar_quotes || []).find((x) => x.id === id);
+  if (!q) return;
+  rememberForUndo(`Now modelling ${q.installer || 'the quote'}`);
+  quoteToSystem(id);
+}
+
 function quoteToSystem(id){
   const q = (state.solar_quotes || []).find((x) => x.id === id);
   if (!q) return;
@@ -9741,24 +9810,7 @@ function quoteToSystem(id){
     ['panel_w', 'battery_eff', 'battery_min', 'battery_discharge_kw', 'inverter_kw', 'cost_is_manual', 'grant_is_manual'].forEach((k) => { if (q.cfg[k] !== undefined) state[k] = q.cfg[k]; });
     state.solar_quotes = state.solar_quotes.filter((x) => x.id !== q.id);
   } else {
-    if (q.watts > 0) state.panel_w = q.watts;
-    const w = state.panel_w || 440;
-    state.has_solar = true; state.considering_solar = true; state.solar_is_estimate = false;
-    // A quote is a system not yet bought.
-    state.solar_planned = true;
-    state.count_A = q.panels > 0 ? q.panels : Math.max(1, Math.round((+q.kwp || 0) * 1000 / w)); state.count_B = 0;
-    // A quote over two roof faces is modelled as two faces, each its own way.
-    if (q.faces && q.faces.length === 2){
-      state.count_A = q.faces[0].panels; state.count_B = q.faces[1].panels;
-      state.azimuth_A = q.faces[0].azimuth; state.azimuth_B = q.faces[1].azimuth;
-      state.tilt_B = q.faces[1].tilt || q.faces[0].tilt || q.tilt || state.tilt_A;
-      if (q.faces[0].tilt) state.tilt_A = q.faces[0].tilt;
-    }
-    state.battery_kwh = +q.battery || 0;
-    state.install_cost = Math.round(+q.price || 0); state.cost_is_manual = true;
-    if (q.grant != null){ state.grant_seai = q.grant; state.grant_is_manual = true; } else state.grant_is_manual = false;
-    if (q.tilt && !(q.faces && q.faces[0].tilt)) state.tilt_A = q.tilt;
-    if (q.azimuth && !(q.faces && q.faces.length === 2)) state.azimuth_A = q.azimuth;
+    Object.assign(state, quoteChanges(q));
     const fine = state.fine = state.fine || {};
     if (q.watts > 0) fine.panels = true;
     if (q.tilt && q.azimuth) fine.roof = true;
@@ -9941,12 +9993,24 @@ function renderMe(){
 
     <div class="section-title">Saved quotes</div>
     <section class="me-list">
-      ${quotes.length ? quotes.map((q) => { const a = assessQuote(q); const qid = escAttr(q.id); return `<div class="me-row">
-          <span><b>${esc(q.installer || 'Installer')} · ${eur(+q.price || 0)}</b>
-          <small>${(+q.kwp || 0).toFixed(1)} kWp${+q.battery > 0 ? ` · ${q.battery} kWh battery` : ''} · <span class="${a.cls}">${esc(String(a.verdict).replace(/<[^>]+>/g, ''))}</span></small></span>
-          <button class="me-mini" onclick="quoteToSystem('${qid}')">${q.source === 'previous' ? 'Bring back' : 'Model it'}</button>
+      ${(() => {
+        if (!quotes.length) return `<div class="me-empty">No quotes saved yet.</div>`;
+        // Each quote run on this home: ordered by payback, best first.
+        const out = quoteOutcomes();
+        const pb = (q) => (out && out[q.id] && out[q.id].payback < 50 ? out[q.id].payback : Infinity);
+        const list = out ? quotes.slice().sort((x, y) => pb(x) - pb(y)) : quotes;
+        const bestId = out && quotes.length > 1 && pb(list[0]) < Infinity ? list[0].id : null;
+        const faces = (q) => (q.faces && q.faces.length === 2 ? `${q.faces[0].panels} + ${q.faces[1].panels} panels on two faces` : `${(+q.kwp || 0).toFixed(1)} kWp`);
+        const cur = out && out.current;
+        return `${cur && quotes.length ? `<div class="me-qcur">Your ${state.solar_planned || state.solar_is_estimate ? 'current plan' : 'system'}: ${cur.payback < 50 ? `pays back in <b>${cur.payback.toFixed(1)} yrs</b>` : 'does not pay back'}, ${cur.life >= 0 ? `${fmtCurrency(cur.life)} ahead` : `${fmtCurrency(-cur.life)} short`} after 20 years</div>` : ''}
+        ${list.map((q) => { const a = assessQuote(q); const qid = escAttr(q.id); const o = out && out[q.id]; return `<div class="me-row me-quote ${q.id === bestId ? 'is-best' : ''}">
+          <span><b>${esc(q.installer || 'Installer')} · ${eur(+q.price || 0)}${q.id === bestId ? ' <i class="me-qbest">Best for your home</i>' : ''}</b>
+          <small>${faces(q)}${+q.battery > 0 ? ` · ${q.battery} kWh battery` : ''} · <span class="${a.cls}">${esc(String(a.verdict).replace(/<[^>]+>/g, ''))}</span></small>
+          <small class="me-qout">${o ? `${o.payback < 50 ? `Pays back in <b>${o.payback.toFixed(1)} yrs</b>` : 'Does not pay back'} · ${o.life >= 0 ? `<b class="is-gain">${fmtCurrency(o.life)}</b> ahead` : `${fmtCurrency(-o.life)} short`} after 20 yrs` : 'Working out what it earns your home…'}</small></span>
+          <button class="me-mini" onclick="useQuote('${qid}')">${q.source === 'previous' ? 'Bring back' : 'Make this my system'}</button>
           <button class="me-mini me-x" aria-label="Remove quote" onclick="removeQuote('${qid}')">${ic('x', 14)}</button>
-        </div>`; }).join('') : `<div class="me-empty">No quotes saved yet.</div>`}
+        </div>`; }).join('')}`;
+      })()}
       <button class="me-add" onclick="v7Sheet('quote')">${ic('clip', 16)} Upload an installer's quote</button>
     </section>
 
@@ -12860,6 +12924,10 @@ window.showPlanDetail = showPlanDetail;
 window.pickObHeating = pickObHeating;
 window.setAnalyticsDay = setAnalyticsDay;
 window.anMonth = anMonth;
+window.useQuote = useQuote;
+window.systemOutcome = systemOutcome;
+window.quoteChanges = quoteChanges;
+window.quoteOutcomes = quoteOutcomes;
 window.sgTwo = sgTwo;
 window.azFromWords = azFromWords;
 window.quoteFaces = quoteFaces;
