@@ -13,6 +13,7 @@ import {
 import { moneyBar, dayProfile, paybackCurve, yearRibbon, bandDonut } from './ui/charts.js';
 import { createV7 } from './ui/v7.js';
 import { checkSwitch, timingFit } from './engine/meter';
+import { installErrorReporting } from './errors';
 import { BRAND, CONTROLLER, MARK_PATHS, iconDataUri, wordmarkHtml } from './brand';
 
 /* Peakless — application entry.
@@ -1033,6 +1034,8 @@ const DEFAULT_STATE = {
 };
 
 let state;
+// A crash on someone's phone is reported (scrubbed of anything personal), not lost.
+installErrorReporting({ build: __BUILD_ID__, version: __APP_VERSION__, screen: () => (state && state.current_screen) || '' });
 // Testing: open the app with ?fresh to start from the very beginning.
 if (/[?&]fresh\b/.test(location.search)) {
   try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
@@ -10921,6 +10924,7 @@ function renderPrivacy(){
           ${row('Anonymous usage counts', 'To improve the app (consent)', '26 months')}
           ${row('Record of your consent choices', 'To show we asked (legal obligation)', '36 months')}
           ${row('Scrambled internet address', 'To stop abuse (legitimate interest)', '1 day')}
+          ${row('Error reports: what broke and where, nothing about you', 'To fix faults (legitimate interest)', '30 days')}
         </tbody>
       </table>
 
