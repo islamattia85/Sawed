@@ -546,8 +546,8 @@
   .plan-filter-pill{flex-shrink:0;padding:7px 12px;font-family:var(--mono);font-size:12px;letter-spacing:.06em;font-weight:600;color:var(--ink-soft);background:var(--panel);border:1px solid var(--line);border-radius:999px;cursor:pointer;transition:all .15s;text-transform:uppercase;white-space:nowrap}
   .plan-filter-pill:hover{color:var(--ink);border-color:var(--track)}
   .plan-filter-pill.active{background:var(--accent);color:var(--well);border-color:var(--accent);font-weight:700}
-  .plan-filter-pill .count{font-weight:500;opacity:.7;margin-left:4px}
-  .plan-filter-pill.active .count{opacity:.85}
+  .plan-filter-pill .count{font-weight:500;margin-left:4px}
+
 
   /* Settings collapsible sections */
   .settings-section-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden;transition:border-color .15s}

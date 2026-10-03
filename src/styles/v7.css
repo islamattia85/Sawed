@@ -23,7 +23,7 @@
   color-scheme: light;
   --bg: #F4F2EC;            --bg-elev: #FFFFFF;
   --panel: #FFFFFF;         --panel-2: #FAF9F5;
-  --ink: #16201A;           --ink-soft: #56615B;      --ink-dim: #8A938D;
+  --ink: #16201A;           --ink-soft: #56615B;      --ink-dim: #5F6862;
   --line: #E3E0D6;          --line-soft: #ECE9E1;
   --hair: rgba(22, 32, 26, .08);  --hair-strong: rgba(22, 32, 26, .16);
   --accent: #127A4C;        --accent-soft: rgba(18, 122, 76, .10);
@@ -51,7 +51,7 @@
   color-scheme: dark;
   --bg: #0F1311;            --bg-elev: #171C19;
   --panel: #171C19;         --panel-2: #1B211D;
-  --ink: #EEF1EE;           --ink-soft: #A2ACA6;      --ink-dim: #6E7872;
+  --ink: #EEF1EE;           --ink-soft: #A2ACA6;      --ink-dim: #8E9892;
   --line: #262D29;          --line-soft: #1E2421;
   --hair: rgba(255, 255, 255, .07);  --hair-strong: rgba(255, 255, 255, .14);
   --accent: #4CCB8C;        --accent-soft: rgba(76, 203, 140, .13);
@@ -676,7 +676,7 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .me-guest { flex-direction: column; align-items: stretch; gap: var(--space-3); }
 .me-guest .pk-word { color: var(--brand-paper); }
 .me-guest-top { display: flex; align-items: center; justify-content: space-between; }
-.me-badge { font-size: var(--text-caption); font-weight: 700; padding: 3px 10px; border-radius: var(--radius-pill); background: rgba(255, 255, 255, .1); color: var(--brand-mist); }
+.me-badge { font-size: var(--text-caption); font-weight: 700; padding: 3px 10px; border-radius: var(--radius-pill); background: rgba(255, 255, 255, .1); color: var(--brand-paper); }
 .me-head .me-p { color: var(--brand-mist); }
 .me-p { margin: 0; font-size: var(--text-data); line-height: 1.55; color: var(--ink-soft); }
 .me-auth { display: grid; gap: var(--space-2); }
@@ -1195,6 +1195,7 @@ section.hc { cursor: default; }
 }
 .ax-tab span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ax-tab.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.ax-tab.on, .v7-chip-edit { color: color-mix(in srgb, var(--accent) 82%, var(--ink)); }
 
 .ax-q { display: grid; gap: 6px; margin-top: var(--space-1); }
 .ax-h { margin: 0; font-size: var(--text-h3); line-height: 1.25; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
@@ -1366,6 +1367,7 @@ section.hc { cursor: default; }
 .ax-pill { padding: 2px 8px; border-radius: 999px; font-size: var(--text-caption); font-weight: 700; white-space: nowrap; }
 .ax-pill.is-measured, .ax-pill.is-confirmed { background: var(--accent-soft); color: var(--accent); }
 .ax-pill.is-estimated, .ax-pill.is-assumed { background: var(--amber-soft); color: var(--amber); }
+.ax-pill.is-estimated, .ax-pill.is-assumed { color: color-mix(in srgb, var(--amber) 85%, var(--ink)); }
 .ax-pill.is-always { background: var(--track-soft); color: var(--ink-soft); }
 .ax-act {
   justify-self: start; min-height: 40px; padding: 8px 14px; text-align: left; border-radius: 999px;
@@ -1554,3 +1556,11 @@ button.ax-side { padding: 0; border: 0; background: none; cursor: pointer; font:
 .sy-confirm { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--amber-faint, var(--well)); font-size: var(--text-caption); color: var(--ink); }
 .sy-confirm span { flex: 1; }
 .sy-confirm .sy-stop { flex: none; display: inline-flex; align-items: center; gap: 4px; }
+
+/* Accessibility: links inside text are underlined, not colour-only. */
+p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
+/* Plan cards: the whole card is clickable by mouse; this covering button is the keyboard/screen-reader target. */
+.v7-plan { position: relative; }
+.v7-plan-open { position: absolute; inset: 0; border: 0; background: none; padding: 0; border-radius: inherit; cursor: pointer; }
+.v7-plan-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.v7-plan .v7-cmp { position: relative; z-index: 1; }

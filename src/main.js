@@ -4555,7 +4555,7 @@ function renderSolarGuide(){
   const head = (k, title, sub) => `
     <div class="sg-top">
       <button class="sg-back" onclick="${step <= 1 ? 'sgCancel()' : `sgGo(${step - 1})`}" aria-label="Back">${ic('chevL', 18)}</button>
-      <div class="sg-progress" aria-label="Step ${step} of ${SG_STEPS}"><i style="width:${step / SG_STEPS * 100}%"></i></div>
+      <div class="sg-progress" role="progressbar" aria-valuemin="1" aria-valuemax="${SG_STEPS}" aria-valuenow="${step}" aria-label="Step ${step} of ${SG_STEPS}"><i style="width:${step / SG_STEPS * 100}%"></i></div>
       <span class="sg-count">${step}/${SG_STEPS}</span>
     </div>
     <div class="sg-k">${k}</div>
@@ -4689,7 +4689,7 @@ function renderEvGuide(){
   const head = (k, title, sub) => `
     <div class="sg-top">
       <button class="sg-back" onclick="${step === 1 ? 'egCancel()' : `egGo(${step - 1})`}" aria-label="Back">${ic('chevL', 18)}</button>
-      <div class="sg-progress" aria-label="Step ${step} of ${EG_STEPS}"><i style="width:${step / EG_STEPS * 100}%"></i></div>
+      <div class="sg-progress" role="progressbar" aria-valuemin="1" aria-valuemax="${EG_STEPS}" aria-valuenow="${step}" aria-label="Step ${step} of ${EG_STEPS}"><i style="width:${step / EG_STEPS * 100}%"></i></div>
       <span class="sg-count">${step}/${EG_STEPS}</span>
     </div>
     <div class="sg-k">${k}</div>
@@ -7500,6 +7500,7 @@ function enhanceA11y(){
       // Native controls are already accessible — skip.
       if (tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
       if (el.getAttribute('data-a11y') === '1') return;   // already done this render cycle
+      if (el.getAttribute('aria-hidden') === 'true') return;   // decorative (e.g. sheet backdrop): Escape closes
       el.setAttribute('data-a11y', '1');
       if (!el.hasAttribute('role')) el.setAttribute('role', 'button');
       if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
@@ -8931,7 +8932,7 @@ function householdScene(){
       <span>${planned ? 'Your home with the planned system' : 'Your home'} · a typical year</span>
       <span class="hs-badge">${planned ? 'planned' : sys ? 'installed' : 'no solar'}</span>
     </div>
-    <svg class="hs-svg" viewBox="0 0 360 300" role="img" aria-hidden="true">
+    <svg class="hs-svg" viewBox="0 0 360 300" role="group" aria-label="Tap a part of the house to edit it">
       ${sys ? `<g class="hs-sun"><circle cx="318" cy="38" r="13"/>${[0, 45, 90, 135, 180, 225, 270, 315].map((a) => {
         const r = a * Math.PI / 180; return `<line x1="${318 + Math.cos(r) * 18}" y1="${38 + Math.sin(r) * 18}" x2="${318 + Math.cos(r) * 24}" y2="${38 + Math.sin(r) * 24}"/>`; }).join('')}</g>
         <path class="hs-flow hs-flow-sun" d="M300 52 L262 84"/>` : ''}
@@ -10123,7 +10124,7 @@ function renderSystemSheet(){
       <div class="v7-eyebrow">My system</div>
       <h2 class="v7-h">${t} panels · ${totalKwp().toFixed(1)} kWp${batt > 0 ? ` · ${batt} kWh` : ''}</h2>
     </div>
-    <div class="v7-seg sy-status" role="tablist" aria-label="Is this system installed?">
+    <div class="v7-seg sy-status" role="group" aria-label="Is this system installed?">
       <button class="v7-seg-btn ${state.solar_planned || state.solar_is_estimate ? 'active on' : ''}" onclick="setSolarInstalled(false)">I'm planning it</button>
       <button class="v7-seg-btn ${!state.solar_planned && !state.solar_is_estimate ? 'active on' : ''}" onclick="setSolarInstalled(true)">It's installed</button>
     </div>
@@ -10223,7 +10224,7 @@ function renderHomeSheet(){
       ${state._csv_imported
         ? `<div class="sy-field"><span><b>From your smart meter</b><small>${Math.round(v7AnnualKwh()).toLocaleString('en-IE')} kWh a year, half-hour by half-hour</small></span>
            <button class="sy-stop" onclick="v7Sheet(null);setScreen('csv-import')">Replace</button></div>`
-        : `<div class="v7-seg" role="tablist" aria-label="Usage from">
+        : `<div class="v7-seg" role="group" aria-label="Usage from">
              <button class="v7-seg-btn ${!kwhMode ? 'active on' : ''}" onclick="setUsageMode('bill')">From my bill</button>
              <button class="v7-seg-btn ${kwhMode ? 'active on' : ''}" onclick="setUsageMode('kwh')">kWh a year</button>
            </div>
@@ -10253,7 +10254,7 @@ function renderHomeSheet(){
         <input type="checkbox" role="switch" ${state.ev_active ? 'checked' : ''} onchange="${state.ev_active ? 'toggleEv()' : 'startEvGuide()'}">
       </label>
       ${state.ev_active ? `
-        <div class="v7-seg" role="tablist" aria-label="EV status">
+        <div class="v7-seg" role="group" aria-label="EV status">
           <button class="v7-seg-btn ${state.ev_in_bill ? 'active on' : ''}" onclick="setEvMode('have')">Have it — in my bill</button>
           <button class="v7-seg-btn ${!state.ev_in_bill ? 'active on' : ''}" onclick="setEvMode('plan')">Planning one</button>
         </div>

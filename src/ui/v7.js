@@ -166,7 +166,7 @@ export function createV7(api) {
     const full = (p) => (p ? `${p.supplier} · ${p.plan}` : '');
     const sw = pl.today - pl.noSolar.net;
     const panels = pl.noSolar.net - pl.best.net;
-    return `<div class="v7-ladder v7-grid4" role="list" aria-label="What you'd pay a year">
+    return `<div class="v7-ladder v7-grid4" role="group" aria-label="What you’d pay a year">
         ${bar(0, 'Current plan', full(mine), false, 'is-now')}
         ${bar(1, 'Best plan', full(pl.noSolar.plan), false, 'is-mid')}
         ${bar(2, 'Current plan', full(mine), true, 'is-mid')}
@@ -476,10 +476,11 @@ export function createV7(api) {
           r.onHold ? `<span class="v7-flag">wholesale-linked, not ranked</span>` : '',
         ].filter(Boolean).join('');
         return `<div class="plan-card v7-plan ${isChosen ? 'chosen' : isBest ? 'best' : isCurrent ? 'current' : ''}"
-            onclick="v7Sheet('plan','${r.plan.id}')" role="button" tabindex="0">
+            onclick="v7Sheet('plan','${r.plan.id}')" data-a11y="1">
           <div class="v7-plan-head">
             <span class="v7-rank">${r.onHold ? '—' : isChosen ? '✓' : rank}</span>
             <div class="v7-plan-names">
+              <button type="button" class="v7-plan-open" onclick="event.stopPropagation(); v7Sheet('plan','${r.plan.id}')" aria-label="${esc(r.plan.supplier)} ${esc(r.plan.plan)}, ${api.fmtCurrency(r.cost)} a year. Details"></button>
               <div class="plan-supplier">${esc(r.plan.supplier)}${isCurrent ? ' <span class="v7-tag">yours now</span>' : ''}${isBest ? ' <span class="v7-tag is-best">best</span>' : ''}</div>
               <div class="plan-name">${esc(r.plan.plan)}</div>
             </div>
@@ -510,7 +511,7 @@ export function createV7(api) {
       ${st.chosen_plan ? api.renderChoiceStrip() : ''}
 
       <div class="v7-controls">
-        <div class="v7-seg plans-filters" role="tablist">
+        <div class="v7-seg plans-filters" role="group" aria-label="Plan type">
           ${['all', 'flat', 'tou', 'ev', 'dynamic'].map((cat) => `
             <button class="plan-filter-pill v7-seg-btn ${cat === f ? 'active' : ''}" onclick="setPlansFilter('${cat}')">
               ${api.planCategoryLabel(cat)}<span class="count">${counts[cat]}</span>
@@ -1275,7 +1276,7 @@ export function createV7(api) {
     else if (sh.kind === 'habits') body = api.renderHabitsSheet();
     if (!body) return '';
     return `<div class="v7-sheet-root" id="v7-sheet">
-      <div class="v7-sheet-backdrop" onclick="v7Sheet(null)"></div>
+      <div class="v7-sheet-backdrop" onclick="v7Sheet(null)" aria-hidden="true"></div>
       <div class="v7-sheet" role="dialog" aria-modal="true">
         <div class="v7-grip" aria-hidden="true"></div>
         <button class="v7-sheet-x" onclick="v7Sheet(null)" aria-label="Close">${api.ic('x', 18)}</button>
@@ -1577,7 +1578,7 @@ export function createV7(api) {
         <div class="v7-eyebrow">Month by month · swipe</div>
         <h2 class="v7-h">Your year on ${esc(best.plan.supplier)}</h2>
       </div>
-      <div class="v7-month-dots" role="tablist">${dots}</div>
+      <div class="v7-month-dots" role="group" aria-label="Months">${dots}</div>
       <div class="v7-months-track" onscroll="v7MonthScrolled(this)">${cards}</div>`;
   }
 
