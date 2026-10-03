@@ -199,9 +199,9 @@ test('the grant card is off the solar tab and beside the field it explains', asy
   expect(onSolar, 'the system price no longer says the grant is included')
     .toMatch(/after (the )?€[\d,]+ (SEAI )?grant|no SEAI grant/i);
 
-  // The grant lives with the price in My system: a switch that says the amount.
+  // My system states the amount beside the price; whether the home gets it is set in My home.
   await page.evaluate(() => window.openMySystem());
-  const grant = page.locator('#v7-sheet .sy-part[aria-label=Price] .sy-toggle');
+  const grant = page.locator('#v7-sheet .sy-part[aria-label=Price] .sy-grant');
   await expect(grant).toContainText('SEAI grant');
   await expect(grant).toContainText(/€[\d,]+ off the price/);
 

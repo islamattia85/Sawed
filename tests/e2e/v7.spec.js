@@ -349,12 +349,8 @@ test('My system: sliders, battery stops, grant switch and fine-tune change the m
   await sheet.getByLabel('Exact battery size in kWh').dispatchEvent('change');
   expect(await page.evaluate(() => window.state.battery_kwh)).toBe(11.5);
 
-  // Grant off, then back on to the standard amount.
-  const grant = sheet.locator('.sy-toggle input').first();
-  await grant.uncheck();
-  expect(await page.evaluate(() => window.state.grant_seai)).toBe(0);
-  await grant.check();
-  expect(await page.evaluate(() => window.state.grant_seai)).toBeGreaterThan(0);
+  // The grant is the home's: My system says so and links to it.
+  await expect(sheet.locator('.sy-grant')).toContainText('this home qualifies');
 
   // Fine-tuning the panels marks them confirmed and tightens the estimate.
   await sheet.getByRole('button', { name: /Fine-tune panels/ }).click();

@@ -980,6 +980,10 @@ const DEFAULT_STATE = {
   // Set true once the user types their own grant/cost — auto-recalculation
   // then keeps its hands off until they edit the field again.
   grant_is_manual: false,
+  // Can this home get the SEAI solar grant? Only homes built and lived in
+  // before 2021 that have not had one. A fact about the house: one setting,
+  // applied to every system, quote and suggestion.
+  grant_eligible: true,
   cost_is_manual: false,
   // Profile
   ev_active: false,
@@ -1025,7 +1029,7 @@ const DEFAULT_STATE = {
   solar_is_estimate: false,     // true when system spec came from our defaults, not the user
   switched_to: null,            // id of plan the user marked as "switched to"
   switched_date: null,          // ISO date when they switched
-  schema_version: 3             // bump + add a migrateState case when a field's MEANING changes
+  schema_version: 4             // bump + add a migrateState case when a field's MEANING changes
 };
 
 let state;
@@ -1070,6 +1074,8 @@ function migrateState(saved){
     // homes that later modelled a battery were never scored with grid
     // charging. Automatic scores every plan with the strategy that suits it.
     if (v < 3){ state.strategy_mode = 'auto'; state.charge_from_grid = true; v = 3; }
+    // v3 → v4: the grant switched off on a system meant the home does not get it.
+    if (v < 4){ if (state.grant_is_manual && !(state.grant_seai > 0) && state.install_cost > 0) state.grant_eligible = false; v = 4; }
     state.schema_version = Math.max(v, DEFAULT_STATE.schema_version);
   } catch(e){ /* leave state as merged defaults */ }
 }
@@ -1813,6 +1819,9 @@ const NUMERIC_STATE_FIELDS = {
   fuel_price: [1.83, 0, 100]
 };
 function coerceNumericState(){
+  // A home that cannot get the SEAI grant gets none, whatever a quote, a
+  // suggestion or a saved system says: every simulation passes through here.
+  if (state.grant_eligible === false) state.grant_seai = 0;
   for (const k in NUMERIC_STATE_FIELDS){
     if (!(k in state)) continue;
     const [fallback, min, max] = NUMERIC_STATE_FIELDS[k];
@@ -5253,7 +5262,7 @@ const GOAL_BATTS  = [0, 5, 10];
 function goalSweepCk(){
   return JSON.stringify(['goalsweep', state.region, state.heating_type, state.bimonthly_bill_eur,
     JSON.stringify(state.bills), state.ev_active, state.ev_in_bill, state.ev_km_per_year,
-    state.ev_kwh_per_100km, state.azimuth_A, state.tilt_A, state.panel_w, state.hot_water_strategy,
+    state.ev_kwh_per_100km, state.azimuth_A, state.tilt_A, state.panel_w, state.hot_water_strategy, state.grant_eligible !== false,
     // The roof as it is used: one face, or two and how the panels share them.
     state.count_B > 0 ? [state.azimuth_B, state.tilt_B, +(state.count_B / Math.max(1, totalPanels())).toFixed(2)] : 0]);
 }
@@ -5713,8 +5722,9 @@ function sgTwo(face, dir){
 }
 function sgBattery(k){ sysSet('battery_kwh', k); }
 function sgGrant(){
-  if ((state.grant_seai || 0) > 0){ state.grant_seai = 0; state.grant_is_manual = true; }
-  else { state.grant_is_manual = false; applyEstimatedSolarCost(); }
+  // The guide's switch is the home's: the same setting as in My home.
+  if ((state.grant_seai || 0) > 0){ state.grant_eligible = false; state.grant_seai = 0; }
+  else { state.grant_eligible = true; state.grant_is_manual = false; applyEstimatedSolarCost(); }
   invalidate(); saveState(); renderApp();
 }
 
@@ -5785,7 +5795,7 @@ function renderSolarGuide(){
       <label class="sg-own ${state.cost_is_manual ? 'on' : ''}"><span>Price including VAT, before the grant</span>
         <em>€</em><input type="number" inputmode="numeric" min="0" step="100" value="${Math.round(state.install_cost || 0)}" onchange="sysSet('install_cost', this.value)" aria-label="Price including VAT"></label>
       <button class="v7-switch-row sg-grant" role="switch" aria-checked="${(state.grant_seai || 0) > 0}" onclick="sgGrant()">
-        <span class="v7-switch-text"><b>SEAI grant</b><small>${(state.grant_seai || 0) > 0 ? `${eur(state.grant_seai)} taken off` : 'Not included: not eligible, or already claimed'}</small></span>
+        <span class="v7-switch-text"><b>SEAI grant</b><small>${(state.grant_seai || 0) > 0 ? `${eur(state.grant_seai)} taken off` : 'This home does not get it: built from 2021, or already claimed'}</small></span>
         <span class="v7-switch ${(state.grant_seai || 0) > 0 ? 'on' : ''}" aria-hidden="true"><i></i></span></button>
       <button class="sg-link" onclick="v7Sheet('quote')">${ic('clip', 14)} I have a quote: read it for me</button>
       ${next('Show me the answer')}`;
@@ -10006,7 +10016,7 @@ function renderSystemsList(){
   if (!ready) scheduleGoalSweep();
   const anyUse = entries.some(isInUse);
   return `<section class="sys-list" aria-label="Systems">
-    <div class="sys-head"><b>${ic('spark', 14)} Systems for your home</b><small>Tap one to use it. Prices before the grant; payback and 20 years count it. Each on the best plan for this home.</small></div>
+    <div class="sys-head"><b>${ic('spark', 14)} Systems for your home</b><small>Tap one to use it. ${state.grant_eligible !== false ? 'Prices before the grant; payback and 20 years count it.' : 'This home does not get the SEAI grant, so none is counted.'} Each on the best plan for this home.</small></div>
     ${!anyUse && v7HasModelledSystem() ? `<div class="sys-row in-use sys-g-current"><div class="sys-main"><span class="sys-l"><b>Your system now <i class="sys-tag">In use</i></b><small>${esc(systemSpec(state))}</small></span><span class="sys-r">${metrics(out && out.current, state, !state.cost_is_manual)}</span></div></div>` : ''}
     ${group('suggested', 'Suggested by Peakless', '')}
     ${group('quotes', 'From your quotes', '')}
@@ -11220,9 +11230,17 @@ function sysSplit(on){
   invalidate(); saveState(); renderApp();
 }
 
+/** Whether this home can get the SEAI grant: set once, applied to every system. */
+function setGrantEligible(on){
+  state.grant_eligible = !!on;
+  state.grant_is_manual = false;
+  applyEstimatedSolarCost();
+  if ((state.solar_view || 'mine') === 'mine') snapshotMySystem();
+  invalidate(); saveState(); renderApp();
+}
 function sysGrant(on){
-  if (on){ state.grant_is_manual = false; }
-  else { state.grant_is_manual = true; state.grant_seai = 0; }
+  if (on){ state.grant_is_manual = false; state.grant_eligible = true; }
+  else { state.grant_is_manual = true; state.grant_seai = 0; state.grant_eligible = false; }
   applyEstimatedSolarCost();
   if ((state.solar_view || 'mine') === 'mine') snapshotMySystem();
   invalidate(); saveState(); renderApp();
@@ -11341,10 +11359,10 @@ function renderSystemSheet(){
            <button class="v7-link" onclick="sysTypicalPrice()">Use a typical price instead</button>`
         : `<div class="sy-field"><span><b>Typical price ${eur(state.install_cost)}</b><small>What a system this size costs in Ireland in 2026, including VAT.</small></span>
            <button class="sy-stop" onclick="state.cost_is_manual=true;renderApp();setTimeout(()=>document.querySelector('.sy-part[aria-label=Price] input')?.focus(),40)">I have a price</button></div>`}
-      <label class="sy-toggle">
-        <span><b>SEAI grant</b><small>${grantOn ? `${eur(state.grant_seai)} off the price` : 'Not claimed — e.g. the home already had one'}</small></span>
-        <input type="checkbox" role="switch" ${grantOn ? 'checked' : ''} onchange="sysGrant(this.checked)">
-      </label>
+      <div class="sy-field sy-grant"><span><b>SEAI grant</b><small>${state.grant_eligible !== false
+          ? `${eur(state.grant_seai)} off the price: this home qualifies`
+          : 'None: this home does not qualify'}</small></span>
+        <button class="v7-link" onclick="v7Sheet('home')">Change</button></div>
       ${grantOn && state.grant_is_manual && state.grant_seai !== g ? `<div class="sy-fine-note">Using ${eur(state.grant_seai)} from your quote. The standard grant for this size is ${eur(g)}.</div>` : ''}
       <div class="sy-net">You pay <b>${eur(net)}</b></div>
     </section>
@@ -11397,6 +11415,15 @@ function renderHomeSheet(){
       ${field('Current plan', '', sel('baseline', activeTariffsSorted().map((p) => [p.id, `${p.supplier} — ${p.plan}`]), state.baseline))}
       ${field('Contract ends', 'On your bill or welcome letter. We remind you before it does.', `<input type="date" value="${state.contract_end || ''}" onchange="homeSet('contract_end',this.value||null)">`)}
       ${field('Discount on it', 'A sign-up discount off the unit rates, if you have one.', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="60" step="1" value="${state.baseline_discount_pct || 0}" onchange="homeSet('baseline_discount_pct',this.value)"><i>%</i></span>`)}
+    </section>
+
+    <section class="sy-part" aria-label="SEAI grant">
+      <label class="sy-toggle sy-toggle-top">
+        <span><b>${ic('euro', 16)} SEAI solar grant</b><small>${state.grant_eligible !== false
+          ? 'This home can get it: built and lived in before 2021, and no solar grant claimed before. Up to €1,800, taken off every system.'
+          : 'This home does not get it, so no system, quote or suggestion counts one.'}</small></span>
+        <input type="checkbox" role="switch" aria-label="This home can get the SEAI solar grant" ${state.grant_eligible !== false ? 'checked' : ''} onchange="setGrantEligible(this.checked)">
+      </label>
     </section>
 
     <button class="sy-pointer" onclick="v7Sheet('system')">${ic('sun', 16)}<span><b>The roof</b><small>Which way it faces and where the panels go are part of each system</small></span>${ic('chevR', 16)}</button>
@@ -12137,6 +12164,7 @@ document.addEventListener('DOMContentLoaded', () => {
    2024 SEAI Home Solar Scheme — tiered structure
    ============================================================ */
 function calcSeaiGrant(kwp, batteryKwh){
+  if (state.grant_eligible === false) return { panels: 0, battery: 0, total: 0 };
   // SEAI Home Solar Scheme — current structure (2024/2025):
   // First 2 kWp: €900/kWp  →  maximum grant = €1,800
   // Cap: €1,800 total (no battery bonus, no higher tiers as of 2025)
@@ -13157,6 +13185,7 @@ window.showPlanDetail = showPlanDetail;
 window.pickObHeating = pickObHeating;
 window.setAnalyticsDay = setAnalyticsDay;
 window.anMonth = anMonth;
+window.setGrantEligible = setGrantEligible;
 window.sysConfirmRoof = sysConfirmRoof;
 window.quickOutcome = quickOutcome;
 window.sweepGoalStep = sweepGoalStep;
