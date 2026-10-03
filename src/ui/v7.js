@@ -720,7 +720,7 @@ export function createV7(api) {
         ${pb > 0 && pb < curve.length - 1 ? `<circle cx="${x(pb).toFixed(1)}" cy="${y(0).toFixed(1)}" r="3.5" class="ax-spark-dot"/>` : ''}
       </svg>
       <b class="${end >= 0 ? 'is-gain' : 'is-loss'}">${end >= 0 ? '+' : '−'}${eur(Math.abs(end))}</b>
-      <small>${end >= 0 ? 'ahead' : 'short'} after 20 years${S().battery_kwh > 0 ? ',<br>new battery included' : ''} ${api.ic('chevR', 12)}</small>`;
+      <small>${end >= 0 ? 'ahead' : 'short'} in 20 years ${api.ic('chevR', 12)}</small>${S().battery_kwh > 0 ? '<small class="ax-side-note">new battery included</small>' : ''}`;
   }
 
   const anCard = (title, body, cls = '') => `<section class="ax-card ${cls}"><h2 class="ax-t">${title}</h2>${body}</section>`;
