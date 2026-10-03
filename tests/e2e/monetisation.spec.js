@@ -103,3 +103,19 @@ test('sending the quote form again updates the request', async ({ page }) => {
   await page.click('#lead-submit');
   await expect(page.getByText(/Updated\. The installers already looking at it/)).toBeVisible();
 });
+
+test('privacy notice: who, what and how long, who receives it, rights, and a data download', async ({ page }) => {
+  const errors = await boot(page, { current_screen: 'privacy' });
+  const copy = page.locator('.privacy-copy');
+  for (const h of ['Who we are', 'What we hold, why, and for how long', 'Who receives it', 'Your rights']) await expect(copy.locator('h3', { hasText: h })).toBeVisible();
+  // Retention periods match the database purge (supabase/security_2026_10.sql).
+  for (const k of ['24 months', '26 months', '36 months', '1 day']) await expect(copy.locator('.privacy-table')).toContainText(k);
+  await expect(copy).toContainText('Data Protection Commission');
+  const dl = page.waitForEvent('download');
+  await page.locator('.secondary-card', { hasText: 'Download my data' }).click();
+  const file = await dl;
+  expect(file.suggestedFilename()).toBe('peakless-my-data.json');
+  const body = JSON.parse(await (await import('node:fs')).promises.readFile(await file.path(), 'utf8'));
+  expect(body.on_this_phone).toBeTruthy();
+  expect(errors).toEqual([]);
+});

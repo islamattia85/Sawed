@@ -13,7 +13,7 @@ import {
 import { moneyBar, dayProfile, paybackCurve, yearRibbon, bandDonut } from './ui/charts.js';
 import { createV7 } from './ui/v7.js';
 import { checkSwitch, timingFit } from './engine/meter';
-import { BRAND, MARK_PATHS, iconDataUri, wordmarkHtml } from './brand';
+import { BRAND, CONTROLLER, MARK_PATHS, iconDataUri, wordmarkHtml } from './brand';
 
 /* Peakless — application entry.
  * Extracted verbatim from the former single-file index.html.
@@ -10526,31 +10526,83 @@ function v7ApplyQuote(mode){
  * by a solicitor before launch. */
 function renderPrivacy(){
   const a = analyticsConsent();
+  const C = CONTROLLER;
+  const who = C.name ? `${esc(C.name)}${C.address ? `, ${esc(C.address)}` : ''}` : '<i>[company name and address to be added]</i>';
+  const mail = C.email ? `<a href="mailto:${escAttr(C.email)}">${esc(C.email)}</a>` : '<i>[privacy email to be added]</i>';
+  const row = (what, why, keep) => `<tr><td>${what}</td><td>${why}</td><td>${keep}</td></tr>`;
   return `${topbar('Privacy', 'accent', true)}
   <div class="screen">
     <div class="card"><div class="privacy-copy">
-      <p><b>Your home's figures stay on this device</b> unless you sign in, when they are saved to your account so you can use them elsewhere.</p>
-      <p><b>If you ask for installer quotes</b>, and only with your agreement, we pass your name, contact details, county and the system modelled to up to three SEAI-registered installers. They pay us for the introduction.</p>
-      <p><b>If you switch plan through ${BRAND.name}</b>, some suppliers may pay us a commission. Plans that do are labelled, and it never changes the order we rank plans in.</p>
-      <p><b>Uploaded quotes</b> are read by our AI reader (Anthropic's Claude) and are not stored.</p>
-      <p><b>Usage measurement</b> is anonymous and only with your permission: which screens and buttons are used. No ads, and we never sell personal data.</p>
+      <p><b>Short version.</b> Your home's figures stay on this phone unless you sign in. We share your details with installers only when you ask for quotes. No ads. We never sell personal data.</p>
+
+      <h3>Who we are</h3>
+      <p>${BRAND.name} is run by ${who}. We are the controller of your personal data. Contact: ${mail}.</p>
+
+      <h3>What we hold, why, and for how long</h3>
+      <table class="privacy-table">
+        <thead><tr><th>What</th><th>Why (legal basis)</th><th>Kept</th></tr></thead>
+        <tbody>
+          ${row('Your home answers and results, on this phone', 'To give you the answer. Never sent to us unless you sign in', 'Until you clear them')}
+          ${row('Account: email, name, home answers', 'To keep your home on every device (contract)', 'Until you delete the account')}
+          ${row('Quote request: name, email, phone, county, system', 'To get you installer quotes (your consent)', '24 months')}
+          ${row('Alert emails', 'You turned them on (consent)', 'Until you turn them off')}
+          ${row('Installer quote you upload', 'To read it for you (contract). Not stored', 'Not kept')}
+          ${row('Anonymous usage counts', 'To improve the app (consent)', '26 months')}
+          ${row('Record of your consent choices', 'To show we asked (legal obligation)', '36 months')}
+          ${row('Scrambled internet address', 'To stop abuse (legitimate interest)', '1 day')}
+        </tbody>
+      </table>
+
+      <h3>Who receives it</h3>
+      <ul>
+        <li><b>Installers</b>: up to three SEAI-registered installers, only if you ask for quotes. They pay us for the introduction.</li>
+        <li><b>Supabase</b>: our database, in Ireland.</li>
+        <li><b>Vercel</b>: hosts the app.</li>
+        <li><b>Anthropic</b> (USA): reads uploaded quotes and writes quarterly suggestions. Suggestions get no personal details.</li>
+        <li><b>Resend</b> (USA): sends our emails.</li>
+        <li><b>Google</b>: only if you sign in with Google.</li>
+      </ul>
+      <p>Transfers to the USA are covered by the EU–US Data Privacy Framework or the EU's standard contractual clauses. Switching supplier happens on the supplier's own site: we send them nothing. Some suppliers pay us a commission; it never changes the ranking.</p>
+
+      <h3>Your rights</h3>
+      <p>You can see, download, correct or delete your data, object to its use, and withdraw consent at any time, using the buttons below or by emailing us. We reply within one month. You can also complain to the Data Protection Commission at <a href="https://www.dataprotection.ie" target="_blank" rel="noopener">dataprotection.ie</a>.</p>
+      <p>Plan rankings are calculations to help you choose. Nothing is decided for you.</p>
+      <p class="privacy-date">Updated ${esc(C.updated)}.</p>
     </div></div>
     <div class="secondary-card" style="cursor:default">
-      <div class="secondary-card-body"><div class="secondary-card-title">Anonymous usage measurement</div>
+      <div class="secondary-card-body"><div class="secondary-card-title">Anonymous usage counts</div>
         <div class="secondary-card-sub">${a === 'yes' ? 'Allowed' : a === 'no' ? 'Off' : 'Not answered'}</div></div>
       <button class="v7-imp-btn" onclick="setAnalyticsConsent(${a === 'yes' ? 'false' : 'true'})">${a === 'yes' ? 'Turn off' : 'Allow'}</button>
     </div>
+    <div class="secondary-card" onclick="downloadMyData()">
+      <div class="secondary-card-body"><div class="secondary-card-title">Download my data</div>
+        <div class="secondary-card-sub">Everything held about you, as a file</div></div><div class="secondary-card-arrow">›</div>
+    </div>
     <div class="secondary-card" onclick="clearThisDevice()">
-      <div class="secondary-card-body"><div class="secondary-card-title">Clear everything on this device</div>
+      <div class="secondary-card-body"><div class="secondary-card-title">Clear everything on this phone</div>
         <div class="secondary-card-sub">Your setup, saved quotes and settings</div></div><div class="secondary-card-arrow">›</div>
     </div>
     ${_sbUser ? `<div class="secondary-card" onclick="deleteMyAccount()">
       <div class="secondary-card-body"><div class="secondary-card-title" style="color:var(--loss)">Delete my account</div>
-        <div class="secondary-card-sub">${escAttr(_sbUser.email || '')} — removes your account and saved data</div></div><div class="secondary-card-arrow">›</div>
+        <div class="secondary-card-sub">${escAttr(_sbUser.email || '')}: the account, its saved data and your quote requests</div></div><div class="secondary-card-arrow">›</div>
     </div>` : ''}
-    <p class="disclaimer">Questions about your data: contact us through the app's support page.</p>
   </div>
   ${bottomNav()}`;
+}
+
+/** Right of access and portability: what this phone and the account hold, as one JSON file. */
+async function downloadMyData(){
+  const out = { exported_at: new Date().toISOString(), app: BRAND.name, on_this_phone: cloudCopy(state) };
+  if (_sb && _sbUser){
+    out.account = { email: _sbUser.email || null, created_at: _sbUser.created_at || null, profile: _sbProfile || null };
+    try { const { data } = await _sb.rpc('my_quote_requests'); out.quote_requests = data || []; } catch (e) { out.quote_requests = 'could not be loaded'; }
+  }
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${BRAND.name.toLowerCase()}-my-data.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 /** Back to the very first screen: signs out (so the account can't restore it) and clears this device. */
 async function startFresh(){
@@ -12716,6 +12768,7 @@ window.showPlanDetail = showPlanDetail;
 window.pickObHeating = pickObHeating;
 window.setAnalyticsDay = setAnalyticsDay;
 window.anMonth = anMonth;
+window.downloadMyData = downloadMyData;
 window.setStrategy = setStrategy;
 window.setHotWater = setHotWater;
 window.updateShapeBucket = updateShapeBucket;

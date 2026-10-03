@@ -11,6 +11,17 @@ export const BRAND = {
   word: ['peak', 'less'],
 } as const;
 
+/**
+ * Who is responsible for personal data (the GDPR "controller"). Shown in the
+ * privacy notice. Fill these in before launch; a blank field shows as such.
+ */
+export const CONTROLLER = {
+  name: '',          // registered company or sole-trader name
+  address: '',       // registered address in Ireland
+  email: '',         // privacy contact address
+  updated: '3 October 2026',
+} as const;
+
 /** The wordmark as markup. Styled by .pk-word in v7.css. */
 export const wordmarkHtml = (cls = '') =>
   `<span class="pk-word ${cls}" aria-label="${BRAND.name}"><b>${BRAND.word[0]}</b><span>${BRAND.word[1]}</span></span>`;
