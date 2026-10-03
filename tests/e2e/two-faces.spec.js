@@ -24,3 +24,15 @@ test('the solar guide offers two roof faces, any pair of directions', async ({ p
   await expect(page.locator('.sg-k')).toContainText('Step 2');
   expect(errors).toEqual([]);
 });
+
+test('suggested sizes keep the roof as the home uses it: on two faces, shared the same way', async ({ page }) => {
+  await boot(page, { has_solar: true, considering_solar: true, count_A: 6, count_B: 6, azimuth_A: 135, azimuth_B: 225, tilt_B: 30, current_screen: 'result' });
+  const r = await page.evaluate(() => {
+    const sw = window.sweepGoalDesigns(); const ds = Array.isArray(sw) ? sw : sw.designs || [];
+    const d = ds.find((x) => x.panels === 12) || ds[0]; const c = window.designToConfig(d);
+    return { n: ds.length, a: c.count_A, b: c.count_B, p: d.panels };
+  });
+  expect(r.n).toBeGreaterThan(0);
+  expect(r.a + r.b).toBe(r.p);
+  expect(Math.abs(r.a - r.b)).toBeLessThanOrEqual(1);
+});

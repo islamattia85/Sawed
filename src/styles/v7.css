@@ -1493,3 +1493,13 @@ button.ax-side { padding: 0; border: 0; background: none; cursor: pointer; font:
 .me-quote > span { flex: 1 1 100%; }
 .me-quote > .me-mini:not(.me-x) { margin-right: auto; }
 .me-qcur { padding: var(--space-2) var(--space-3) 0; }
+
+/* My system: one block per roof face. */
+.sy-face { display: grid; gap: var(--space-2); padding: var(--space-3); border-radius: var(--radius-md); background: var(--well); margin-bottom: var(--space-2); }
+.sy-face-head { display: flex; justify-content: space-between; align-items: center; font-size: var(--text-data); color: var(--ink); }
+.sy-add { display: flex; align-items: center; gap: 6px; width: 100%; justify-content: center; padding: var(--space-2); border-radius: var(--radius-md); border: 1px dashed var(--line); background: none; color: var(--accent); font: 700 var(--text-data) var(--display); cursor: pointer; margin-bottom: var(--space-2); }
+.sy-pointer { display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left; padding: var(--space-3); border-radius: var(--radius-lg); border: 1px solid var(--hair); background: var(--surface, transparent); color: var(--ink); cursor: pointer; margin-bottom: var(--space-3); }
+.sy-pointer span { flex: 1; display: grid; gap: 2px; } .sy-pointer small { font-size: var(--text-caption); color: var(--ink-soft); }
+.sy-pointer > svg:first-child { color: var(--brand-gold); }
+.sy-face .sy-pair { grid-template-columns: 1.5fr 1fr; }
+.sy-face .sy-pair select { min-width: 0; width: 100%; }

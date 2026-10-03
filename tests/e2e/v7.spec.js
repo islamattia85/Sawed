@@ -339,8 +339,8 @@ test('My system: sliders, battery stops, grant switch and fine-tune change the m
   await expect(sheet.locator('.sy-acc')).toContainText('±');
 
   // Panels: drag the slider, the model follows on release.
-  await sheet.locator('#sy-total').fill('16');
-  await sheet.locator('#sy-total').dispatchEvent('change');
+  await sheet.locator('#sy-cA').fill('16');
+  await sheet.locator('#sy-cA').dispatchEvent('change');
   await expect.poll(() => page.evaluate(() => window.state.count_A + window.state.count_B)).toBe(16);
 
   // Battery: a real product size in one tap, an odd one typed exactly.
@@ -368,18 +368,27 @@ test('My system: sliders, battery stops, grant switch and fine-tune change the m
   await expect(sheet).toContainText('confirmed');
 });
 
-test('My home holds the house, the usage and the roof', async ({ page }) => {
-  await boot(page);
+test('My home holds the house and the usage; the roof is part of the system', async ({ page }) => {
+  await boot(page, { count_B: 0, azimuth_A: 180, fine: {} });
   await page.locator('.v7-basis-line').click();
   const sheet = page.locator('#v7-sheet');
   await expect(sheet).toContainText('My home');
   await sheet.locator('select').nth(1).selectOption('heatpump');
   expect(await page.evaluate(() => window.state.heating_type)).toBe('heatpump');
-  await expect(sheet.locator('.sy-part[aria-label=Roof]')).toContainText('assumed');
-  await sheet.locator('.sy-part[aria-label=Roof] input').first().fill('40');
-  await sheet.locator('.sy-part[aria-label=Roof] input').first().dispatchEvent('change');
+  // The roof lives in My system now; My home points there.
+  await expect(sheet.locator('.sy-part[aria-label=Roof]')).toHaveCount(0);
+  await sheet.locator('.sy-pointer', { hasText: 'The roof' }).click();
+  await expect(sheet).toContainText('Roof and panels');
+  await expect(sheet.locator('.sy-part[aria-label=Panels]')).toContainText('roof assumed');
+  const tilt = sheet.locator('.sy-face').first().locator('input[type=number]');
+  await tilt.fill('40'); await tilt.dispatchEvent('change');
   expect(await page.evaluate(() => window.state.tilt_A)).toBe(40);
-  await expect(sheet.locator('.sy-part[aria-label=Roof]')).toContainText('confirmed');
+  await expect(sheet.locator('.sy-part[aria-label=Panels]')).toContainText('roof confirmed');
+  // A second face starts mirrored across south, never facing north.
+  await sheet.getByRole('button', { name: /Add a second roof face/ }).click();
+  const st = await page.evaluate(() => [window.state.count_B > 0, window.state.azimuth_B]);
+  expect(st).toEqual([true, 270]);
+  await expect(sheet.locator('.sy-face')).toHaveCount(2);
 });
 
 test('a first visit opens on the start page, with the brand', async ({ page }) => {

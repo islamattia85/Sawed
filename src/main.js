@@ -5245,7 +5245,9 @@ const GOAL_BATTS  = [0, 5, 10];
 function goalSweepCk(){
   return JSON.stringify(['goalsweep', state.region, state.heating_type, state.bimonthly_bill_eur,
     JSON.stringify(state.bills), state.ev_active, state.ev_in_bill, state.ev_km_per_year,
-    state.ev_kwh_per_100km, state.azimuth_A, state.tilt_A, state.panel_w, state.hot_water_strategy]);
+    state.ev_kwh_per_100km, state.azimuth_A, state.tilt_A, state.panel_w, state.hot_water_strategy,
+    // The roof as it is used: one face, or two and how the panels share them.
+    state.count_B > 0 ? [state.azimuth_B, state.tilt_B, +(state.count_B / Math.max(1, totalPanels())).toFixed(2)] : 0]);
 }
 
 function sweepGoalDesigns(){
@@ -5260,6 +5262,10 @@ function sweepGoalDesigns(){
   const az = state.azimuth_A || 180;
   const tilt = state.tilt_A || 30;
   const ev = !!state.ev_active;
+  // Every size is laid out on the roof as the home uses it: on two faces,
+  // shared in the same proportion. Sizing on one face dropped the second.
+  const two = state.count_B > 0, azB = state.azimuth_B, tiltB = state.tilt_B;
+  const shareB = two ? state.count_B / Math.max(1, totalPanels()) : 0;
 
   _scenarioDepth += 1;
   try {
@@ -5272,7 +5278,9 @@ function sweepGoalDesigns(){
   const designs = [];
   for (const p of GOAL_PANELS){
     for (const b of GOAL_BATTS){
-      state.count_A = p; state.count_B = 0; state.azimuth_A = az; state.tilt_A = tilt;
+      const nB = Math.round(p * shareB), nA = p - nB;
+      state.count_A = nA; state.count_B = nB; state.azimuth_A = az; state.tilt_A = tilt;
+      if (two){ state.azimuth_B = azB; state.tilt_B = tiltB; }
       state.battery_kwh = b; state.has_solar = true;
       const kwp = totalKwp();
       const cost = estimateInstallCost(kwp, b);
@@ -5283,7 +5291,7 @@ function sweepGoalDesigns(){
       const best = getBestPlan();
       const benefit = Math.max(0, noSolarCost - best.net);
       const payback = benefit > 0 ? net / benefit : 999;
-      designs.push({ panels: p, batt: b, kwp: +kwp.toFixed(1), cost, grant, net,
+      designs.push({ panels: p, a: nA, b: nB, batt: b, kwp: +kwp.toFixed(1), cost, grant, net,
         benefit: Math.round(benefit), payback: +payback.toFixed(1),
         npv: computeNpv20(benefit, net, b), planId: best.plan.id,
         planLabel: best.plan.supplier + ' — ' + best.plan.plan });
@@ -5485,7 +5493,7 @@ function applySystemConfig(cfg){
 }
 
 function designToConfig(d){
-  return { has_solar: true, count_A: d.panels, count_B: 0,
+  return { has_solar: true, count_A: d.a ?? d.panels, count_B: d.b ?? 0,
     azimuth_A: state.azimuth_A || 180, tilt_A: state.tilt_A || 30,
     battery_kwh: d.batt, install_cost: d.cost, grant_seai: d.grant,
     solar_is_estimate: true, solar_planned: state.my_system && state.my_system.has_solar ? !!state.my_system.solar_planned : true };
@@ -10912,7 +10920,13 @@ function sysSplit(on){
   if (on){
     const t = totalPanels();
     state.count_A = Math.ceil(t / 2); state.count_B = Math.floor(t / 2);
-    if (!state.azimuth_B || state.azimuth_B === state.azimuth_A) state.azimuth_B = (state.azimuth_A + 180) % 360;
+    // The other face mirrored across south (south-east gives south-west, east
+    // gives west). Opposite the main face was north for a south roof.
+    if (!state.azimuth_B || state.azimuth_B === state.azimuth_A || !state._sys_split){
+      const a = state.azimuth_A || 180;
+      state.azimuth_B = a === 180 ? 270 : (360 - a) % 360;
+      if (!state.tilt_B) state.tilt_B = state.tilt_A || 30;
+    }
   } else {
     state.count_A = totalPanels(); state.count_B = 0;
   }
@@ -10999,20 +11013,25 @@ function renderSystemSheet(){
     ${state.has_solar && totalPanels() > 0 ? renderOptimisedSuggestion() : ''}
 
     <section class="sy-part" aria-label="Panels">
-      <div class="sy-part-title">${ic('sun', 16)} Panels</div>
-      ${split
-        ? _syRange('sy-cA', 'count_A', `${state.count_A} panels`, 0, SYS_MAX_PANELS, 1, 'panels', `Front roof · ${esc(sectorFromAzimuth(state.azimuth_A))}`)
-          + _syRange('sy-cB', 'count_B', `${state.count_B} panels`, 0, SYS_MAX_PANELS, 1, 'panels', `Back roof · ${esc(sectorFromAzimuth(state.azimuth_B))}`)
-        : `<div class="sy-range">
-            <div class="sy-range-top"><span>How many</span><output id="sy-total-out">${t} panels · ${totalKwp().toFixed(1)} kWp</output></div>
-            <input type="range" id="sy-total" min="0" max="${SYS_MAX_PANELS}" step="1" value="${t}" aria-label="Number of panels"
-              oninput="sysPreview(this,'panels')" onchange="sysSet('count_A',this.value)">
-          </div>`}
-      <label class="sy-check"><input type="checkbox" ${split ? 'checked' : ''} onchange="sysSplit(this.checked)"> Panels on two roof faces</label>
+      <div class="sy-part-title">${ic('sun', 16)} Roof and panels ${(state.fine || {}).roof ? '<span class="sy-ok">roof confirmed</span>' : '<span class="sy-def">roof assumed</span>'}</div>
+      ${(() => {
+        // Each roof face: which way, how steep, how many panels. The roof's
+        // layout belongs to the system: one quote uses one face, another two.
+        const face = (k, n) => `<div class="sy-face">
+            <div class="sy-face-head"><b>${split ? (k === 'A' ? 'First face' : 'Second face') : 'Panels'}</b>
+              ${k === 'B' ? `<button class="v7-link" onclick="sysSplit(false)">Remove</button>` : ''}</div>
+            <div class="sy-pair">
+              <label class="sy-field"><span><b>Facing</b></span><select onchange="homeSet('azimuth_${k}',this.value)">${_dirOpts(state['azimuth_' + k])}</select></label>
+              <label class="sy-field"><span><b>Tilt</b></span><span class="sy-num"><input type="number" inputmode="numeric" min="0" max="90" step="1" value="${state['tilt_' + k]}" onchange="homeSet('tilt_${k}',this.value)"><i>°</i></span></label>
+            </div>
+            ${_syRange('sy-c' + k, 'count_' + k, `${n} panels`, k === 'A' ? 1 : 0, SYS_MAX_PANELS, 1, 'panels', 'How many')}
+          </div>`;
+        return `${face('A', state.count_A)}${split ? face('B', state.count_B) : `<button class="sy-add" onclick="sysSplit(true)">${ic('plus', 14)} Add a second roof face</button>`}
+          <div class="sy-fine-note">${t} panels · ${totalKwp().toFixed(1)} kWp in all. Most Irish roofs are pitched 30–40°.</div>`;
+      })()}
       ${_syFine('panels', 'panels', `
         ${_syNum('panel_w', state.panel_w, 200, 700, 5, 'W', 'Rating of one panel', 'On the quote or the panel datasheet. Most new panels: 420–480 W.')}
-        ${_syNum('panel_degradation', +(state.panel_degradation * 100).toFixed(2), 0, 1.5, 0.1, '%/yr', 'Yearly output loss', 'Typical 0.4%. The datasheet warranty gives it.').replace(`sysSet('panel_degradation',this.value)`, `sysSet('panel_degradation',this.value/100)`)}
-        <div class="sy-fine-note">Which way the roof faces and its tilt are part of <a href="#" onclick="event.preventDefault();v7Sheet('home')">My home</a>.</div>`)}
+        ${_syNum('panel_degradation', +(state.panel_degradation * 100).toFixed(2), 0, 1.5, 0.1, '%/yr', 'Yearly output loss', 'Typical 0.4%. The datasheet warranty gives it.').replace(`sysSet('panel_degradation',this.value)`, `sysSet('panel_degradation',this.value/100)`)}`)}
     </section>
 
     <section class="sy-part" aria-label="Battery">
@@ -11046,7 +11065,7 @@ function renderSystemSheet(){
     </section>
 
     <button class="v7-cta-2" onclick="v7Sheet('quote')">${ic('clip', 16)} Fill this in from an installer's quote</button>
-    <div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();v7Sheet('home')">My home — where it is, how it's heated, the roof</a></div>`;
+    <div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();v7Sheet('home')">My home — where it is, how it's heated, your plan</a></div>`;
 }
 
 function homeSet(key, v){
@@ -11095,18 +11114,7 @@ function renderHomeSheet(){
       ${field('Discount on it', 'A sign-up discount off the unit rates, if you have one.', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="60" step="1" value="${state.baseline_discount_pct || 0}" onchange="homeSet('baseline_discount_pct',this.value)"><i>%</i></span>`)}
     </section>
 
-    <section class="sy-part" aria-label="Roof">
-      <div class="sy-part-title">${ic('sun', 16)} The roof ${(state.fine || {}).roof ? '<span class="sy-ok">confirmed</span>' : '<span class="sy-def">assumed</span>'}</div>
-      <div class="sy-pair">
-        ${field('Main face', '', `<select onchange="homeSet('azimuth_A',this.value)">${_dirOpts(state.azimuth_A)}</select>`)}
-        ${field('Tilt', '', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="90" step="1" value="${state.tilt_A}" onchange="homeSet('tilt_A',this.value)"><i>°</i></span>`)}
-      </div>
-      ${state.count_B > 0 ? `<div class="sy-pair">
-        ${field('Other face', '', `<select onchange="homeSet('azimuth_B',this.value)">${_dirOpts(state.azimuth_B)}</select>`)}
-        ${field('Tilt', '', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="90" step="1" value="${state.tilt_B}" onchange="homeSet('tilt_B',this.value)"><i>°</i></span>`)}
-      </div>` : ''}
-      <div class="sy-fine-note">Most Irish roofs are pitched 30–40°. An east–west roof uses both faces.</div>
-    </section>
+    <button class="sy-pointer" onclick="v7Sheet('system')">${ic('sun', 16)}<span><b>The roof</b><small>Which way it faces and where the panels go are part of each system</small></span>${ic('chevR', 16)}</button>
 
     <section class="sy-part" aria-label="Electric car">
       <label class="sy-toggle sy-toggle-top">
@@ -12863,6 +12871,7 @@ window.pickObHeating = pickObHeating;
 window.setAnalyticsDay = setAnalyticsDay;
 window.anMonth = anMonth;
 window.useQuote = useQuote;
+window.designToConfig = designToConfig;
 window.systemOutcome = systemOutcome;
 window.quoteChanges = quoteChanges;
 window.quoteOutcomes = quoteOutcomes;
@@ -12954,7 +12963,6 @@ window.startGoalDesign = startGoalDesign;
 window.applyGoalDesign = applyGoalDesign;
 window.setSolarView = setSolarView;
 window.commitGoalDesign = commitGoalDesign;
-window.sweepGoalDesigns = sweepGoalDesigns;
 window.copyShareUrl = copyShareUrl;
 window.openHowToSwitch = openHowToSwitch;
 window.openLeadForm = openLeadForm;
