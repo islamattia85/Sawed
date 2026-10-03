@@ -13,7 +13,7 @@
  * the same figure the engine tests already hold.
  */
 import {
-  savingsLadder, rateStrip, scoreRing, monthBars, paybackCurve, dayProfile, eur,
+  savingsLadder, rateStrip, scoreRing, monthBars, dayProfile, eur,
 } from './charts.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
@@ -676,10 +676,10 @@ export function createV7(api) {
   }
 
   /**
-   * Beside the payback years: where the money ends up. The 20-year total, in
-   * today's money, over a small line that crosses zero in the payback year.
+   * Beside the payback years: where the money ends up. The 20-year total, as
+   * euros come in, over a small line that crosses zero at the payback years.
    */
-  function lifeSpark(curve, clear) {
+  function lifeSpark(curve, pb) {
     if (!curve || curve.length < 2) return '';
     const W = 104, H = 30, lo = Math.min(0, ...curve), hi = Math.max(0, ...curve), span = hi - lo || 1;
     const x = (i) => (i / (curve.length - 1)) * W, y = (v) => H - ((v - lo) / span) * H;
@@ -688,7 +688,7 @@ export function createV7(api) {
     return `<svg class="ax-spark" viewBox="-3 -3 ${W + 6} ${H + 6}" aria-hidden="true">
         <line x1="0" x2="${W}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}" class="ax-spark-zero"/>
         <path d="${d}" class="ax-spark-line ${end >= 0 ? '' : 'is-short'}"/>
-        ${clear > 0 ? `<circle cx="${x(clear).toFixed(1)}" cy="${y(curve[clear]).toFixed(1)}" r="3.5" class="ax-spark-dot"/>` : ''}
+        ${pb > 0 && pb < curve.length - 1 ? `<circle cx="${x(pb).toFixed(1)}" cy="${y(0).toFixed(1)}" r="3.5" class="ax-spark-dot"/>` : ''}
       </svg>
       <b class="${end >= 0 ? 'is-gain' : 'is-loss'}">${end >= 0 ? '+' : '−'}${eur(Math.abs(end))}</b>
       <small>${end >= 0 ? 'ahead' : 'short'} after 20 years${S().battery_kwh > 0 ? ',<br>new battery included' : ''}</small>`;
@@ -1049,14 +1049,12 @@ export function createV7(api) {
     const curve = [-sysCost];
     const deg = st.panel_degradation || 0.005;
     for (let y = 1; y <= 20; y++) {
-      const disc = (benefit * Math.pow(1 - deg, y - 1)) / Math.pow(1.03, y);
-      const batt = st.battery_kwh > 0 && y === 12 ? (-400 * st.battery_kwh) / Math.pow(1.03, 12) : 0;
+      // Euros as they come in, the same count as the payback years, so the
+      // line crosses zero where the big number says.
+      const disc = benefit * Math.pow(1 - deg, y - 1);
+      const batt = st.battery_kwh > 0 && y === 12 ? -400 * st.battery_kwh : 0;
       curve.push(curve[y - 1] + disc + batt);
     }
-    const clear = curve.findIndex((v) => v >= 0);
-    const end = curve[20];
-    const curveTitle = clear > 0 && end >= 0 ? `In today’s money, clear in year ${clear} and ${eur(end)} ahead after 20 years`
-      : `In today’s money, still ${eur(-end)} short after 20 years`;
 
     const m = api.monthlyTotals(best);
     const over = m.gen.map((g, i) => (g > m.cons[i] ? i : -1)).filter((i) => i >= 0);
@@ -1082,7 +1080,7 @@ export function createV7(api) {
       ${anAnswer({
         k: 'Pays for itself in',
         big: pb < 50 ? pb.toFixed(1) : '—', unit: pb < 50 ? 'years' : 'never pays back',
-        side: lifeSpark(curve, clear),
+        side: lifeSpark(curve, pb),
         extra: `<div class="ax-eq" role="group" aria-label="How the years are worked out">
             <div class="ax-eq-p"><b>${eur(sysCost)}</b><small>${st.grant_seai > 0 ? `after ${eur(st.grant_seai)} grant` : 'no SEAI grant'}</small></div>
             <span class="ax-eq-op" aria-hidden="true">÷</span>
@@ -1097,8 +1095,6 @@ export function createV7(api) {
           </button>
           ${st.solar_is_estimate ? `<p class="ax-note solar-correct">Sized from your usage. Already have panels, or a quote for a specific system? <button class="ax-inline" onclick="openMySystem()">Set the exact system</button></p>` : ''}`,
       })}
-      ${anCard(curveTitle, `${paybackCurve({ cumulative: curve })}
-        ${note(`The ${pb < 50 ? pb.toFixed(1) : ''} years above count euros as they come in. This line counts them in today’s money, each later year worth 3% less, with the panels slowly wearing${st.battery_kwh > 0 ? ' and the battery replaced around year 12' : ''}.`)}`)}
       <section class="ax-card v7-months-card" role="button" tabindex="0" onclick="v7OpenMonth(event)" aria-label="Month by month: tap to go through each month">
         <h2 class="ax-t">${monthsTitle}</h2>
         ${monthBars({ a: m.gen, b: m.cons, tokenA: '--ax-made', tokenB: '--bandink-day' })}

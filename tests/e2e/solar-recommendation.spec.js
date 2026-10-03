@@ -58,7 +58,7 @@ test('the tab lands on an answer, with nothing to choose or unlock first', async
 
   // And the whole answer is present — nothing hidden behind a mode.
   const sections = await page.locator('.ax-card').count();
-  expect(sections, 'sections were hidden behind a disclosure').toBeGreaterThan(2);
+  expect(sections, 'sections were hidden behind a disclosure').toBeGreaterThanOrEqual(2);
 
   expect(errors).toEqual([]);
 });

@@ -88,6 +88,8 @@ test('Solar: payback on a typical year, shown as cost ÷ what comes back, with t
   // The sum shown is the answer, give or take panel ageing.
   expect(Math.abs(cost / back - years)).toBeLessThan(0.6);
   await expect(page.locator('.ax-side')).toContainText('after 20 years');
+  // One payback year on the tab: no second chart saying "clear in year 11".
+  await expect(page.locator('.ax-card', { hasText: 'today’s money' })).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
