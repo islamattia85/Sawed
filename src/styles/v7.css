@@ -1503,3 +1503,45 @@ button.ax-side { padding: 0; border: 0; background: none; cursor: pointer; font:
 .sy-pointer > svg:first-child { color: var(--brand-gold); }
 .sy-face .sy-pair { grid-template-columns: 1.5fr 1fr; }
 .sy-face .sy-pair select { min-width: 0; width: 100%; }
+
+/* Systems: one list, three kinds, each run on this home. */
+.sys-list { display: grid; gap: var(--space-3); margin: var(--space-3) 0; padding: var(--space-3); border-radius: var(--radius-lg); border: 1px solid var(--hair); background: var(--surface, #fff); }
+.sys-head { display: grid; gap: 2px; }
+.sys-head b { display: flex; align-items: center; gap: 6px; font-size: var(--text-body); color: var(--accent); }
+.sys-head small { font-size: var(--text-caption); color: var(--ink-soft); }
+.sys-group { display: grid; gap: var(--space-2); }
+.sys-gh { display: flex; align-items: center; gap: 6px; font-size: var(--text-caption); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-soft); }
+.sys-gh i { width: 8px; height: 8px; border-radius: 50%; }
+.sys-g-suggested .sys-gh i { background: var(--brand-gold); }
+.sys-g-quotes .sys-gh i { background: var(--ax-sold); }
+.sys-g-yours .sys-gh i { background: var(--accent); }
+.sys-row { position: relative; display: flex; align-items: stretch; border-radius: var(--radius-md); border: 1px solid var(--hair); background: var(--well); }
+.sys-row.sys-g-suggested { border-left: 4px solid var(--brand-gold); }
+.sys-row.sys-g-quotes { border-left: 4px solid var(--ax-sold); }
+.sys-row.sys-g-yours { border-left: 4px solid var(--accent); }
+.sys-row.in-use { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--accent-soft); }
+.sys-main { flex: 1; min-width: 0; display: flex; gap: var(--space-2); align-items: center; padding: var(--space-2) var(--space-3); border: 0; background: none; text-align: left; color: var(--ink); cursor: pointer; font: inherit; }
+.sys-row.in-use .sys-main { cursor: default; }
+.sys-l { flex: 1 1 50%; min-width: 0; display: grid; gap: 2px; }
+.sys-l b { font-size: var(--text-data); }
+.sys-l small { font-size: var(--text-caption); color: var(--ink-soft); line-height: 1.3; }
+.sys-why { font-style: italic; }
+.sys-tag { font-style: normal; margin-left: 4px; padding: 1px 7px; border-radius: 999px; background: var(--accent); color: #fff; font-size: var(--text-caption); font-weight: 700; }
+.sys-r { flex: 0 0 auto; display: grid; grid-template-columns: repeat(2, auto); gap: 4px 12px; text-align: right; }
+.sys-m { display: grid; }
+.sys-m b { font-size: var(--text-data); font-weight: 700; color: var(--ink); white-space: nowrap; }
+.sys-m b.is-gain { color: var(--accent); } .sys-m b.is-loss { color: var(--loss); }
+.sys-m small { font-size: var(--text-tick, 12px); color: var(--ink-soft); white-space: nowrap; }
+.sys-wait { font-size: var(--text-caption); color: var(--ink-soft); padding: var(--space-2); }
+.sys-x { position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--hair); background: var(--surface, #fff); color: var(--ink-soft); cursor: pointer; }
+.sys-save { display: flex; gap: var(--space-2); align-items: center; }
+.sys-save input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--well); color: var(--ink); font: inherit; }
+/* While a system is switched in: what is happening, step by step. */
+.sys-busy { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; background: rgba(14, 35, 41, .45); }
+.sys-busy-card { display: grid; gap: var(--space-2); width: min(320px, calc(100% - 32px)); padding: var(--space-4); border-radius: var(--radius-lg); background: var(--surface, #fff); color: var(--ink); box-shadow: 0 30px 80px rgba(0,0,0,.35); }
+.sys-busy-card > b { font-size: var(--text-body); margin-bottom: 4px; }
+.sys-busy-step { display: flex; align-items: center; gap: 10px; font-size: var(--text-data); color: var(--ink-soft); }
+.sys-busy-step i { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); flex: none; }
+.sys-busy-step.now { color: var(--ink); font-weight: 700; } .sys-busy-step.now i { border-color: var(--accent); border-top-color: transparent; animation: sysspin .7s linear infinite; }
+.sys-busy-step.done { color: var(--ink); } .sys-busy-step.done i { background: var(--accent); border-color: var(--accent); }
+@keyframes sysspin { to { transform: rotate(360deg); } }

@@ -81,23 +81,17 @@ test('with no battery the strategy is simply not in force, and is not erased', a
 
 test('the suggested system is told apart from the one being modelled', async ({ page }) => {
   await boot(page, { ...ARBITRAGE, count_A: 12, battery_kwh: 5 });
-  // Lives in My system, above the controls it would change.
+  // Lives in My system's list, above the controls it would change.
   await page.evaluate(() => window.openMySystem());
-  await expect.poll(
-    () => page.evaluate(() => !document.querySelector('.opt-note.is-working')),
-    { timeout: 20_000 },
-  ).toBe(true);
-
-  const card = page.locator('.opt-card');
-  await expect(card).toBeVisible();
-
-  // The reader's own system is stated on its own line, and every option is a
-  // tile named by the goal it wins, with its own spec and figures.
-  await expect(card.locator('.opt-yours')).toContainText(/12 panels · 5 kWh battery/);
-  const tiles = await card.locator('.opt-tile').allInnerTexts();
-  expect(tiles.length).toBeGreaterThanOrEqual(2);
-  for (const t of tiles) expect(t).toMatch(/panels[\s\S]*after grant[\s\S]*payback[\s\S]*over 20 yrs/);
-  // No two tiles offer the same system.
-  const specs = await card.locator('.opt-tile-spec').allInnerTexts();
-  expect(new Set(specs).size).toBe(specs.length);
+  const list = page.locator('.sys-list');
+  await expect(list.locator('.sys-g-suggested .sys-row').first()).toBeVisible({ timeout: 60_000 });
+  // The reader's own system is its own row, marked in use.
+  await expect(list.locator('.sys-row.in-use')).toContainText(/12 panels[\s\S]*5 kWh battery/);
+  // Every suggestion has its spec and the same four figures.
+  const rows = list.locator('.sys-g-suggested .sys-row');
+  expect(await rows.count()).toBeGreaterThanOrEqual(2);
+  for (const r of await rows.all()) await expect(r.locator('.sys-m')).toHaveCount(4, { timeout: 60_000 });
+  // No two suggestions offer the same system.
+  const all = await list.locator('.sys-g-suggested .sys-row .sys-l > small:first-of-type').allTextContents();
+  expect(new Set(all).size).toBe(all.length);
 });

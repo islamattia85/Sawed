@@ -447,15 +447,17 @@ test('My Peakless: a guest sees the household, the quotes and why an account hel
   const me = page.locator('.screen.me');
   await expect(me.locator('.me-guest')).toContainText('saved on this phone only');
   await expect(me.locator('.me-card')).toHaveCount(3);
-  await expect(me).toContainText('Sunny Ltd');
+  await expect(me.locator('.me-row', { hasText: 'Compare systems' })).toContainText('1 quote');
   // The More tab stays lit: My Peakless lives under it.
   await expect(page.locator('.v7-nav-item.active')).toContainText('Me');
 
-  // A saved quote becomes the modelled system in one tap.
-  await me.getByRole('button', { name: 'Make this my system' }).click();
-  expect(await page.evaluate(() => window.state.current_screen)).toBe('solar');
+  // Quotes are compared, and switched to, in My system's list.
+  await me.locator('.me-row', { hasText: 'Compare systems' }).click();
+  await page.locator('.sys-row', { hasText: 'Sunny Ltd' }).locator('.sys-main').click();
+  await expect(page.locator('.sys-busy')).toHaveCount(0, { timeout: 15_000 });
   const s = await page.evaluate(() => ({ b: window.state.battery_kwh, c: window.state.install_cost, manual: window.state.cost_is_manual }));
   expect(s).toEqual({ b: 10, c: 9800, manual: true });
+  await page.evaluate(() => window.v7Sheet(null));
 
   // The household cards open the sheets.
   await page.evaluate(() => window.setScreen('me'));
@@ -503,8 +505,9 @@ test('a quote is saved without touching the system; modelling it keeps the old s
   expect(st).toEqual({ n: 10, b: 5, planned: true, prev: 'Your installed system' });
 
   // One tap brings the installed system back, exactly.
-  await page.evaluate(() => window.setScreen('me'));
-  await page.getByRole('button', { name: 'Bring back' }).click();
+  await page.evaluate(() => window.openMySystem());
+  await page.locator('.sys-g-yours .sys-row', { hasText: 'Your installed system' }).locator('.sys-main').click();
+  await expect(page.locator('.sys-busy')).toHaveCount(0, { timeout: 15_000 });
   st = await page.evaluate(() => ({ n: window.state.count_A, b: window.state.battery_kwh, c: window.state.install_cost, planned: window.state.solar_planned }));
   expect(st).toEqual({ n: 14, b: 10, c: 13000, planned: false });
 });

@@ -106,15 +106,11 @@ test('the suggestion is in My system, above the controls it changes', async ({ p
   const errors = await boot(page, { has_solar: true, considering_solar: true, count_A: 12, battery_kwh: 5 });
   await page.evaluate(() => window.openMySystem());
 
-  const card = page.locator('.opt-card, .opt-note').first();
+  const card = page.locator('.sys-list').first();
   await expect(card).toBeVisible({ timeout: 20_000 });
-  await expect.poll(
-    () => page.evaluate(() => !document.querySelector('.opt-note.is-working')),
-    { timeout: 20_000 },
-  ).toBe(true);
 
   const placed = await page.evaluate(() => {
-    const el = document.querySelector('.opt-card, .opt-note');
+    const el = document.querySelector('.sys-list');
     const section = document.querySelector('#v7-sheet');
     const firstControl = document.querySelector('#v7-sheet .sy-part');
     return {

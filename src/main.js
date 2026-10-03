@@ -96,7 +96,7 @@ async function sbInit(){
  * the person to choose. Saved quotes from both are always kept. */
 
 // What describes this screen rather than the household is never synced.
-const NO_SYNC = ['_flow', '_flow_edit', '_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_solar_more', '_an_tab', '_an_from', '_an_pick', '_an_note', '_an_day_open', '_an_mon', '_sheet', '_fine_open', '_settings_open', '_return_to', '_lead_form',
+const NO_SYNC = ['_flow', '_flow_edit', '_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_solar_more', '_an_tab', '_an_from', '_an_pick', '_an_note', '_an_day_open', '_an_mon', '_sheet', '_sys_saving', '_fine_open', '_settings_open', '_return_to', '_lead_form',
   '_tariff_refreshing', '_expert_open', '_account_id', '_saved_at'];
 let _sync = { status: 'idle', at: null };
 let _syncTimer = null;
@@ -9715,7 +9715,10 @@ function systemOutcome(){
   const ben = d.cur.solarBenefit, cost = d.sysCost, deg = state.panel_degradation || 0.005;
   let saved = 0; for (let y = 1; y <= 20; y++) saved += ben * Math.pow(1 - deg, y - 1);
   const batt = state.battery_kwh > 0 ? 400 * state.battery_kwh : 0;
-  return { payback: d.cur.payback, benefit: ben, cost, life: saved - cost - batt, plan: d.best && d.best.plan ? `${d.best.plan.supplier} ${d.best.plan.plan}` : '' };
+  // Own power: the share of what the home uses that is not bought from the grid.
+  let own = null;
+  try { const b = getBestPlan(); const r = b.sim || sim(b.plan.id); const u = sumF(r.use || r.cons || []), i = sumF(r.imp || r.grid_import || []); if (u > 0) own = Math.max(0, Math.min(1, 1 - i / u)); } catch (e) { own = null; }
+  return { payback: d.cur.payback, benefit: ben, cost, life: saved - cost - batt, own, plan: d.best && d.best.plan ? `${d.best.plan.supplier} ${d.best.plan.plan}` : '' };
 }
 
 /**
@@ -9741,6 +9744,164 @@ function quoteOutcomes(){
   }
   return null;
 }
+/* ---- Systems: suggested, from quotes, and saved -------------------------
+ * One list of every system this home could have, each run on the home: what
+ * it costs, how soon it pays back, where 20 years leave it, and how much of
+ * the home's power it makes. Tapping one makes it the modelled system, with
+ * Undo. Saved systems keep only their specification; the figures are always
+ * worked out fresh, so they never go stale as prices change. */
+const SYS_EXTRA = ['panel_w', 'battery_eff', 'battery_min', 'battery_discharge_kw', 'inverter_kw', 'cost_is_manual', 'grant_is_manual'];
+function currentSystemCfg(){
+  const c = {};
+  SYS_KEYS.concat(SYS_EXTRA).forEach((k) => { c[k] = state[k]; });
+  return c;
+}
+function systemSpec(c){
+  const a = +c.count_A || 0, b = +c.count_B || 0, bat = +c.battery_kwh || 0;
+  const dir = (az) => sectorFromAzimuth(az);
+  return `${a + b} panels${b > 0 ? ` (${a} ${dir(c.azimuth_A)} + ${b} ${dir(c.azimuth_B)})` : ` · ${dir(c.azimuth_A)}`} · ${bat > 0 ? `${bat} kWh battery` : 'no battery'}`;
+}
+/** Every system in the list, grouped; `ready` is false while the suggested sizes are still being worked out. */
+function systemEntries(withSuggestions){
+  const out = [];
+  if (withSuggestions){
+    for (const g of designGoals()) out.push({ key: 's:' + g.keys[0], group: 'suggested', name: g.labels.join(' · '), why: g.why,
+      changes: { ...designToConfig(g.d), cost_is_manual: false, grant_is_manual: false } });
+  }
+  for (const q of state.solar_quotes || []){
+    out.push({ key: 'q:' + q.id, group: q.source === 'previous' ? 'yours' : 'quotes', name: q.installer || 'Installer', quote: q, changes: quoteChanges(q),
+      price: q.source === 'previous' ? null : q.price });
+  }
+  for (const y of state.saved_systems || []) out.push({ key: 'y:' + y.id, group: 'yours', name: y.name, changes: { ...y.cfg }, saved: y.id });
+  out.forEach((e) => {
+    const c = { ...state, ...e.changes };
+    // No typed price: the typical price for this size, and the standard grant, as everywhere else.
+    if (!c.cost_is_manual || !(+c.install_cost > 0)){
+      const kwp = ((+c.count_A || 0) + (+c.count_B || 0)) * (c.panel_w || 440) / 1000;
+      e.changes.install_cost = estimateInstallCost(kwp, +c.battery_kwh || 0); e.changes.cost_is_manual = false;
+      if (!c.grant_is_manual) e.changes.grant_seai = calcSeaiGrant(kwp, +c.battery_kwh || 0).total;
+    }
+    e.spec = systemSpec(c);
+  });
+  return out;
+}
+/** Is this entry the system modelled now? */
+function isInUse(e){
+  const c = { ...state, ...e.changes };
+  const k = ['count_A', 'count_B', 'battery_kwh'];
+  if (k.some((x) => (+c[x] || 0) !== (+state[x] || 0))) return false;
+  if ((+state.count_B || 0) > 0 && (c.azimuth_B !== state.azimuth_B)) return false;
+  if (c.azimuth_A !== state.azimuth_A) return false;
+  if (e.changes.cost_is_manual && Math.round(+e.changes.install_cost || 0) !== Math.round(+state.install_cost || 0)) return false;
+  return true;
+}
+let _soMemo = { k: null, v: null }, _soPending = false;
+function systemsOutcomes(){
+  const k = modelKey() + '|' + goalSweepCk();
+  if (_soMemo.k === k) return _soMemo.v;
+  if (!_soPending){
+    _soPending = true;
+    setTimeout(() => {
+      const v = {};
+      try {
+        if (v7HasModelledSystem()) v.current = systemOutcome();
+        for (const e of systemEntries(true)) v[e.key] = withSimState(e.changes, systemOutcome);
+      } catch (err) { console.warn('systems', err); }
+      _soMemo = { k: modelKey() + '|' + goalSweepCk(), v }; _soPending = false;
+      if (state._sheet && state._sheet.kind === 'system') renderApp();
+    }, 250);
+  }
+  return null;
+}
+
+/**
+ * Switch the home to a system, saying what is happening while it is worked
+ * out: the switch re-simulates the year on every plan, which takes a moment,
+ * and the reader should know Home and Analytics are about to change.
+ */
+function useSystem(key){
+  const e = systemEntries(true).find((x) => x.key === key);
+  if (!e) return;
+  const steps = ['Building the system', 'Simulating your year on every plan', 'Updating Home and Analytics'];
+  const ov = document.createElement('div');
+  ov.className = 'sys-busy'; ov.setAttribute('role', 'status');
+  ov.innerHTML = `<div class="sys-busy-card"><b>${esc(e.name)}</b>${steps.map((t, i) => `<div class="sys-busy-step" data-i="${i}"><i></i>${t}</div>`).join('')}</div>`;
+  document.body.appendChild(ov);
+  const mark = (i) => ov.querySelectorAll('.sys-busy-step').forEach((el) => { const n = +el.dataset.i; el.classList.toggle('done', n < i); el.classList.toggle('now', n === i); });
+  mark(0);
+  setTimeout(() => {
+    mark(1);
+    setTimeout(() => {
+      rememberForUndo(`Now using ${e.name}`);
+      Object.assign(state, e.changes);
+      state.has_solar = true; state.considering_solar = true; state.solar_view = 'mine';
+      if (e.group === 'suggested') state.solar_is_estimate = true;
+      if (e.group === 'quotes'){ state.solar_is_estimate = false; state.solar_planned = true; }
+      applyEstimatedSolarCost(); snapshotMySystem();
+      invalidate(); saveState();
+      mark(2);
+      setTimeout(() => {
+        mark(3); renderApp();
+        setTimeout(() => { ov.remove(); showToast(`Now using ${esc(e.name)}. <button class="toast-undo" onclick="undoLast()">Undo</button>`, { type: 'accent', icon: ic('checkC', 16) }); }, 350);
+      }, 40);
+    }, 380);
+  }, 380);
+}
+/** Keep the system as it is now, under a name. */
+function saveSystemAs(){
+  const el = document.getElementById('sys-name');
+  const name = String((el && el.value) || '').trim().slice(0, 40) || `My system ${(state.saved_systems || []).length + 1}`;
+  (state.saved_systems = state.saved_systems || []).push({ id: 's' + Date.now(), name, cfg: currentSystemCfg(), at: new Date().toISOString() });
+  state._sys_saving = false;
+  saveState(); renderApp();
+  showToast(`Saved as ${esc(name)}`, { type: 'accent', icon: ic('checkC', 16) });
+}
+function removeSavedSystem(id){
+  state.saved_systems = (state.saved_systems || []).filter((x) => x.id !== id);
+  saveState(); renderApp();
+}
+
+function renderSystemsList(){
+  const out = systemsOutcomes();
+  const ready = CACHE._goalSweep_ck === goalSweepCk() && CACHE._goalSweep;
+  const entries = systemEntries(!!ready);
+  const k = (n) => (Math.abs(n) >= 10000 ? `€${(n / 1000).toFixed(1)}k` : eur(n));
+  const metrics = (o) => o ? `<span class="sys-m"><b>${eur(o.cost)}</b><small>after grant</small></span>
+      <span class="sys-m"><b>${o.payback < 50 ? `${o.payback.toFixed(1)} yrs` : 'never'}</b><small>payback</small></span>
+      <span class="sys-m"><b class="${o.life >= 0 ? 'is-gain' : 'is-loss'}">${o.life >= 0 ? '+' : '−'}${k(Math.abs(o.life))}</b><small>after 20 yrs</small></span>
+      <span class="sys-m"><b>${o.own != null ? Math.round(o.own * 100) + '%' : '—'}</b><small>own power</small></span>`
+    : `<span class="sys-wait">Working it out…</span>`;
+  const row = (e) => {
+    const use = isInUse(e), ek = escAttr(e.key), sid = e.saved ? escAttr(e.saved) : '', qid = e.quote ? escAttr(e.quote.id) : '';
+    return `<div class="sys-row ${use ? 'in-use' : ''} sys-g-${e.group}">
+      <button class="sys-main" ${use ? 'aria-current="true"' : `onclick="useSystem('${ek}')"`}>
+        <span class="sys-l"><b>${esc(e.name)}${use ? ' <i class="sys-tag">In use</i>' : ''}</b><small>${esc(e.spec)}${e.price ? ` · ${eur(e.price)}` : ''}</small>${e.why ? `<small class="sys-why">${esc(e.why)}</small>` : ''}</span>
+        <span class="sys-r">${metrics(out && out[e.key])}</span>
+      </button>
+      ${e.saved ? `<button class="sys-x" aria-label="Remove ${escAttr(e.name)}" onclick="removeSavedSystem('${sid}')">${ic('x', 12)}</button>` : ''}
+      ${e.quote ? `<button class="sys-x" aria-label="Remove ${escAttr(e.name)}" onclick="removeQuote('${qid}')">${ic('x', 12)}</button>` : ''}
+    </div>`;
+  };
+  const group = (g, title, hint) => {
+    const list = entries.filter((e) => e.group === g);
+    if (!list.length && g !== 'suggested') return '';
+    return `<div class="sys-group sys-g-${g}"><div class="sys-gh"><i></i>${title}</div>
+      ${g === 'suggested' && !ready ? `<div class="sys-wait">Finding the best sizes for your roof…</div>` : list.map(row).join('') || `<div class="sys-wait">${hint}</div>`}</div>`;
+  };
+  if (!ready) scheduleGoalSweep();
+  const anyUse = entries.some(isInUse);
+  return `<section class="sys-list" aria-label="Systems">
+    <div class="sys-head"><b>${ic('spark', 14)} Systems for your home</b><small>Tap one to use it. Figures are for this home, on the best plan for each.</small></div>
+    ${!anyUse && v7HasModelledSystem() ? `<div class="sys-row in-use sys-g-current"><div class="sys-main"><span class="sys-l"><b>Your system now <i class="sys-tag">In use</i></b><small>${esc(systemSpec(state))}</small></span><span class="sys-r">${metrics(out && out.current)}</span></div></div>` : ''}
+    ${group('suggested', 'Suggested by Peakless', '')}
+    ${group('quotes', 'From your quotes', '')}
+    ${group('yours', 'Saved by you', '')}
+    ${state._sys_saving
+      ? `<div class="sys-save"><input id="sys-name" type="text" maxlength="40" placeholder="Name it, e.g. Two roofs, small battery" aria-label="Name for this system"><button class="sy-stop" onclick="saveSystemAs()">Save</button><button class="v7-link" onclick="state._sys_saving=false;renderApp()">Cancel</button></div>`
+      : `<button class="sy-add" onclick="state._sys_saving=true;renderApp();setTimeout(()=>document.getElementById('sys-name')?.focus(),40)">${ic('plus', 14)} Save this system under a name</button>`}
+  </section>`;
+}
+
 /** Make a saved quote the modelled system, with Undo. */
 function useQuote(id){
   const q = (state.solar_quotes || []).find((x) => x.id === id);
@@ -9939,26 +10100,12 @@ function renderMe(){
       ${card('startEvGuide()', ic('car', 18), 'My EV', state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No EV', state.ev_active ? 'Edit' : 'Add one')}
     </div>
 
-    <div class="section-title">Saved quotes</div>
+    <div class="section-title">Systems and quotes</div>
     <section class="me-list">
-      ${(() => {
-        if (!quotes.length) return `<div class="me-empty">No quotes saved yet.</div>`;
-        // Each quote run on this home: ordered by payback, best first.
-        const out = quoteOutcomes();
-        const pb = (q) => (out && out[q.id] && out[q.id].payback < 50 ? out[q.id].payback : Infinity);
-        const list = out ? quotes.slice().sort((x, y) => pb(x) - pb(y)) : quotes;
-        const bestId = out && quotes.length > 1 && pb(list[0]) < Infinity ? list[0].id : null;
-        const faces = (q) => (q.faces && q.faces.length === 2 ? `${q.faces[0].panels} + ${q.faces[1].panels} panels on two faces` : `${(+q.kwp || 0).toFixed(1)} kWp`);
-        const cur = out && out.current;
-        return `${cur && quotes.length ? `<div class="me-qcur">Your ${state.solar_planned || state.solar_is_estimate ? 'current plan' : 'system'}: ${cur.payback < 50 ? `pays back in <b>${cur.payback.toFixed(1)} yrs</b>` : 'does not pay back'}, ${cur.life >= 0 ? `${fmtCurrency(cur.life)} ahead` : `${fmtCurrency(-cur.life)} short`} after 20 years</div>` : ''}
-        ${list.map((q) => { const a = assessQuote(q); const qid = escAttr(q.id); const o = out && out[q.id]; return `<div class="me-row me-quote ${q.id === bestId ? 'is-best' : ''}">
-          <span><b>${esc(q.installer || 'Installer')} · ${eur(+q.price || 0)}${q.id === bestId ? ' <i class="me-qbest">Best for your home</i>' : ''}</b>
-          <small>${faces(q)}${+q.battery > 0 ? ` · ${q.battery} kWh battery` : ''} · <span class="${a.cls}">${esc(String(a.verdict).replace(/<[^>]+>/g, ''))}</span></small>
-          <small class="me-qout">${o ? `${o.payback < 50 ? `Pays back in <b>${o.payback.toFixed(1)} yrs</b>` : 'Does not pay back'} · ${o.life >= 0 ? `<b class="is-gain">${fmtCurrency(o.life)}</b> ahead` : `${fmtCurrency(-o.life)} short`} after 20 yrs` : 'Working out what it earns your home…'}</small></span>
-          <button class="me-mini" onclick="useQuote('${qid}')">${q.source === 'previous' ? 'Bring back' : 'Make this my system'}</button>
-          <button class="me-mini me-x" aria-label="Remove quote" onclick="removeQuote('${qid}')">${ic('x', 14)}</button>
-        </div>`; }).join('')}`;
-      })()}
+      <button class="me-row me-link" onclick="openMySystem()"><span><b>Compare systems</b><small>${(() => {
+        const nq = quotes.filter((q) => q.source !== 'previous').length, ny = (state.saved_systems || []).length;
+        return [nq ? `${nq} quote${nq > 1 ? 's' : ''}` : '', ny ? `${ny} saved` : '', 'Peakless suggestions'].filter(Boolean).join(' · ') + ', each run on your home';
+      })()}</small></span>${ic('chevR', 16)}</button>
       <button class="me-add" onclick="v7Sheet('quote')">${ic('clip', 16)} Upload an installer's quote</button>
     </section>
 
@@ -11010,7 +11157,7 @@ function renderSystemSheet(){
       ? 'Planning: Home shows what switching saves now and what the panels would add once bought. Payback counts the price.'
       : 'Installed: the panels are part of your home. Home shows what switching saves on top of them, and your meter readings can check they’re working.'}</p>
     ${renderAccuracy()}
-    ${state.has_solar && totalPanels() > 0 ? renderOptimisedSuggestion() : ''}
+    ${state.has_solar && totalPanels() > 0 ? renderSystemsList() : ''}
 
     <section class="sy-part" aria-label="Panels">
       <div class="sy-part-title">${ic('sun', 16)} Roof and panels ${(state.fine || {}).roof ? '<span class="sy-ok">roof confirmed</span>' : '<span class="sy-def">roof assumed</span>'}</div>
@@ -11654,12 +11801,14 @@ function renderApp(){
   root.setAttribute('data-chrome','app');
   root.innerHTML = html;
   // A change tried on the system stays undoable from any screen until kept or undone.
+  // Over an open sheet it goes in the sheet, where it can be reached.
   if (_undo){ const sc = root.querySelector('.screen'); if (sc) sc.insertAdjacentHTML('afterbegin', undoBar()); }
   // A sheet opens over whatever surface is showing. A plan's detail or the
   // home's assumptions used to be separate screens; each question cost a round
   // trip and lost the context behind it.
   const sheetHtml = V7.sheet();
   if (sheetHtml) root.insertAdjacentHTML('beforeend', sheetHtml);
+  if (sheetHtml && _undo){ const head = root.querySelector('#v7-sheet .v7-sheet-head'); if (head) head.insertAdjacentHTML('beforebegin', undoBar()); }
   if (sheetHtml && sameSheet){
     const sh = root.querySelector('#v7-sheet');
     if (sh){ sh.classList.add('is-steady'); const box = sh.querySelector('.v7-sheet'); if (box) box.scrollTop = sheetScroll; }
@@ -12870,6 +13019,9 @@ window.showPlanDetail = showPlanDetail;
 window.pickObHeating = pickObHeating;
 window.setAnalyticsDay = setAnalyticsDay;
 window.anMonth = anMonth;
+window.useSystem = useSystem;
+window.saveSystemAs = saveSystemAs;
+window.removeSavedSystem = removeSavedSystem;
 window.useQuote = useQuote;
 window.designToConfig = designToConfig;
 window.systemOutcome = systemOutcome;
