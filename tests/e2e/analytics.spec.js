@@ -87,7 +87,7 @@ test('Solar: payback on a typical year, shown as cost ÷ what comes back, with t
   const years = parseFloat(await page.locator('.ax-ans .qr-value').textContent());
   // The sum shown is the answer, give or take panel ageing.
   expect(Math.abs(cost / back - years)).toBeLessThan(0.6);
-  await expect(page.locator('.ax-side')).toContainText('after 20 years');
+  await expect(page.locator('.ax-side')).toContainText('in 20 years');
   // Tapping the 20-year figure opens the sum behind it, and it adds up.
   const ahead = euros(await page.locator('.ax-side b').textContent());
   await page.locator('.ax-side').click();
