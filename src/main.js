@@ -17,7 +17,7 @@ import { installErrorReporting } from './errors';
 import { BRAND, CONTROLLER, MARK_PATHS, iconDataUri, wordmarkHtml } from './brand';
 import { IC, ic } from './icons';
 import {
-  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
+  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
   outcomeAgainst, sweepSetup, evaluateDesign, finishSweep,
 } from './model';
 
@@ -1126,7 +1126,9 @@ function runScenario(hasSolar, hasEv){
   if (basePlan){
     const bsim = simulateBaseline(basePlan, hasEv ? CACHE.cons : CACHE.consNoEv);
     const df = baselineDiscountFactor(basePlan.id);
-    baselineCost = sumF(bsim.cost) * df + basePlan.standing + PSO_LEVY;
+    if (df !== 1){ for (let i = 0; i < bsim.cost.length; i++) bsim.cost[i] *= df; }
+    // The announced rise counts here too, as it does for every plan it is compared with.
+    baselineCost = sumF(bsim.cost) + basePlan.standing + PSO_LEVY + annualCost(bsim, basePlan).outlook_extra;
   }
 
   const result = {
@@ -1271,7 +1273,7 @@ function computeSolarPaybackScenarios(){
   // Also expose "tariff switch saving" — orthogonal to solar, just the value of switching plans
   const baselinePlan = getPlanById(state.baseline);
   const baseSim = baselineSim(state.baseline);
-  const baseCost = sumF(baseSim.cost) + baselinePlan.standing + PSO_LEVY;
+  const baseCost = baselineNet(state.baseline);
 
   const result = {
     withEv: {
@@ -1400,7 +1402,7 @@ function plannedSolarSplit(){
   if (CACHE.dirty) rebuildBase();
   const withSolar = getBestPlan();
   const basePlan = getPlanById(state.baseline);
-  const baseCost = sumF(baselineSim(state.baseline).cost) + basePlan.standing + PSO_LEVY;
+  const baseCost = baselineNet(state.baseline);
   // No-solar best computed with a direct, minimal snapshot — rebuilt in the
   // same pass so it can never read a stale per-plan sim cache.
   const noSolarNet = withSimState(
@@ -1442,7 +1444,7 @@ function _plannedLadder(){
   // home on both sides, or staying put can look cheaper than the best plan.
   const today = (state.ev_active && !state.ev_in_bill)
     ? withSimState({ count_A: 0, count_B: 0, battery_kwh: 0, has_solar: false }, () => annualCost(sim(basePlan.id), basePlan).net)
-    : sumF(baselineSim(state.baseline).cost) + basePlan.standing + PSO_LEVY;
+    : baselineNet(state.baseline);
   const noSolar = noSolarBest();
   const withS = getBestPlan();
   const mine = annualCost(sim(basePlan.id), basePlan).net;
@@ -1543,7 +1545,7 @@ function _analyticsData(plan){
     : (state.ev_active && !state.ev_in_bill)
       // A planned car: priced in, as Home's "Now" bar does, so both sides are the same home.
       ? withSimState({ count_A: 0, count_B: 0, battery_kwh: 0, has_solar: false }, () => { const r = annualCost(sim(basePlan.id), basePlan); return { plan: basePlan, net: r.net, energy: r.energy_cost, standing: r.standing, pso: r.pso, credit: 0, outlook: r.outlook_extra }; })
-      : (() => { const e = sumF(baselineSim(basePlan.id).cost); return { plan: basePlan, net: e + basePlan.standing + PSO_LEVY, energy: e, standing: basePlan.standing, pso: PSO_LEVY, credit: 0, outlook: 0 }; })();
+      : (() => { const r = annualCost(baselineSim(basePlan.id), basePlan); return { plan: basePlan, net: r.energy_cost + r.standing + PSO_LEVY + r.outlook_extra, energy: r.energy_cost, standing: r.standing, pso: PSO_LEVY, credit: 0, outlook: r.outlook_extra }; })();
   // The best plan for this home, for comparison when another is picked.
   const bestAc = annualCost(sim(ap.best.id), ap.best);
   const best = { plan: ap.best, net: bestAc.net };
@@ -1643,7 +1645,7 @@ function publishableSavings(){
   if (split) return split.switchNow;
   const best = getBestPlan();
   const basePlan = getPlanById(state.baseline);
-  const baseCost = sumF(baselineSim(state.baseline).cost) + basePlan.standing + PSO_LEVY;
+  const baseCost = baselineNet(state.baseline);
   return Math.max(0, Math.round(baseCost - best.net));
 }
 
@@ -6340,7 +6342,7 @@ async function doGeneratePdf(email){
     const best         = getBestPlan();
     const baselinePlan = getPlanById(state.baseline);
     const baseSim      = baselineSim(state.baseline);
-    const baseCost     = sumF(baseSim.cost) + baselinePlan.standing + PSO_LEVY;
+    const baseCost     = baselineNet(state.baseline);
     const saving       = Math.max(0, baseCost - best.net);
     const annualKwh    = Object.values(state.bills).reduce((a,b)=>a+b,0);
     const econ         = state.ev_active ? evEconomics(best.plan.id) : null;
@@ -7740,7 +7742,7 @@ function rolloverProjection(){
   if (!std) return null;
   if (CACHE.dirty) rebuildBase();
   const baseCons = (state.ev_active && state.ev_in_bill) ? CACHE.cons : CACHE.consNoEv;
-  const curCost = sumF(baselineSim(state.baseline).cost) + cur.standing + PSO_LEVY;
+  const curCost = baselineNet(state.baseline);
   const stdCost = sumF(simulateBaseline(std, baseCons).cost) + std.standing + PSO_LEVY;
   return { std, delta: stdCost - curCost, onStandard: false };
 }
@@ -9520,7 +9522,7 @@ function v7PlansData(){
   if (sortBy === 'standing') filtered.sort((a, b) => (a.onHold - b.onHold) || (a.standing - b.standing));
   else if (sortBy === 'export') filtered.sort((a, b) => (a.onHold - b.onHold) || ((b.plan.export_rate || 0) - (a.plan.export_rate || 0)));
   const baselinePlan = getPlanById(state.baseline);
-  const baseCost = sumF(baselineSim(state.baseline).cost) + baselinePlan.standing + PSO_LEVY;
+  const baseCost = baselineNet(state.baseline);
   // The shortlist, then the rest on request — unchanged from the list it replaces.
   const SHORTLIST = 6;
   const showingAll = !!state._plans_all || f !== 'all' || sortBy !== 'cost';
@@ -9532,7 +9534,7 @@ function v7SolarData(){
   if (CACHE.dirty) rebuildBase();
   const best = getBestPlan();
   const baselinePlan = getPlanById(state.baseline);
-  const baseCost = sumF(baselineSim(state.baseline).cost) + baselinePlan.standing + PSO_LEVY;
+  const baseCost = baselineNet(state.baseline);
   const sysCost = state.install_cost - state.grant_seai;
   const view = 'realistic';
   if (!state.has_solar || totalPanels() === 0){
@@ -11926,7 +11928,7 @@ function openPdfReportModal(){
   const best = state.onboarding_complete ? getBestPlan() : null;
   const baselinePlan = state.baseline ? getPlanById(state.baseline) : null;
   const baseSim = state.baseline && state.onboarding_complete ? baselineSim(state.baseline) : null;
-  const baseCost = baseSim ? sumF(baseSim.cost) + baselinePlan.standing + PSO_LEVY : 0;
+  const baseCost = baseSim ? baselineNet(state.baseline) : 0;
   const annualSavings = best ? Math.max(0, baseCost - best.net) : 0;
 
   m.innerHTML = `

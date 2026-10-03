@@ -743,6 +743,20 @@ export function baselineSim(planId){
   return CACHE.baselines[planId];
 }
 
+/**
+ * What the current plan costs over the year ahead, on the bill's own load:
+ * energy, standing charge and PSO, plus any announced price rise for the part
+ * of the year it applies to — the same footing every other plan is ranked on.
+ * Leaving the rise out made the current plan look cheaper than it will be,
+ * and a "best" plan could then cost more than it.
+ */
+export function baselineNet(planId){
+  const bs = baselineSim(planId);
+  if (!bs) return 0;
+  const plan = getPlanById(planId);
+  return sumF(bs.cost) + (plan ? plan.standing + PSO_LEVY + annualCost(bs, plan).outlook_extra : 0);
+}
+
 // Coerce critical numeric state to real, in-range numbers. State can arrive
 // from a shared ?s= URL or hand-edited localStorage, where a field might be a
 // string ("10") or NaN — "10" is truthy so it slips past `|| 0` and then breaks
@@ -1032,7 +1046,7 @@ export function getBestPlan(opts){
   if (!best){ return { plan: null, sim: null, net: 0, energy_cost: 0, export_revenue: 0, standing: 0, baseCost: 0, savings: 0, _noPlan: true }; }
   const baselinePlan = getPlanById(state.baseline);
   const bs = baselineSim(state.baseline);
-  const baseCost = bs ? (sumF(bs.cost) + (baselinePlan ? baselinePlan.standing + PSO_LEVY : 0)) : 0;
+  const baseCost = bs ? baselineNet(state.baseline) : 0;
   best.baseCost = baseCost;
   best.savings = baseCost - best.net;
   return best;
@@ -1081,7 +1095,7 @@ export function getRecommendation(){
   const choicePremium = isManualChoice && cheapest ? best.net - cheapest.net : 0;
   const baselinePlan = getPlanById(state.baseline);
   const bs = baselineSim(state.baseline);
-  const baseCost = bs ? (sumF(bs.cost) + (baselinePlan ? baselinePlan.standing + PSO_LEVY : 0)) : 0;
+  const baseCost = bs ? baselineNet(state.baseline) : 0;
   const annualSavings = best ? Math.max(0, baseCost - best.net) : 0;
   const baselineRank = best ? (ranked.findIndex(r => r.plan.id === state.baseline) + 1) : null;
 
