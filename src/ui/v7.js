@@ -13,7 +13,7 @@
  * the same figure the engine tests already hold.
  */
 import {
-  savingsLadder, rateStrip, scoreRing, monthBars, dayProfile, eur,
+  savingsLadder, rateStrip, scoreRing, monthBars, paybackCurve, dayProfile, eur,
 } from './charts.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
@@ -669,7 +669,7 @@ export function createV7(api) {
     const main = `<div class="ax-big qr-value"><span>${big}</span>${unit ? `<span class="ax-unit">${unit}</span>` : ''}</div>`;
     return `<section class="ax-ans">
       <div class="ax-ans-k">${k}</div>
-      ${side ? `<div class="ax-big-row">${main}<div class="ax-side">${side}</div></div>` : main}
+      ${side ? `<div class="ax-big-row">${main}<button class="ax-side" onclick="v7Sheet('life')" aria-label="See the 20 years in full">${side}</button></div>` : main}
       ${line ? `<div class="ax-line">${line}</div>` : ''}
       ${extra}
     </section>`;
@@ -679,6 +679,34 @@ export function createV7(api) {
    * Beside the payback years: where the money ends up. The 20-year total, as
    * euros come in, over a small line that crosses zero at the payback years.
    */
+  let _life = null;
+  /** The 20 years behind the figure beside the payback: the line full size, and the sum. */
+  function lifeSheet() {
+    const L = _life;
+    if (!L) return '';
+    const saved = L.curve[L.curve.length - 1] + L.sysCost + L.battery;
+    const end = L.curve[L.curve.length - 1];
+    const last = L.benefit * Math.pow(1 - L.deg, 19);
+    const row = (k, v, cls = '') => `<div class="ax-mb-row ${cls}"><span>${k}</span><b>${v}</b></div>`;
+    return `<div class="v7-sheet-head">
+        <div class="v7-eyebrow">Your panels over 20 years</div>
+        <h2 class="v7-h ${end >= 0 ? 'is-gain' : 'is-loss'}">${end >= 0 ? '+' : '−'}${eur(Math.abs(end))} ${end >= 0 ? 'ahead' : 'short'}</h2>
+      </div>
+      ${paybackCurve({ cumulative: L.curve })}
+      <div class="ax-life-sum">
+        ${row('Saved on bills over 20 years', eur(saved), 'is-gain')}
+        ${row(L.grant > 0 ? `The system, after the ${eur(L.grant)} grant` : 'The system', `−${eur(L.sysCost)}`)}
+        ${L.battery ? row('A new battery, around year 12', `−${eur(L.battery)}`) : ''}
+        <div class="ax-mb-head"><span>${end >= 0 ? 'Ahead' : 'Short'}</span><b>${end >= 0 ? '+' : '−'}${eur(Math.abs(end))}</b></div>
+      </div>
+      <div class="ax-life-marks">
+        <div><b>${eur(L.benefit)}</b><small>saved in year 1</small></div>
+        <div><b>${L.pb < 50 ? `${L.pb.toFixed(1)} yrs` : 'never'}</b><small>to pay for itself</small></div>
+        <div><b>${eur(last)}</b><small>saved in year 20, as panels wear</small></div>
+      </div>
+      <p class="v7-fine">Euros as they come in, at today's prices. If electricity prices rise, the panels save more.</p>`;
+  }
+
   function lifeSpark(curve, pb) {
     if (!curve || curve.length < 2) return '';
     const W = 104, H = 30, lo = Math.min(0, ...curve), hi = Math.max(0, ...curve), span = hi - lo || 1;
@@ -691,7 +719,7 @@ export function createV7(api) {
         ${pb > 0 && pb < curve.length - 1 ? `<circle cx="${x(pb).toFixed(1)}" cy="${y(0).toFixed(1)}" r="3.5" class="ax-spark-dot"/>` : ''}
       </svg>
       <b class="${end >= 0 ? 'is-gain' : 'is-loss'}">${end >= 0 ? '+' : '−'}${eur(Math.abs(end))}</b>
-      <small>${end >= 0 ? 'ahead' : 'short'} after 20 years${S().battery_kwh > 0 ? ',<br>new battery included' : ''}</small>`;
+      <small>${end >= 0 ? 'ahead' : 'short'} after 20 years${S().battery_kwh > 0 ? ',<br>new battery included' : ''} ${api.ic('chevR', 12)}</small>`;
   }
 
   const anCard = (title, body, cls = '') => `<section class="ax-card ${cls}"><h2 class="ax-t">${title}</h2>${body}</section>`;
@@ -1056,6 +1084,8 @@ export function createV7(api) {
       curve.push(curve[y - 1] + disc + batt);
     }
 
+    _life = { curve, benefit, sysCost, pb, deg, battery: st.battery_kwh > 0 ? 400 * st.battery_kwh : 0, grant: st.grant_seai || 0 };
+
     const m = api.monthlyTotals(best);
     const over = m.gen.map((g, i) => (g > m.cons[i] ? i : -1)).filter((i) => i >= 0);
     const run = over.length && over[over.length - 1] - over[0] === over.length - 1;
@@ -1232,6 +1262,7 @@ export function createV7(api) {
     else if (sh.kind === 'score') body = scoreSheet();
     else if (sh.kind === 'anplan') body = anPlanSheet();
     else if (sh.kind === 'months') body = monthsSheet();
+    else if (sh.kind === 'life') body = lifeSheet();
     else if (sh.kind === 'quote') body = quoteSheet();
     else if (sh.kind === 'switch') body = switchSheet(sh.id);
     else if (sh.kind === 'switched') body = switchedSheet(sh.id);
