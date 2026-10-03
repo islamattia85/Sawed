@@ -54,7 +54,7 @@ TARIFFS_PATH = Path(__file__).parent.parent / "public" / "tariffs.json"
 #: a rate corrected in only one of them is a defect no screen can show, and
 #: tests/unit/tariff-freshness.test.ts fails CI when they diverge. So every write
 #: to tariffs.json is mirrored into it.
-MAIN_JS_PATH = Path(__file__).parent.parent / "src" / "main.js"
+MAIN_JS_PATH = Path(__file__).parent.parent / "src" / "model.js"  # the embedded tariff copy lives with the model
 MIN_COVERAGE = 0.60   # fail the run below this share of plans re-verified
 TODAY = date.today().isoformat()
 

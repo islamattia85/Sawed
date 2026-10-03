@@ -151,6 +151,7 @@ jobs:
           add-paths: |
             public/tariffs.json
             src/main.js
+            src/model.js
           base: ${{ matrix.line }}
           branch: tariffs/verified-update-${{ matrix.line }}
           commit-message: "tariffs: prices as published by the suppliers"

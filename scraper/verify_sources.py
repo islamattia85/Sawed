@@ -45,7 +45,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 TARIFFS = ROOT / "public" / "tariffs.json"
-MAIN_JS = ROOT / "src" / "main.js"
+MAIN_JS = ROOT / "src" / "model.js"   # the embedded tariff copy lives with the model
 
 # Prices always carry decimals (34.85c, €219.22); whole numbers on these pages
 # are times and counts ("8am to 11pm", "12 months"), never prices.

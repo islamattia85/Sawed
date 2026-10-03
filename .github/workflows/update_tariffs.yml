@@ -69,6 +69,7 @@ jobs:
           add-paths: |
             public/tariffs.json
             src/main.js
+            src/model.js
           branch: tariffs/auto-update
           commit-message: "chore: update electricity tariffs"
           title: "Tariff update — review the numbers before merging"

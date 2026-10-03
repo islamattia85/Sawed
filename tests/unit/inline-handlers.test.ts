@@ -22,7 +22,7 @@ import { dirname, join } from 'node:path';
 
 // The V7 views emit inline handlers too, and resolve against the same window
 // bridge in main.js — so both files are read as one source.
-const SRC = ['../../src/main.js', '../../src/ui/v7.js']
+const SRC = ['../../src/main.js', '../../src/model.js', '../../src/ui/v7.js']
   .map((f) => readFileSync(join(dirname(fileURLToPath(import.meta.url)), f), 'utf8'))
   .join('\n');
 

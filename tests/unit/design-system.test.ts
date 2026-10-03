@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path';
 const root = dirname(fileURLToPath(import.meta.url));
 // V7 moved the main surfaces into their own view module and stylesheet. The
 // scales hold there too, or they would hold nowhere that matters.
-const JS = ['../../src/main.js', '../../src/ui/v7.js', '../../src/ui/charts.js']
+const JS = ['../../src/main.js', '../../src/model.js', '../../src/icons.js', '../../src/ui/v7.js', '../../src/ui/charts.js']
   .map((f) => readFileSync(join(root, f), 'utf8')).join('\n');
 const CSS = ['../../src/styles/main.css', '../../src/styles/v7.css']
   .map((f) => readFileSync(join(root, f), 'utf8')).join('\n');

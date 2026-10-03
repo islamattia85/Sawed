@@ -30,7 +30,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 REGISTRY = ROOT / "public" / "tariffs.json"
-MAIN_JS = ROOT / "src" / "main.js"
+MAIN_JS = ROOT / "src" / "model.js"   # the embedded tariff copy lives with the model
 
 # Harvested IDs we refuse to carry, and why. Being explicit here means a future
 # run cannot quietly start including them.

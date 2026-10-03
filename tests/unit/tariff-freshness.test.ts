@@ -33,7 +33,7 @@ type Registry = (Tariff & {
  * Mirrors tests/unit/tariff-data.test.ts — see the note there.
  */
 function loadTariffs(): Registry {
-  const src = readFileSync('src/main.js', 'utf8');
+  const src = readFileSync('src/model.js', 'utf8');
   const start = src.indexOf('const EMBEDDED_TARIFFS = [');
   expect(start).toBeGreaterThan(-1);
   const open = src.indexOf('[', start);

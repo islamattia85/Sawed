@@ -19,7 +19,7 @@ import { HOURS_IN_YEAR, type Band, type Tariff } from '../../src/engine/constant
  * overrides it at runtime and is validated separately.
  */
 function loadTariffs(): Tariff[] {
-  const src = readFileSync('src/main.js', 'utf8');
+  const src = readFileSync('src/model.js', 'utf8');
   const start = src.indexOf('const EMBEDDED_TARIFFS = [');
   expect(start).toBeGreaterThan(-1);
   const open = src.indexOf('[', start);
