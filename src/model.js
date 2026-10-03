@@ -1159,12 +1159,14 @@ export function goalSweepCk(){
 export function estimateInstallCost(kwp, battKwh){
   // Non-linear: a fixed base (inverter, scaffolding, labour baseline) is paid
   // regardless of array size, then panels get cheaper per kWp at scale.
-  //   base €2,900 · first 3 kWp at €950/kWp · beyond 3 kWp at €750/kWp
+  //   base €3,300 · first 3 kWp at €1,000/kWp · beyond 3 kWp at €800/kWp
   //   battery: €800 hybrid-inverter/install premium + €380/kWh
-  // Sanity: 5.5 kWp + 9 kWh ≈ €11,800 (real 2026 Cork quote: €11,400).
-  const panelCost = kwp <= 3 ? kwp * 950 : 3 * 950 + (kwp - 3) * 750;
+  // Set to the middle of 2026 Irish guides: 6 kWp €8,500–10,500 before the
+  // grant, batteries €2,500–6,000 fitted. A real 2026 Cork quote
+  // (5.5 kWp + 9 kWh, €11,400) sits below this, as competitive quotes do.
+  const panelCost = kwp <= 3 ? kwp * 1000 : 3 * 1000 + (kwp - 3) * 800;
   const battCost = (battKwh || 0) > 0 ? 800 + battKwh * 380 : 0;
-  return Math.round((2900 + panelCost + battCost) / 100) * 100;
+  return Math.round((3300 + panelCost + battCost) / 100) * 100;
 }
 
 /* ============================================================

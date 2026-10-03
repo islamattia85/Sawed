@@ -1449,7 +1449,7 @@ section.hc { cursor: default; }
 .v7-undo .v7-undo-x { padding: 6px; border: 0; background: none; color: var(--ink-soft); }
 
 /* The payback answer, with where the money ends up beside it. */
-.ax-big-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-3); }
+.ax-big-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
 .ax-side { display: grid; justify-items: end; gap: 2px; text-align: right; }
 .ax-side b { font: 700 var(--text-h3) var(--display); }
 .ax-side small { font-size: var(--text-caption); color: var(--ink-soft); }
