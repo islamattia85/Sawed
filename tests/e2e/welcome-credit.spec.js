@@ -31,3 +31,14 @@ test('no welcome credit on a plan from the supplier the home is already with', a
   await expect(card).toBeVisible();
   await expect(card.locator('.v7-flag.is-gift')).toHaveCount(0);
 });
+
+test('"best" is the cheapest plan for the home, however the list is sorted', async ({ page }) => {
+  await boot(page, { current_screen: 'plans', has_solar: true, considering_solar: true, solar_planned: true, count_A: 10, battery_kwh: 9, baseline: 'BG-TOU' });
+  const bestCost = async () => euros(await page.locator('.v7-plan.best .plan-cost').textContent());
+  const cheapest = await bestCost();
+  await page.locator('.plans-sort-btn', { hasText: 'Best for selling solar' }).click();
+  await expect(page.locator('.v7-plan.best')).toHaveCount(1);
+  expect(await bestCost()).toBe(cheapest);
+  // And it never costs more than staying put.
+  await expect(page.locator('.v7-plan.best .v7-plan-delta')).toHaveClass(/is-gain/);
+});

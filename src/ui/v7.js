@@ -451,12 +451,16 @@ export function createV7(api) {
     // Each row's difference is what switching to it would change on this home,
     // solar included — the same measure as the switch step on the home screen.
     const mine = api.sameHomeCost(st.baseline);
+    // "Best" is the cheapest plan for this home, whatever the list is sorted or
+    // filtered by: sorted for selling solar, the top row was called best while
+    // costing more than staying put.
+    const cheapest = ranked.filter((r) => !r.onHold).reduce((m, r) => (!m || r.cost < m.cost ? r : m), null);
 
     const rows = filtered.length === 0
       ? `<div class="v7-empty">No plans in this category. Try another filter.</div>`
       : visible.map((r) => {
         const rank = ranked.indexOf(r) + 1;
-        const isBest = rank === 1 && f === 'all';
+        const isBest = !!cheapest && r.plan.id === cheapest.plan.id && mine - r.cost > 0.5;
         const isCurrent = r.plan.id === st.baseline;
         const isChosen = r.plan.id === st.chosen_plan;
         const saving = mine - r.cost;
