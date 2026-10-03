@@ -31,6 +31,12 @@ test('suggested, quotes and saved in one list, each with cost, payback, 20 years
   for (const row of await list.locator('.sys-row').all()) await expect(row.locator('.sys-m')).toHaveCount(4, { timeout: 60_000 });
   const savedCost = await list.locator('.sys-g-yours .sys-row .sys-m b').first().textContent();
   expect(savedCost).not.toMatch(/-|−/);
+  // Prices before the grant: a quote's exactly as quoted, a suggestion's as a rounded guide price.
+  await expect(list.locator('.sys-g-quotes .sys-row', { hasText: 'Gamma PV' }).locator('.sys-m').first()).toContainText('€13,200');
+  await expect(list.locator('.sys-g-quotes .sys-row', { hasText: 'Gamma PV' }).locator('.sys-m').first()).toContainText('before grant');
+  const sug = list.locator('.sys-g-suggested .sys-row').first().locator('.sys-m').first();
+  await expect(sug).toContainText(/~€[\d,]+00/);
+  await expect(sug).toContainText('guide price');
   // The system in use is marked once.
   await expect(list.locator('.sys-row.in-use')).toHaveCount(1);
   expect(errors).toEqual([]);

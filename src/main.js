@@ -96,7 +96,7 @@ async function sbInit(){
  * the person to choose. Saved quotes from both are always kept. */
 
 // What describes this screen rather than the household is never synced.
-const NO_SYNC = ['_flow', '_flow_edit', '_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_solar_more', '_an_tab', '_an_from', '_an_pick', '_an_note', '_an_day_open', '_an_mon', '_sheet', '_sys_saving', '_fine_open', '_settings_open', '_return_to', '_lead_form',
+const NO_SYNC = ['_flow', '_flow_edit', '_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_solar_more', '_an_tab', '_an_from', '_an_pick', '_an_note', '_an_day_open', '_an_mon', '_sheet', '_sys_saving', '_sys_name', '_fine_open', '_settings_open', '_return_to', '_lead_form',
   '_tariff_refreshing', '_expert_open', '_account_id', '_saved_at'];
 let _sync = { status: 'idle', at: null };
 let _syncTimer = null;
@@ -5431,7 +5431,7 @@ function scheduleGoalSweep(){
     // A frame between steps, so a tap or a slide is painted before the next one.
     if (!done){ requestAnimationFrame(() => setTimeout(run, 0)); return; }
     _sweepScheduled = false;
-    if (state._sheet && state._sheet.kind === 'system') { renderApp(); return; }
+    if (state._sheet && state._sheet.kind === 'system') { redrawKeepingFocus(); return; }
     // Swap the placeholder for the result rather than re-rendering the screen.
     // A full repaint a second after landing detaches whatever the reader was
     // reaching for — it broke a click on the day inspector mid-gesture.
@@ -9884,6 +9884,12 @@ function isInUse(e){
   if (e.changes.cost_is_manual && Math.round(+e.changes.install_cost || 0) !== Math.round(+state.install_cost || 0)) return false;
   return true;
 }
+/** Redraw after background work without taking the cursor away from a field being typed in. */
+function redrawKeepingFocus(){
+  const a = document.activeElement, id = a && a.id, pos = a && typeof a.selectionStart === 'number' ? a.selectionStart : null;
+  renderApp();
+  if (id){ const b = document.getElementById(id); if (b){ b.focus(); if (pos != null && b.setSelectionRange) try { b.setSelectionRange(pos, pos); } catch (e) {} } }
+}
 let _soMemo = { k: null, v: {} }, _soJob = null;
 function systemsOutcomes(){
   const ready = CACHE._goalSweep_ck === goalSweepCk() && CACHE._goalSweep;
@@ -9907,7 +9913,7 @@ function systemsOutcomes(){
       const [key, ch] = J.todo.shift();
       try { _soMemo.v[key] = ch ? withSimState(ch, quickOutcome) : (v7HasModelledSystem() ? quickOutcome() : null); } catch (err) { console.warn('systems', err); }
       if (J.todo.length) requestAnimationFrame(() => setTimeout(step, 0));
-      else { _soJob = null; if (state._sheet && state._sheet.kind === 'system') renderApp(); }
+      else { _soJob = null; if (state._sheet && state._sheet.kind === 'system') redrawKeepingFocus(); }
     };
     setTimeout(step, 120);
   }
@@ -9950,7 +9956,9 @@ function useSystem(key){
 /** Keep the system as it is now, under a name. */
 function saveSystemAs(){
   const el = document.getElementById('sys-name');
-  const name = String((el && el.value) || '').trim().slice(0, 40) || `My system ${(state.saved_systems || []).length + 1}`;
+  // What was typed survives a redraw while the list fills in: it is kept as typed.
+  const name = String((el && el.value) || state._sys_name || '').trim().slice(0, 40) || `My system ${(state.saved_systems || []).length + 1}`;
+  state._sys_name = '';
   (state.saved_systems = state.saved_systems || []).push({ id: 's' + Date.now(), name, cfg: currentSystemCfg(), at: new Date().toISOString() });
   state._sys_saving = false;
   saveState(); renderApp();
@@ -9966,9 +9974,14 @@ function renderSystemsList(){
   const ready = CACHE._goalSweep_ck === goalSweepCk() && CACHE._goalSweep;
   const entries = systemEntries(!!ready);
   const k = (n) => (Math.abs(n) >= 10000 ? `€${(n / 1000).toFixed(1)}k` : eur(n));
-  const metrics = (o, c) => { const n = (+c.count_A || 0) + (+c.count_B || 0), bat = +c.battery_kwh || 0;
+  // The price before the grant for every system, so quotes and suggestions
+  // are compared like for like; a suggestion's is a guide price, rounded, as
+  // it is not a quote. Payback and 20 years still count the grant.
+  const metrics = (o, c, guide) => { const n = (+c.count_A || 0) + (+c.count_B || 0), bat = +c.battery_kwh || 0;
     const pb = `${n} · ${bat > 0 ? `${bat} kWh` : 'none'}`;
-    return o ? `<span class="sys-m"><b>${eur(o.cost)}</b><small>after grant</small></span>
+    const price = +c.install_cost || 0;
+    const shown = guide ? `~${eur(Math.round(price / 100) * 100)}` : eur(price);
+    return o ? `<span class="sys-m"><b>${shown}</b><small>${guide ? 'guide price' : 'before grant'}</small></span>
       <span class="sys-m"><b>${o.payback < 50 ? `${o.payback.toFixed(1)} yrs` : 'never'}</b><small>payback</small></span>
       <span class="sys-m"><b class="${o.life >= 0 ? 'is-gain' : 'is-loss'}">${o.life >= 0 ? '+' : '−'}${k(Math.abs(o.life))}</b><small>after 20 yrs</small></span>
       <span class="sys-m"><b>${pb}</b><small>panels · battery</small></span>`
@@ -9977,8 +9990,8 @@ function renderSystemsList(){
     const use = isInUse(e), ek = escAttr(e.key), sid = e.saved ? escAttr(e.saved) : '', qid = e.quote ? escAttr(e.quote.id) : '';
     return `<div class="sys-row ${use ? 'in-use' : ''} sys-g-${e.group}">
       <button class="sys-main" ${use ? 'aria-current="true"' : `onclick="useSystem('${ek}')"`}>
-        <span class="sys-l"><b>${esc(e.name)}${use ? ' <i class="sys-tag">In use</i>' : ''}</b><small>${esc(e.spec)}${e.price ? ` · ${eur(e.price)}` : ''}</small>${e.why ? `<small class="sys-why">${esc(e.why)}</small>` : ''}</span>
-        <span class="sys-r">${metrics(out && out[e.key], { ...state, ...e.changes })}</span>
+        <span class="sys-l"><b>${esc(e.name)}${use ? ' <i class="sys-tag">In use</i>' : ''}</b><small>${esc(e.spec)}</small>${e.why ? `<small class="sys-why">${esc(e.why)}</small>` : ''}</span>
+        <span class="sys-r">${metrics(out && out[e.key], { ...state, ...e.changes }, e.group === 'suggested' || !({ ...state, ...e.changes }).cost_is_manual)}</span>
       </button>
       ${e.saved ? `<button class="sys-x" aria-label="Remove ${escAttr(e.name)}" onclick="removeSavedSystem('${sid}')">${ic('x', 12)}</button>` : ''}
       ${e.quote ? `<button class="sys-x" aria-label="Remove ${escAttr(e.name)}" onclick="removeQuote('${qid}')">${ic('x', 12)}</button>` : ''}
@@ -9993,13 +10006,13 @@ function renderSystemsList(){
   if (!ready) scheduleGoalSweep();
   const anyUse = entries.some(isInUse);
   return `<section class="sys-list" aria-label="Systems">
-    <div class="sys-head"><b>${ic('spark', 14)} Systems for your home</b><small>Tap one to use it. Figures are for this home, on the best plan for each.</small></div>
-    ${!anyUse && v7HasModelledSystem() ? `<div class="sys-row in-use sys-g-current"><div class="sys-main"><span class="sys-l"><b>Your system now <i class="sys-tag">In use</i></b><small>${esc(systemSpec(state))}</small></span><span class="sys-r">${metrics(out && out.current, state)}</span></div></div>` : ''}
+    <div class="sys-head"><b>${ic('spark', 14)} Systems for your home</b><small>Tap one to use it. Prices before the grant; payback and 20 years count it. Each on the best plan for this home.</small></div>
+    ${!anyUse && v7HasModelledSystem() ? `<div class="sys-row in-use sys-g-current"><div class="sys-main"><span class="sys-l"><b>Your system now <i class="sys-tag">In use</i></b><small>${esc(systemSpec(state))}</small></span><span class="sys-r">${metrics(out && out.current, state, !state.cost_is_manual)}</span></div></div>` : ''}
     ${group('suggested', 'Suggested by Peakless', '')}
     ${group('quotes', 'From your quotes', '')}
     ${group('yours', 'Saved by you', '')}
     ${state._sys_saving
-      ? `<div class="sys-save"><input id="sys-name" type="text" maxlength="40" placeholder="Name it, e.g. Two roofs, small battery" aria-label="Name for this system"><button class="sy-stop" onclick="saveSystemAs()">Save</button><button class="v7-link" onclick="state._sys_saving=false;renderApp()">Cancel</button></div>`
+      ? `<div class="sys-save"><input id="sys-name" type="text" maxlength="40" placeholder="Name it, e.g. Two roofs, small battery" aria-label="Name for this system" value="${escAttr(state._sys_name || '')}" oninput="state._sys_name=this.value"><button class="sy-stop" onclick="saveSystemAs()">Save</button><button class="v7-link" onclick="state._sys_saving=false;renderApp()">Cancel</button></div>`
       : `<button class="sy-add" onclick="state._sys_saving=true;renderApp();setTimeout(()=>document.getElementById('sys-name')?.focus(),40)">${ic('plus', 14)} Save this system under a name</button>`}
   </section>`;
 }
