@@ -181,25 +181,6 @@ test('correcting our guess is a sentence, not a gate', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('the weather range qualifies the figure instead of standing in front of it', async ({ page }) => {
-  const errors = await boot(page, { current_screen: 'solar', has_solar: true, considering_solar: true, count_A: 12, battery_kwh: 5 });
-
-  const order = await page.evaluate(() => {
-    const y = (sel) => {
-      const el = document.querySelector(sel);
-      return el ? el.getBoundingClientRect().top + window.scrollY : null;
-    };
-    return { figure: y('.qr-value'), range: y('.wx-range') };
-  });
-  expect(order.range, 'the range control precedes the number it qualifies')
-    .toBeGreaterThan(order.figure);
-
-  // Still works.
-  await page.locator('.wx-range-btn', { hasText: 'Poor' }).click();
-  expect(await page.evaluate(() => window.state._scenario_view)).toBe('pessimist');
-  expect(errors).toEqual([]);
-});
-
 /**
  * The SEAI grant is a constant, not a decision.
  *
@@ -222,7 +203,7 @@ test('the grant card is off the solar tab and beside the field it explains', asy
   // The figure it explained must not vanish with it: the hero carries the net
   // system cost, so it has to say what "net" means.
   expect(onSolar, 'the system price no longer says the grant is included')
-    .toMatch(/after (the €[\d,]+ SEAI )?grant|no SEAI grant/i);
+    .toMatch(/after (the )?€[\d,]+ (SEAI )?grant|no SEAI grant/i);
 
   // The grant lives with the price in My system: a switch that says the amount.
   await page.evaluate(() => window.openMySystem());

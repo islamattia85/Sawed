@@ -1037,17 +1037,11 @@ export function createV7(api) {
     }
     const planned = st.solar_planned || st.solar_is_estimate;
     const sd = api.solarDataFor(d.plan.id);
-    const { cur, sysCost, view, best } = sd;
-    const range = d.picked ? null : api.solarRange();
-    const pick = (v) => (v === 'realistic' ? cur : (range && range[v]) || (sd.range && sd.range[v]) || null);
-    const shown = pick(view) || cur;
-    const pb = shown.payback;
-    const benefit = shown.solarBenefit;
-    const wx = [['pessimist', 'Poor year'], ['realistic', 'Typical'], ['optimist', 'Good year']].map(([k, l]) => {
-      const s = pick(k);
-      return `<button class="ax-wx-b wx-range-btn ${view === k ? 'on active' : ''}" aria-pressed="${view === k}" ${s ? '' : 'aria-busy="true"'} onclick="state._scenario_view='${k}';renderApp()">
-        <span>${l}</span><b>${s ? (s.payback < 50 ? `${s.payback.toFixed(1)} yrs` : 'never') : '…'}</b></button>`;
-    }).join('');
+    const { cur, sysCost, best } = sd;
+    // A typical weather year. Payback runs eight years or more, so poor and
+    // good years even out; a "poor year" payback assumed every year was poor.
+    const pb = cur.payback;
+    const benefit = cur.solarBenefit;
     const sys = `${api.totalPanels()} panels${st.battery_kwh > 0 ? ` and a ${st.battery_kwh} kWh battery` : ''}`;
     const sub = st.solar_is_estimate ? `An estimated system for your home: ${sys}.` : st.solar_planned ? `The system you are planning: ${sys}.` : `Your system: ${sys}.`;
 
@@ -1089,8 +1083,11 @@ export function createV7(api) {
         k: 'Pays for itself in',
         big: pb < 50 ? pb.toFixed(1) : '—', unit: pb < 50 ? 'years' : 'never pays back',
         side: lifeSpark(curve, clear),
-        extra: `${d.picked ? '' : `<div class="ax-wx wx-range" role="group" aria-label="Weather year">${wx}</div>`}
-          <div class="ax-line">${eur(benefit)} a year back on ${eur(sysCost)}${st.grant_seai > 0 ? ` after the ${eur(st.grant_seai)} SEAI grant` : ', with no SEAI grant'}.</div>
+        extra: `<div class="ax-eq" role="group" aria-label="How the years are worked out">
+            <div class="ax-eq-p"><b>${eur(sysCost)}</b><small>${st.grant_seai > 0 ? `after ${eur(st.grant_seai)} grant` : 'no SEAI grant'}</small></div>
+            <span class="ax-eq-op" aria-hidden="true">÷</span>
+            <div class="ax-eq-p"><b class="is-gain">${eur(benefit)}</b><small>back each year</small></div>
+          </div>
           <div class="ax-line ax-line-2">${planLine} <button class="ax-inline" onclick="v7Sheet('anplan')">Use a different plan</button></div>
           ${st.chosen_plan ? api.renderChoiceStrip() : ''}
           <button class="v7-system" onclick="openMySystem()">

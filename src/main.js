@@ -7496,7 +7496,7 @@ async function doGeneratePdf(email){
     if (state.has_solar && totalPanels() > 0){
       try {
         const range = computeScenarioRange();
-        const sc = range[state._scenario_view || 'realistic'] || range.realistic;
+        const sc = range.realistic;
         const bp = best.sim || sim(best.plan.id);
         const gen = sumF(CACHE.solar && CACHE.solar.total);
         const exported = sumF(bp && bp.grid_export);
@@ -10330,7 +10330,7 @@ function v7SolarData(){
   const baselinePlan = getPlanById(state.baseline);
   const baseCost = sumF(baselineSim(state.baseline).cost) + baselinePlan.standing + PSO_LEVY;
   const sysCost = state.install_cost - state.grant_seai;
-  const view = state._scenario_view || 'realistic';
+  const view = 'realistic';
   if (!state.has_solar || totalPanels() === 0){
     return { scen: null, cur: { payback: 999, solarBenefit: 0 }, sysCost, npv: 0, range: null, view, best, baseCost };
   }
@@ -11259,7 +11259,7 @@ function computeScenarioSummary(){
   if (state.has_solar && totalPanels() > 0){
     try {
       const range = computeScenarioRange();
-      const sc = range[state._scenario_view || 'realistic'] || range.realistic;
+      const sc = range.realistic;
       if (sc){
         payback = (sc.payback != null && sc.payback < 50) ? sc.payback : null;
         solarBenefit = Math.round(sc.solarBenefit || 0);

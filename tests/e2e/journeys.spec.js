@@ -264,8 +264,8 @@ test('video fixes: one panels figure, and left-out solar is offered back', async
   const card = await page.locator('section.hc', { hasText: 'Your solar panels' }).locator('.hc-fig').textContent();
   expect(card.replace(/[^\d]/g, '')).toContain(String(engine));
   await page.locator('section.hc', { hasText: 'Your solar panels' }).getByRole('button', { name: /Solar analysis/ }).click();
-  const tab = await page.locator('.ax-ans .ax-line').first().textContent();
-  expect(tab.replace(/,/g, '')).toContain(`€${engine} a year back`);
+  const tab = await page.locator('.ax-eq-p b.is-gain').textContent();
+  expect(tab.replace(/,/g, '')).toBe(`€${engine}`);
   await page.evaluate(() => { window.toggleSolarModel(); window.anTab('solar'); });
   await expect(page.locator('.ax-ans')).toContainText('Solar is switched off');
   await page.getByRole('button', { name: /Switch solar back on/ }).click();

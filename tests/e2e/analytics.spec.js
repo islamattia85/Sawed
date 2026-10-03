@@ -78,17 +78,16 @@ test('Accuracy: the ± figure is the parts combined, and says what would sharpen
   await expect(page.getByRole('button', { name: /Upload your ESB meter file/ })).toBeVisible();
 });
 
-test('Solar: poor and good years arrive after the paint, and qualify the answer', async ({ page }) => {
-  const errors = await boot(page, { ...PLANNED, current_screen: 'solar' });
-  await expect(page.locator('.ax-wx-b[aria-busy="true"]')).toHaveCount(0, { timeout: 10_000 });
-  const tiles = await page.locator('.ax-wx-b b').allTextContents();
-  const yrs = tiles.map((t) => parseFloat(t));
-  expect(yrs[0], 'a poor year paid back sooner than a typical one').toBeGreaterThanOrEqual(yrs[1]);
-  expect(yrs[2], 'a good year paid back later than a typical one').toBeLessThanOrEqual(yrs[1]);
-  // Tapping one makes it the answer.
-  await page.locator('.ax-wx-b', { hasText: 'Poor year' }).click();
-  await expect(page.locator('.ax-ans .qr-value')).toContainText(tiles[0].replace(' yrs', ''));
-  await page.locator('.ax-wx-b', { hasText: 'Typical' }).click();
+test('Solar: payback on a typical year, shown as cost ÷ what comes back, with the 20-year result beside it', async ({ page }) => {
+  const errors = await boot(page, { ...PLANNED, current_screen: 'analytics', _scenario_view: 'pessimist' });
+  await page.evaluate(() => window.anTab('solar'));
+  // No poor/good-year tiles: over the payback years the weather evens out.
+  await expect(page.locator('.ax-wx-b')).toHaveCount(0);
+  const [cost, back] = (await page.locator('.ax-eq-p b').allTextContents()).map(euros);
+  const years = parseFloat(await page.locator('.ax-ans .qr-value').textContent());
+  // The sum shown is the answer, give or take panel ageing.
+  expect(Math.abs(cost / back - years)).toBeLessThan(0.6);
+  await expect(page.locator('.ax-side')).toContainText('after 20 years');
   expect(errors).toEqual([]);
 });
 
