@@ -870,6 +870,9 @@ try {
   // so this is only for cases where an EXISTING field's meaning/shape changes.
   if (raw) migrateState(JSON.parse(raw));
 } catch(e){ setState(structuredClone(DEFAULT_STATE)); }
+// A home with panels but no price (an older save, or a step left half-way)
+// would show a 0-year payback. Give it the guide price instead.
+try { if (state.has_solar && totalPanels() > 0 && !(state.install_cost > 0)) applyEstimatedSolarCost(); } catch(e){}
 
 // Transform an older saved state to the current schema. Each case handles one
 // version step; they run in order so a very old state migrates fully. Keep each
@@ -2465,16 +2468,20 @@ function calibrateBillsToBaseline(){
   let target = (state.bimonthly_bill_eur || 0) * 6;
   if (target <= 60) return;
   let prevErr = Infinity;
-  for (let it = 0; it < 3; it++){
+  for (let it = 0; it < 4; it++){
     invalidate();
     rebuildBase();
     const plan = getPlanById(state.baseline);
     if (!plan) return;
     const sim = baselineSim(state.baseline);
-    const cost = sumF(sim.cost) + plan.standing + PSO_LEVY;
-    if (!(cost > 0)) break;
-    const f = Math.min(3, Math.max(0.3, target / cost));
-    if (Math.abs(f - 1) < 0.015) break;
+    const energy = sumF(sim.cost), fixed = plan.standing + PSO_LEVY;
+    const cost = energy + fixed;
+    if (!(energy > 0)) break;
+    // Only usage moves with the bill; the standing charge and levy are fixed.
+    // Scaling the whole bill under-shot small bills, where fixed charges are
+    // a big share (a €80 bill came out as €500 a year, not €480).
+    const f = Math.min(5, Math.max(0.2, (target - fixed) / energy));
+    if (Math.abs(cost - target) / target < 0.005) break;
     // Divergence guard: if the gap to target isn't shrinking, the factor is
     // oscillating — stop rather than amplify the instability.
     const err = Math.abs(cost - target);
@@ -5562,7 +5569,7 @@ function openTariffPopup(planId){
         <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent)">${fmtCent(plan.export_rate || 0)}/kWh</div>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;padding:11px 0">
-        <div><div style="font-size:13px;font-weight:600;color:var(--ink)">Standing charge</div><div style="font-size:12px;color:var(--ink-dim);font-family:var(--mono)">Fixed yearly; the €19.10 PSO levy is added on top</div></div>
+        <div><div style="font-size:13px;font-weight:600;color:var(--ink)">Standing charge</div><div style="font-size:12px;color:var(--ink-dim);font-family:var(--mono)">Fixed yearly; the €${PSO_LEVY.toFixed(2)} PSO levy is added on top</div></div>
         <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)">${fmtCurrency(plan.standing)}/yr</div>
       </div>
       ${plan.type === 'dynamic' ? `<div style="padding:9px 12px;background:var(--blue-soft);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:4px">Plus a price that changes every half hour with the wholesale market.</div>` : ''}
@@ -9670,7 +9677,7 @@ const V7 = createV7({
   householdScore: () => householdScore(),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,
-  getPlanById, dualFuelNote, dualFuel, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, renderConsentBar,
+  getPlanById, PSO_LEVY, dualFuelNote, dualFuel, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, renderConsentBar,
   fmtCurrency, fmtCent, fmtVerifiedDate, latestVerifiedLabel, planDataFlag, planCategoryLabel,
   freshnessChip, priceChangeChip, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
   renderSavingsBreakdown, renderAssumptions,
@@ -12129,6 +12136,7 @@ window.anMonth = anMonth;
 // For tests: forget the sizing run so it can be redone on the page.
 window.__clearSweep = () => { CACHE._goalSweep = null; CACHE._goalSweep_ck = null; };
 window.__df = () => dualFuel();
+window.__sim = { annualKwh: () => sumF(CACHE.cons), pso: PSO_LEVY, plannedLadder, noSolarBest, baselineNet: () => baselineNet(state.baseline), dualFuel, installCost: () => state.install_cost };
 window.setGrantEligible = setGrantEligible;
 window.sysConfirmRoof = sysConfirmRoof;
 window.quickOutcome = quickOutcome;

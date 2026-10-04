@@ -1356,7 +1356,7 @@ export function createV7(api) {
       ${api.isPartnerPlan(plan.id) ? `<div class="v7-fine">We may earn a commission if you switch to this plan. It never changes the order plans are ranked in.</div>` : ''}
       ${weekendLine(plan, label)}
       ${batteryLine(s, plan)}
-      <div class="v7-fine">Every plan also carries the €19.10 PSO levy, set by the regulator; it is in the yearly figure above.</div>
+      <div class="v7-fine">Every plan also carries the ${eur(api.PSO_LEVY || 6.67)} PSO levy, set by the regulator. It’s in the yearly figure above.</div>
       ${sourceLine(plan)}
       ${pc ? `<div class="v7-note is-rise">${api.ic('trendUp', 16)}<div><b>Prices rise ${fmtDate(pc.effective_date)}.</b> ${esc(pc.note || '')} The year above already includes it for the months it applies.</div></div>` : ''}
       ${api.planDataFlag(plan) ? `<div class="v7-note is-check">${api.ic('warn', 16)}<div>These rates have not been re-checked recently. Confirm them with ${esc(plan.supplier)} before switching.</div></div>` : ''}

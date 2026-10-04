@@ -100,9 +100,11 @@ export interface WeekendRates {
  * Public Service Obligation levy, euro a year inc VAT, for a domestic account.
  * Set by the CRU, the same whatever the supplier, and billed on top of the
  * supplier's standing charge — so plan standing charges in the registry leave
- * it out and the engine adds it once. 2025/26 levy: €17.52 ex VAT, €19.10 inc.
+ * it out and the engine adds it once. 2026/27 levy (1 Oct 2026 to 30 Sep 2027):
+ * €6.12 ex VAT, €6.67 inc (CRU decision; as printed on Bord Gáis's and Flogas's
+ * price pages). It was €19.10 inc for 2025/26.
  */
-export const PSO_LEVY = 19.10;
+export const PSO_LEVY = 6.67;
 
 /**
  * Weekday of the first hour of the modelled year, 0 = Monday. The engine
