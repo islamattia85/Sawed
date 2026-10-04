@@ -4798,7 +4798,12 @@ function dualFuel(){
   const kwh = +state.gas_bill_eur > 0 ? gasKwhFromBill(+state.gas_bill_eur, g, firstYear ? g.dual_discount : 0) : TYPICAL_GAS_KWH;
   const bestBySupplier = new Map();
   for (const r of rec.ranked || []) { const k = supplierKey(r.plan.supplier); if (!bestBySupplier.has(k)) bestBySupplier.set(k, { plan: r.plan, net: r.net }); }
-  const c = dualFuelChoices({ baseline: rec.baseCost, cheapest: { supplier: rec.best.plan.supplier, net: rec.best.net }, bestBySupplier },
+  // All three choices price the same home: with the panels and car as the
+  // ranking has them. rec.baseCost is the bill as it is today (no planned
+  // panels), so using it for "stay" mixed two homes and flattered a move.
+  const own = (rec.ranked || []).find((r) => r.plan.id === state.baseline);
+  const stayElec = own ? own.net : annualCost(sim(state.baseline), getPlanById(state.baseline)).net;
+  const c = dualFuelChoices({ baseline: stayElec, cheapest: { supplier: rec.best.plan.supplier, net: rec.best.net }, bestBySupplier },
     { supplier: sup, kwh, firstYear }, GAS_TARIFFS);
   return c ? { ...c, kwh, firstYear, typical: !(+state.gas_bill_eur > 0), supplier: sup } : null;
 }
@@ -5110,7 +5115,10 @@ function goRefineSolar(){
 function makeShareCardCanvas(savings){
   const cv = document.createElement('canvas');
   if (!cv || typeof cv.getContext !== 'function') return null;
-  const W = 1080, H = 1350;
+  // Dual-fuel homes: a year of both fuels gets its own panel, so the card grows.
+  let df = null; try { df = dualFuel(); } catch (e) { df = null; }
+  const fourBars = !!(state.has_solar && (state.solar_planned || state.solar_is_estimate));
+  const W = 1080, H = df && fourBars ? 1560 : 1350;
   cv.width = W; cv.height = H;
   const x = cv.getContext('2d');
   if (!x || typeof x.fillRect !== 'function') return null;
@@ -5173,7 +5181,7 @@ function makeShareCardCanvas(savings){
     const best = getBestPlan();
     facts.push(['Best plan', best.plan.supplier]);
     if (state.has_solar && totalPanels() > 0){ const d = v7SolarData(); if (d.cur.payback < 50) facts.push(['Solar pays back', d.cur.payback.toFixed(1) + ' years']); }
-    if (state.ev_active){ const ev = evEconomics(best.plan.id); if (ev) facts.push(['Car vs petrol', eurS(ev.evVsPetrolNet) + ' less']); }
+    if (state.ev_active){ const ev = evEconomics(best.plan.id); if (ev && ev.evVsPetrolNet > 1) facts.push(['Car vs petrol', eurS(ev.evVsPetrolNet) + ' less']); }
     facts.push(['Accuracy', '±' + modelAccuracy().pct + '%']);
   } catch (e) {}
   const fy = 664 + rungs.length * 86;
@@ -5182,12 +5190,30 @@ function makeShareCardCanvas(savings){
     const fx = 56 + i * (fw + 24);
     rr(fx, fy, fw, 136, 28, '#171C19');
     t(k, fx + 30, fy + 52, 26, '#A2ACA6', 600);
-    t(fit(v, fw - 60, 40, 800), fx + 30, fy + 104, 40, '#EEF1EE', 800);
+    let size = 40; x.font = `800 ${size}px ${F}`;
+    while (size > 26 && x.measureText(v).width > fw - 60){ size -= 2; x.font = `800 ${size}px ${F}`; }
+    t(fit(v, fw - 60, size, 800), fx + 30, fy + 104, size, '#EEF1EE', 800);
   });
+
+  // Gas and electricity together: staying, against the cheapest way.
+  if (df){
+    const opts = [df.moveElec && { k: `Electricity to ${df.moveElec.supplier}`, v: df.moveElec.total },
+      df.moveBoth && { k: `Both to ${df.moveBoth.supplier}`, v: df.moveBoth.total }].filter(Boolean);
+    const low = opts.reduce((a, o) => (!a || o.v < a.v ? o : a), null);
+    const gy = fy + 160, two = low && low.v < df.stay.total;
+    rr(56, gy, W - 112, two ? 200 : 140, 28, '#171C19');
+    t('Gas and electricity, a year', 96, gy + 50, 26, '#A2ACA6', 600);
+    t(fit(`Stay with ${df.supplier}`, 600, 32, 700), 96, gy + 106, 32, '#EEF1EE', 700);
+    t(eurS(df.stay.total), W - 96, gy + 106, 36, '#EEF1EE', 800, 'right');
+    if (two){
+      t(fit(low.k, 600, 32, 700), 96, gy + 162, 32, '#EEF1EE', 700);
+      t(eurS(low.v), W - 96, gy + 162, 36, '#4CCB8C', 800, 'right');
+    }
+  }
 
   // Footer.
   let live = 0; try { live = getRecommendation().ranked.length; } catch (e) { live = TARIFFS.filter(tt => !tt.discontinued).length; }
-  t('My whole year, priced on every plan ' + live + ' Irish plans.', 72, H - 96, 28, '#A2ACA6', 500);
+  t('My whole year, priced on all ' + live + ' Irish plans.', 72, H - 96, 28, '#A2ACA6', 500);
   t('Check yours free at peakless', 72, H - 52, 34, '#ffd166', 700);
   return cv;
 }
@@ -12136,6 +12162,7 @@ window.anMonth = anMonth;
 // For tests: forget the sizing run so it can be redone on the page.
 window.__clearSweep = () => { CACHE._goalSweep = null; CACHE._goalSweep_ck = null; };
 window.__df = () => dualFuel();
+window.__shareCard = (s) => makeShareCardCanvas(s).toDataURL();
 window.__sim = { annualKwh: () => sumF(CACHE.cons), pso: PSO_LEVY, plannedLadder, noSolarBest, baselineNet: () => baselineNet(state.baseline), dualFuel, installCost: () => state.install_cost };
 window.setGrantEligible = setGrantEligible;
 window.sysConfirmRoof = sysConfirmRoof;

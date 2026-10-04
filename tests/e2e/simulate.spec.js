@@ -55,6 +55,7 @@ for (const seed of SEEDS) {
       const own = rec.ranked.find((x) => x.plan.id === state.baseline);
       let pl = null; try { pl = (state.solar_planned || state.solar_is_estimate) && state.has_solar ? window.__sim.plannedLadder() : null; } catch (e) { pl = { err: String(e) }; }
       let df = null; try { df = window.__sim.dualFuel(); } catch (e) { df = { err: String(e) }; }
+      if (df && !df.err) df.ownNet = own ? own.net : null;
       return {
         base: rec.baseCost, best: rec.best && rec.best.net, bestPlan: rec.best && rec.best.plan && rec.best.plan.id,
         bestType: rec.best && rec.best.plan && rec.best.plan.type, savings: rec.best && rec.best.savings,
@@ -88,6 +89,8 @@ for (const seed of SEEDS) {
         expect(o.gas, ctx).toBeGreaterThan(0);
       }
       if (f.df.moveElec) expect(f.df.moveElec.lost, ctx).toBeGreaterThanOrEqual(-0.01);
+      // Same home on every option: staying is the current plan as the ranking prices it.
+      if (f.df.ownNet != null) expect(Math.abs(f.df.stay.elec - f.df.ownNet), `dual-fuel stay vs ranking ${ctx}`).toBeLessThan(1);
     }
 
     // Independent arithmetic: a flat plan's year is kWh × rate + standing + PSO,
@@ -132,6 +135,8 @@ for (const seed of SEEDS) {
     await visit('my system', "v7Sheet(null); openMySystem()");
     if (f.hasSolar) await visit('quick change', "v7Sheet(null); setScreen('analytics'); anTab('solar'); openQuickSystem(); qsStep('a', 1)");
     await visit('privacy', "v7Sheet(null); setScreen('privacy')");
+    const card = await page.evaluate(() => { try { return window.__shareCard(100).length > 1000; } catch (e) { return String(e); } });
+    expect(card, `share card ${ctx}`).toBe(true);
 
     expect(errors, ctx).toEqual([]);
     expect(reported, ctx).toEqual([]);
