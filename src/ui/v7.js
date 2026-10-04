@@ -225,7 +225,19 @@ export function createV7(api) {
         ${(() => { const mp = api.getPlanById(st.baseline), pc = mp && mp.price_change;
           return pc && pc.effective_date && Date.parse(pc.effective_date) > Date.now()
             ? `<div class="v7-evnote">${api.ic('trendUp', 14)} ${esc(mp.supplier)}’s prices rise on ${fmtDate(pc.effective_date)}. That’s counted.</div>` : ''; })()}
-        ${saving > 10 && api.dualFuelNote(best.plan) ? `<div class="v7-evnote is-warn">${api.ic('flame', 14)} ${api.dualFuelNote(best.plan)}</div>` : ''}
+        ${(() => {
+          // Dual fuel: say where gas and electricity together come out best,
+          // so the electricity answer above and the gas card below agree.
+          let d = null; try { d = api.dualFuel(); } catch (e) {}
+          if (d) {
+            const opts = [{ k: 'staying with ' + esc(d.supplier), v: d.stay.total, stay: true },
+              d.moveElec && { k: 'moving only the electricity', v: d.moveElec.total },
+              d.moveBoth && { k: 'moving both to ' + esc(d.moveBoth.supplier), v: d.moveBoth.total }].filter(Boolean);
+            const low = opts.reduce((a, o) => (o.v < a.v ? o : a));
+            return `<div class="v7-evnote is-warn">${api.ic('flame', 14)} ${low.stay ? `With gas too, staying with ${esc(d.supplier)} is cheapest.` : `With gas too, ${low.k} saves most: ${eur(d.stay.total - low.v)} a year.`}</div>`;
+          }
+          return saving > 10 && api.dualFuelNote(best.plan) ? `<div class="v7-evnote is-warn">${api.ic('flame', 14)} ${api.dualFuelNote(best.plan)}</div>` : '';
+        })()}
         ${!pl && best.plan.type === 'ev' && !st.ev_active ? `<div class="v7-evnote">${api.ic('info', 14)} You don’t need an EV for this plan. It’s named for cars, but its cheap night hours suit ${st.battery_kwh > 0 ? 'your battery' : 'your home'} too.</div>` : ''}`;
     // The parts of the home that are choices, each on one line with its own
     // "Leave out": planned solar, and the car. Same row, same switch.

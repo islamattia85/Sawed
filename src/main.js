@@ -5117,8 +5117,16 @@ function makeShareCardCanvas(savings){
   if (!cv || typeof cv.getContext !== 'function') return null;
   // Dual-fuel homes: a year of both fuels gets its own panel, so the card grows.
   let df = null; try { df = dualFuel(); } catch (e) { df = null; }
-  const fourBars = !!(state.has_solar && (state.solar_planned || state.solar_is_estimate));
-  const W = 1080, H = df && fourBars ? 1560 : 1350;
+  const W = 1080, H = 1350;
+  // Dual fuel: one story, gas and electricity together. The headline, the bars
+  // and the best move all come from the same three choices.
+  const dfOpts = df ? [
+    { label: `Stay with ${df.supplier}`, sup: '', v: df.stay.total },
+    df.moveElec && { label: `Electricity to ${df.moveElec.supplier}`, sup: 'gas stays', v: df.moveElec.total },
+    df.moveBoth && { label: `Both to ${df.moveBoth.supplier}`, sup: '', v: df.moveBoth.total },
+  ].filter(Boolean) : null;
+  const dfBest = dfOpts ? dfOpts.reduce((a, o) => (o.v < a.v ? o : a)) : null;
+  if (dfOpts) savings = df.stay.total - dfBest.v;
   cv.width = W; cv.height = H;
   const x = cv.getContext('2d');
   if (!x || typeof x.fillRect !== 'function') return null;
@@ -5146,11 +5154,12 @@ function makeShareCardCanvas(savings){
   // The answer.
   t('THE MOST I COULD SAVE', 72, 250, 28, '#ffd166', 700);
   t(eurS(Math.max(0, savings)), 64, 420, 190, '#4CCB8C', 800);
-  t('less a year', 72, 480, 40, '#A2ACA6', 600);
+  t(dfOpts ? 'less a year, gas and electricity' : 'less a year', 72, 480, 40, '#A2ACA6', 600);
 
   // The four bars, as Home shows them.
   let rungs = [];
-  try {
+  if (dfOpts) rungs = dfOpts.map((o) => [o.label, o.sup, o.v, o === dfBest ? '#4CCB8C' : o.v === df.stay.total ? '#7A847E' : '#2F7A56']);
+  else try {
     const pl = (state.solar_planned || state.solar_is_estimate) ? plannedLadder() : null;
     const mine = getPlanById(state.baseline);
     const rec = getRecommendation();
@@ -5170,7 +5179,7 @@ function makeShareCardCanvas(savings){
     t(label, 96, y, 30, '#EEF1EE', 700);
     x.font = `700 30px ${F}`; const lw = x.measureText(label + '  ').width;
     t(fit(sup, 560 - lw, 26, 400), 96 + lw, y, 26, '#A2ACA6', 400);
-    t(eurS(v), W - 96, y, 32, i === rungs.length - 1 ? '#4CCB8C' : '#EEF1EE', 800, 'right');
+    t(eurS(v), W - 96, y, 32, c === '#4CCB8C' ? '#4CCB8C' : '#EEF1EE', 800, 'right');
     rr(96, y + 18, W - 192, 22, 11, '#262D29');
     rr(96, y + 18, Math.max(22, (W - 192) * (v / max)), 22, 11, c);
   });
@@ -5179,7 +5188,8 @@ function makeShareCardCanvas(savings){
   const facts = [];
   try {
     const best = getBestPlan();
-    facts.push(['Best plan', best.plan.supplier]);
+    if (dfBest) facts.push(['Best move', dfBest === dfOpts[0] ? 'Stay' : dfBest.label]);
+    else facts.push(['Best plan', best.plan.supplier]);
     if (state.has_solar && totalPanels() > 0){ const d = v7SolarData(); if (d.cur.payback < 50) facts.push(['Solar pays back', d.cur.payback.toFixed(1) + ' years']); }
     if (state.ev_active){ const ev = evEconomics(best.plan.id); if (ev && ev.evVsPetrolNet > 1) facts.push(['Car vs petrol', eurS(ev.evVsPetrolNet) + ' less']); }
     facts.push(['Accuracy', '±' + modelAccuracy().pct + '%']);
@@ -5195,22 +5205,6 @@ function makeShareCardCanvas(savings){
     t(fit(v, fw - 60, size, 800), fx + 30, fy + 104, size, '#EEF1EE', 800);
   });
 
-  // Gas and electricity together: staying, against the cheapest way.
-  if (df){
-    const opts = [df.moveElec && { k: `Electricity to ${df.moveElec.supplier}`, v: df.moveElec.total },
-      df.moveBoth && { k: `Both to ${df.moveBoth.supplier}`, v: df.moveBoth.total }].filter(Boolean);
-    const low = opts.reduce((a, o) => (!a || o.v < a.v ? o : a), null);
-    const gy = fy + 160, two = low && low.v < df.stay.total;
-    rr(56, gy, W - 112, two ? 200 : 140, 28, '#171C19');
-    t('Gas and electricity, a year', 96, gy + 50, 26, '#A2ACA6', 600);
-    t(fit(`Stay with ${df.supplier}`, 600, 32, 700), 96, gy + 106, 32, '#EEF1EE', 700);
-    t(eurS(df.stay.total), W - 96, gy + 106, 36, '#EEF1EE', 800, 'right');
-    if (two){
-      t(fit(low.k, 600, 32, 700), 96, gy + 162, 32, '#EEF1EE', 700);
-      t(eurS(low.v), W - 96, gy + 162, 36, '#4CCB8C', 800, 'right');
-    }
-  }
-
   // Footer.
   let live = 0; try { live = getRecommendation().ranked.length; } catch (e) { live = TARIFFS.filter(tt => !tt.discontinued).length; }
   t('My whole year, priced on all ' + live + ' Irish plans.', 72, H - 96, 28, '#A2ACA6', 500);
@@ -5222,9 +5216,11 @@ function shareSavingsCard(){
   // The card shows the whole comparison, so its headline is the whole of it.
   let savings = publishableSavings();
   try { const pl = (state.solar_planned || state.solar_is_estimate) ? plannedLadder() : null; if (pl) savings = pl.today - pl.best.net; } catch (e) {}
+  let df = null; try { df = dualFuel(); } catch (e) { df = null; }
+  if (df) savings = df.stay.total - Math.min(df.stay.total, df.moveElec ? df.moveElec.total : Infinity, df.moveBoth ? df.moveBoth.total : Infinity);
   const cv = makeShareCardCanvas(savings);
   if (!cv){ copyShareUrl(); return; }
-  const text = 'My home energy analysis: \u20ac' + Math.round(savings).toLocaleString('en-IE') + ' a year less. Check yours free: ' + location.origin;
+  const text = 'My home energy analysis: \u20ac' + Math.round(savings).toLocaleString('en-IE') + (df ? ' a year less on gas and electricity.' : ' a year less.') + ' Check yours free: ' + location.origin;
   cv.toBlob((blob) => {
     if (!blob){ copyShareUrl(); return; }
     const file = new File([blob], 'peakless-analysis.png', { type: 'image/png' });

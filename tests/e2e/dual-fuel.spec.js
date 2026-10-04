@@ -8,8 +8,14 @@ test('a gas home with gas from the same supplier is warned before switching elec
   await boot(page, { ...GAS_HOME, gas_same_supplier: 'yes', contract_end_date: '2027-05-01' });
   const best = await page.evaluate(() => getRecommendation().best.plan.supplier);
   test.skip(/Bord G/.test(best), 'best plan is with the same supplier');
-  await expect(page.locator('.v7-evnote.is-warn')).toContainText('your gas goes up about');
-  await expect(page.locator('.v7-evnote.is-warn')).toContainText('Bord Gáis');
+  // Home says where both fuels together come out best, agreeing with the gas card.
+  await expect(page.locator('.v7-evnote.is-warn')).toContainText('With gas too');
+  const card = await page.locator('.df-row.is-best b').innerText();
+  const note = await page.locator('.v7-evnote.is-warn').innerText();
+  if (/Move both/.test(card)) expect(note).toContain('moving both');
+  // The switch sheet gives the gas effect of moving only the electricity.
+  await page.evaluate(() => v7Sheet('switch', getRecommendation().best.plan.id));
+  await expect(page.locator('#v7-sheet .v7-evnote.is-warn')).toContainText('your gas goes up about');
 });
 
 test('no warning when the gas is elsewhere, or not asked', async ({ page }) => {
