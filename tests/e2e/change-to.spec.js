@@ -12,10 +12,13 @@ test('more than one move worth making: a tile for each under "Change to:", bigge
   const saves = (await tiles.locator('em').allInnerTexts()).map((t) => +t.replace(/[^0-9]/g, ''));
   expect(saves).toEqual([...saves].sort((a, b) => b - a));
   await expect(tiles.first()).toContainText('Gas and electricity');
-  // The electricity-only tile shows the hero's figure for the same move.
+  // One story: the hero's figure is the best tile's, and the bars are the same three choices.
   const hero = +(await page.locator('.v7-figure [data-countup-num]').innerText()).replace(/[^0-9]/g, '');
-  const elec = +(await page.locator('.ct-tile', { hasText: 'Electricity only' }).locator('em').innerText()).replace(/[^0-9]/g, '');
-  expect(elec).toBe(hero);
+  const best = +(await tiles.first().locator('em').innerText()).replace(/[^0-9]/g, '');
+  expect(best).toBe(hero);
+  await expect(page.locator('.v7-ladder-k')).toHaveText('Gas and electricity, a year');
+  await expect(page.locator('.df-card')).toHaveCount(0);
+  await page.locator('#app-root').screenshot({ path: process.env.SHOT || '/dev/null' }).catch(() => {});
   await tiles.first().click();
   await expect(page.locator('#v7-sheet')).toContainText('ask for their dual fuel plan');
 });

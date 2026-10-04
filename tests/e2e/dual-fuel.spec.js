@@ -8,10 +8,8 @@ test('a gas home with gas from the same supplier is warned before switching elec
   await boot(page, { ...GAS_HOME, gas_same_supplier: 'yes', contract_end_date: '2027-05-01' });
   const best = await page.evaluate(() => getRecommendation().best.plan.supplier);
   test.skip(/Bord G/.test(best), 'best plan is with the same supplier');
-  // Home says where both fuels together come out best, agreeing with the gas card.
-  const card = await page.locator('.df-row.is-best b').innerText();
-  if (/Stay/.test(card)) await expect(page.locator('.v7-evnote.is-warn')).toContainText('staying');
-  else await expect(page.locator('.ct-tile.is-best')).toContainText(/Gas and electricity|Electricity only/);
+  // Home tells one story: gas and electricity together.
+  await expect(page.locator('.v7-hero .v7-eyebrow')).toContainText('Gas and electricity');
   // The switch sheet gives the gas effect of moving only the electricity.
   await page.evaluate(() => v7Sheet('switch', getRecommendation().best.plan.id));
   await expect(page.locator('#v7-sheet .v7-evnote.is-warn')).toContainText('your gas goes up about');
@@ -44,15 +42,13 @@ test('setup asks about gas only for a gas home whose supplier sells gas', async 
   await expect(page.locator('.fl-opts')).not.toContainText('Yes, both with them');
 });
 
-test('a dual-fuel home sees a year of both fuels three ways, cheapest marked', async ({ page }) => {
+test('a dual-fuel home sees a year of both fuels three ways, as Home\'s own bars', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-10-04T12:00:00Z'));
   await boot(page, { ...GAS_HOME, gas_same_supplier: 'yes', gas_bill_eur: 220, contract_end_date: '2027-05-01' });
-  const card = page.locator('.df-card');
-  await expect(card).toContainText('Stay as you are');
-  await expect(card).toContainText('Move both');
-  await expect(card).toContainText('First-year discount');
-  await expect(card.locator('.df-row.is-best')).toHaveCount(1);
-  await card.screenshot({ path: '/tmp/claude-0/-home-user-Sawed/74c17acb-5048-514f-a9cb-512d72f36e1c/scratchpad/df.png' });
+  const bars = page.locator('.v7-hero [data-rung]');
+  await expect(bars).toHaveCount(3);
+  await expect(bars.first()).toHaveAttribute('data-label', /Now, both with Bord Gáis/);
+  await expect(page.locator('.v7-hero [data-label^="Both to"]')).toHaveCount(1);
   const d = await page.evaluate(() => { const v = window.__df(); return v && { stay: v.stay.total, lost: v.moveElec && v.moveElec.lost }; });
   expect(d.stay).toBeGreaterThan(2000);
 });

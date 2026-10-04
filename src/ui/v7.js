@@ -201,7 +201,7 @@ export function createV7(api) {
       { label: `${nowLabel()}, with the planned solar`, value: pl.mine, token: '--v7-mid' },
       { label: `On ${pl.best.plan.supplier}, with the planned solar`, value: pl.best.net, token: '--accent' },
     ] : null;
-    const rungs = stair || (withSolar ? lad.rungs.slice(1) : lad.rungs);
+    let rungs = stair || (withSolar ? lad.rungs.slice(1) : lad.rungs);
     const saving = pl ? pl.today - pl.best.net : withSolar ? fromSwitch : rec.annualSavings;
     const mineNow = rungs[0].value;
     const switchName = jsAttr(`${best.plan.supplier} ${best.plan.plan}`);
@@ -213,8 +213,8 @@ export function createV7(api) {
 
     // When nothing on the market beats the plan this home is on, the answer
     // is "stay" — not a €0 saving with a button to switch to something dearer.
-    const stay = saving <= 10 && !chosen;
-    const hero = stay ? `
+    let stay = saving <= 10 && !chosen;
+    let hero = stay ? `
         <div class="v7-eyebrow">Your plan is already the best value</div>
         <div class="qr-value v7-figure"><span>${api.fmtCurrency(mineNow)}</span><span class="v7-figure-unit">a year where you are</span></div>
         <div class="v7-headline">No plan on the market costs less for this home. The closest is <b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}, ${eur(Math.max(0, -saving))} a year more.</div>`
@@ -240,6 +240,36 @@ export function createV7(api) {
           return saving > 10 && api.dualFuelNote(best.plan) ? `<div class="v7-evnote is-warn">${api.ic('flame', 14)} ${api.dualFuelNote(best.plan)}</div>` : '';
         })()}
         ${!pl && best.plan.type === 'ev' && !st.ev_active ? `<div class="v7-evnote">${api.ic('info', 14)} You don’t need an EV for this plan. It’s named for cars, but its cheap night hours suit ${st.battery_kwh > 0 ? 'your battery' : 'your home'} too.</div>` : ''}`;
+    // Dual fuel (gas with the same supplier): Home tells one story, gas and
+    // electricity together. The figure, the bars and the tiles below all come
+    // from the same three choices, so nothing points two ways.
+    let ladderK = 'What you’d pay a year', dualHero = false;
+    let dfh = null; if (!pl) { try { dfh = api.dualFuel(); } catch (e) { dfh = null; } }
+    if (dfh) {
+      dualHero = true;
+      const opts = [
+        { label: `Now, both with ${dfh.supplier}`, value: dfh.stay.total, stay: true, what: '' },
+        dfh.moveElec && { label: `Electricity to ${dfh.moveElec.supplier}, gas stays`, value: dfh.moveElec.total, what: `electricity to <b>${esc(dfh.moveElec.supplier)}</b>, gas stays` },
+        dfh.moveBoth && { label: `Both to ${dfh.moveBoth.supplier}`, value: dfh.moveBoth.total, what: `both to <b>${esc(dfh.moveBoth.supplier)}</b>` },
+      ].filter(Boolean);
+      const low = opts.reduce((a, o) => (o.value < a.value ? o : a));
+      const dSave = dfh.stay.total - low.value;
+      rungs = opts.map((o) => ({ label: o.label, value: o.value, token: o === low ? '--accent' : o.stay ? '--ink-dim' : '--v7-mid' }));
+      ladderK = 'Gas and electricity, a year';
+      stay = dSave <= 10;
+      const rise = (() => { const mp = api.getPlanById(st.baseline), pc = mp && mp.price_change;
+        return pc && pc.effective_date && Date.parse(pc.effective_date) > Date.now()
+          ? `<div class="v7-evnote">${api.ic('trendUp', 14)} ${esc(mp.supplier)}’s prices rise on ${fmtDate(pc.effective_date)}. That’s counted.</div>` : ''; })();
+      hero = stay ? `
+        <div class="v7-eyebrow">Gas and electricity</div>
+        <div class="qr-value v7-figure"><span>${eur(dfh.stay.total)}</span><span class="v7-figure-unit">a year where you are</span></div>
+        <div class="v7-headline">Staying with <b>${esc(dfh.supplier)}</b> is cheapest for both.</div>${rise}`
+      : `
+        <div class="v7-eyebrow">Gas and electricity: you could pay less</div>
+        <div class="qr-value v7-figure is-saving" data-countup="${Math.round(dSave)}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(dSave)}</span><span class="v7-figure-unit">less a year</span></div>
+        <div class="v7-headline">Best move: ${low.what}</div>${rise}`;
+    }
+
     // The parts of the home that are choices, each on one line with its own
     // "Leave out": planned solar, and the car. Same row, same switch.
     let evRow = '';
@@ -284,7 +314,7 @@ export function createV7(api) {
     <div class="screen v7 v7-home">
       <section class="v7-hero qr-hero">
         ${hero}
-        <div class="v7-ladder-k">What you’d pay a year</div>
+        <div class="v7-ladder-k">${ladderK}</div>
         ${pl ? grid4(pl, stair) : savingsLadder({ rungs })}
         ${steps}
       </section>
@@ -401,7 +431,7 @@ export function createV7(api) {
         <button class="hc-go" onclick="anTab('solar','result')">Solar analysis ${api.ic('chevR', 14)}</button>
       </section>`;
     }
-    out += dualFuelCard();
+    if (st.has_solar && (st.solar_planned || st.solar_is_estimate)) out += dualFuelCard();   // otherwise the hero is the gas card
     const invites = [];
     if (!sys) invites.push(api.hasModelledSystem()
       ? `<button class="hc-invite" onclick="toggleSolarModel()">${api.ic('sun', 18)}<span><b>Your ${st.solar_planned ? 'planned ' : ''}solar is left out</b>${api.totalPanels()} panels${st._kept_battery ? ` and a ${st._kept_battery} kWh battery` : ''}, kept for you. Tap to include it again</span>${api.ic('chevR', 18)}</button>`
@@ -1433,7 +1463,7 @@ export function createV7(api) {
       const byKey = new Map((rec.ranked || []).map((r) => [api.supplierKey(r.plan.supplier), r]).reverse());
       if (d.moveElec && d.stay.total - d.moveElec.total > 10)
         // The same figure the hero shows for this move (gas does not change with it).
-        opts.push({ sup: d.moveElec.supplier, what: 'Electricity only', save: bestPlan.id === rec.best.plan.id && !(S().has_solar && (S().solar_planned || S().solar_is_estimate)) ? rec.baseCost - rec.best.net : d.stay.total - d.moveElec.total, plan: bestPlan });
+        opts.push({ sup: d.moveElec.supplier, what: 'Electricity only', save: d.stay.total - d.moveElec.total, plan: bestPlan });
       if (d.moveBoth && d.stay.total - d.moveBoth.total > 10) {
         const r = byKey.get(api.supplierKey(d.moveBoth.supplier));
         if (r) opts.push({ sup: d.moveBoth.supplier, what: 'Gas and electricity', save: d.stay.total - d.moveBoth.total, plan: r.plan });
