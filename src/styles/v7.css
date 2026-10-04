@@ -1611,3 +1611,12 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .fl-own { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); font-size: var(--text-caption); color: var(--ink-soft); }
 .fl-own label { flex: 1; }
 .fl-own input { width: 90px; }
+
+/* Start: two routes. */
+.pk-route, .pk-btn-route { display: grid; gap: 2px; text-align: left; width: 100%; padding: 16px 20px; border-radius: var(--radius-xl); cursor: pointer; font: inherit; }
+.pk-route b, .pk-btn-route b { font: 800 17px var(--display); }
+.pk-route small, .pk-btn-route small { font-size: 13px; font-weight: 600; }
+.pk-btn-route { background: transparent; color: var(--brand-paper); border: 1.5px solid var(--brand-mist); margin-top: 10px; }
+.fl-upgrade { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: var(--space-2); padding: 14px; border-radius: var(--radius-lg); border: 1.5px solid var(--accent); background: transparent; color: var(--accent); font: 700 var(--text-body) var(--display); cursor: pointer; }
+.fl-note { font-size: var(--text-caption); color: var(--ink-soft); margin: var(--space-2) 0 0; }
+.pk-btn-gold.pk-route { display: grid; justify-content: stretch; justify-items: start; text-align: left; padding: 16px 20px; min-height: 0; }

@@ -2733,9 +2733,9 @@ function renderWelcome(){
       <p class="pk-land-sub">We price every Irish electricity plan on how your home uses power, with or without solar, a battery or an EV. Free.</p>
     </div>
     <div class="pk-land-actions">
-      <button class="pk-btn-gold" onclick="startFlow()">Get started</button>
+      <button class="pk-btn-gold pk-route" onclick="startFlow('quick')"><b>Am I paying too much?</b><small>About a minute: your bill and your plan</small></button>
+      <button class="pk-btn-route" onclick="startFlow('full')"><b>Planning solar, a battery or an EV</b><small>A few minutes, one question at a time</small></button>
       <button class="pk-link" onclick="${state.onboarding_complete ? "setScreen('solar');v7Sheet('quote')" : 'navigateAuditor()'}">${ic('clip', 14)} Already have a solar quote? Check it</button>
-      <button class="pk-land-link" onclick="startOnboarding()">Full guided setup, with solar and EV ${ic('chevR', 14)}</button>
       ${state.onboarding_complete ? `<button class="pk-land-link" onclick="setScreen('result')">${ic('chevL', 14)} Back to my results</button>` : ''}
       <div class="pk-land-trust">${TARIFFS.length} plans · prices checked daily · your data stays on this phone</div>
     </div>
@@ -4824,11 +4824,14 @@ function dualFuelNote(toPlan){
 }
 function flowSteps(){
   const f = state._flow || {}, out = [];
+  const quick = state._flow_mode === 'quick';
   for (const q of FLOW_Q){
+    // The quick route is about the plan only: no solar or car questions.
+    if (quick && (q === 'solar' || q === 'ev')) continue;
     out.push(q);
     if (q === 'plan' && f.plan && f.plan !== 'unsure' && !String(f.plan).startsWith('guess:')) out.push('disc');
     if (q === 'heat' && f.heat === 'gas' && askGas()){ out.push('gas'); if (f.gas === 'yes') out.push('gasbill'); }
-    if (q === 'solar' && (f.solar === 'have' || f.solar === 'thinking')) out.push('roof', 'panels', 'battery');
+    if (q === 'solar' && (f.solar === 'have' || f.solar === 'thinking')) out.push('roof', 'tilt', 'panels', 'battery', 'price', 'grant');
     if (q === 'ev' && (f.ev === 'have' || f.ev === 'thinking')) out.push('km', 'car');
   }
   return out;
@@ -4837,9 +4840,10 @@ function flowSteps(){
    back through them instead of leaving the app or skipping two screens. */
 function guidePush(kind, step){ try { history.pushState({ guide: kind, step }, '', '#' + kind); } catch (e) {} }
 
-function startFlow(){
+function startFlow(mode){
   guidePush('flow', 0);
   state._flow = {}; state._flow_edit = null;
+  state._flow_mode = mode === 'quick' ? 'quick' : 'full';
   if (!state.region) state.region = 'east';
   state.usage_input_mode = 'bill';
   if (!state.baseline){ state.baseline = 'EI-24'; state.baseline_known = false; }
@@ -4877,7 +4881,9 @@ function flowAnswer(q, v){
     }
   }
   if (q === 'roof'){
-    const m = { S: [180, 0], SE: [135, 0], SW: [225, 0], EW: [90, 270], SESW: [135, 225] }[v] || [180, 0];
+    // A compass point, two faces, or exact degrees typed in.
+    const m = { S: [180, 0], SE: [135, 0], SW: [225, 0], E: [90, 0], W: [270, 0], NE: [45, 0], NW: [315, 0], N: [360, 0], EW: [90, 270], SESW: [135, 225] }[v]
+      || (/^\d+$/.test(String(v)) ? [((+v % 360) || 360), 0] : [180, 0]);
     const t = totalPanels() || _flowSuggest();
     state.azimuth_A = m[0];
     if (m[1]){ state.azimuth_B = m[1]; state.count_A = Math.ceil(t / 2); state.count_B = Math.floor(t / 2); } else { state.count_A = t; state.count_B = 0; }
@@ -4885,6 +4891,13 @@ function flowAnswer(q, v){
   }
   if (q === 'panels'){ const n = +v; if (state.count_B > 0){ state.count_A = Math.ceil(n / 2); state.count_B = Math.floor(n / 2); } else state.count_A = n; }
   if (q === 'battery'){ state.battery_kwh = +v; if (+v > 0) state.charge_from_grid = true; }
+  if (q === 'tilt'){ state.tilt_A = +v; if (state.count_B > 0) state.tilt_B = +v; }
+  if (q === 'price'){
+    // A quote's price is used as it is; otherwise a guide price, labelled as one everywhere.
+    if (+v > 0){ state.install_cost = Math.round(+v); state.cost_is_manual = true; state.solar_is_estimate = false; }
+    else { state.cost_is_manual = false; applyEstimatedSolarCost(); }
+  }
+  if (q === 'grant'){ state.grant_eligible = v !== 'no'; state.grant_is_manual = false; applyEstimatedSolarCost(); }
   if (q === 'ev'){
     if (was !== v) clear(['km', 'car']);
     state.ev_active = v !== 'no'; state.ev_in_bill = v === 'have';
@@ -4904,6 +4917,12 @@ function flowSupplier(i){
   state._flow_sup = sups[i] || null; renderApp();
 }
 function flowEdit(q){ state._flow_edit = q; renderApp(); }
+/** From the quick answer into the guided route, keeping every answer given. */
+function flowUpgrade(){
+  state._flow_mode = 'full';
+  saveState(); renderApp();
+  try { window.scrollTo(0, 0); } catch (e) {}
+}
 function flowFinish(then){
   state.onboarding_complete = true;
   state.seen_intro = true;
@@ -4928,6 +4947,9 @@ function renderFlow(){
     gas: [`Is your gas with ${esc(plan.supplier)} too?`, 'It changes what a switch is worth.'],
     gasbill: ['What’s your gas bill?', 'Every two months. Not sure? We’ll use a typical home.'],
     solar: ['Solar panels?', ''],
+    tilt: ['How steep is the roof?', 'Most Irish roofs are 30–40°.'],
+    price: ['Do you have a price?', 'A quote makes the payback exact.'],
+    grant: ['Does the home get the SEAI grant?', 'Built and lived in before 2021, and no solar grant claimed before. Up to €1,800.'],
     roof: ['Which way does the roof face?', 'The side that gets the sun.'],
     panels: ['How many panels?', `For your usage we suggest ${_flowSuggest()}.`],
     battery: ['A battery?', 'It stores the day’s solar for the evening.'],
@@ -4943,22 +4965,29 @@ function renderFlow(){
     gas: (v) => (v === 'yes' ? `Gas with ${plan.supplier} too` : 'Gas with another supplier'),
     gasbill: (v) => (+v > 0 ? `Gas €${v} / 2 months` : 'Gas bill: typical home'),
     solar: (v) => ({ no: 'No solar', have: 'Solar', thinking: 'Solar planned' })[v],
-    roof: (v) => ({ S: 'South', SE: 'South-east', SW: 'South-west', EW: 'East and west', SESW: 'South-east and south-west', unsure: 'Not sure, south assumed' })[v],
+    roof: (v) => ({ S: 'South', SE: 'South-east', SW: 'South-west', E: 'East', W: 'West', N: 'North', NE: 'North-east', NW: 'North-west', EW: 'East and west', SESW: 'South-east and south-west', unsure: 'Not sure, south assumed' })[v] || `Facing ${v}°`,
     panels: (v) => `${v} panels`, battery: (v) => +v ? `${v} kWh` : 'No battery',
+    tilt: (v) => `${v}° roof`,
+    price: (v) => (+v > 0 ? `Quote €${(+v).toLocaleString('en-IE')}` : 'Guide price'),
+    grant: (v) => (v === 'no' ? 'No grant' : v === 'unsure' ? 'Grant assumed' : 'Grant'),
     ev: (v) => ({ no: 'No EV', have: 'EV', thinking: 'EV planned' })[v],
     km: (v) => `${(+v).toLocaleString('en-IE')} km a year`, car: (v) => ({ 14: 'Small', 17: 'Family car', 20: 'SUV or large' })[v],
   };
   const optIco = { heat: { gas: 'flame', heatpump: 'waves', storage: 'layers', direct: 'bolt' }, solar: { no: 'x', have: 'sun', thinking: 'spark' },
-    ev: { no: 'x', have: 'car', thinking: 'spark' }, battery: { 0: 'x', 5: 'battery', 10: 'battery' }, car: { 14: 'car', 17: 'car', 20: 'car' }, km: { 8000: 'pin', 16000: 'pin', 25000: 'pin' } };
+    ev: { no: 'x', have: 'car', thinking: 'spark' }, car: { 14: 'car', 17: 'car', 20: 'car' }, km: { 8000: 'pin', 16000: 'pin', 25000: 'pin' } };
   const compass = (v) => `<svg class="fl-compass" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="2"/>${v === 'EW'
     ? '<path d="M20 20H6M20 20h14" stroke="var(--brand-gold)" stroke-width="4" stroke-linecap="round"/>'
     : v === 'SESW' ? '<path d="M20 20l9 9M20 20l-9 9" stroke="var(--brand-gold)" stroke-width="4" stroke-linecap="round"/>'
-    : `<path d="M20 20V8" stroke="var(--brand-gold)" stroke-width="4" stroke-linecap="round" transform="rotate(${({ S: 180, SE: 135, SW: 225 })[v] || 180} 20 20)"/>`}</svg>`;
+    : `<path d="M20 20V8" stroke="var(--brand-gold)" stroke-width="4" stroke-linecap="round" transform="rotate(${({ S: 180, SE: 135, SW: 225, E: 90, W: 270, N: 0 })[v] ?? 180} 20 20)"/>`}</svg>`;
   const opt = (q, v, title, sub = '') => {
     const icn = q === 'roof' ? compass(v) : optIco[q] && optIco[q][v] ? `<span class="fl-ico">${ic(optIco[q][v], 20)}</span>` : '';
     return `<button class="fl-opt ${icn ? 'has-ico' : ''} ${String(f[q]) === String(v) ? 'on' : ''}" onclick="flowAnswer('${q}', '${v}')">${icn}<span><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span></button>`;
   };
   const body = (q) => {
+    // Any number, not only the three shown.
+    const own = (q, unit, max, ph, lab = 'Or your own') => `<div class="fl-own"><label for="flow-own-${q}">${lab}</label>
+        <span class="sy-num"><input id="flow-own-${q}" type="number" inputmode="numeric" min="0" max="${max}" placeholder="${ph}"><i>${unit}</i></span>
+        <button class="sy-stop" onclick="const v = document.getElementById('flow-own-${q}').value; if (v !== '') flowAnswer('${q}', Math.max(0, Math.min(${max}, Math.round(+v))))">Use</button></div>`;
     if (q === 'bill') return `<div class="fl-bill"><span>€</span><input id="flow-bill" inputmode="numeric" value="${f.bill || state.bimonthly_bill_eur || 250}" aria-label="Two-month bill in euro"></div>
       <div class="fl-row">${[150, 250, 420].map((v) => `<button class="sy-stop" onclick="document.getElementById('flow-bill').value=${v}">€${v}</button>`).join('')}</div>
       <button class="fl-next" onclick="flowAnswer('bill', document.getElementById('flow-bill').value)">Next</button>
@@ -4992,16 +5021,24 @@ function renderFlow(){
     if (q === 'gas') return `<div class="fl-opts">${opt('gas', 'yes', 'Yes, both with them')}${opt('gas', 'no', 'No, or oil')}</div>`;
     if (q === 'heat') return `<div class="fl-opts fl-two fl-tiles">${opt('heat', 'gas', 'Gas or oil')}${opt('heat', 'heatpump', 'Heat pump')}${opt('heat', 'storage', 'Storage heaters')}${opt('heat', 'direct', 'Electric heaters')}</div>`;
     if (q === 'solar') return `<div class="fl-opts">${opt('solar', 'no', 'No')}${opt('solar', 'have', 'I have them', 'We’ll add what they make')}${opt('solar', 'thinking', 'Thinking about it', 'We’ll show the payback')}</div>`;
-    if (q === 'roof') return `<div class="fl-opts fl-two fl-tiles">${opt('roof', 'S', 'South')}${opt('roof', 'EW', 'East and west')}${opt('roof', 'SE', 'South-east')}${opt('roof', 'SW', 'South-west')}${opt('roof', 'SESW', 'South-east and south-west')}</div>
+    if (q === 'roof') return `<div class="fl-opts fl-two fl-tiles">${opt('roof', 'S', 'South')}${opt('roof', 'SE', 'South-east')}${opt('roof', 'SW', 'South-west')}${opt('roof', 'E', 'East')}${opt('roof', 'W', 'West')}${opt('roof', 'N', 'North')}</div>
+      <div class="fl-k">Panels on two sides?</div>
+      <div class="fl-opts fl-two fl-tiles">${opt('roof', 'EW', 'East and west')}${opt('roof', 'SESW', 'South-east and south-west')}</div>
+      ${own('roof', '°', 359, 'e.g. 200')}
       <button class="sg-link" onclick="flowAnswer('roof', 'unsure')">Not sure (assume south)</button>`;
-    // Any number, not only the three shown.
-    const own = (q, unit, max, ph) => `<div class="fl-own"><label for="flow-own-${q}">Or your own</label>
-        <span class="sy-num"><input id="flow-own-${q}" type="number" inputmode="numeric" min="0" max="${max}" placeholder="${ph}"><i>${unit}</i></span>
-        <button class="sy-stop" onclick="const v = document.getElementById('flow-own-${q}').value; if (v !== '') flowAnswer('${q}', Math.max(0, Math.min(${max}, Math.round(+v))))">Use</button></div>`;
     if (q === 'disc') return `<div class="fl-opts fl-three">${opt('disc', 0, 'None')}${opt('disc', 15, '15%')}${opt('disc', 30, '30%')}</div>${own('disc', '%', 60, 'e.g. 22')}
       <button class="sg-link" onclick="flowAnswer('disc', 0)">Not sure</button>`;
     if (q === 'panels'){ const s = _flowSuggest(); return `<div class="fl-opts fl-three">${[Math.max(4, s - 4), s, s + 4].filter((n, i, a) => a.indexOf(n) === i).map((n) => opt('panels', n, `${n}`, n === s ? 'suggested' : '')).join('')}</div>${own('panels', 'panels', 60, 'e.g. 12')}`; }
-    if (q === 'battery') return `<div class="fl-opts fl-three">${opt('battery', 0, 'None')}${opt('battery', 5, '5 kWh', 'typical')}${opt('battery', 10, '10 kWh')}</div>${own('battery', 'kWh', 40, 'e.g. 9')}`;
+    if (q === 'battery') return `<div class="fl-opts">${opt('battery', 0, 'No battery')}${opt('battery', 5, '5 kWh', 'Covers a typical evening')}${opt('battery', 10, '10 kWh', 'Evening and night, or a cheap-rate top-up')}${opt('battery', 13, '13 kWh', 'A bigger home or an EV')}</div>${own('battery', 'kWh', 40, 'e.g. 9')}`;
+    if (q === 'tilt') return `<div class="fl-opts fl-three">${opt('tilt', 15, '15°', 'shallow')}${opt('tilt', 35, '35°', 'typical')}${opt('tilt', 45, '45°', 'steep')}</div>${own('tilt', '°', 90, 'e.g. 30')}
+      <button class="sg-link" onclick="flowAnswer('tilt', 35)">Not sure (assume 35°)</button>`;
+    if (q === 'price'){
+      const kwp = (totalPanels() * (+state.panel_w || 460)) / 1000, guide = Math.round(estimateInstallCost(kwp, +state.battery_kwh || 0) / 100) * 100;
+      return `<div class="fl-opts">${opt('price', 0, 'Not yet: use a guide price', `About ${eur(guide)} for this size in Ireland, before any grant`)}</div>
+        ${own('price', '€', 60000, 'e.g. 11500', 'I have a quote, incl. VAT')}
+        <p class="fl-note">You can upload the quote itself later in My system.</p>`;
+    }
+    if (q === 'grant') return `<div class="fl-opts">${opt('grant', 'yes', 'Yes', 'Built and lived in before 2021, no grant before')}${opt('grant', 'no', 'No', 'Built from 2021, or already claimed')}${opt('grant', 'unsure', 'Not sure', 'We’ll assume yes; check with your installer')}</div>`;
     if (q === 'ev') return `<div class="fl-opts">${opt('ev', 'no', 'No')}${opt('ev', 'have', 'I have one', 'It’s already in my bill')}${opt('ev', 'thinking', 'Thinking about one', 'We’ll show the cost and petrol saved')}</div>`;
     if (q === 'km') return `<div class="fl-opts fl-three">${[8000, 16000, 25000].map((k) => opt('km', k, `${k / 1000}k km`)).join('')}</div>${own('km', 'km', 100000, 'e.g. 12000')}`;
     if (q === 'car') return `<div class="fl-opts fl-three">${opt('car', 14, 'Small')}${opt('car', 17, 'Family')}${opt('car', 20, 'SUV')}</div>`;
@@ -5009,7 +5046,7 @@ function renderFlow(){
   };
   let h = '';
   for (const s of steps){
-    const branch = ['roof', 'panels', 'battery', 'km', 'car'].includes(s);
+    const branch = ['roof', 'tilt', 'panels', 'battery', 'price', 'grant', 'km', 'car'].includes(s);
     if (s === open){
       h += `<section class="fl-q ${branch ? 'fl-branch' : ''}" aria-label="${label[s][0]}">
         <h2>${label[s][0]}</h2>${label[s][1] ? `<p>${label[s][1]}</p>` : ''}${body(s)}</section>`;
@@ -5052,6 +5089,7 @@ function renderFlow(){
         <span>Built on 8,760 hours of your year · ±${acc}%</span>
       </div>
       <button class="fl-go" onclick="flowFinish()">See my home</button>
+      ${state._flow_mode === 'quick' ? `<button class="fl-upgrade" onclick="flowUpgrade()">${ic('sun', 16)} Thinking about solar or an EV? Get the full picture ${ic('chevR', 14)}</button>` : ''}
     </section>
     ${sbInitialized() && !_sbUser ? `<section class="fl-save">
       <span class="fl-save-ico">${ic('shield', 20)}</span>
@@ -10394,7 +10432,7 @@ function renderSystemSheet(){
           : 'None, this home doesn’t qualify'}</small></span>
         <button class="v7-link" onclick="v7Sheet('home')">Change</button></div>
       ${grantOn && state.grant_is_manual && state.grant_seai !== g ? `<div class="sy-fine-note">Using ${eur(state.grant_seai)} from your quote. The standard grant for this size is ${eur(g)}.</div>` : ''}
-      <div class="sy-net">You pay <b>${eur(net)}</b></div>
+      <div class="sy-net">${state.cost_is_manual ? 'You pay' : 'Guide price, you’d pay about'} <b>${eur(net)}</b></div>
     </section>
 
     <button class="v7-cta-2" onclick="v7Sheet('quote')">${ic('clip', 16)} Fill this in from an installer's quote</button>
@@ -12195,6 +12233,7 @@ window.plannedSolarSplit = plannedSolarSplit;
 window.flowAnswer = flowAnswer;
 window.flowEdit = flowEdit;
 window.flowFinish = flowFinish;
+window.flowUpgrade = flowUpgrade;
 window.startEvGuide = startEvGuide;
 window.egGo = egGo;
 window.egSet = egSet;

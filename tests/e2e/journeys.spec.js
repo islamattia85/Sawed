@@ -11,7 +11,7 @@ const screen = (page) => page.evaluate(() => window.state.current_screen);
 
 test('the phone Back gesture steps back through the first-visit flow and never leaves the app', async ({ page }) => {
   await bootFresh(page);
-  await page.getByRole('button', { name: /Get started/ }).click();
+  await page.getByRole('button', { name: /Planning solar, a battery or an EV/ }).click();
   expect(await screen(page)).toBe('flow');
   await page.goBack();
   await expect.poll(() => screen(page)).toBe('welcome');
@@ -150,7 +150,7 @@ test('opening solar from Home and backing out leaves Home exactly as it was', as
 
 test('the first visit asks for the supplier, then that supplier\'s plan', async ({ page }) => {
   await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
-  await page.getByRole('button', { name: /Get started/ }).click();
+  await page.getByRole('button', { name: /Planning solar, a battery or an EV/ }).click();
   await page.getByRole('button', { name: 'Next' }).click();
   await page.locator('.fl-sup', { hasText: 'Energia' }).click();
   const plans = await page.locator('.fl-opt').allTextContents();
@@ -227,7 +227,7 @@ test('a door on Home opens its question and says where it came from', async ({ p
 
 test('"not sure which plan" assumes a standard plan, never an EV or dynamic one', async ({ page }) => {
   await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
-  await page.getByRole('button', { name: /Get started/ }).click();
+  await page.getByRole('button', { name: /Planning solar, a battery or an EV/ }).click();
   await page.getByRole('button', { name: 'Next' }).click();
   await page.locator('.fl-sup', { hasText: 'Energia' }).click();
   await page.locator('.fl-opt', { hasText: 'Not sure which plan' }).click();
@@ -246,7 +246,7 @@ test('planned solar never offers a switch to the plan you are already on', async
 
 test('"not sure which plan" is kept as a guess, not as a known plan', async ({ page }) => {
   await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
-  await page.getByRole('button', { name: /Get started/ }).click();
+  await page.getByRole('button', { name: /Planning solar, a battery or an EV/ }).click();
   await page.getByRole('button', { name: 'Next' }).click();
   await page.locator('.fl-sup', { hasText: 'Energia' }).click();
   await page.locator('.fl-opt', { hasText: 'Not sure which plan' }).click();

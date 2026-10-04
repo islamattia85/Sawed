@@ -83,7 +83,7 @@ test('the first run opens on the question, not a carousel or a sign-in wall', as
   // A first visit opens on the start page; its first button is the quick answer.
   const errors = await bootFresh(page);
   expect(await page.evaluate(() => window.state.current_screen)).toBe('welcome');
-  await page.getByRole('button', { name: /Get started/ }).click();
+  await page.getByRole('button', { name: /Planning solar, a battery or an EV/ }).click();
   // v8: the first visit is one page that reveals a question at a time.
   await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('flow');
   await page.getByRole('button', { name: 'Next' }).click();
@@ -98,7 +98,8 @@ test('onboarding drives _ob through clicks and commits', async ({ page }) => {
   const errors = await bootFresh(page);
 
   await page.evaluate(() => { window.state.seen_intro = true; window.setScreen('welcome'); });
-  await page.getByRole('button', { name: /Full guided setup/ }).click();
+  // The old step-by-step onboarding is no longer linked from the start screen; drive it directly.
+  await page.evaluate(() => window.startOnboarding());
 
   for (let step = 1; step <= 5; step += 1) {
     await expect.poll(() => page.evaluate(() => window._ob.step)).toBe(step);

@@ -771,7 +771,7 @@ export function createV7(api) {
       ${paybackCurve({ cumulative: L.curve })}
       <div class="ax-life-sum">
         ${row('Saved on bills over 20 years', eur(saved), 'is-gain')}
-        ${row(L.grant > 0 ? `The system, after the ${eur(L.grant)} grant` : 'The system', `−${eur(L.sysCost)}`)}
+        ${row(`The system${S().cost_is_manual ? '' : ' (guide price)'}${L.grant > 0 ? `, after the ${eur(L.grant)} grant` : ''}`, `−${eur(L.sysCost)}`)}
         ${L.battery ? row('A new battery, around year 12', `−${eur(L.battery)}`) : ''}
         <div class="ax-mb-head"><span>${end >= 0 ? 'Ahead' : 'Short'}</span><b>${end >= 0 ? '+' : '−'}${eur(Math.abs(end))}</b></div>
       </div>
@@ -1188,7 +1188,7 @@ export function createV7(api) {
         big: pb < 50 ? pb.toFixed(1) : '—', unit: pb < 50 ? 'years' : 'never pays back',
         side: lifeSpark(curve, pb),
         extra: `<div class="ax-eq" role="group" aria-label="How the years are worked out">
-            <div class="ax-eq-p"><b>${eur(sysCost)}</b><small>${st.grant_seai > 0 ? `after ${eur(st.grant_seai)} grant` : 'no SEAI grant'}</small></div>
+            <div class="ax-eq-p"><b>${eur(sysCost)}</b><small>${st.cost_is_manual ? '' : 'guide price, '}${st.grant_seai > 0 ? `after ${eur(st.grant_seai)} grant` : 'no SEAI grant'}</small></div>
             <span class="ax-eq-op" aria-hidden="true">÷</span>
             <div class="ax-eq-p"><b class="is-gain">${eur(benefit)}</b><small>back each year</small></div>
           </div>

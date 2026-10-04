@@ -699,7 +699,7 @@ test('v8 Solar: an invitation without a system; with one, the answer first and t
 
 test('first visit: one revealing page, answers fold into lines you can change, then the answer', async ({ page }) => {
   await bootFresh(page);
-  await page.getByRole('button', { name: /Get started/ }).click();
+  await page.getByRole('button', { name: /Planning solar, a battery or an EV/ }).click();
   await page.locator('#flow-bill').fill('420');
   await page.getByRole('button', { name: 'Next' }).click();
   await expect(page.locator('.fl-chip').first()).toContainText('€420');
@@ -708,8 +708,11 @@ test('first visit: one revealing page, answers fold into lines you can change, t
   await page.locator('.fl-opt', { hasText: 'Thinking about it' }).click();
   await expect(page.locator('.fl-q h2')).toContainText('Which way does the roof face');
   await page.locator('.fl-opt', { hasText: 'East and west' }).click();
+  await page.locator('.fl-opt', { hasText: 'typical' }).click();   // roof slope
   await page.locator('.fl-opt', { hasText: 'suggested' }).click();
   await page.locator('.fl-opt', { hasText: '5 kWh' }).click();
+  await page.locator('.fl-opt', { hasText: 'use a guide price' }).click();
+  await page.locator('.fl-opt', { hasText: 'Built and lived in before 2021' }).click();
   await page.locator('.fl-opt', { hasText: 'Thinking about one' }).click();
   await page.locator('.fl-opt', { hasText: '16k km' }).click();
   await page.locator('.fl-opt', { hasText: 'Family' }).click();
@@ -771,14 +774,17 @@ test('v8 EV guide: four steps, then what it costs and saves; backing out changes
 
 test('the flow reveal: planned solar leads with the most you could save, the same figure Home shows', async ({ page }) => {
   await bootFresh(page);
-  await page.getByRole('button', { name: /Get started/ }).click();
+  await page.getByRole('button', { name: /Planning solar, a battery or an EV/ }).click();
   await page.locator('#flow-bill').fill('420'); await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: /not sure: assume a standard plan/i }).click();
   await page.locator('.fl-opt', { hasText: 'Gas or oil' }).click();
   await page.locator('.fl-opt', { hasText: 'Thinking about it' }).click();
   await page.locator('.fl-opt', { hasText: 'South' }).first().click();
+  await page.locator('.fl-opt', { hasText: 'typical' }).click();   // roof slope
   await page.locator('.fl-opt', { hasText: 'suggested' }).click();
   await page.locator('.fl-opt', { hasText: '5 kWh' }).click();
+  await page.locator('.fl-opt', { hasText: 'use a guide price' }).click();
+  await page.locator('.fl-opt', { hasText: 'Built and lived in before 2021' }).click();
   await page.locator('.fl-opt', { hasText: /^No$/ }).click();
   const num = (sel) => page.evaluate((q) => +(document.querySelector(q)?.textContent.match(/€\s?([\d,]+)/) || [0, '0'])[1].replace(/,/g, ''), sel);
   const shown = await num('.fl-r-big');
