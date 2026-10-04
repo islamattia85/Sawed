@@ -344,6 +344,29 @@ export function createV7(api) {
    * neither two quiet invitations. The cards carry one figure each and open
    * the detail; the depth is in Analytics.
    */
+  /**
+   * Dual fuel: gas and electricity together, three ways. The cheapest year
+   * is marked; a welcome credit sits beside its figure, never inside it.
+   */
+  function dualFuelCard() {
+    let d = null; try { d = api.dualFuel(); } catch (e) { d = null; }
+    if (!d) return '';
+    const opts = [
+      { k: 'Stay as you are', sub: `Both with ${esc(d.supplier)}`, o: d.stay },
+      d.moveElec && { k: 'Move only the electricity', sub: `Electricity to ${esc(d.moveElec.supplier)}, gas stays${d.moveElec.lost > 1 ? `, up ${eur(d.moveElec.lost)}` : ''}`, o: d.moveElec },
+      d.moveBoth && { k: 'Move both', sub: `To ${esc(d.moveBoth.supplier)}${d.moveBoth.credit ? `, plus ${eur(d.moveBoth.credit)} welcome credit` : ''}`, o: d.moveBoth },
+    ].filter(Boolean);
+    const low = Math.min(...opts.map((x) => x.o.total));
+    return `<section class="hc df-card" aria-label="Gas and electricity together">
+        <span class="hc-k"><span>${api.ic('flame', 16)} Gas and electricity together</span></span>
+        <span class="hc-line">A year of both fuels, three ways${d.typical ? '. Gas for a typical home: add your gas bill in My home' : ''}.</span>
+        <div class="df-rows">${opts.map((x) => `<div class="df-row ${x.o.total === low ? 'is-best' : ''}">
+            <span><b>${x.k}</b><small>${x.sub}</small></span>
+            <em>${eur(x.o.total)}${x.o.total === low && opts.length > 1 ? '<i>cheapest</i>' : ''}</em></div>`).join('')}</div>
+        <span class="hc-sub">${d.firstYear ? 'You’re in your discounted first year.' : 'Past the first year, so on standard rates.'} Gas from each supplier’s own price page.</span>
+      </section>`;
+  }
+
   function homeCards(rec) {
     const st = S();
     const sys = st.has_solar && api.totalPanels() > 0;
@@ -365,6 +388,7 @@ export function createV7(api) {
         <button class="hc-go" onclick="anTab('solar','result')">Solar analysis ${api.ic('chevR', 14)}</button>
       </section>`;
     }
+    out += dualFuelCard();
     const invites = [];
     if (!sys) invites.push(api.hasModelledSystem()
       ? `<button class="hc-invite" onclick="toggleSolarModel()">${api.ic('sun', 18)}<span><b>Your ${st.solar_planned ? 'planned ' : ''}solar is left out</b>${api.totalPanels()} panels${st._kept_battery ? ` and a ${st._kept_battery} kWh battery` : ''}, kept for you. Tap to include it again</span>${api.ic('chevR', 18)}</button>`

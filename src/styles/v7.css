@@ -1583,3 +1583,12 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .qs-actions { display: grid; gap: var(--space-2); }
 .qs-actions button[disabled] { opacity: .45; cursor: default; }
 .qs-more { justify-self: center; }
+
+/* Dual fuel: three ways to pay for both fuels. */
+.df-rows { display: grid; gap: 6px; margin: var(--space-2) 0; }
+.df-row { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--well); }
+.df-row b { display: block; font: 600 var(--text-body) var(--display); color: var(--ink); }
+.df-row small { display: block; font-size: var(--text-caption); color: var(--ink-soft); }
+.df-row em { font: 700 var(--text-h3) var(--display); font-style: normal; color: var(--ink); text-align: right; white-space: nowrap; }
+.df-row em i { display: block; font: 600 var(--text-caption) var(--display); font-style: normal; color: var(--accent); }
+.df-row.is-best { outline: 1.5px solid var(--accent); }
