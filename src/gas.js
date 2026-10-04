@@ -77,7 +77,9 @@ export function inFirstYear(contractEnd, asOf = new Date()) {
 export function dualFuelChoices(elec, home, gasTariffs, asOf = new Date()) {
   const cur = gasPlanFor(home.supplier, gasTariffs);
   if (!cur || !(home.kwh > 0)) return null;
-  const curDisc = home.firstYear ? cur.dual_discount || 0 : 0;
+  // In the first year the answer turns on the dual-fuel discount; without it, no figures.
+  if (home.firstYear && cur.dual_discount == null) return null;
+  const curDisc = home.firstYear ? cur.dual_discount : 0;
   const stayGas = gasYear(cur, home.kwh, curDisc, asOf);
   const stay = { supplier: home.supplier, elec: elec.baseline, gas: stayGas, credit: 0, total: elec.baseline + stayGas };
 
@@ -93,10 +95,10 @@ export function dualFuelChoices(elec, home, gasTariffs, asOf = new Date()) {
   // its gas at the dual-fuel discount; its dual-fuel welcome credit rides alongside.
   let moveBoth = null;
   for (const g of gasTariffs || []) {
-    if (!g.readable || supplierKey(g.supplier) === supplierKey(home.supplier)) continue;
+    if (g.dual_discount == null || supplierKey(g.supplier) === supplierKey(home.supplier)) continue;
     const e = elec.bestBySupplier.get(supplierKey(g.supplier));
     if (!e) continue;
-    const gas = gasYear(g, home.kwh, g.dual_discount || 0, asOf);
+    const gas = gasYear(g, home.kwh, g.dual_discount, asOf);
     const credit = g.dual_welcome || 0;
     // The welcome credit is shown beside the yearly figure, never inside it, as for electricity.
     const opt = { supplier: g.supplier, plan: e.plan, elec: e.net, gas, credit, total: e.net + gas };

@@ -4785,9 +4785,10 @@ function dualFuel(){
   if (!rec || !rec.best || !rec.best.plan) return null;
   const sup = getPlanById(state.baseline).supplier;
   const g = gasPlanFor(sup, GAS_TARIFFS);
-  if (!g || !g.readable) return null;
+  if (!g) return null;
   const firstYear = inFirstYear(state.contract_end_date);
-  const kwh = +state.gas_bill_eur > 0 ? gasKwhFromBill(+state.gas_bill_eur, g, firstYear ? g.dual_discount || 0 : 0) : TYPICAL_GAS_KWH;
+  if (firstYear && g.dual_discount == null) return null;
+  const kwh = +state.gas_bill_eur > 0 ? gasKwhFromBill(+state.gas_bill_eur, g, firstYear ? g.dual_discount : 0) : TYPICAL_GAS_KWH;
   const bestBySupplier = new Map();
   for (const r of rec.ranked || []) { const k = supplierKey(r.plan.supplier); if (!bestBySupplier.has(k)) bestBySupplier.set(k, { plan: r.plan, net: r.net }); }
   const c = dualFuelChoices({ baseline: rec.baseCost, cheapest: { supplier: rec.best.plan.supplier, net: rec.best.net }, bestBySupplier },
@@ -12127,6 +12128,7 @@ window.setAnalyticsDay = setAnalyticsDay;
 window.anMonth = anMonth;
 // For tests: forget the sizing run so it can be redone on the page.
 window.__clearSweep = () => { CACHE._goalSweep = null; CACHE._goalSweep_ck = null; };
+window.__df = () => dualFuel();
 window.setGrantEligible = setGrantEligible;
 window.sysConfirmRoof = sysConfirmRoof;
 window.quickOutcome = quickOutcome;

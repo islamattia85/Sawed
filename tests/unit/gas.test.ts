@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { gasYear, gasKwhFromBill, dualFuelChoices, inFirstYear, GAS_CARBON_TAX, supplierKey } from '../../src/gas.js';
 
 const AS_OF = new Date('2026-10-04T12:00:00Z');
-const BG = { supplier: 'Bord Gáis Energy', unit: 0.10, standing: 140, dual_discount: 0.29, dual_welcome: 200, readable: true };
-const FL = { supplier: 'Flogas', unit: 0.11, standing: 130, dual_discount: 0.2, dual_welcome: 300, readable: true };
-const EN = { supplier: 'Energia', unit: 0.115, standing: 129.91, dual_discount: 0.15, dual_welcome: 0, readable: false };
+const BG = { supplier: 'Bord Gáis Energy', unit: 0.10, standing: 140, dual_discount: 0.29, dual_welcome: 200 };
+const FL = { supplier: 'Flogas', unit: 0.11, standing: 130, dual_discount: 0.2, dual_welcome: 300 };
+const EN = { supplier: 'Energia', unit: 0.115, standing: 129.91, dual_discount: null, dual_welcome: 0 };
 
 describe('gas', () => {
   it('a year is kWh × (unit after discount + carbon tax) + standing', () => {
@@ -47,12 +47,30 @@ describe('dual-fuel choices', () => {
   });
   it('moving both picks the cheapest readable supplier, credit beside the total', () => {
     const c = dualFuelChoices(elec, { supplier: 'Bord Gáis', kwh: 11000, firstYear: false }, [BG, FL, EN], AS_OF)!;
-    expect(c.moveBoth!.supplier).toBe('Flogas');          // Energia is not readable, so not offered
+    expect(c.moveBoth!.supplier).toBe('Flogas');          // Energia's dual-fuel discount is unknown, so not offered
     expect(c.moveBoth!.credit).toBe(300);
     expect(c.moveBoth!.total).toBeCloseTo(1450 + gasYear(FL, 11000, 0.2, AS_OF), 6);
+  });
+  it('first year with an unknown dual-fuel discount: no figures', () => {
+    expect(dualFuelChoices(elec, { supplier: 'Energia', kwh: 11000, firstYear: true }, [BG, EN], AS_OF)).toBeNull();
+    expect(dualFuelChoices(elec, { supplier: 'Energia', kwh: 11000, firstYear: false }, [BG, EN], AS_OF)).not.toBeNull();
   });
   it('no gas plan or no usage: no answer rather than a wrong one', () => {
     expect(dualFuelChoices(elec, { supplier: 'Pinergy', kwh: 11000, firstYear: false }, [BG], AS_OF)).toBeNull();
     expect(dualFuelChoices(elec, { supplier: 'Bord Gáis', kwh: 0, firstYear: false }, [BG], AS_OF)).toBeNull();
+  });
+});
+
+import { GAS_TARIFFS } from '../../src/gas-tariffs.js';
+describe('gas price data', () => {
+  it('every entry is sourced, dated and in a plausible range', () => {
+    expect(GAS_TARIFFS.length).toBe(5);
+    for (const g of GAS_TARIFFS as any[]) {
+      expect(g.source.length, g.supplier).toBeGreaterThan(0);
+      expect(g.verified_date, g.supplier).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(g.unit, g.supplier).toBeGreaterThan(0.06); expect(g.unit, g.supplier).toBeLessThan(0.25);
+      expect(g.standing, g.supplier).toBeGreaterThan(50); expect(g.standing, g.supplier).toBeLessThan(400);
+      if (g.dual_discount != null) { expect(g.dual_discount).toBeGreaterThan(0); expect(g.dual_discount).toBeLessThan(0.5); }
+    }
   });
 });

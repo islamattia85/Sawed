@@ -4,10 +4,11 @@ import { boot } from './support.js';
 const GAS_HOME = { heating_type: 'gas', baseline: 'BG-24', baseline_known: true, has_solar: false, considering_solar: false, ev_active: false, current_screen: 'result' };
 
 test('a gas home with gas from the same supplier is warned before switching electricity away', async ({ page }) => {
-  await boot(page, { ...GAS_HOME, gas_same_supplier: 'yes' });
+  await page.clock.setFixedTime(new Date('2026-10-04T12:00:00Z'));
+  await boot(page, { ...GAS_HOME, gas_same_supplier: 'yes', contract_end_date: '2027-05-01' });
   const best = await page.evaluate(() => getRecommendation().best.plan.supplier);
   test.skip(/Bord G/.test(best), 'best plan is with the same supplier');
-  await expect(page.locator('.v7-evnote.is-warn')).toContainText('dual-fuel discount');
+  await expect(page.locator('.v7-evnote.is-warn')).toContainText('ends its dual-fuel discount: your gas goes up about');
   await expect(page.locator('.v7-evnote.is-warn')).toContainText('Bord Gáis');
 });
 
@@ -36,4 +37,17 @@ test('setup asks about gas only for a gas home whose supplier sells gas', async 
   expect(await page.evaluate(() => state.gas_same_supplier)).toBe('yes');
   await page.evaluate(() => { flowAnswer('heat', 'heatpump'); });
   await expect(page.locator('.fl-opts')).not.toContainText('Yes, both with them');
+});
+
+test('a dual-fuel home sees a year of both fuels three ways, cheapest marked', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-04T12:00:00Z'));
+  await boot(page, { ...GAS_HOME, gas_same_supplier: 'yes', gas_bill_eur: 220, contract_end_date: '2027-05-01' });
+  const card = page.locator('.df-card');
+  await expect(card).toContainText('Stay as you are');
+  await expect(card).toContainText('Move both');
+  await expect(card).toContainText('discounted first year');
+  await expect(card.locator('.df-row.is-best')).toHaveCount(1);
+  await card.screenshot({ path: '/tmp/claude-0/-home-user-Sawed/74c17acb-5048-514f-a9cb-512d72f36e1c/scratchpad/df.png' });
+  const d = await page.evaluate(() => { const v = window.__df(); return v && { stay: v.stay.total, lost: v.moveElec && v.moveElec.lost }; });
+  expect(d.stay).toBeGreaterThan(2000);
 });
