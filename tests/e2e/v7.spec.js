@@ -375,7 +375,7 @@ test('My home holds the house and the usage; the roof is part of the system', as
   await sheet.locator('.sy-pointer', { hasText: 'The roof' }).click();
   await expect(sheet).toContainText('Roof and panels');
   await expect(sheet.locator('.sy-part[aria-label=Panels]')).toContainText('roof assumed');
-  const tilt = sheet.locator('.sy-face').first().locator('input[type=number]');
+  const tilt = sheet.locator('.sy-face').first().locator('input[onchange*="tilt_"]');
   await tilt.fill('40'); await tilt.dispatchEvent('change');
   expect(await page.evaluate(() => window.state.tilt_A)).toBe(40);
   await expect(sheet.locator('.sy-part[aria-label=Panels]')).toContainText('roof confirmed');

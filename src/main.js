@@ -4260,7 +4260,7 @@ function runInWorker(job){
 
 /** The sizes are in: show them where they are waited for. */
 function sweepLanded(){
-  if (state._sheet && state._sheet.kind === 'system') { redrawKeepingFocus(); return; }
+  if (state._sheet && state._sheet.kind === 'system') { patchSystemsList(); return; }
   // Swap the placeholder for the result rather than re-rendering the screen.
   // A full repaint a second after landing detaches whatever the reader was
   // reaching for — it broke a click on the day inspector mid-gesture.
@@ -4826,6 +4826,7 @@ function flowSteps(){
   const f = state._flow || {}, out = [];
   for (const q of FLOW_Q){
     out.push(q);
+    if (q === 'plan' && f.plan && f.plan !== 'unsure' && !String(f.plan).startsWith('guess:')) out.push('disc');
     if (q === 'heat' && f.heat === 'gas' && askGas()){ out.push('gas'); if (f.gas === 'yes') out.push('gasbill'); }
     if (q === 'solar' && (f.solar === 'have' || f.solar === 'thinking')) out.push('roof', 'panels', 'battery');
     if (q === 'ev' && (f.ev === 'have' || f.ev === 'thinking')) out.push('km', 'car');
@@ -4858,8 +4859,10 @@ function flowAnswer(q, v){
     else { state.baseline = 'EI-24'; state.baseline_known = false; }
   } else if (q === 'plan'){ if (v === 'unsure'){ state.baseline = 'EI-24'; state.baseline_known = false; } else { state.baseline = v; state.baseline_known = true; } }
   if (q === 'gas') state.gas_same_supplier = v;
+  if (q === 'disc') state.baseline_discount_pct = Math.max(0, Math.min(60, Math.round(+v) || 0));
   if (q === 'gasbill') state.gas_bill_eur = Math.max(0, Math.round(+v) || 0);
   if ((q === 'heat' && v !== 'gas') || q === 'plan'){ delete f.gas; delete f.gasbill; }
+  if (q === 'plan'){ delete f.disc; state.baseline_discount_pct = 0; }
   if (q === 'gas' && v !== 'yes') delete f.gasbill;
   if (q === 'heat'){ state.heating_type = v; state.hot_water_strategy = DEFAULT_HW_FOR_HEATING[v] || 'none'; }
   if (q === 'bill' || q === 'heat') applyUsageInput();
@@ -4920,6 +4923,7 @@ function renderFlow(){
   const label = {
     bill: ['What’s your electricity bill?', 'Every two months, electricity only.'],
     plan: ['Who do you pay now?', 'Not sure? We’ll estimate.'],
+    disc: ['Any discount on your bill?', 'It’s on your bill, as a % off the unit rates.'],
     heat: ['How is the home heated?', ''],
     gas: [`Is your gas with ${esc(plan.supplier)} too?`, 'It changes what a switch is worth.'],
     gasbill: ['What’s your gas bill?', 'Every two months. Not sure? We’ll use a typical home.'],
@@ -4934,6 +4938,7 @@ function renderFlow(){
   const shown = {
     bill: (v) => v === 'meter' ? 'Smart-meter data' : `€${v} / 2 months`,
     plan: (v) => v === 'unsure' ? 'Plan not sure' : String(v).startsWith('guess:') ? `${(getPlanById(String(v).slice(6)) || {}).supplier}, plan not sure` : (() => { const p = getPlanById(v); return `${p.supplier} ${p.plan}`; })(),
+    disc: (v) => (+v > 0 ? `${v}% discount` : 'No discount'),
     heat: (v) => ({ gas: 'Gas or oil', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heaters' })[v],
     gas: (v) => (v === 'yes' ? `Gas with ${plan.supplier} too` : 'Gas with another supplier'),
     gasbill: (v) => (+v > 0 ? `Gas €${v} / 2 months` : 'Gas bill: typical home'),
@@ -4989,10 +4994,16 @@ function renderFlow(){
     if (q === 'solar') return `<div class="fl-opts">${opt('solar', 'no', 'No')}${opt('solar', 'have', 'I have them', 'We’ll add what they make')}${opt('solar', 'thinking', 'Thinking about it', 'We’ll show the payback')}</div>`;
     if (q === 'roof') return `<div class="fl-opts fl-two fl-tiles">${opt('roof', 'S', 'South')}${opt('roof', 'EW', 'East and west')}${opt('roof', 'SE', 'South-east')}${opt('roof', 'SW', 'South-west')}${opt('roof', 'SESW', 'South-east and south-west')}</div>
       <button class="sg-link" onclick="flowAnswer('roof', 'unsure')">Not sure (assume south)</button>`;
-    if (q === 'panels'){ const s = _flowSuggest(); return `<div class="fl-opts fl-three">${[s - 4, s, s + 4].map((n) => opt('panels', n, `${n}`, n === s ? 'suggested' : '')).join('')}</div>`; }
-    if (q === 'battery') return `<div class="fl-opts fl-three">${opt('battery', 0, 'None')}${opt('battery', 5, '5 kWh', 'typical')}${opt('battery', 10, '10 kWh')}</div>`;
+    // Any number, not only the three shown.
+    const own = (q, unit, max, ph) => `<div class="fl-own"><label for="flow-own-${q}">Or your own</label>
+        <span class="sy-num"><input id="flow-own-${q}" type="number" inputmode="numeric" min="0" max="${max}" placeholder="${ph}"><i>${unit}</i></span>
+        <button class="sy-stop" onclick="const v = document.getElementById('flow-own-${q}').value; if (v !== '') flowAnswer('${q}', Math.max(0, Math.min(${max}, Math.round(+v))))">Use</button></div>`;
+    if (q === 'disc') return `<div class="fl-opts fl-three">${opt('disc', 0, 'None')}${opt('disc', 15, '15%')}${opt('disc', 30, '30%')}</div>${own('disc', '%', 60, 'e.g. 22')}
+      <button class="sg-link" onclick="flowAnswer('disc', 0)">Not sure</button>`;
+    if (q === 'panels'){ const s = _flowSuggest(); return `<div class="fl-opts fl-three">${[Math.max(4, s - 4), s, s + 4].filter((n, i, a) => a.indexOf(n) === i).map((n) => opt('panels', n, `${n}`, n === s ? 'suggested' : '')).join('')}</div>${own('panels', 'panels', 60, 'e.g. 12')}`; }
+    if (q === 'battery') return `<div class="fl-opts fl-three">${opt('battery', 0, 'None')}${opt('battery', 5, '5 kWh', 'typical')}${opt('battery', 10, '10 kWh')}</div>${own('battery', 'kWh', 40, 'e.g. 9')}`;
     if (q === 'ev') return `<div class="fl-opts">${opt('ev', 'no', 'No')}${opt('ev', 'have', 'I have one', 'It’s already in my bill')}${opt('ev', 'thinking', 'Thinking about one', 'We’ll show the cost and petrol saved')}</div>`;
-    if (q === 'km') return `<div class="fl-opts fl-three">${[8000, 16000, 25000].map((k) => opt('km', k, `${k / 1000}k km`)).join('')}</div>`;
+    if (q === 'km') return `<div class="fl-opts fl-three">${[8000, 16000, 25000].map((k) => opt('km', k, `${k / 1000}k km`)).join('')}</div>${own('km', 'km', 100000, 'e.g. 12000')}`;
     if (q === 'car') return `<div class="fl-opts fl-three">${opt('car', 14, 'Small')}${opt('car', 17, 'Family')}${opt('car', 20, 'SUV')}</div>`;
     return '';
   };
@@ -8811,6 +8822,23 @@ function isInUse(e){
   return true;
 }
 /** Redraw after background work without taking the cursor away from a field being typed in. */
+/**
+ * Background results for the open My system sheet (suggested sizes, the
+ * systems list's figures) change only the systems list. Swap that section in
+ * place: redrawing the whole screen as each result landed made editing jumpy.
+ */
+function patchSystemsList(){
+  const old = document.querySelector('#v7-sheet .sys-list');
+  if (!old){ redrawKeepingFocus(); return; }
+  const a = document.activeElement, keepFocus = a && old.contains(a) ? a.id : null;
+  const holder = document.createElement('div');
+  holder.innerHTML = renderSystemsList();
+  const fresh = holder.firstElementChild;
+  if (!fresh){ redrawKeepingFocus(); return; }
+  old.replaceWith(fresh);
+  if (keepFocus){ const b = document.getElementById(keepFocus); if (b) b.focus(); }
+  try { enhanceA11y(); } catch (e) {}
+}
 function redrawKeepingFocus(){
   const a = document.activeElement, id = a && a.id, pos = a && typeof a.selectionStart === 'number' ? a.selectionStart : null;
   renderApp();
@@ -8836,7 +8864,7 @@ function systemsOutcomes(){
     const viaWorker = runInWorker({ kind: 'outcomes', items: todo.map(([key, ch]) => [key, ch || null]) });
     if (viaWorker){
       viaWorker.then((res) => {
-        if (_soJob && _soJob.k === k){ Object.assign(_soMemo.v, res); _soJob = null; if (state._sheet && state._sheet.kind === 'system') redrawKeepingFocus(); }
+        if (_soJob && _soJob.k === k){ Object.assign(_soMemo.v, res); _soJob = null; if (state._sheet && state._sheet.kind === 'system') patchSystemsList(); }
       }).catch(() => { _simWorker = false; if (_soJob && _soJob.k === k) setTimeout(step, 0); });
       return _soMemo.v;
     }
@@ -8846,7 +8874,7 @@ function systemsOutcomes(){
       const [key, ch] = J.todo.shift();
       try { _soMemo.v[key] = ch ? withSimState(ch, quickOutcome) : (v7HasModelledSystem() ? quickOutcome() : null); } catch (err) { console.warn('systems', err); }
       if (J.todo.length) requestAnimationFrame(() => setTimeout(step, 0));
-      else { _soJob = null; if (state._sheet && state._sheet.kind === 'system') redrawKeepingFocus(); }
+      else { _soJob = null; if (state._sheet && state._sheet.kind === 'system') patchSystemsList(); }
     };
     setTimeout(step, 120);
   }
@@ -10326,6 +10354,7 @@ function renderSystemSheet(){
               <label class="sy-field"><span><b>Facing</b></span><select onchange="homeSet('azimuth_${k}',this.value)">${_dirOpts(state['azimuth_' + k])}</select></label>
               <label class="sy-field"><span><b>Tilt</b></span><span class="sy-num"><input type="number" inputmode="numeric" min="0" max="90" step="1" value="${state['tilt_' + k]}" onchange="homeSet('tilt_${k}',this.value)"><i>°</i></span></label>
             </div>
+            <label class="sy-field sy-exact"><span><b>Exact</b><small>degrees, 180 is south</small></span><span class="sy-num"><input type="number" inputmode="numeric" min="0" max="359" step="1" value="${Math.round(+state['azimuth_' + k] || 0)}" aria-label="Exact direction in degrees" onchange="homeSet('azimuth_${k}', String(((Math.round(+this.value) % 360) + 360) % 360))"><i>°</i></span></label>
             ${_syRange('sy-c' + k, 'count_' + k, `${n} panels`, k === 'A' ? 1 : 0, SYS_MAX_PANELS, 1, 'panels', 'How many')}
           </div>`;
         return `${face('A', state.count_A)}${split ? face('B', state.count_B) : `<button class="sy-add" onclick="sysSplit(true)">${ic('plus', 14)} Add a second roof face</button>`}
