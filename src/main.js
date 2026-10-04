@@ -8835,7 +8835,9 @@ function patchSystemsList(){
   holder.innerHTML = renderSystemsList();
   const fresh = holder.firstElementChild;
   if (!fresh){ redrawKeepingFocus(); return; }
+  const root = document.getElementById('app-root'), held = holdPlace(root);
   old.replaceWith(fresh);
+  restorePlace(root, held, true, true);
   if (keepFocus){ const b = document.getElementById(keepFocus); if (b) b.focus(); }
   try { enhanceA11y(); } catch (e) {}
 }
@@ -10868,6 +10870,53 @@ function runCountUps(root){
   });
 }
 
+/*
+ * Keep the reader's place across a redraw. Chrome does this itself ("scroll
+ * anchoring"); Safari does not, so on iPhone anything inserted above the
+ * reader (the Undo bar, an "Updating" line, a list filling in) pushed the
+ * page down and it seemed to jump. Before the redraw we note one element the
+ * reader is looking at (the focused control, else whatever sits a third of
+ * the way down the view) and where it is on screen; afterwards we find it
+ * again and scroll by however far it moved.
+ */
+function _anchorKey(el){
+  const id = el.id, act = el.getAttribute('onclick') || el.getAttribute('onchange') || el.getAttribute('oninput') || el.getAttribute('aria-label');
+  return id ? '#' + id : el.tagName + '|' + (act || (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 60));
+}
+function _findAnchor(scope, key){
+  if (!scope || !key) return null;
+  if (key[0] === '#') return scope.querySelector(key);
+  const tag = key.slice(0, key.indexOf('|'));
+  for (const el of scope.querySelectorAll(tag)) if (_anchorKey(el) === key) return el;
+  return null;
+}
+function _pickAnchor(scope, viewTop, viewH){
+  const a = document.activeElement;
+  if (a && a !== document.body && scope.contains(a)) return a;
+  const x = Math.round(window.innerWidth / 2), y = Math.round(viewTop + viewH / 3);
+  let el = document.elementFromPoint(x, y);
+  // Climb to something identifiable: an id, a control, or a short labelled block.
+  while (el && el !== scope && !(el.id || el.getAttribute('onclick') || el.getAttribute('onchange') || el.getAttribute('aria-label') || /^(H2|H3|SECTION|BUTTON|LABEL)$/.test(el.tagName))) el = el.parentElement;
+  return el && el !== scope && scope.contains(el) ? el : null;
+}
+function holdPlace(root){
+  const out = {};
+  try {
+    const box = root.querySelector('#v7-sheet .v7-sheet');
+    if (box){ const r = box.getBoundingClientRect(); const el = _pickAnchor(box, r.top, r.height); if (el) out.sheet = { key: _anchorKey(el), top: el.getBoundingClientRect().top }; }
+    const el = _pickAnchor(root.querySelector('.screen') || root, 0, window.innerHeight);
+    if (el && !(box && box.contains(el))) out.page = { key: _anchorKey(el), top: el.getBoundingClientRect().top };
+  } catch (e) {}
+  return out;
+}
+function restorePlace(root, held, sameSheet, samePage){
+  try {
+    const box = root.querySelector('#v7-sheet .v7-sheet');
+    if (box && sameSheet && held.sheet){ const el = _findAnchor(box, held.sheet.key); if (el){ const d = el.getBoundingClientRect().top - held.sheet.top; if (Math.abs(d) > 1) box.scrollTop += d; } }
+    if (samePage && held.page){ const el = _findAnchor(root.querySelector('.screen') || root, held.page.key); if (el){ const d = el.getBoundingClientRect().top - held.page.top; if (Math.abs(d) > 1) window.scrollBy(0, d); } }
+  } catch (e) {}
+}
+
 function renderApp(){
   // A pending debounced paint is now redundant — this synchronous one supersedes it.
   if (_renderDebounceTimer){ clearTimeout(_renderDebounceTimer); _renderDebounceTimer = null; }
@@ -10993,6 +11042,7 @@ function renderApp(){
   const sheetScroll = sameSheet ? prevSheet.scrollTop : 0;
   root.__sheetKey = sheetKey;
 
+  const held = holdPlace(root);
   root.setAttribute('data-chrome','app');
   root.innerHTML = html;
   // A change tried on the system stays undoable from any screen until kept or undone.
@@ -11036,6 +11086,8 @@ function renderApp(){
     // Restore synchronously so the browser never paints the jumped position.
     window.scrollTo(0, keepScroll);
   }
+  // Then hold the reader's place against anything that moved above it.
+  restorePlace(root, held, sameSheet, !screenChanged);
   paintAuthModal();
   syncScreenHistory();
   checkScoreRise();
