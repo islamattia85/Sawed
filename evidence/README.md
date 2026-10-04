@@ -1,4 +1,4 @@
-# Supplier price evidence — captured 2026-10-03
+# Supplier price evidence — captured 2026-10-04
 
 Raw capture by scraper/audit_dump.py; one JSON per supplier. Nothing here is interpreted.
 
