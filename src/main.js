@@ -5117,18 +5117,55 @@ function goRefineSolar(){
 function makeShareCardCanvas(savings){
   const cv = document.createElement('canvas');
   if (!cv || typeof cv.getContext !== 'function') return null;
-  // Dual-fuel homes: a year of both fuels gets its own panel, so the card grows.
+  const full = (p) => (p ? `${p.supplier} · ${p.plan}` : '');
+
+  // What the card says, worked out before anything is drawn so the card can
+  // be as tall as it needs. Each bar names the exact plan on its own line.
   let df = null; try { df = dualFuel(); } catch (e) { df = null; }
-  const W = 1080, H = 1350;
-  // Dual fuel: one story, gas and electricity together. The headline, the bars
-  // and the best move all come from the same three choices.
-  const dfOpts = df ? [
-    { label: `Stay with ${df.supplier}`, sup: '', v: df.stay.total },
-    df.moveElec && { label: `Electricity to ${df.moveElec.supplier}`, sup: 'gas stays', v: df.moveElec.total },
-    df.moveBoth && { label: `Both to ${df.moveBoth.supplier}`, sup: '', v: df.moveBoth.total },
-  ].filter(Boolean) : null;
-  const dfBest = dfOpts ? dfOpts.reduce((a, o) => (o.v < a.v ? o : a)) : null;
-  if (dfOpts) savings = df.stay.total - dfBest.v;
+  let rungs = [], dfBest = null, dfOpts = null;
+  try {
+    const rec = getRecommendation();
+    const mine = getPlanById(state.baseline);
+    if (df){
+      const bySup = new Map((rec.ranked || []).map((r) => [supplierKey(r.plan.supplier), r.plan]).reverse());
+      dfOpts = [
+        { label: `Stay with ${df.supplier}`, plan: full(mine), v: df.stay.total },
+        df.moveElec && { label: `Electricity to ${df.moveElec.supplier}, gas stays`, plan: full(rec.best.plan), v: df.moveElec.total },
+        df.moveBoth && { label: `Both to ${df.moveBoth.supplier}`, plan: full(bySup.get(supplierKey(df.moveBoth.supplier))) + ' + gas', v: df.moveBoth.total },
+      ].filter(Boolean);
+      dfBest = dfOpts.reduce((a, o) => (o.v < a.v ? o : a));
+      savings = df.stay.total - dfBest.v;
+      rungs = dfOpts.map((o) => [o.label, o.plan, o.v, o === dfBest ? '#4CCB8C' : o === dfOpts[0] ? '#7A847E' : '#2F7A56']);
+    } else {
+      const pl = (state.solar_planned || state.solar_is_estimate) ? plannedLadder() : null;
+      if (pl) rungs = [
+        ['Current plan', full(mine), pl.today, '#7A847E'],
+        ['Best plan', full(pl.noSolar.plan), pl.noSolar.net, '#2F7A56'],
+        ['Current plan + solar', full(mine), pl.mine, '#2F7A56'],
+        ['Best plan + solar', full(pl.best.plan), pl.best.net, '#4CCB8C'],
+      ];
+      else rungs = [['Current plan', full(mine), rec.baseCost, '#7A847E'], ['Best plan', full(rec.best.plan), rec.best.net, '#4CCB8C']];
+    }
+  } catch (e) { rungs = []; }
+
+  const facts = [];
+  try {
+    const best = getBestPlan();
+    if (state.has_solar && totalPanels() > 0){
+      facts.push([state.solar_planned || state.solar_is_estimate ? 'Planned solar' : 'My solar',
+        `${totalPanels()} panels${state.battery_kwh > 0 ? ` + ${state.battery_kwh} kWh` : ''}`]);
+      const d = v7SolarData(); if (d.cur.payback < 50) facts.push(['Pays back', d.cur.payback.toFixed(1) + ' years']);
+    }
+    if (dfBest) facts.push(['Best move', dfBest === dfOpts[0] ? 'Stay' : dfBest.label.replace(', gas stays', '')]);
+    if (state.ev_active){ const ev = evEconomics(best.plan.id); if (ev && ev.evVsPetrolNet > 1) facts.push(['Car vs petrol', '€' + Math.round(ev.evVsPetrolNet).toLocaleString('en-IE') + ' less']); }
+    facts.push(['Accuracy', '±' + modelAccuracy().pct + '%']);
+  } catch (e) {}
+  const shown = facts.slice(0, 3);
+
+  const RUNG = 118, top = 530;
+  const boxH = 100 + rungs.length * RUNG;
+  const fy = top + boxH + 24;
+  const W = 1080, H = Math.max(1350, fy + (shown.length ? 136 : 0) + 200);
   cv.width = W; cv.height = H;
   const x = cv.getContext('2d');
   if (!x || typeof x.fillRect !== 'function') return null;
@@ -5155,55 +5192,31 @@ function makeShareCardCanvas(savings){
 
   // The answer.
   t('THE MOST I COULD SAVE', 72, 250, 28, '#ffd166', 700);
-  t(eurS(Math.max(0, savings)), 64, 420, 190, '#4CCB8C', 800);
+  const big = eurS(Math.max(0, savings));
+  t(big, 64, big.length > 4 ? 400 : 420, big.length > 4 ? 160 : 190, '#4CCB8C', 800);   // a comma at 190px reaches the line below
   t(dfOpts ? 'less a year, gas and electricity' : 'less a year', 72, 480, 40, '#A2ACA6', 600);
 
-  // The four bars, as Home shows them.
-  let rungs = [];
-  if (dfOpts) rungs = dfOpts.map((o) => [o.label, o.sup, o.v, o === dfBest ? '#4CCB8C' : o.v === df.stay.total ? '#7A847E' : '#2F7A56']);
-  else try {
-    const pl = (state.solar_planned || state.solar_is_estimate) ? plannedLadder() : null;
-    const mine = getPlanById(state.baseline);
-    const rec = getRecommendation();
-    if (pl) rungs = [
-      ['Current plan', mine.supplier, pl.today, '#7A847E'],
-      ['Best plan', pl.noSolar.plan.supplier, pl.noSolar.net, '#2F7A56'],
-      ['Current plan + solar', mine.supplier, pl.mine, '#2F7A56'],
-      ['Best plan + solar', pl.best.plan.supplier, pl.best.net, '#4CCB8C'],
-    ];
-    else rungs = [['Current plan', mine.supplier, rec.baseCost, '#7A847E'], ['Best plan', rec.best.plan.supplier, rec.best.net, '#4CCB8C']];
-  } catch (e) { rungs = []; }
-  rr(56, 530, W - 112, 110 + rungs.length * 86, 36, '#171C19');
-  t('What I’d pay a year', 96, 588, 28, '#A2ACA6', 600);
+  // The bars, as Home shows them: what, the exact plan, the yearly figure.
+  rr(56, top, W - 112, boxH, 36, '#171C19');
+  t(dfOpts ? 'Gas and electricity, a year' : 'What I’d pay a year', 96, top + 58, 28, '#A2ACA6', 600);
   const max = Math.max(1, ...rungs.map((r) => r[2]));
-  rungs.forEach(([label, sup, v, c], i) => {
-    const y = 650 + i * 86;
-    t(label, 96, y, 30, '#EEF1EE', 700);
-    x.font = `700 30px ${F}`; const lw = x.measureText(label + '  ').width;
-    t(fit(sup, 560 - lw, 26, 400), 96 + lw, y, 26, '#A2ACA6', 400);
+  rungs.forEach(([label, plan, v, c], i) => {
+    const y = top + 120 + i * RUNG;
+    t(fit(label, W - 192 - 180, 30, 700), 96, y, 30, '#EEF1EE', 700);
     t(eurS(v), W - 96, y, 32, c === '#4CCB8C' ? '#4CCB8C' : '#EEF1EE', 800, 'right');
-    rr(96, y + 18, W - 192, 22, 11, '#262D29');
-    rr(96, y + 18, Math.max(22, (W - 192) * (v / max)), 22, 11, c);
+    t(fit(plan, W - 192, 24, 400), 96, y + 34, 24, '#A2ACA6', 400);
+    rr(96, y + 52, W - 192, 20, 10, '#262D29');
+    rr(96, y + 52, Math.max(20, (W - 192) * (Math.max(0, v) / max)), 20, 10, c);
   });
 
-  // Three facts.
-  const facts = [];
-  try {
-    const best = getBestPlan();
-    if (dfBest) facts.push(['Best move', dfBest === dfOpts[0] ? 'Stay' : dfBest.label]);
-    else facts.push(['Best plan', best.plan.supplier]);
-    if (state.has_solar && totalPanels() > 0){ const d = v7SolarData(); if (d.cur.payback < 50) facts.push(['Solar pays back', d.cur.payback.toFixed(1) + ' years']); }
-    if (state.ev_active){ const ev = evEconomics(best.plan.id); if (ev && ev.evVsPetrolNet > 1) facts.push(['Car vs petrol', eurS(ev.evVsPetrolNet) + ' less']); }
-    facts.push(['Accuracy', '±' + modelAccuracy().pct + '%']);
-  } catch (e) {}
-  const fy = 664 + rungs.length * 86;
-  const fw = (W - 112 - 24 * (Math.min(3, facts.length) - 1)) / Math.min(3, facts.length);
-  facts.slice(0, 3).forEach(([k, v], i) => {
+  // Up to three facts.
+  const fw = shown.length ? (W - 112 - 24 * (shown.length - 1)) / shown.length : 0;
+  shown.forEach(([k, v], i) => {
     const fx = 56 + i * (fw + 24);
     rr(fx, fy, fw, 136, 28, '#171C19');
     t(k, fx + 30, fy + 52, 26, '#A2ACA6', 600);
     let size = 40; x.font = `800 ${size}px ${F}`;
-    while (size > 26 && x.measureText(v).width > fw - 60){ size -= 2; x.font = `800 ${size}px ${F}`; }
+    while (size > 24 && x.measureText(v).width > fw - 60){ size -= 2; x.font = `800 ${size}px ${F}`; }
     t(fit(v, fw - 60, size, 800), fx + 30, fy + 104, size, '#EEF1EE', 800);
   });
 
