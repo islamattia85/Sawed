@@ -13,5 +13,5 @@ test('a current plan with an announced rise counts it, and the best plan is neve
     if (r.own != null) expect(Math.abs(r.base - r.own), id).toBeLessThan(1);   // the same figure as in the ranking
   }
   await boot(page, { baseline: 'EN-SMART-24-HOUR', current_screen: 'result' });
-  await expect(page.locator('.v7-evnote', { hasText: 'raises prices' })).toContainText('Energia raises prices on');
+  await expect(page.locator('.v7-evnote', { hasText: 'prices rise' })).toContainText('Energia’s prices rise on');
 });

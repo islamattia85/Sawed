@@ -224,7 +224,7 @@ export function createV7(api) {
         ${pl ? '' : `<div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Best for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`}
         ${(() => { const mp = api.getPlanById(st.baseline), pc = mp && mp.price_change;
           return pc && pc.effective_date && Date.parse(pc.effective_date) > Date.now()
-            ? `<div class="v7-evnote">${api.ic('trendUp', 14)} ${esc(mp.supplier)} raises prices on ${fmtDate(pc.effective_date)}. What you’d pay where you are counts the rise from that date.</div>` : ''; })()}
+            ? `<div class="v7-evnote">${api.ic('trendUp', 14)} ${esc(mp.supplier)}’s prices rise on ${fmtDate(pc.effective_date)}. That’s counted.</div>` : ''; })()}
         ${saving > 10 && api.dualFuelNote(best.plan) ? `<div class="v7-evnote is-warn">${api.ic('flame', 14)} ${api.dualFuelNote(best.plan)}</div>` : ''}
         ${!pl && best.plan.type === 'ev' && !st.ev_active ? `<div class="v7-evnote">${api.ic('info', 14)} You don’t need an EV for this plan. It’s named for cars, but its cheap night hours suit ${st.battery_kwh > 0 ? 'your battery' : 'your home'} too.</div>` : ''}`;
     // The parts of the home that are choices, each on one line with its own
@@ -358,12 +358,12 @@ export function createV7(api) {
     ].filter(Boolean);
     const low = Math.min(...opts.map((x) => x.o.total));
     return `<section class="hc df-card" aria-label="Gas and electricity together">
-        <span class="hc-k"><span>${api.ic('flame', 16)} Gas and electricity together</span></span>
-        <span class="hc-line">A year of both fuels, three ways${d.typical ? '. Gas for a typical home: add your gas bill in My home' : ''}.</span>
+        <span class="hc-k"><span>${api.ic('flame', 16)} Gas and electricity, a year</span></span>
+        ${d.typical ? '<span class="hc-line">Typical gas use. Add your gas bill in My home.</span>' : ''}
         <div class="df-rows">${opts.map((x) => `<div class="df-row ${x.o.total === low ? 'is-best' : ''}">
             <span><b>${x.k}</b><small>${x.sub}</small></span>
             <em>${eur(x.o.total)}${x.o.total === low && opts.length > 1 ? '<i>cheapest</i>' : ''}</em></div>`).join('')}</div>
-        <span class="hc-sub">${d.firstYear ? 'You’re in your discounted first year.' : 'Past the first year, so on standard rates.'} Gas from each supplier’s own price page.</span>
+        <span class="hc-sub">${d.firstYear ? 'First-year discount' : 'Standard rates'}</span>
       </section>`;
   }
 

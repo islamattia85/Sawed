@@ -8,7 +8,7 @@ test('a gas home with gas from the same supplier is warned before switching elec
   await boot(page, { ...GAS_HOME, gas_same_supplier: 'yes', contract_end_date: '2027-05-01' });
   const best = await page.evaluate(() => getRecommendation().best.plan.supplier);
   test.skip(/Bord G/.test(best), 'best plan is with the same supplier');
-  await expect(page.locator('.v7-evnote.is-warn')).toContainText('ends its dual-fuel discount: your gas goes up about');
+  await expect(page.locator('.v7-evnote.is-warn')).toContainText('your gas goes up about');
   await expect(page.locator('.v7-evnote.is-warn')).toContainText('Bord Gáis');
 });
 
@@ -45,7 +45,7 @@ test('a dual-fuel home sees a year of both fuels three ways, cheapest marked', a
   const card = page.locator('.df-card');
   await expect(card).toContainText('Stay as you are');
   await expect(card).toContainText('Move both');
-  await expect(card).toContainText('discounted first year');
+  await expect(card).toContainText('First-year discount');
   await expect(card.locator('.df-row.is-best')).toHaveCount(1);
   await card.screenshot({ path: '/tmp/claude-0/-home-user-Sawed/74c17acb-5048-514f-a9cb-512d72f36e1c/scratchpad/df.png' });
   const d = await page.evaluate(() => { const v = window.__df(); return v && { stay: v.stay.total, lost: v.moveElec && v.moveElec.lost }; });

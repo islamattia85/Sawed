@@ -4810,10 +4810,10 @@ function dualFuelNote(toPlan){
   const d = dualFuel();
   if (d && d.moveElec && supplierKey(toPlan.supplier) === supplierKey(d.moveElec.supplier)){
     return d.moveElec.lost > 1
-      ? `Your gas is with ${esc(cur.supplier)} too. Moving only your electricity ends its dual-fuel discount: your gas goes up about ${fmtCurrency(Math.round(d.moveElec.lost))} a year.`
-      : `Your gas is with ${esc(cur.supplier)} too. You’re past the discounted first year, so moving only your electricity doesn’t change your gas price.`;
+      ? `Your gas is with ${esc(cur.supplier)} too. Move only the electricity and your gas goes up about ${fmtCurrency(Math.round(d.moveElec.lost))} a year.`
+      : `Your gas is with ${esc(cur.supplier)} too. Its price won’t change if you move only the electricity.`;
   }
-  return `Your gas is with ${esc(cur.supplier)} too. Moving only your electricity can end a dual-fuel discount, often €50–150 a year, which this saving doesn’t include. Ask ${esc(cur.supplier)} first.`;
+  return `Your gas is with ${esc(cur.supplier)} too. Moving only the electricity can end a dual-fuel discount, often €50–150 a year. Ask ${esc(cur.supplier)} first.`;
 }
 function flowSteps(){
   const f = state._flow || {}, out = [];
