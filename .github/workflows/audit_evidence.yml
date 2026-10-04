@@ -95,7 +95,10 @@ jobs:
           # Merge: a run for some suppliers keeps the others' last evidence.
           mkdir -p evidence && cp /tmp/evidence/*.json evidence/ 2>/dev/null || true
           cp /tmp/evidence/README.md evidence/README.md
-          git add evidence
+          # Evidence only, no app: tell Vercel not to build this branch (it failed
+          # and emailed the owner after every daily commit).
+          echo '{ "git": { "deploymentEnabled": false } }' > vercel.json
+          git add evidence vercel.json
           git commit -q -m "evidence: supplier prices as published on $(date -u +%F)" || echo "no change"
           git push origin audit/evidence
 
