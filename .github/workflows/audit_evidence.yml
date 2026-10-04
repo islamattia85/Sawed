@@ -15,7 +15,7 @@ name: Capture supplier prices and verify the registry
 on:
   push:
     branches: ['feat/price-**', 'v7', 'v8']
-    paths: ['scraper/audit_dump.py', '.github/workflows/audit_evidence.yml']
+    paths: ['scraper/audit_dump.py', 'scraper/gas_check.py', '.github/workflows/audit_evidence.yml']
   workflow_dispatch:
     inputs:
       suppliers:
@@ -186,4 +186,75 @@ jobs:
             const existing = open.find(i => i.title === title);
             if (!existing) return;
             await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body: 'Every plan read cleanly again — closing.' });
+            await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'closed' });
+
+  # Gas, for dual-fuel homes (v8 only): the five gas suppliers' own pages,
+  # read in a browser. A changed figure becomes a pull request for review; a
+  # page that can't be read raises an issue, as for electricity.
+  gas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v8
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: pip install -r scraper/requirements.txt playwright==1.47.0 pytest
+      - run: python -m playwright install --with-deps chromium
+      - name: Read every gas supplier's page
+        id: gas
+        shell: bash
+        working-directory: scraper
+        run: |
+          set +e
+          python gas_check.py --apply
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat gas_report.md >> "$GITHUB_STEP_SUMMARY"
+          mv gas_report.md ..
+      - name: Check the updated gas data
+        run: |
+          npm ci
+          npx vitest run tests/unit/gas.test.ts
+      - name: Open a pull request with changed gas prices
+        continue-on-error: true
+        uses: peter-evans/create-pull-request@v6
+        with:
+          add-paths: src/gas-tariffs.json
+          base: v8
+          branch: tariffs/gas-update-v8
+          commit-message: "gas: prices as published by the suppliers"
+          title: "Gas price update for v8 from the suppliers' own pages"
+          labels: tariffs
+          delete-branch: true
+          body-path: gas_report.md
+      - name: Raise an issue when a gas page could not be read
+        if: steps.gas.outputs.status != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('gas_report.md', 'utf8');
+            const title = 'Gas price check needs a person';
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `${report}\n\nRun: ${run}\n\nUNREADABLE means the supplier changed its page: fix its parser in scraper/gas_check.py (tests in scraper/test_gas_check.py). The app keeps the last figures read until then.`;
+            const { data: open } = await github.rest.issues.listForRepo({ owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: 'tariffs' });
+            const existing = open.find(i => i.title === title);
+            if (existing) await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body });
+            else await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body, labels: ['tariffs'] });
+      - name: Close the issue once every gas page reads cleanly
+        if: steps.gas.outputs.status == '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Gas price check needs a person';
+            const { data: open } = await github.rest.issues.listForRepo({ owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: 'tariffs' });
+            const existing = open.find(i => i.title === title);
+            if (!existing) return;
+            await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body: 'Every gas page read cleanly again — closing.' });
             await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'closed' });
