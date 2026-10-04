@@ -10918,6 +10918,10 @@ function restorePlace(root, held, sameSheet, samePage){
 }
 
 function renderApp(){
+  // One rule for the grant everywhere: a home that doesn't qualify gets none,
+  // whichever path last set the figure (the 20-year sheet once showed €1,800
+  // off for a home My system said didn't qualify).
+  if (state.grant_eligible === false && state.grant_seai > 0) state.grant_seai = 0;
   // A pending debounced paint is now redundant — this synchronous one supersedes it.
   if (_renderDebounceTimer){ clearTimeout(_renderDebounceTimer); _renderDebounceTimer = null; }
   applyTheme();

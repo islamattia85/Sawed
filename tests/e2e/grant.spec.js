@@ -37,3 +37,10 @@ test('a home that switched the grant off before is carried over as not eligible'
   await boot(page, { schema_version: 3, has_solar: true, considering_solar: true, count_A: 10, install_cost: 9000, grant_is_manual: true, grant_seai: 0 });
   expect(await page.evaluate(() => window.state.grant_eligible)).toBe(false);
 });
+
+test('a home without the grant never shows one, even if a grant figure was stored', async ({ page }) => {
+  await boot(page, { has_solar: true, considering_solar: true, solar_planned: true, count_A: 10, battery_kwh: 9, install_cost: 11800, grant_seai: 1800, grant_eligible: false, current_screen: 'result' });
+  await page.evaluate(() => { setScreen('analytics'); anTab('solar'); v7Sheet('life'); });
+  await expect(page.locator('#v7-sheet')).not.toContainText('grant');
+  await expect(page.locator('#v7-sheet')).toContainText('€11,800');
+});
