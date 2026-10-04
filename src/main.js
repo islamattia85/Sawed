@@ -4813,6 +4813,8 @@ function dualFuelNote(toPlan){
   const cur = getPlanById(state.baseline);
   if (!cur || _supKey(cur.supplier) === _supKey(toPlan.supplier)) return '';
   const d = dualFuel();
+  if (d && d.moveBoth && supplierKey(toPlan.supplier) === supplierKey(d.moveBoth.supplier))
+    return `Move your gas to ${esc(toPlan.supplier)} too: ask for their dual fuel plan. Both together come to about ${fmtCurrency(Math.round(d.moveBoth.total))} a year.`;
   if (d && d.moveElec && supplierKey(toPlan.supplier) === supplierKey(d.moveElec.supplier)){
     return d.moveElec.lost > 1
       ? `Your gas is with ${esc(cur.supplier)} too. Move only the electricity and your gas goes up about ${fmtCurrency(Math.round(d.moveElec.lost))} a year.`
@@ -9699,7 +9701,7 @@ const V7 = createV7({
   householdScore: () => householdScore(),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,
-  getPlanById, PSO_LEVY, dualFuelNote, dualFuel, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, renderConsentBar,
+  getPlanById, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, renderConsentBar,
   fmtCurrency, fmtCent, fmtVerifiedDate, latestVerifiedLabel, planDataFlag, planCategoryLabel,
   freshnessChip, priceChangeChip, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
   renderSavingsBreakdown, renderAssumptions,

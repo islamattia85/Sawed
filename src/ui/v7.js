@@ -234,7 +234,8 @@ export function createV7(api) {
               d.moveElec && { k: 'moving only the electricity', v: d.moveElec.total },
               d.moveBoth && { k: 'moving both to ' + esc(d.moveBoth.supplier), v: d.moveBoth.total }].filter(Boolean);
             const low = opts.reduce((a, o) => (o.v < a.v ? o : a));
-            return `<div class="v7-evnote is-warn">${api.ic('flame', 14)} ${low.stay ? `With gas too, staying with ${esc(d.supplier)} is cheapest.` : `With gas too, ${low.k} saves most: ${eur(d.stay.total - low.v)} a year.`}</div>`;
+            // A better move is offered as a tile below; say only when staying wins.
+            return low.stay ? `<div class="v7-evnote is-warn">${api.ic('flame', 14)} With gas too, staying with ${esc(d.supplier)} is cheapest.</div>` : '';
           }
           return saving > 10 && api.dualFuelNote(best.plan) ? `<div class="v7-evnote is-warn">${api.ic('flame', 14)} ${api.dualFuelNote(best.plan)}</div>` : '';
         })()}
@@ -292,7 +293,7 @@ export function createV7(api) {
         ? `<button class="switch-cta v7-cta" onclick="setScreen('plans')">See every plan compared ${api.ic('chevR', 18)}</button>`
         : pl && pl.noSolar.plan.id === st.baseline
           ? `<button class="switch-cta v7-cta" onclick="setScreen('plans')">See every plan compared ${api.ic('chevR', 18)}</button>`
-          : switchButton(pl ? pl.noSolar.plan : best.plan, '')}
+          : changeTo(rec, pl ? pl.noSolar.plan : best.plan)}
 
       <button class="v7-basis-line" onclick="openMyHome()">
         Based on ${esc(basis)}${st.has_solar && api.totalPanels() > 0 ? ` · ${api.totalPanels()} solar panels` : ''}${st.ev_active ? ' · an electric car' : ''}
@@ -1419,6 +1420,44 @@ export function createV7(api) {
    * the most prominent, whether or not it pays us. Both open the same
    * "before you switch" sheet.
    */
+  /**
+   * When more than one move is worth making, offer each as a tile under
+   * "Change to:" instead of one button. Dual fuel: electricity only, or both
+   * fuels to one supplier. Otherwise: other suppliers within €30 a year of the
+   * best. One option left: the plain switch button.
+   */
+  function changeTo(rec, bestPlan) {
+    const opts = [];
+    let d = null; try { d = api.dualFuel(); } catch (e) {}
+    if (d) {
+      const byKey = new Map((rec.ranked || []).map((r) => [api.supplierKey(r.plan.supplier), r]).reverse());
+      if (d.moveElec && d.stay.total - d.moveElec.total > 10)
+        // The same figure the hero shows for this move (gas does not change with it).
+        opts.push({ sup: d.moveElec.supplier, what: 'Electricity only', save: bestPlan.id === rec.best.plan.id && !(S().has_solar && (S().solar_planned || S().solar_is_estimate)) ? rec.baseCost - rec.best.net : d.stay.total - d.moveElec.total, plan: bestPlan });
+      if (d.moveBoth && d.stay.total - d.moveBoth.total > 10) {
+        const r = byKey.get(api.supplierKey(d.moveBoth.supplier));
+        if (r) opts.push({ sup: d.moveBoth.supplier, what: 'Gas and electricity', save: d.stay.total - d.moveBoth.total, plan: r.plan });
+      }
+    } else {
+      const base = rec.baseCost, seen = new Set([api.supplierKey((api.getPlanById(S().baseline) || {}).supplier)]);
+      for (const r of rec.ranked || []) {
+        const k = api.supplierKey(r.plan.supplier);
+        if (seen.has(k)) continue; seen.add(k);
+        if (r.net - rec.best.net > 30 || base - r.net <= 10) continue;
+        opts.push({ sup: r.plan.supplier, what: r.plan.plan, save: base - r.net, plan: r.plan });
+        if (opts.length === 3) break;
+      }
+    }
+    if (opts.length < 2) return switchButton(bestPlan, '');
+    opts.sort((a, b) => b.save - a.save);
+    return `<div class="ct" role="group" aria-label="Change to">
+        <div class="ct-k">Change to:</div>
+        <div class="ct-tiles">${opts.map((o, i) => `<button class="ct-tile ${i === 0 ? 'is-best' : ''}" onclick="v7Sheet('switch','${o.plan.id}')">
+            <b>${esc(o.sup)}</b><small>${esc(o.what)}</small><em>${eur(o.save)} less</em>
+          </button>`).join('')}</div>
+      </div>`;
+  }
+
   function switchButton(plan, extra = '', cls = 'switch-cta v7-cta') {
     const partner = api.isPartnerPlan(plan.id);
     return `<button class="${cls} v7-switch-btn" data-partner="${partner}" onclick="v7Sheet('switch','${plan.id}')">

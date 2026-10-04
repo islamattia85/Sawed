@@ -1592,3 +1592,13 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .df-row em { font: 700 var(--text-h3) var(--display); font-style: normal; color: var(--ink); text-align: right; white-space: nowrap; }
 .df-row em i { display: block; font: 600 var(--text-caption) var(--display); font-style: normal; color: var(--accent); }
 .df-row.is-best { outline: 1.5px solid var(--accent); }
+
+/* Change to: one tile per move worth making. */
+.ct { margin: var(--space-3) 0; }
+.ct-k { font: 700 var(--text-body) var(--display); color: var(--ink); margin-bottom: var(--space-2); }
+.ct-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-2); }
+.ct-tile { display: grid; gap: 2px; text-align: left; padding: var(--space-3); border-radius: var(--radius-lg); border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font: inherit; }
+.ct-tile b { font: 700 var(--text-body) var(--display); }
+.ct-tile small { font-size: var(--text-caption); color: var(--ink-soft); }
+.ct-tile em { font: 700 var(--text-h3) var(--display); font-style: normal; color: var(--accent); margin-top: 4px; }
+.ct-tile.is-best { border-color: var(--accent); background: var(--accent-soft); }
