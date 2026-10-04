@@ -321,9 +321,7 @@ export function createV7(api) {
 
       ${stay
         ? `<button class="switch-cta v7-cta" onclick="setScreen('plans')">See every plan compared ${api.ic('chevR', 18)}</button>`
-        : pl && pl.noSolar.plan.id === st.baseline
-          ? `<button class="switch-cta v7-cta" onclick="setScreen('plans')">See every plan compared ${api.ic('chevR', 18)}</button>`
-          : changeTo(rec, pl ? pl.noSolar.plan : best.plan)}
+        : changeTo(rec, pl ? pl.noSolar.plan : best.plan, pl)}
 
       <button class="v7-basis-line" onclick="openMyHome()">
         Based on ${esc(basis)}${st.has_solar && api.totalPanels() > 0 ? ` · ${api.totalPanels()} solar panels` : ''}${st.ev_active ? ' · an electric car' : ''}
@@ -1451,41 +1449,37 @@ export function createV7(api) {
    * "before you switch" sheet.
    */
   /**
-   * When more than one move is worth making, offer each as a tile under
-   * "Change to:" instead of one button. Dual fuel: electricity only, or both
-   * fuels to one supplier. Otherwise: other suppliers within €30 a year of the
-   * best. One option left: the plain switch button.
+   * The moves worth making, each as the full-width switch button, stacked
+   * when there is more than one. Planned solar: the best plan today and the
+   * best once the panels are in, so the reader decides to change now or
+   * later. Dual fuel: electricity only, or both fuels to one supplier.
    */
-  function changeTo(rec, bestPlan) {
-    const opts = [];
-    let d = null; try { d = api.dualFuel(); } catch (e) {}
-    if (d) {
+  function changeTo(rec, bestPlan, pl) {
+    const st = S(), opts = [];
+    let d = null; if (!pl) { try { d = api.dualFuel(); } catch (e) {} }
+    if (pl) {
+      const nowSave = pl.today - pl.noSolar.net;
+      if (pl.noSolar.plan.id !== st.baseline && nowSave > 10)
+        opts.push({ plan: pl.noSolar.plan, top: `Now: switch to ${esc(pl.noSolar.plan.supplier)}`, sub: `${eur(nowSave)} less a year, before the panels` });
+      if (pl.best.plan.id !== pl.noSolar.plan.id && pl.best.plan.id !== st.baseline)
+        opts.push({ plan: pl.best.plan, top: `With the panels: ${esc(pl.best.plan.supplier)}`, sub: `${eur(pl.mine - pl.best.net)} less a year once they’re in` });
+      if (!opts.length) return `<button class="switch-cta v7-cta" onclick="setScreen('plans')">See every plan compared ${api.ic('chevR', 18)}</button>`;
+    } else if (d) {
       const byKey = new Map((rec.ranked || []).map((r) => [api.supplierKey(r.plan.supplier), r]).reverse());
-      if (d.moveElec && d.stay.total - d.moveElec.total > 10)
-        // The same figure the hero shows for this move (gas does not change with it).
-        opts.push({ sup: d.moveElec.supplier, what: 'Electricity only', save: d.stay.total - d.moveElec.total, plan: bestPlan });
       if (d.moveBoth && d.stay.total - d.moveBoth.total > 10) {
         const r = byKey.get(api.supplierKey(d.moveBoth.supplier));
-        if (r) opts.push({ sup: d.moveBoth.supplier, what: 'Gas and electricity', save: d.stay.total - d.moveBoth.total, plan: r.plan });
+        if (r) opts.push({ plan: r.plan, top: `Switch both to ${esc(d.moveBoth.supplier)}`, sub: `Gas and electricity, ${eur(d.stay.total - d.moveBoth.total)} less a year`, save: d.stay.total - d.moveBoth.total });
       }
-    } else {
-      const base = rec.baseCost, seen = new Set([api.supplierKey((api.getPlanById(S().baseline) || {}).supplier)]);
-      for (const r of rec.ranked || []) {
-        const k = api.supplierKey(r.plan.supplier);
-        if (seen.has(k)) continue; seen.add(k);
-        if (r.net - rec.best.net > 30 || base - r.net <= 10) continue;
-        opts.push({ sup: r.plan.supplier, what: r.plan.plan, save: base - r.net, plan: r.plan });
-        if (opts.length === 3) break;
-      }
+      if (d.moveElec && d.stay.total - d.moveElec.total > 10)
+        opts.push({ plan: bestPlan, top: `Switch electricity to ${esc(d.moveElec.supplier)}`, sub: `Gas stays, ${eur(d.stay.total - d.moveElec.total)} less a year`, save: d.stay.total - d.moveElec.total });
+      opts.sort((a, b) => b.save - a.save);
     }
-    if (opts.length < 2) return switchButton(bestPlan, '');
-    opts.sort((a, b) => b.save - a.save);
-    return `<div class="ct" role="group" aria-label="Change to">
-        <div class="ct-k">Change to:</div>
-        <div class="ct-tiles">${opts.map((o, i) => `<button class="ct-tile ${i === 0 ? 'is-best' : ''}" onclick="v7Sheet('switch','${o.plan.id}')">
-            <b>${esc(o.sup)}</b><small>${esc(o.what)}</small><em>${eur(o.save)} less</em>
-          </button>`).join('')}</div>
-      </div>`;
+    if (!opts.length) return switchButton(bestPlan, '');
+    if (opts.length === 1 && !pl) return switchButton(opts[0].plan, '');
+    return `<div class="ct" role="group" aria-label="Change to">${opts.map((o, i) => `
+        <button class="switch-cta v7-cta ct-btn ${i ? 'is-second' : ''}" onclick="v7Sheet('switch','${o.plan.id}')">
+          <span><b>${o.top}</b><small>${o.sub}</small></span>${api.ic('chevR', 18)}
+        </button>`).join('')}</div>`;
   }
 
   function switchButton(plan, extra = '', cls = 'switch-cta v7-cta') {

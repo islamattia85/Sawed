@@ -236,11 +236,11 @@ test('"not sure which plan" assumes a standard plan, never an EV or dynamic one'
 
 test('planned solar never offers a switch to the plan you are already on', async ({ page }) => {
   await boot(page, { current_screen: 'result', has_solar: true, considering_solar: true, solar_planned: true, count_A: 10, battery_kwh: 5 });
-  const noSolarBest = await page.evaluate(() => { const v = document.querySelector('.v7-switch-btn'); return v && v.getAttribute('onclick'); });
+  const noSolarBest = await page.evaluate(() => { const v = document.querySelector('.ct-btn, .v7-switch-btn'); return v && v.getAttribute('onclick'); });
   const planId = noSolarBest && noSolarBest.match(/'switch','([^']+)'/)[1];
   await page.evaluate((pid) => { window.state.baseline = pid; window.state.baseline_known = true; window.invalidate(); window.renderApp(); }, planId);
   await expect(page.locator('.v7-hero')).toContainText('already on the cheapest plan until the panels are in');
-  const btns = await page.locator('.v7-switch-btn').evaluateAll((els) => els.map((e) => e.getAttribute('onclick')));
+  const btns = await page.locator('.ct-btn, .v7-switch-btn').evaluateAll((els) => els.map((e) => e.getAttribute('onclick')));
   expect(btns.some((b) => b.includes(`'${planId}'`))).toBe(false);
 });
 
