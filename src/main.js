@@ -1422,7 +1422,7 @@ function plannedSolarSplit(){
  * file's hourly shape changes every hour of the year without touching the bills.
  */
 // Keys that change nothing in any figure: a page, the theme, which alerts were seen, the score toast.
-const UI_ONLY = new Set(['current_screen', 'theme', 'alerts_seen', 'score_seen', 'switch_clicks']);
+const UI_ONLY = new Set(['current_screen', 'theme', 'alerts_seen', 'score_seen', 'switch_clicks', 'gas_same_supplier']);
 const MODEL_PRIVATE = new Set(['_csv_imported', '_csv_hourly_shape', '_ghi_override']);
 function modelKey(){
   return JSON.stringify(state, (key, v) => (key && !MODEL_PRIVATE.has(key) && (key[0] === '_' || UI_ONLY.has(key)) ? undefined : v)) + '|' + _tariffGen;
@@ -4763,10 +4763,24 @@ function renderEvGuide(){
  * what the answer is built on. The end is the answer itself, then one offer
  * to keep the home in an account. */
 const FLOW_Q = ['bill', 'plan', 'heat', 'solar', 'ev'];
+/* Dual fuel. Peakless compares electricity only, but a home with gas from the
+   same supplier usually gets a dual-fuel discount that ends if the
+   electricity moves. We ask once, and warn on any switch to another supplier. */
+const _supKey = (name) => String(name || '').toLowerCase().replace(/energy|airtricity/g, '').replace(/[^a-z]/g, '');
+function sellsGas(supplier){ return /electric ireland|bord g|energia|sse|flogas/i.test(String(supplier || '')); }
+function askGas(){ return state.heating_type === 'gas' && state.baseline_known !== false && sellsGas((getPlanById(state.baseline) || {}).supplier); }
+/** The dual-fuel warning for a switch to another supplier, or ''. */
+function dualFuelNote(toPlan){
+  if (state.gas_same_supplier !== 'yes' || !toPlan) return '';
+  const cur = getPlanById(state.baseline);
+  if (!cur || _supKey(cur.supplier) === _supKey(toPlan.supplier)) return '';
+  return `Your gas is with ${esc(cur.supplier)} too. Moving only your electricity can end a dual-fuel discount, often €50–150 a year, which this saving doesn’t include. Ask ${esc(cur.supplier)} first.`;
+}
 function flowSteps(){
   const f = state._flow || {}, out = [];
   for (const q of FLOW_Q){
     out.push(q);
+    if (q === 'heat' && f.heat === 'gas' && askGas()) out.push('gas');
     if (q === 'solar' && (f.solar === 'have' || f.solar === 'thinking')) out.push('roof', 'panels', 'battery');
     if (q === 'ev' && (f.ev === 'have' || f.ev === 'thinking')) out.push('km', 'car');
   }
@@ -4797,6 +4811,9 @@ function flowAnswer(q, v){
     if (g && !['ev', 'dynamic'].includes(g.type)){ state.baseline = g.id; state.baseline_known = false; }
     else { state.baseline = 'EI-24'; state.baseline_known = false; }
   } else if (q === 'plan'){ if (v === 'unsure'){ state.baseline = 'EI-24'; state.baseline_known = false; } else { state.baseline = v; state.baseline_known = true; } }
+  if (q === 'gas') state.gas_same_supplier = v;
+  if (q === 'heat' && v !== 'gas') delete f.gas;
+  if (q === 'plan') delete f.gas;
   if (q === 'heat'){ state.heating_type = v; state.hot_water_strategy = DEFAULT_HW_FOR_HEATING[v] || 'none'; }
   if (q === 'bill' || q === 'heat') applyUsageInput();
   if (q === 'solar'){
@@ -4857,6 +4874,7 @@ function renderFlow(){
     bill: ['What’s your electricity bill?', 'Every two months, electricity only.'],
     plan: ['Who do you pay now?', 'Not sure? We’ll estimate.'],
     heat: ['How is the home heated?', ''],
+    gas: [`Is your gas with ${esc(plan.supplier)} too?`, 'We compare electricity only, but this changes what a switch is worth.'],
     solar: ['Solar panels?', ''],
     roof: ['Which way does the roof face?', 'The side that gets the sun.'],
     panels: ['How many panels?', `For your usage we suggest ${_flowSuggest()}.`],
@@ -4869,6 +4887,7 @@ function renderFlow(){
     bill: (v) => v === 'meter' ? 'Smart-meter data' : `€${v} / 2 months`,
     plan: (v) => v === 'unsure' ? 'Plan not sure' : String(v).startsWith('guess:') ? `${(getPlanById(String(v).slice(6)) || {}).supplier}, plan not sure` : (() => { const p = getPlanById(v); return `${p.supplier} ${p.plan}`; })(),
     heat: (v) => ({ gas: 'Gas or oil', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heaters' })[v],
+    gas: (v) => (v === 'yes' ? `Gas with ${plan.supplier} too` : 'Gas with another supplier'),
     solar: (v) => ({ no: 'No solar', have: 'Solar', thinking: 'Solar planned' })[v],
     roof: (v) => ({ S: 'South', SE: 'South-east', SW: 'South-west', EW: 'East and west', SESW: 'South-east and south-west', unsure: 'Not sure, south assumed' })[v],
     panels: (v) => `${v} panels`, battery: (v) => +v ? `${v} kWh` : 'No battery',
@@ -4912,6 +4931,7 @@ function renderFlow(){
       return `<div class="fl-sups">${sups.map((n, i) => `<button class="fl-sup ${f.plan && f.plan !== 'unsure' && (getPlanById(f.plan) || {}).supplier === n ? 'on' : ''}" onclick="flowSupplier(${i})"><span class="fl-sup-mark">${esc(n.split(/\s+/).map((w) => w[0]).join('').slice(0, 2))}</span>${esc(n)}</button>`).join('')}</div>
         <button class="sg-link" onclick="flowAnswer('plan', 'unsure')">I’m not sure: assume a standard plan</button>`;
     }
+    if (q === 'gas') return `<div class="fl-opts">${opt('gas', 'yes', 'Yes, both with them')}${opt('gas', 'no', 'No, or oil')}</div>`;
     if (q === 'heat') return `<div class="fl-opts fl-two fl-tiles">${opt('heat', 'gas', 'Gas or oil')}${opt('heat', 'heatpump', 'Heat pump')}${opt('heat', 'storage', 'Storage heaters')}${opt('heat', 'direct', 'Electric heaters')}</div>`;
     if (q === 'solar') return `<div class="fl-opts">${opt('solar', 'no', 'No')}${opt('solar', 'have', 'I have them', 'We’ll add what they make')}${opt('solar', 'thinking', 'Thinking about it', 'We’ll show the payback')}</div>`;
     if (q === 'roof') return `<div class="fl-opts fl-two fl-tiles">${opt('roof', 'S', 'South')}${opt('roof', 'EW', 'East and west')}${opt('roof', 'SE', 'South-east')}${opt('roof', 'SW', 'South-west')}${opt('roof', 'SESW', 'South-east and south-west')}</div>
@@ -9611,7 +9631,7 @@ const V7 = createV7({
   householdScore: () => householdScore(),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,
-  getPlanById, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, renderConsentBar,
+  getPlanById, dualFuelNote, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, renderConsentBar,
   fmtCurrency, fmtCent, fmtVerifiedDate, latestVerifiedLabel, planDataFlag, planCategoryLabel,
   freshnessChip, priceChangeChip, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
   renderSavingsBreakdown, renderAssumptions,
@@ -10293,6 +10313,7 @@ function renderHomeSheet(){
       <div class="sy-part-title">${ic('home', 16)} The house</div>
       ${field('Area', '', sel('region', Object.entries(IRISH_REGIONS).map(([k, r]) => [k, r.name]), state.region || 'east'))}
       ${field('Heating', '', sel('heating_type', [['gas', 'Gas or oil boiler'], ['heatpump', 'Heat pump'], ['storage', 'Storage heaters'], ['direct', 'Direct electric']], state.heating_type))}
+      ${askGas() ? field(`Gas with ${esc(getPlanById(state.baseline).supplier)} too?`, 'Switching electricity alone can end a dual-fuel discount.', sel('gas_same_supplier', [['', 'Not set'], ['yes', 'Yes'], ['no', 'No']], state.gas_same_supplier || '')) : ''}
     </section>
 
     <section class="sy-part" aria-label="Electricity use">

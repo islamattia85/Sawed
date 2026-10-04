@@ -1174,6 +1174,8 @@ section.hc { cursor: default; }
 .fl-r-big.is-saving { color: var(--accent); }
 .v7-evnote { display: flex; gap: 6px; align-items: flex-start; margin-top: var(--space-2); font-size: var(--text-caption); color: var(--ink-soft); line-height: 1.45; }
 .v7-evnote > svg { flex: none; margin-top: 2px; color: var(--accent); }
+.v7-evnote.is-warn { color: var(--ink); }
+.v7-evnote.is-warn > svg { color: var(--amber); }
 .sy-status-why { margin: 6px 2px 0; font-size: var(--text-caption); color: var(--ink-soft); line-height: 1.45; }
 .v7-solar-ctl { align-items: center; padding: var(--space-3); }
 .v7-solar-ctl span { display: grid; gap: 2px; }

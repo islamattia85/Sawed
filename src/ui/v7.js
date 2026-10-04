@@ -225,6 +225,7 @@ export function createV7(api) {
         ${(() => { const mp = api.getPlanById(st.baseline), pc = mp && mp.price_change;
           return pc && pc.effective_date && Date.parse(pc.effective_date) > Date.now()
             ? `<div class="v7-evnote">${api.ic('trendUp', 14)} ${esc(mp.supplier)} raises prices on ${fmtDate(pc.effective_date)}. What you’d pay where you are counts the rise from that date.</div>` : ''; })()}
+        ${saving > 10 && api.dualFuelNote(best.plan) ? `<div class="v7-evnote is-warn">${api.ic('flame', 14)} ${api.dualFuelNote(best.plan)}</div>` : ''}
         ${!pl && best.plan.type === 'ev' && !st.ev_active ? `<div class="v7-evnote">${api.ic('info', 14)} You don’t need an EV for this plan. It’s named for cars, but its cheap night hours suit ${st.battery_kwh > 0 ? 'your battery' : 'your home'} too.</div>` : ''}`;
     // The parts of the home that are choices, each on one line with its own
     // "Leave out": planned solar, and the car. Same row, same switch.
@@ -1412,6 +1413,7 @@ export function createV7(api) {
       <button class="switch-cta v7-cta" onclick="handleSwitchClick('${plan.id}', '${switchName}', ${Math.round(saving)});v7Sheet('switched','${plan.id}')">
         ${partner ? `Continue with ${api.brand} ${api.ic('chevR', 18)}` : `Open ${esc(plan.supplier)}'s website ${api.ic('external', 18)}`}
       </button>
+      ${api.dualFuelNote(plan) ? `<div class="v7-evnote is-warn">${api.ic('flame', 14)} ${api.dualFuelNote(plan)}</div>` : ''}
       <div class="v7-fine">${partner
         ? `${esc(plan.supplier)} pays ${esc(api.brand)} if you switch through us. Your price is the same, and it doesn’t change the ranking.`
         : `${esc(api.brand)} earns nothing from this switch. We show it because it's the right plan for your home.`}</div>
