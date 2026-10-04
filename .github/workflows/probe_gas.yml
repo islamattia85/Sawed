@@ -27,9 +27,6 @@ jobs:
           cache: pip
       - run: pip install -r scraper/requirements.txt playwright==1.47.0
       - run: python -m playwright install --with-deps chromium
-      - name: Read each supplier's gas price pages and PDFs
+      - name: Full read — every line of the gas and dual-fuel pages, tabs opened
         working-directory: scraper
-        run: python probe_gas.py
-      - name: Second pass — pages rendered in a browser
-        working-directory: scraper
-        run: python probe_gas.py --render
+        run: python probe_gas.py --full

@@ -77,10 +77,61 @@ def render_pass(names: list[str]) -> None:
         b.close()
 
 
+FULL = {
+    "Bord Gáis Energy": ["https://www.bordgaisenergy.ie/home/our-tariffs",
+                         "https://www.bordgaisenergy.ie/home/compare-dual-fuel-price-plans"],
+    "Energia": ["https://www.energia.ie/about-energia/our-tariffs"],
+    "SSE Airtricity": ["https://www.sseairtricity.com/ie/home/products/gas/",
+                       "https://www.sseairtricity.com/ie/home/products/dual-fuel/",
+                       "https://www.sseairtricity.com/ie/home/help-centre/our-tariffs/"],
+    "Electric Ireland": ["https://www.electricireland.ie/residential/electricity-and-gas/gas-price-plans",
+                         "https://www.electricireland.ie/residential/electricity-and-gas/dual-fuel-price-plans",
+                         "https://www.electricireland.ie/residential/electricity-and-gas/smart-meter-price-plans"],
+    "Flogas": ["https://www.flogas.ie/", "https://www.flogas.ie/price-plans/"],
+}
+# Tabs and accordions that hide gas tables until opened.
+OPENERS = re.compile(r"(gas|dual fuel|tariff rates|price list|show more|view .*details|unit rates)", re.I)
+
+
+def full_pass() -> None:
+    """Every line of each page, after opening its tabs, plus every PDF and price link."""
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as pw:
+        b = pw.chromium.launch()
+        page = b.new_page(user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36")
+        for name, urls in FULL.items():
+            for u in urls:
+                print(P.RULE); print(f"{name} — FULL {u}"); print(P.RULE)
+                try:
+                    page.goto(u, wait_until="networkidle", timeout=60000)
+                    page.wait_for_timeout(2000)
+                    for sel in ["button", "[role=tab]", "summary", "a[aria-expanded]", "[aria-controls]"]:
+                        for el in page.query_selector_all(sel)[:80]:
+                            try:
+                                t = (el.inner_text() or "").strip()
+                                if t and len(t) < 60 and OPENERS.search(t):
+                                    el.click(timeout=1500); page.wait_for_timeout(300)
+                            except Exception:
+                                pass
+                    body = page.inner_text("body")
+                    lines = [ln.strip() for ln in body.splitlines() if ln.strip()]
+                    for ln in lines[:500]:
+                        print(f"  > {ln[:200]}")
+                    links = page.eval_on_selector_all("a[href]", "els => els.map(e => [e.innerText.trim().slice(0,60), e.href])")
+                    for t, h in links:
+                        if h.lower().split("?")[0].endswith(".pdf") or re.search(r"price|tariff|rate", h + t, re.I):
+                            print(f"  LINK {t!r} {h}")
+                except Exception as e:  # noqa: BLE001
+                    print(f"  ERROR {str(e)[:160]}")
+        b.close()
+
+
 if __name__ == "__main__":
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     names = [n for n in P.SUPPLIERS if not args or any(a.lower() in n.lower() for a in args)]
-    if "--render" in sys.argv:
+    if "--full" in sys.argv:
+        full_pass()
+    elif "--render" in sys.argv:
         render_pass(names)
     else:
         for n in names:
