@@ -1,0 +1,35 @@
+name: Probe gas prices
+
+# Before gas is added for dual-fuel homes: can the five suppliers' gas prices
+# be read? Supplier sites are unreachable from the dev container, so this reads
+# them from a runner and prints what they publish. Read-only: it writes no
+# data and opens no pull request.
+
+on:
+  push:
+    branches: ['v8']
+    paths:
+      - 'scraper/probe_gas.py'
+      - '.github/workflows/probe_gas.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r scraper/requirements.txt playwright==1.47.0
+      - run: python -m playwright install --with-deps chromium
+      - name: Read each supplier's gas price pages and PDFs
+        working-directory: scraper
+        run: python probe_gas.py
+      - name: Second pass — pages rendered in a browser
+        working-directory: scraper
+        run: python probe_gas.py --render
