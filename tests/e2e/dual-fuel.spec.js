@@ -52,3 +52,15 @@ test('a dual-fuel home sees a year of both fuels three ways, as Home\'s own bars
   const d = await page.evaluate(() => { const v = window.__df(); return v && { stay: v.stay.total, lost: v.moveElec && v.moveElec.lost }; });
   expect(d.stay).toBeGreaterThan(2000);
 });
+
+test('no gas bill: Home says gas is a typical-home guess, and takes the bill in place', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-04T12:00:00Z'));
+  await boot(page, { ...GAS_HOME, gas_same_supplier: 'yes', gas_bill_eur: 0 });
+  const g = page.locator('.v7-gasguess');
+  await expect(g).toContainText('Gas is a guess');
+  const before = await page.evaluate(() => window.__df().moveBoth && window.__df().stay.total - window.__df().moveBoth.total);
+  await g.locator('input').fill('90'); await g.locator('input').dispatchEvent('change');
+  await expect(page.locator('.v7-gasguess')).toHaveCount(0);
+  const after = await page.evaluate(() => window.__df().moveBoth && window.__df().stay.total - window.__df().moveBoth.total);
+  if (before != null && after != null) expect(after).toBeLessThan(before);   // less gas, less to gain from cheaper gas
+});

@@ -260,14 +260,20 @@ export function createV7(api) {
       const rise = (() => { const mp = api.getPlanById(st.baseline), pc = mp && mp.price_change;
         return pc && pc.effective_date && Date.parse(pc.effective_date) > Date.now()
           ? `<div class="v7-evnote">${api.ic('trendUp', 14)} ${esc(mp.supplier)}’s prices rise on ${fmtDate(pc.effective_date)}. That’s counted.</div>` : ''; })();
+      // Without a gas bill, gas is the regulator's typical home: say so, and
+      // let the reader put in their own bill right here.
+      const gasGuess = dfh.typical ? `<div class="v7-gasguess">
+          <span>${api.ic('flame', 14)} Gas is a guess: a typical home, 11,000 kWh a year. Your bill changes the “both” figure.</span>
+          <label><span>My gas bill, every 2 months</span><span class="sy-num"><i>€</i><input type="number" inputmode="numeric" min="0" max="2000" step="10" placeholder="e.g. 180" aria-label="Gas bill every two months" onchange="homeSet('gas_bill_eur', this.value)"></span></label>
+        </div>` : '';
       hero = stay ? `
         <div class="v7-eyebrow">Gas and electricity</div>
         <div class="qr-value v7-figure"><span>${eur(dfh.stay.total)}</span><span class="v7-figure-unit">a year where you are</span></div>
-        <div class="v7-headline">Staying with <b>${esc(dfh.supplier)}</b> is cheapest for both.</div>${rise}`
+        <div class="v7-headline">Staying with <b>${esc(dfh.supplier)}</b> is cheapest for both.</div>${rise}${gasGuess}`
       : `
         <div class="v7-eyebrow">Gas and electricity: you could pay less</div>
         <div class="qr-value v7-figure is-saving" data-countup="${Math.round(dSave)}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(dSave)}</span><span class="v7-figure-unit">less a year</span></div>
-        <div class="v7-headline">Best move: ${low.what}</div>${rise}`;
+        <div class="v7-headline">Best move: ${low.what}</div>${rise}${gasGuess}`;
     }
 
     // The parts of the home that are choices, each on one line with its own

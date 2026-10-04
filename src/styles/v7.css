@@ -1600,3 +1600,9 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .ct-btn b { font: 800 var(--text-body) var(--display); }
 .ct-btn small { font-size: var(--text-caption); font-weight: 600; }
 .ct-btn.is-second { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); box-shadow: none; }
+
+/* Dual fuel with no gas bill: say gas is a guess, take the bill in place. */
+.v7-gasguess { display: grid; gap: var(--space-2); margin-top: var(--space-3); padding: var(--space-3); border-radius: var(--radius-md); background: var(--well); font-size: var(--text-caption); color: var(--ink-soft); }
+.v7-gasguess > span svg { vertical-align: -2px; color: var(--amber); }
+.v7-gasguess label { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); color: var(--ink); font-weight: 600; }
+.v7-gasguess input { width: 90px; }
