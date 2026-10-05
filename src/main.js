@@ -1219,7 +1219,7 @@ function cachedScenario(hasSolar, hasEv){
   const ck = JSON.stringify([hasSolar, hasEv, state.region, state.count_A, state.count_B,
     state.tilt_A, state.azimuth_A, state.battery_kwh, state.panel_w, state.heating_type,
     usageKey(), state.ev_km_per_year, state.baseline, state.chosen_plan,
-    state.hot_water_strategy, state._ghi_override,
+    state.hot_water_strategy, state.immersion_night, state.area, state._ghi_override,
     // The scenario now costs the current plan too, so its discount is an input.
     state.baseline_discount_pct]);
   const hit = singleScenarioMemo.get(ck);
@@ -1241,7 +1241,7 @@ function computeSolarPaybackScenarios(){
   const ck = JSON.stringify([state.region, state.count_A, state.count_B, state.azimuth_A, state.azimuth_B,
     state.tilt_A, state.tilt_B, state.battery_kwh, state.panel_w, state.install_cost, state.grant_seai,
     state.heating_type, usageKey(), state.ev_km_per_year, state.ev_kwh_per_100km,
-    state.fuel_price, state.ice_l_per_100km, state.hot_water_strategy, state.region, state.ev_in_bill,
+    state.fuel_price, state.ice_l_per_100km, state.hot_water_strategy, state.immersion_night, state.area, state.region, state.ev_in_bill,
     // The hand-picked plan changes the with-solar side of every scenario.
     state.chosen_plan,
     // computeScenarioRange() re-runs this whole set at three different
@@ -1796,7 +1796,7 @@ function undoBar(){
 }
 function _undoKeep(){ _undo = null; renderApp(); }
 function computeOptimisations(){
-  const ck = JSON.stringify([state.strategy_mode, state.charge_from_grid, state.hot_water_strategy,
+  const ck = JSON.stringify([state.strategy_mode, state.charge_from_grid, state.hot_water_strategy, state.immersion_night, state.area,
     state.export_enabled, state.battery_kwh, state.heating_type, usageKey(), state.region,
     state.count_A, state.count_B, state.has_solar, state.baseline, state.ev_active, state.ev_km_per_year, state.ev_in_bill]);
   if (CACHE._opt_ck === ck && CACHE._opt) return CACHE._opt;
@@ -2144,6 +2144,9 @@ const AFFILIATE_URLS = {
   'EN-EV':    'https://www.energia.ie/energy-plans/electricity?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=EN-EV&utm_content=tariff_card',
   'EN-SMART': 'https://www.energia.ie/energy-plans/electricity?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=EN-SMART&utm_content=tariff_card',
   'EN-DYN':   'https://www.energia.ie/energy-plans/electricity?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=EN-DYN&utm_content=tariff_card',
+  // Ecopower
+  'EP-SST':   'https://ecopower.ie/ecopower-supply/',
+  'EP-24':    'https://ecopower.ie/ecopower-supply/',
   // Bord Gáis Energy
   'BG-24':    'https://www.bordgaisenergy.ie/home/our-plans?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=BG-24&utm_content=tariff_card',
   'BG-EV':    'https://www.bordgaisenergy.ie/home/our-plans?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=BG-EV&utm_content=tariff_card',
@@ -4502,6 +4505,7 @@ function startSolarFlow(){
     plan: state.baseline_known ? state.baseline : 'unsure', heat: state.heating_type || 'gas',
     ev: state.ev_active ? (state.ev_in_bill ? 'have' : 'thinking') : 'no',
     meter: state.meter_type || 'smart', area: state.area || 'urban' };
+  if (f.heat === 'gas') f.night = state.immersion_night ? 'immersion' : 'no';
   if (state.baseline_known) f.disc = state.baseline_discount_pct || 0;
   // Only the solar questions are open: gas not answered yet stays as it is (not asked here).
   if (f.heat === 'gas'){ f.gas = state.gas_same_supplier || 'no'; if (f.gas === 'yes') f.gasbill = state.gas_bill_eur || 0; }
@@ -4872,6 +4876,9 @@ function flowSteps(){
     out.push(q);
     if (q === 'plan' && f.plan && f.plan !== 'unsure' && !String(f.plan).startsWith('guess:')) out.push('disc');
     if (q === 'heat' && f.heat === 'gas' && askGas()){ out.push('gas'); if (f.gas === 'yes') out.push('gasbill'); }
+    // Without a meter file we assume a typical home's hours. One question
+    // catches the commonest exception: water heated overnight on a timer.
+    if (q === 'heat' && f.heat === 'gas' && f.bill !== 'meter') out.push('night');
     if (q === 'solar' && (f.solar === 'have' || f.solar === 'thinking')) out.push('roof', 'tilt', 'panels', 'battery', 'price', 'grant');
     if (q === 'ev' && (f.ev === 'have' || f.ev === 'thinking')) out.push('km', 'car');
   }
@@ -4909,13 +4916,14 @@ function flowAnswer(q, v){
   } else if (q === 'plan'){ if (v === 'unsure'){ state.baseline = 'EI-24'; state.baseline_known = false; } else { state.baseline = v; state.baseline_known = true; } }
   if (q === 'gas') state.gas_same_supplier = v;
   if (q === 'meter') state.meter_type = v;
+  if (q === 'night') state.immersion_night = v === 'immersion';
   if (q === 'area') state.area = v === 'rural' ? 'rural' : 'urban';
   if (q === 'disc') state.baseline_discount_pct = Math.max(0, Math.min(60, Math.round(+v) || 0));
   if (q === 'gasbill') state.gas_bill_eur = Math.max(0, Math.round(+v) || 0);
   if ((q === 'heat' && v !== 'gas') || q === 'plan'){ delete f.gas; delete f.gasbill; }
   if (q === 'plan'){ delete f.disc; state.baseline_discount_pct = 0; }
   if (q === 'gas' && v !== 'yes') delete f.gasbill;
-  if (q === 'heat'){ state.heating_type = v; state.hot_water_strategy = DEFAULT_HW_FOR_HEATING[v] || 'none'; }
+  if (q === 'heat'){ state.heating_type = v; state.hot_water_strategy = DEFAULT_HW_FOR_HEATING[v] || 'none'; delete f.night; if (v !== 'gas') state.immersion_night = false; }
   if (q === 'bill' || q === 'heat') applyUsageInput();
   if (q === 'solar'){
     if (was !== v) clear(['roof', 'panels', 'battery']);
@@ -4999,6 +5007,7 @@ function renderFlow(){
     meter: ['Which electricity meter do you have?', 'It decides which plans you can switch to.'],
     area: ['Urban or rural?', 'It’s on your bill. Rural standing charges are about €70 a year higher.'],
     heat: ['How is the home heated?', ''],
+    night: ['Is water heated at night on a timer?', 'An immersion on a night timer moves a lot of use into the cheap hours.'],
     gas: [`Is your gas with ${esc(plan.supplier)} too?`, 'It changes what a switch is worth.'],
     gasbill: ['What’s your gas bill?', 'Every two months. Not sure? We’ll use a typical home.'],
     solar: ['Solar panels?', ''],
@@ -5018,6 +5027,7 @@ function renderFlow(){
     disc: (v) => (+v > 0 ? `${v}% discount` : 'No discount'),
     meter: (v) => ({ smart: 'Smart meter', '24hr': 'Standard meter', nightsaver: 'Day and night meter' })[v],
     area: (v) => (v === 'rural' ? 'Rural' : 'Urban'),
+    night: (v) => (v === 'immersion' ? 'Immersion at night' : 'Nothing at night'),
     heat: (v) => ({ gas: 'Gas or oil', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heaters' })[v],
     gas: (v) => (v === 'yes' ? `Gas with ${plan.supplier} too` : 'Gas with another supplier'),
     gasbill: (v) => (+v > 0 ? `Gas €${v} / 2 months` : 'Gas bill: typical home'),
@@ -5097,6 +5107,8 @@ function renderFlow(){
       <button class="fl-next" onclick="flowAnswer('gasbill', document.getElementById('flow-gas').value)">Next</button>
       <button class="v7-link" onclick="flowAnswer('gasbill', 0)">Not sure</button>`;
     if (q === 'gas') return `<div class="fl-opts">${opt('gas', 'yes', 'Yes, both with them')}${opt('gas', 'no', 'No, or oil')}</div>`;
+    if (q === 'night') return `<div class="fl-opts">${opt('night', 'no', 'No', 'Hot water from the boiler, or not on a timer')}${opt('night', 'immersion', 'Yes, the immersion', 'Set to come on overnight')}</div>
+      <button class="sg-link" onclick="flowAnswer('night', 'no')">Not sure (assume not)</button>`;
     if (q === 'meter') return `<div class="fl-opts">${opt('meter', 'smart', 'Smart meter', 'Most homes now. No meter readings')}${opt('meter', '24hr', 'Standard meter', 'One reading, the same rate all day')}${opt('meter', 'nightsaver', 'Day and night meter', 'Two readings, cheaper at night (Nightsaver)')}</div>
       <button class="sg-link" onclick="flowAnswer('meter', 'smart')">Not sure (assume smart)</button>`;
     if (q === 'area') return `<div class="fl-opts fl-two">${opt('area', 'urban', 'Urban', 'DG1 on your bill')}${opt('area', 'rural', 'Rural', 'DG2 on your bill')}</div>
@@ -10894,7 +10906,7 @@ const SCENARIO_FIELDS = [
   'has_solar','considering_solar','solar_planned','solar_is_estimate',
   'count_A','azimuth_A','tilt_A','count_B','azimuth_B','tilt_B','panel_w',
   'battery_kwh','install_cost','grant_seai','grant_is_manual','cost_is_manual',
-  'strategy_mode','charge_from_grid','hot_water_strategy','include_dynamic','meter_type','area',
+  'strategy_mode','charge_from_grid','hot_water_strategy','include_dynamic','meter_type','area','immersion_night',
   'ev_active','ev_in_bill','ev_km_per_year','ev_kwh_per_100km',
   'plan_overrides','_csv_imported','_csv_filename','_csv_days','_csv_periods'
 ];

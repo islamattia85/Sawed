@@ -714,6 +714,7 @@ test('first visit: one revealing page, answers fold into lines you can change, t
   // Change an earlier answer in place: the heating question reopens, the rest stays.
   await page.locator('.fl-chip', { hasText: 'Heat pump' }).click();
   await page.locator('.fl-opt', { hasText: 'Gas or oil' }).click();
+  await page.locator('.fl-opt', { hasText: /^No/ }).first().click();          // a gas home is asked about night use
   await expect(page.locator('.fl-reveal')).toBeVisible();
   const st = await page.evaluate(() => ({ bill: window.state.bimonthly_bill_eur, heat: window.state.heating_type, planned: window.state.solar_planned, split: window.state.count_B > 0, batt: window.state.battery_kwh, ev: window.state.ev_active }));
   expect(st).toEqual({ bill: 420, heat: 'gas', planned: true, split: true, batt: 5, ev: true });
@@ -773,6 +774,7 @@ test('the flow reveal: planned solar leads with the most you could save, the sam
   await page.locator('.fl-opt', { hasText: 'Urban' }).click();
   await page.getByRole('button', { name: /not sure: assume a standard plan/i }).click();
   await page.locator('.fl-opt', { hasText: 'Gas or oil' }).click();
+  await page.locator('.fl-opt', { hasText: /^No/ }).first().click();          // no immersion at night
   await page.locator('.fl-opt', { hasText: 'Thinking about it' }).click();
   await page.locator('.fl-opt', { hasText: 'South' }).first().click();
   await page.locator('.fl-opt', { hasText: 'typical' }).click();   // roof slope

@@ -140,12 +140,12 @@
         4
       ]
     },
-    "standing": 250.77,
+    "standing": 328.54,
     "exit": 50,
     "length": 12,
     "green": false,
     "export_rate": 0.195,
-    "verified_date": "2026-10-03",
+    "verified_date": "2026-10-05",
     "source": {
       "url": "https://www.electricireland.ie/switch/new-customer/price-plans?priceType=E",
       "anchor": [
@@ -159,8 +159,8 @@
       },
       "read": "2026-10-03"
     },
-    "notes": "Smart meter; Night Boost 02:00-04:00, 5.5% off unit rates, new customers. Urban standing charge €250.77 inc VAT: Electric Ireland's plan cards do not print it; it is consistent with each card's Estimated Annual Bill (4,200 kWh + standing + €19.10 PSO). CEG 19.5c not re-read from electricireland.ie in this check.",
-    "standing_rural": 322.71,
+    "notes": "Smart meter; Night Boost 02:00-04:00, 5.5% off unit rates, new customers. Urban standing charge €250.77 inc VAT: Electric Ireland's plan cards do not print it; it is consistent with each card's Estimated Annual Bill (4,200 kWh + standing + €19.10 PSO). CEG 19.5c not re-read from electricireland.ie in this check. Standing €328.54 (5 Oct 2026): Electric Ireland does not print it; it is the only figure that reproduces its own Estimated Annual Bill for this plan (€1,595), and matches bonkers.ie.",
+    "standing_rural": 400.48,
     "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"
   },
   {
@@ -2519,6 +2519,78 @@
     "notes": "communitypower.ie/tariffs, inc VAT, urban. UNVERIFIED from 1 Oct 2026: the page states these prices are effective 1 Oct 2025 to 30 Sep 2026 and no later list is published yet. Export not published.",
     "standing_rural": 353.73,
     "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"
+  },
+  {
+    "id": "EP-SST",
+    "supplier": "Ecopower",
+    "plan": "Standard Smart Electricity 10%",
+    "type": "tou",
+    "meter": "smart",
+    "rates": {
+      "day": 0.4088,
+      "night": 0.254,
+      "peak": 0.4796,
+      "ev": 0.254
+    },
+    "windows": {
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
+    "standing": 302.37,
+    "exit": 0,
+    "length": 12,
+    "green": true,
+    "export_rate": 0.152,
+    "verified_date": "2026-10-05",
+    "source": {
+      "url": "https://ecopower.ie/price-plan-26/",
+      "anchor": [
+        "Urban – SST Smart Meter – Domestic"
+      ],
+      "read": "2026-10-05"
+    },
+    "notes": "Ecopower's own price page, urban, 10% off for a 12-month fixed term, direct debit and email billing. The page prints prices excluding VAT (converted here at 9%) and says 'Standard Unit Rate Price valid as of the 8th October 2024'. bonkers.ie shows lower unit rates for these plans on 5 Oct 2026 (about 35.5c inc VAT on the 24-hour plan); the supplier's page is used. Export 15.2c inc VAT. Exit fee not published.",
+    "standing_rural": 334.19,
+    "standing_rural_source": "ecopower.ie price page, Rural Smart Meter €306.60 ex VAT"
+  },
+  {
+    "id": "EP-24",
+    "supplier": "Ecopower",
+    "plan": "Smart 24hr Electricity 10%",
+    "type": "flat",
+    "meter": "smart",
+    "rates": {
+      "day": 0.3793,
+      "night": 0.3793,
+      "peak": 0.3793,
+      "ev": 0.3793
+    },
+    "windows": {
+      "ev": null
+    },
+    "standing": 302.37,
+    "exit": 0,
+    "length": 12,
+    "green": true,
+    "export_rate": 0.152,
+    "verified_date": "2026-10-05",
+    "source": {
+      "url": "https://ecopower.ie/price-plan-26/",
+      "anchor": [
+        "Urban – 24 Hour Smart Meter – Domestic"
+      ],
+      "read": "2026-10-05"
+    },
+    "notes": "Ecopower's own price page, urban, 10% off for a 12-month fixed term, direct debit and email billing. The page prints prices excluding VAT (converted here at 9%) and says 'Standard Unit Rate Price valid as of the 8th October 2024'. bonkers.ie shows lower unit rates for these plans on 5 Oct 2026 (about 35.5c inc VAT on the 24-hour plan); the supplier's page is used. Export 15.2c inc VAT. Exit fee not published.",
+    "standing_rural": 334.19,
+    "standing_rural_source": "ecopower.ie price page, Rural Smart Meter €306.60 ex VAT"
   },
   {
     "id": "BG-SMART-ALL-DAY-ELECTRICITY",
