@@ -1219,7 +1219,7 @@ function cachedScenario(hasSolar, hasEv){
   const ck = JSON.stringify([hasSolar, hasEv, state.region, state.count_A, state.count_B,
     state.tilt_A, state.azimuth_A, state.battery_kwh, state.panel_w, state.heating_type,
     usageKey(), state.ev_km_per_year, state.baseline, state.chosen_plan,
-    state.hot_water_strategy, state.immersion_night, state.area, state._ghi_override,
+    state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.area, state._ghi_override,
     // The scenario now costs the current plan too, so its discount is an input.
     state.baseline_discount_pct]);
   const hit = singleScenarioMemo.get(ck);
@@ -1241,7 +1241,7 @@ function computeSolarPaybackScenarios(){
   const ck = JSON.stringify([state.region, state.count_A, state.count_B, state.azimuth_A, state.azimuth_B,
     state.tilt_A, state.tilt_B, state.battery_kwh, state.panel_w, state.install_cost, state.grant_seai,
     state.heating_type, usageKey(), state.ev_km_per_year, state.ev_kwh_per_100km,
-    state.fuel_price, state.ice_l_per_100km, state.hot_water_strategy, state.immersion_night, state.area, state.region, state.ev_in_bill,
+    state.fuel_price, state.ice_l_per_100km, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.area, state.region, state.ev_in_bill,
     // The hand-picked plan changes the with-solar side of every scenario.
     state.chosen_plan,
     // computeScenarioRange() re-runs this whole set at three different
@@ -1796,7 +1796,7 @@ function undoBar(){
 }
 function _undoKeep(){ _undo = null; renderApp(); }
 function computeOptimisations(){
-  const ck = JSON.stringify([state.strategy_mode, state.charge_from_grid, state.hot_water_strategy, state.immersion_night, state.area,
+  const ck = JSON.stringify([state.strategy_mode, state.charge_from_grid, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.area,
     state.export_enabled, state.battery_kwh, state.heating_type, usageKey(), state.region,
     state.count_A, state.count_B, state.has_solar, state.baseline, state.ev_active, state.ev_km_per_year, state.ev_in_bill]);
   if (CACHE._opt_ck === ck && CACHE._opt) return CACHE._opt;
@@ -2478,6 +2478,30 @@ function calibrateBillsToBaseline(){
   let target = (state.bimonthly_bill_eur || 0) * 6;
   if (target <= 60) return;
   let prevErr = Infinity;
+  // A home whose panels are already on the roof gets a bill for what it buys
+  // after the panels, less what it sells back. Calibrate against that, not
+  // against the house without them, or the panels are counted twice.
+  const installed = state.has_solar && !state.solar_planned && totalPanels() > 0;
+  if (installed){
+    // With panels (and perhaps a battery) the bill does not move in step with
+    // usage, so rescaling by the ratio overshoots. A bigger home always costs
+    // more, though, so halve the gap until the bill matches.
+    const start = { ...state.bills };
+    const costAt = (k) => {
+      for (const key in start) state.bills[key] = Math.max(1, Math.round(start[key] * k));
+      invalidate(); rebuildBase();
+      const plan = getPlanById(state.baseline); const sm = sim(state.baseline);
+      return sumF(sm.cost) - (sm.revenue ? sumF(sm.revenue) : 0) + plan.standing + PSO_LEVY;
+    };
+    let lo = 0.1, hi = 6;
+    for (let it = 0; it < 14; it++){
+      const mid = (lo + hi) / 2;
+      if (costAt(mid) < target) lo = mid; else hi = mid;
+    }
+    costAt((lo + hi) / 2);
+    invalidate();
+    return;
+  }
   for (let it = 0; it < 4; it++){
     invalidate();
     rebuildBase();
@@ -4881,6 +4905,7 @@ function flowSteps(){
     if (q === 'heat' && f.heat === 'gas' && f.bill !== 'meter') out.push('night');
     if (q === 'solar' && (f.solar === 'have' || f.solar === 'thinking')) out.push('roof', 'tilt', 'panels', 'battery', 'price', 'grant');
     if (q === 'ev' && (f.ev === 'have' || f.ev === 'thinking')) out.push('km', 'car');
+    if (q === 'ev' && f.ev === 'have') out.push('evtime');
   }
   return out;
 }
@@ -4917,6 +4942,7 @@ function flowAnswer(q, v){
   if (q === 'gas') state.gas_same_supplier = v;
   if (q === 'meter') state.meter_type = v;
   if (q === 'night') state.immersion_night = v === 'immersion';
+  if (q === 'evtime') state.ev_charge_time = v === 'evening' ? 'evening' : 'night';
   if (q === 'area') state.area = v === 'rural' ? 'rural' : 'urban';
   if (q === 'disc') state.baseline_discount_pct = Math.max(0, Math.min(60, Math.round(+v) || 0));
   if (q === 'gasbill') state.gas_bill_eur = Math.max(0, Math.round(+v) || 0);
@@ -4954,7 +4980,7 @@ function flowAnswer(q, v){
   }
   if (q === 'grant'){ state.grant_eligible = v !== 'no'; state.grant_is_manual = false; applyEstimatedSolarCost(); }
   if (q === 'ev'){
-    if (was !== v) clear(['km', 'car']);
+    if (was !== v) clear(['km', 'car', 'evtime']);
     state.ev_active = v !== 'no'; state.ev_in_bill = v === 'have';
     if (state.ev_active && !(state.ev_km_per_year > 0)) state.ev_km_per_year = 16000;
     if (!state.ev_active) state.ev_km_per_year = 0;
@@ -4962,6 +4988,8 @@ function flowAnswer(q, v){
   if (q === 'km') state.ev_km_per_year = +v;
   if (q === 'car') state.ev_kwh_per_100km = +v;
   if (state.has_solar && totalPanels() > 0) applyEstimatedSolarCost();
+  // Panels already on the roof change what the bill means: re-read it.
+  if (['solar', 'roof', 'tilt', 'panels', 'battery'].includes(q) && state.usage_input_mode !== 'kwh' && !state._csv_imported) applyUsageInput();
   state._flow_edit = null;
   try { applyRegion(state.region || 'east'); } catch (e) {}
   invalidate(); saveState(); renderApp();
@@ -5007,6 +5035,7 @@ function renderFlow(){
     meter: ['Which electricity meter do you have?', 'It decides which plans you can switch to.'],
     area: ['Urban or rural?', 'It’s on your bill. Rural standing charges are about €70 a year higher.'],
     heat: ['How is the home heated?', ''],
+    evtime: ['When does the car usually charge?', 'Night-rate and EV plans only pay off if it charges in their cheap hours.'],
     night: ['Is water heated at night on a timer?', 'An immersion on a night timer moves a lot of use into the cheap hours.'],
     gas: [`Is your gas with ${esc(plan.supplier)} too?`, 'It changes what a switch is worth.'],
     gasbill: ['What’s your gas bill?', 'Every two months. Not sure? We’ll use a typical home.'],
@@ -5028,6 +5057,7 @@ function renderFlow(){
     meter: (v) => ({ smart: 'Smart meter', '24hr': 'Standard meter', nightsaver: 'Day and night meter' })[v],
     area: (v) => (v === 'rural' ? 'Rural' : 'Urban'),
     night: (v) => (v === 'immersion' ? 'Immersion at night' : 'Nothing at night'),
+    evtime: (v) => (v === 'evening' ? 'Car charges in the evening' : 'Car charges overnight'),
     heat: (v) => ({ gas: 'Gas or oil', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heaters' })[v],
     gas: (v) => (v === 'yes' ? `Gas with ${plan.supplier} too` : 'Gas with another supplier'),
     gasbill: (v) => (+v > 0 ? `Gas €${v} / 2 months` : 'Gas bill: typical home'),
@@ -5107,6 +5137,7 @@ function renderFlow(){
       <button class="fl-next" onclick="flowAnswer('gasbill', document.getElementById('flow-gas').value)">Next</button>
       <button class="v7-link" onclick="flowAnswer('gasbill', 0)">Not sure</button>`;
     if (q === 'gas') return `<div class="fl-opts">${opt('gas', 'yes', 'Yes, both with them')}${opt('gas', 'no', 'No, or oil')}</div>`;
+    if (q === 'evtime') return `<div class="fl-opts">${opt('evtime', 'night', 'Overnight, on a timer', 'Or the car or charger is set to the cheap hours')}${opt('evtime', 'evening', 'As soon as I plug in', 'Usually in the evening')}</div>`;
     if (q === 'night') return `<div class="fl-opts">${opt('night', 'no', 'No', 'Hot water from the boiler, or not on a timer')}${opt('night', 'immersion', 'Yes, the immersion', 'Set to come on overnight')}</div>
       <button class="sg-link" onclick="flowAnswer('night', 'no')">Not sure (assume not)</button>`;
     if (q === 'meter') return `<div class="fl-opts">${opt('meter', 'smart', 'Smart meter', 'Most homes now. No meter readings')}${opt('meter', '24hr', 'Standard meter', 'One reading, the same rate all day')}${opt('meter', 'nightsaver', 'Day and night meter', 'Two readings, cheaper at night (Nightsaver)')}</div>
@@ -10906,7 +10937,7 @@ const SCENARIO_FIELDS = [
   'has_solar','considering_solar','solar_planned','solar_is_estimate',
   'count_A','azimuth_A','tilt_A','count_B','azimuth_B','tilt_B','panel_w',
   'battery_kwh','install_cost','grant_seai','grant_is_manual','cost_is_manual',
-  'strategy_mode','charge_from_grid','hot_water_strategy','include_dynamic','meter_type','area','immersion_night',
+  'strategy_mode','charge_from_grid','hot_water_strategy','include_dynamic','meter_type','area','immersion_night','ev_charge_time',
   'ev_active','ev_in_bill','ev_km_per_year','ev_kwh_per_100km',
   'plan_overrides','_csv_imported','_csv_filename','_csv_days','_csv_periods'
 ];
@@ -12045,6 +12076,10 @@ function parseCsvHdf(text, filename){
       const keep = Object.keys(merged).sort().slice(-400);
       const days = {}; keep.forEach((d) => { days[d] = merged[d]; });
       if (keep.length) state.meter = { days, imported_at: new Date().toISOString() };
+      // What the home sold back over the file's year, for homes whose panels are not modelled.
+      const yr = keep.slice(-365);
+      const exp = yr.reduce((a, d) => a + days[d].slice(24).reduce((x, y) => x + y, 0), 0);
+      state._csv_export_kwh = yr.length ? Math.round(exp * 365 / yr.length) : 0;
     } catch (e) { /* the yearly figures above do not depend on this */ }
 
     // Only store the hourly shape if we have good coverage (at least 20 of 24 hours with data)

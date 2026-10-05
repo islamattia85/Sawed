@@ -424,9 +424,12 @@ export function buildConsumption(){
     const overflowKwh = Math.max(0, dailyEvKwh - nightCapacityKwh);
     const nightPerHour = nightKwh / 3;
     const dayPerHour = overflowKwh / 4;
+    // Charged on a timer in the small hours, or as soon as it is plugged in
+    // after work (asked in setup): the same energy, very different prices.
+    const evening = state.ev_charge_time === 'evening';
     for (let i=0; i<HOURS_IN_YEAR; i++){
       const h = i % 24;
-      if (h >= 2 && h < 5) cons[i] += nightPerHour;
+      if (evening ? (h >= 18 && h < 21) : (h >= 2 && h < 5)) cons[i] += nightPerHour;
       else if (h >= 6 && h < 10 && overflowKwh > 0) cons[i] += dayPerHour;
     }
   }
@@ -708,6 +711,20 @@ export function rebuildBase(){
   CACHE.dirty = false;
 }
 
+
+/**
+ * A meter file from a home with panels records what it sold back. When the
+ * panels themselves are not modelled, that export is still paid for: credit it
+ * at each plan's export rate (a flat rate, so the hours do not matter).
+ */
+function creditFileExport(r, plan){
+  if (state.has_solar || !state._csv_imported || !(state._csv_export_kwh > 0)) return r;
+  const n = r.cost.length, per = state._csv_export_kwh * (plan.export_rate || 0) / n;
+  const rev = new Float32Array(n);
+  for (let i = 0; i < n; i++) rev[i] = per + (r.revenue ? r.revenue[i] : 0);
+  r.revenue = rev;
+  return r;
+}
 export function sim(planId){
   if (CACHE.dirty) rebuildBase();
   if (CACHE.sims[planId]) return CACHE.sims[planId];
@@ -734,7 +751,7 @@ export function sim(planId){
   } else {
     ssim = run(eff.mode, eff.charge_from_grid);
   }
-  CACHE.sims[planId] = ssim;
+  CACHE.sims[planId] = creditFileExport(ssim, plan);
   return CACHE.sims[planId];
 }
 export function baselineSim(planId){
@@ -748,6 +765,7 @@ export function baselineSim(planId){
   const bsim = simulateBaseline(getPlanById(planId), baseCons);
   const df = baselineDiscountFactor(planId);
   if (df !== 1){ for (let i = 0; i < bsim.cost.length; i++) bsim.cost[i] *= df; }
+  creditFileExport(bsim, getPlanById(planId));
   CACHE.baselines[planId] = bsim;
   return CACHE.baselines[planId];
 }
@@ -763,7 +781,7 @@ export function baselineNet(planId){
   const bs = baselineSim(planId);
   if (!bs) return 0;
   const plan = getPlanById(planId);
-  return sumF(bs.cost) + (plan ? plan.standing + PSO_LEVY + annualCost(bs, plan).outlook_extra : 0);
+  return sumF(bs.cost) - (bs.revenue ? sumF(bs.revenue) : 0) + (plan ? plan.standing + PSO_LEVY + annualCost(bs, plan).outlook_extra : 0);
 }
 
 // Coerce critical numeric state to real, in-range numbers. State can arrive
@@ -920,7 +938,7 @@ export const SIM_FIELDS = [
   'battery_kwh', 'strategy_mode', 'charge_from_grid',
   'install_cost', 'grant_seai',
   'ev_active', 'ev_in_bill', 'ev_km_per_year', 'ev_kwh_per_100km',
-  'heating_type', 'hot_water_strategy', 'immersion_night', 'region', 'area', 'meter_type',
+  'heating_type', 'hot_water_strategy', 'immersion_night', 'ev_charge_time', 'region', 'area', 'meter_type',
   'baseline', 'baseline_discount_pct', 'chosen_plan', 'include_dynamic',
   // Registering for export payments is a lever the optimisation advisor trials
   // by turning it OFF. It was missing here, so opening the Solar tab left it
@@ -1204,7 +1222,7 @@ export const GOAL_BATTS  = [0, 5, 10];
 export function goalSweepCk(){
   return JSON.stringify(['goalsweep', state.region, state.heating_type, state.bimonthly_bill_eur,
     JSON.stringify(state.bills), state.ev_active, state.ev_in_bill, state.ev_km_per_year,
-    state.ev_kwh_per_100km, state.azimuth_A, state.tilt_A, state.panel_w, state.hot_water_strategy, state.immersion_night, state.area, state.grant_eligible !== false,
+    state.ev_kwh_per_100km, state.azimuth_A, state.tilt_A, state.panel_w, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.area, state.grant_eligible !== false,
     // The roof as it is used: one face, or two and how the panels share them.
     state.count_B > 0 ? [state.azimuth_B, state.tilt_B, +(state.count_B / Math.max(1, totalPanels())).toFixed(2)] : 0]);
 }
