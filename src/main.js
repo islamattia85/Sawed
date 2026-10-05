@@ -2733,8 +2733,8 @@ function renderWelcome(){
       <p class="pk-land-sub">We price every Irish electricity plan on how your home uses power, with or without solar, a battery or an EV. Free.</p>
     </div>
     <div class="pk-land-actions">
-      <button class="pk-btn-gold pk-route" onclick="startFlow('quick')"><b>Am I paying too much?</b><small>About a minute: your bill and your plan</small></button>
-      <button class="pk-btn-route" onclick="startFlow('full')"><b>Planning solar, a battery or an EV</b><small>A few minutes, one question at a time</small></button>
+      <button class="pk-btn-gold pk-route" onclick="startFlow('quick')"><span><b>Am I paying too much?</b><small>About a minute: your bill and your plan</small></span><i class="pk-route-ico" aria-hidden="true">${ic('euro', 26)}</i></button>
+      <button class="pk-btn-route" onclick="startFlow('full')"><span><b>Planning solar, a battery or an EV</b><small>A few minutes, one question at a time</small></span><i class="pk-route-ico" aria-hidden="true">${ic('sun', 18)}${ic('battery', 18)}${ic('car', 18)}</i></button>
       <button class="pk-link" onclick="${state.onboarding_complete ? "setScreen('solar');v7Sheet('quote')" : 'navigateAuditor()'}">${ic('clip', 14)} Already have a solar quote? Check it</button>
       ${state.onboarding_complete ? `<button class="pk-land-link" onclick="setScreen('result')">${ic('chevL', 14)} Back to my results</button>` : ''}
       <div class="pk-land-trust">${TARIFFS.length} plans · prices checked daily · your data stays on this phone</div>
