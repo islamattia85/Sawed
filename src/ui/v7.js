@@ -444,7 +444,7 @@ export function createV7(api) {
     const invites = [];
     if (!sys) invites.push(api.hasModelledSystem()
       ? `<button class="hc-invite" onclick="toggleSolarModel()">${api.ic('sun', 18)}<span><b>Your ${st.solar_planned ? 'planned ' : ''}solar is left out</b>${api.totalPanels()} panels${st._kept_battery ? ` and a ${st._kept_battery} kWh battery` : ''}, kept for you. Tap to include it again</span>${api.ic('chevR', 18)}</button>`
-      : `<button class="hc-invite" onclick="startSolarGuide()">${api.ic('sun', 18)}<span><b>Thinking about solar?</b>See if it pays off, in a few taps</span>${api.ic('chevR', 18)}</button>`);
+      : `<button class="hc-invite" onclick="startSolarFlow()">${api.ic('sun', 18)}<span><b>Thinking about solar?</b>See if it pays off, in a few taps</span>${api.ic('chevR', 18)}</button>`);
     if (!st.ev_active && st._ev_left_out) invites.push(`<button class="hc-invite" onclick="toggleEvModel()">${api.ic('car', 18)}<span><b>Your ${st.ev_in_bill ? '' : 'planned '}EV is left out</b>${(st.ev_km_per_year || 0).toLocaleString('en-IE')} km a year, kept for you. Tap to include it again</span>${api.ic('chevR', 18)}</button>`);
     else if (!st.ev_active) invites.push(`<button class="hc-invite" onclick="startEvGuide()">${api.ic('car', 18)}<span><b>Thinking about an EV?</b>What it would cost to charge here</span>${api.ic('chevR', 18)}</button>`);
     return out + invites.join('');
@@ -607,8 +607,7 @@ export function createV7(api) {
           <span><i class="v7-dot" style="background:var(--bandink-day)"></i>day</span>
           <span><i class="v7-dot" style="background:var(--bandink-peak)"></i>peak</span>
           <span><i class="v7-dot" style="background:var(--bandink-ev)"></i>EV</span>
-          ${api.latestVerifiedLabel() ? `<span class="plan-verified">Rates verified ${api.latestVerifiedLabel()} · ${ranked.length} active plans</span>` : ''}
-          ${ranked[0] && /is-stale/.test(api.freshnessChip(ranked[0].plan)) ? `<div class="v7-notices">${api.freshnessChip(ranked[0].plan)}</div>` : ""}
+          ${ranked[0] ? `<div class="v7-notices">${api.freshnessChip(ranked[0].plan)}</div>` : ''}
         </div>
       </div>
 

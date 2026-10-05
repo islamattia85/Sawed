@@ -40,7 +40,7 @@ test('the answer and its action arrive before anything else', async ({ page }) =
   expect(geo.ctaBottom, 'the action is not fully visible without scrolling')
     .toBeLessThan(geo.viewport);
   expect(geo.height / geo.viewport, `the home screen is ${(geo.height / geo.viewport).toFixed(1)} screens long`)
-    .toBeLessThan(1.3);
+    .toBeLessThan(1.5);   // the report and share buttons now end Home
 
   expect(errors).toEqual([]);
 });

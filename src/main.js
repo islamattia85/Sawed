@@ -4001,7 +4001,7 @@ function freshnessChip(plan){
   const label = stale
     ? `Rates last checked ${stale.days} days ago`
     : `Rates verified ${fmtVerifiedDate(latestVerifiedDate())}`;
-  return `<button class="fresh-chip ${stale ? 'is-stale' : ''}" onclick="setScreen('plans')">
+  return `<button class="fresh-chip plan-verified ${stale ? 'is-stale' : ''}" onclick="setScreen('plans')">
     <span class="fresh-dot" aria-hidden="true"></span>${label}<span class="fresh-chev">\u203a</span>
   </button>`;
 }
@@ -4477,6 +4477,34 @@ function applyEstimatedSolarCost(){
  * analysis is one tap after it. */
 const SG_STEPS = 5;
 let _sgBefore = null;
+/**
+ * "Thinking about solar?" opens the detailed solar questions (roof, tilt,
+ * panels, battery, price, grant), the same ones the full setup asks. The
+ * home's other answers are filled in from what it already says, so only the
+ * solar questions are open. Leaving early puts the home back as it was.
+ */
+function startSolarFlow(){
+  if (!state.onboarding_complete) return startSolarGuide();
+  _flowBefore = structuredClone(state); _flowFrom = state.current_screen || 'result';
+  const f = { bill: state.bimonthly_bill_eur || 250,
+    plan: state.baseline_known ? state.baseline : 'unsure', heat: state.heating_type || 'gas',
+    ev: state.ev_active ? (state.ev_in_bill ? 'have' : 'thinking') : 'no' };
+  if (state.baseline_known) f.disc = state.baseline_discount_pct || 0;
+  // Only the solar questions are open: gas not answered yet stays as it is (not asked here).
+  if (f.heat === 'gas'){ f.gas = state.gas_same_supplier || 'no'; if (f.gas === 'yes') f.gasbill = state.gas_bill_eur || 0; }
+  if (state.ev_active){ f.km = state.ev_km_per_year || 16000; f.car = state.ev_kwh_per_100km || 17; }
+  guidePush('flow', 0);
+  state._flow = f; state._flow_edit = null; state._flow_mode = 'full';
+  state.current_screen = 'flow';
+  flowAnswer('solar', 'thinking');
+}
+let _flowBefore = null, _flowFrom = 'result';
+/** Back out of a topic opened from Home: nothing it changed is kept. */
+function flowLeave(){
+  const to = _flowBefore ? _flowFrom : 'result';
+  if (_flowBefore){ const b = _flowBefore; _flowBefore = null; Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, b); invalidate(); }
+  state._flow = null; setScreen(to);
+}
 function startSolarGuide(){
   // Nothing the guide changes counts until its answer is accepted: leaving
   // early puts the home back exactly as it was.
@@ -4932,7 +4960,7 @@ function flowUpgrade(){
 function flowFinish(then){
   state.onboarding_complete = true;
   state.seen_intro = true;
-  state._flow = null; state._flow_edit = null;
+  state._flow = null; state._flow_edit = null; _flowBefore = null;
   if (state.has_solar && totalPanels() > 0) snapshotMySystem();
   state.current_screen = 'result';
   saveState();
@@ -5106,7 +5134,7 @@ function renderFlow(){
   const done = steps.filter((s) => s in f).length;
   return `<div class="fl">
     <div class="fl-top">
-      <button class="sg-back" onclick="${state.onboarding_complete ? "state._flow=null;setScreen('result')" : 'goLanding()'}" aria-label="Back">${ic('chevL', 18)}</button>
+      <button class="sg-back" onclick="${state.onboarding_complete ? 'flowLeave()' : 'goLanding()'}" aria-label="Back">${ic('chevL', 18)}</button>
       <span class="fl-word">${wordmarkHtml('pk-word-top')}</span>
     </div>
     <div class="sg-progress fl-prog"><i style="width:${finished ? 100 : Math.round(done / steps.length * 100)}%"></i></div>
@@ -9931,7 +9959,7 @@ function v7HasModelledSystem(){ return !!state.considering_solar && totalPanels(
 function toggleSolarModel(){
   // Nothing of theirs to bring back: rather than invent a system, open the
   // short solar guide, which says what it will do and changes nothing unless kept.
-  if (!state.has_solar && !v7HasModelledSystem()) return startSolarGuide();
+  if (!state.has_solar && !v7HasModelledSystem()) return startSolarFlow();
   const on = !state.has_solar;
   state.has_solar = on;
   // The battery is part of the solar system: leaving solar out leaves it out
@@ -10740,6 +10768,7 @@ window.addEventListener('popstate', function(e){
     if (g === 'flow' && st.guide === 'flow'){ renderApp(); return; }
     if (g === 'ev-guide') egCancel();
     else if (g === 'solar-guide') sgCancel();
+    else if (_flowBefore){ _suppressHistoryPush = true; try { flowLeave(); } finally { _suppressHistoryPush = false; } }
     else { state._flow = null; state.current_screen = state.onboarding_complete ? 'result' : 'welcome'; saveState(); renderApp(); }
     return;
   }
@@ -12353,6 +12382,8 @@ window.undoLast = undoLast;
 window._undoKeep = _undoKeep;
 window.useGoalDesign = useGoalDesign;
 window.startSolarGuide = startSolarGuide;
+window.flowLeave = flowLeave;
+window.startSolarFlow = startSolarFlow;
 window.startFlow = startFlow;
 window.plannedSolarSplit = plannedSolarSplit;
 window.flowAnswer = flowAnswer;
