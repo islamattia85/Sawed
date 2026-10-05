@@ -5208,7 +5208,7 @@ function renderFlow(){
     if (q === 'evtime') return `<div class="fl-opts">${opt('evtime', 'night', 'Overnight, on a timer', 'Or the car or charger is set to the cheap hours')}${opt('evtime', 'evening', 'As soon as I plug in', 'Usually in the evening')}</div>`;
     if (q === 'night') return `<div class="fl-opts">${opt('night', 'no', 'No', 'Hot water from the boiler, or not on a timer')}${opt('night', 'immersion', 'Yes, the immersion', 'Set to come on overnight')}</div>
       <button class="sg-link" onclick="flowAnswer('night', 'no')">Not sure (assume not)</button>`;
-    if (q === 'house') return `<div class="fl-opts fl-two">${opt('house', 'terraced', 'Terraced', 'Room for about 6–10 panels')}${opt('house', 'semi', 'Semi-detached', 'About 8–14')}${opt('house', 'detached', 'Detached', 'About 12–20')}${opt('house', 'bungalow', 'Bungalow', 'About 10–18')}</div>
+    if (q === 'house') return `<div class="fl-opts fl-two">${opt('house', 'terraced', 'Terraced', 'Up to 10 panels, 18 on two faces')}${opt('house', 'semi', 'Semi-detached', 'Up to 14, 26 on two faces')}${opt('house', 'detached', 'Detached', 'Up to 20, 36 on two faces')}${opt('house', 'bungalow', 'Bungalow', 'Up to 18, 32 on two faces')}</div>
       ${opt('house', 'apartment', 'Apartment', 'Only with a roof of your own')}`;
     if (q === 'system') return flowSystemStep(opt);
     if (q === 'where') return `<div class="fl-where">${renderIrelandMap(state.region || 'east').replace(/setRegion\('/g, "flowAnswer('where', '")}</div>

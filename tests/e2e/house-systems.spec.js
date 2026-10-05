@@ -11,3 +11,4 @@ test('a terraced house is offered systems that fit its roof, and picking one set
   await cards.first().click();
   expect(await page.evaluate(() => state.count_A + state.count_B)).toBe(n);
 });
+

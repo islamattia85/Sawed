@@ -1236,10 +1236,14 @@ export const GOAL_PANELS = [6, 9, 12, 15];
  * tried stay within it, and the largest the roof takes is always tried.
  */
 export const ROOF_MAX_PANELS = { apartment: 6, terraced: 10, semi: 14, detached: 20, bungalow: 18 };
+/** With panels on both faces of the roof (east and west, say). */
+export const ROOF_MAX_PANELS_TWO = { apartment: 6, terraced: 18, semi: 26, detached: 36, bungalow: 32 };
 export function goalPanels(){
-  const max = ROOF_MAX_PANELS[state.house_type];
+  const max = (state.count_B > 0 ? ROOF_MAX_PANELS_TWO : ROOF_MAX_PANELS)[state.house_type];
   if (!max) return GOAL_PANELS;
-  const sizes = [6, 8, 10, 12, 14, 16, 18, 20].filter((p) => p <= max);
+  const sizes = [];
+  for (let p = 6; p < max; p += 2) sizes.push(p);
+  sizes.push(max);
   return sizes.length > 4 ? [sizes[0], sizes[Math.round((sizes.length - 1) / 3)], sizes[Math.round(2 * (sizes.length - 1) / 3)], max] : sizes;
 }
 export const GOAL_BATTS  = [0, 5, 10];
