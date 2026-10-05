@@ -700,6 +700,7 @@ test('first visit: one revealing page, answers fold into lines you can change, t
   await page.locator('.fl-opt', { hasText: 'Heat pump' }).click();
   await page.locator('.fl-opt', { hasText: 'Through the day' }).click();
   await page.locator('.fl-opt', { hasText: 'Thinking about it' }).click();
+  await page.locator('.fl-opt', { hasText: 'East / Dublin' }).click();          // where in Ireland
   await expect(page.locator('.fl-q h2')).toContainText('Which way does the roof face');
   await page.locator('.fl-opt', { hasText: 'East and west' }).click();
   await page.locator('.fl-opt', { hasText: 'typical' }).click();   // roof slope
@@ -777,6 +778,7 @@ test('the flow reveal: planned solar leads with the most you could save, the sam
   await page.locator('.fl-opt', { hasText: 'Gas or oil' }).click();
   await page.locator('.fl-opt', { hasText: /^No/ }).first().click();          // no immersion at night
   await page.locator('.fl-opt', { hasText: 'Thinking about it' }).click();
+  await page.locator('.fl-opt', { hasText: 'East / Dublin' }).click();          // where in Ireland
   await page.locator('.fl-opt', { hasText: 'South' }).first().click();
   await page.locator('.fl-opt', { hasText: 'typical' }).click();   // roof slope
   await page.locator('.fl-opt', { hasText: 'suggested' }).click();

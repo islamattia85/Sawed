@@ -4548,6 +4548,7 @@ function startSolarFlow(){
     plan: state.baseline_known ? state.baseline : 'unsure', heat: state.heating_type || 'gas',
     ev: state.ev_active ? (state.ev_in_bill ? 'have' : 'thinking') : 'no',
     meter: state.meter_type || 'smart', area: state.area || 'urban' };
+  if (state.region_asked) f.where = state.region;
   if (f.heat === 'gas') f.night = state.immersion_night ? 'immersion' : 'no';
   if (state.baseline_known) f.disc = state.baseline_discount_pct || 0;
   // Only the solar questions are open: gas not answered yet stays as it is (not asked here).
@@ -4923,6 +4924,8 @@ function flowSteps(){
     // catches the commonest exception: water heated overnight on a timer.
     if (q === 'heat' && f.heat === 'gas' && f.bill !== 'meter') out.push('night');
     if (q === 'heat' && (f.heat === 'heatpump' || f.heat === 'storage') && f.bill !== 'meter') out.push('heattime');
+    // Where in Ireland: sunshine for panels, and temperature for a heat pump.
+    if (q === 'solar' && (f.solar === 'have' || f.solar === 'thinking' || f.heat === 'heatpump')) out.push('where');
     if (q === 'solar' && (f.solar === 'have' || f.solar === 'thinking')) out.push('roof', 'tilt', 'panels', 'battery', 'price', 'grant');
     if (q === 'ev' && (f.ev === 'have' || f.ev === 'thinking')) out.push('km', 'car');
     if (q === 'ev' && f.ev === 'have') out.push('evtime');
@@ -4961,6 +4964,7 @@ function flowAnswer(q, v){
   } else if (q === 'plan'){ if (v === 'unsure'){ state.baseline = 'EI-24'; state.baseline_known = false; } else { state.baseline = v; state.baseline_known = true; } }
   if (q === 'gas') state.gas_same_supplier = v;
   if (q === 'meter') state.meter_type = v;
+  if (q === 'where' && IRISH_REGIONS[v]){ state.region = v; state.region_asked = true; applyRegion(v); }
   if (q === 'night') state.immersion_night = v === 'immersion';
   if (q === 'evtime') state.ev_charge_time = v === 'evening' ? 'evening' : 'night';
   if (q === 'heattime') state.heat_time = v === 'night' ? 'night' : 'day';
@@ -5053,6 +5057,7 @@ function renderFlow(){
     bill: ['What’s your electricity bill?', 'Every two months, electricity only.'],
     plan: ['Who do you pay now?', 'Not sure? We’ll estimate.'],
     disc: ['Any discount on your bill?', 'It’s on your bill, as a % off the unit rates.'],
+    where: ['Where in Ireland is the home?', 'The sunshine, and how cold it gets, differ by region.'],
     meter: ['Which electricity meter do you have?', 'It decides which plans you can switch to.'],
     area: ['Urban or rural?', 'It’s on your bill. Rural standing charges are about €70 a year higher.'],
     heat: ['How is the home heated?', ''],
@@ -5078,6 +5083,7 @@ function renderFlow(){
     bill: (v) => v === 'meter' ? 'Smart-meter data' : String(v).startsWith('kwh:') ? `${(+String(v).slice(4)).toLocaleString('en-IE')} kWh a year` : `€${v} / 2 months`,
     plan: (v) => v === 'unsure' ? 'Plan not sure' : String(v).startsWith('guess:') ? `${(getPlanById(String(v).slice(6)) || {}).supplier}, plan not sure` : (() => { const p = getPlanById(v); return `${p.supplier} ${p.plan}`; })(),
     disc: (v) => (+v > 0 ? `${v}% discount` : 'No discount'),
+    where: (v) => (IRISH_REGIONS[v] || {}).name || v,
     meter: (v) => ({ smart: 'Smart meter', '24hr': 'Standard meter', nightsaver: 'Day and night meter' })[v],
     area: (v) => (v === 'rural' ? 'Rural' : 'Urban'),
     night: (v) => (v === 'immersion' ? 'Immersion at night' : 'Nothing at night'),
@@ -5168,6 +5174,8 @@ function renderFlow(){
     if (q === 'evtime') return `<div class="fl-opts">${opt('evtime', 'night', 'Overnight, on a timer', 'Or the car or charger is set to the cheap hours')}${opt('evtime', 'evening', 'As soon as I plug in', 'Usually in the evening')}</div>`;
     if (q === 'night') return `<div class="fl-opts">${opt('night', 'no', 'No', 'Hot water from the boiler, or not on a timer')}${opt('night', 'immersion', 'Yes, the immersion', 'Set to come on overnight')}</div>
       <button class="sg-link" onclick="flowAnswer('night', 'no')">Not sure (assume not)</button>`;
+    if (q === 'where') return `<div class="fl-where">${renderIrelandMap(state.region || 'east').replace(/setRegion\('/g, "flowAnswer('where', '")}</div>
+      <div class="fl-opts fl-two">${Object.entries(IRISH_REGIONS).map(([id, r]) => opt('where', id, r.name, r.counties)).join('')}</div>`;
     if (q === 'meter') return `<div class="fl-opts">${opt('meter', 'smart', 'Smart meter', 'Most homes now. No meter readings')}${opt('meter', '24hr', 'Standard meter', 'One reading, the same rate all day')}${opt('meter', 'nightsaver', 'Day and night meter', 'Two readings, cheaper at night (Nightsaver)')}</div>
       <button class="sg-link" onclick="flowAnswer('meter', 'smart')">Not sure (assume smart)</button>`;
     if (q === 'area') return `<div class="fl-opts fl-two">${opt('area', 'urban', 'Urban', 'DG1 on your bill')}${opt('area', 'rural', 'Rural', 'DG2 on your bill')}</div>

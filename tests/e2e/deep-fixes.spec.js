@@ -75,3 +75,15 @@ test('storage heaters charged only overnight put more of the bill on the night r
   const day = await run('day'), night = await run('night');
   expect(night).toBeLessThan(day - 50);
 });
+
+test('setup asks where in Ireland for a solar home, and the answer changes what the panels make', async ({ page }) => {
+  const gen = async (where) => { await fresh(page); return page.evaluate((w) => {
+    startFlow('full'); flowAnswer('bill', 250); flowAnswer('meter', 'smart'); flowAnswer('area', 'urban'); flowAnswer('plan', 'EI-24'); flowAnswer('disc', 0);
+    flowAnswer('heat', 'gas'); flowAnswer('gas', 'no'); flowAnswer('night', 'no'); flowAnswer('solar', 'thinking');
+    const asked = document.querySelector('.fl-q h2').textContent;
+    flowAnswer('where', w); return { asked, region: window.state.region, kwh: window.v7SolarData ? Math.round(window.v7SolarData().cur.gen || 0) : 0, mult: window.state.region };
+  }, where); };
+  const s = await gen('south'), n = await gen('northwest');
+  expect(s.asked).toContain('Where in Ireland');
+  expect([s.region, n.region]).toEqual(['south', 'northwest']);
+});

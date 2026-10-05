@@ -140,7 +140,7 @@ test('opening solar from Home and backing out leaves Home exactly as it was', as
   await boot(page, { current_screen: 'result', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
   const before = await page.locator('.v7-basis-line').textContent();
   await page.getByRole('button', { name: /Thinking about solar/ }).click();
-  await expect(page.locator('.fl-q h2')).toContainText('Which way does the roof face');   // straight to the solar questions
+  await expect(page.locator('.fl-q h2')).toContainText('Where in Ireland is the home');   // straight to the solar questions
   await page.goBack();
   await expect.poll(() => screen(page)).toBe('result');
   expect(await page.evaluate(() => [window.state.has_solar, window.state.count_A])).toEqual([false, 0]);
@@ -164,7 +164,7 @@ test('the first visit asks for the supplier, then that supplier\'s plan', async 
 test('"Include solar" with no system asks first instead of inventing one', async ({ page }) => {
   await boot(page, { current_screen: 'result', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0 });
   await page.evaluate(() => window.toggleSolarModel());
-  await expect(page.locator('.fl-q h2')).toContainText('Which way does the roof face');
+  await expect(page.locator('.fl-q h2')).toContainText('Where in Ireland is the home');
   await page.locator('.sg-back').click();
   await expect.poll(() => screen(page)).toBe('result');
   expect(await page.evaluate(() => window.state.has_solar)).toBe(false);
