@@ -1,0 +1,39 @@
+##Smart Data 23%
+Tariff eligibility	This tariff is only available to new customers
+Unit rate (cent per kWh)	
+Smart Data 23%
+Day:30.65 cent(33.4085 cent incl. VAT at 9.0%)
+Mondays to Sundays from 8:00 to 17:00 and 19:00 to 23:00
+Night:20.94 cent(22.8246 cent incl. VAT at 9.0%)
+Mondays to Sundays from 23:00 to 8:00
+Peak:35.09 cent(38.2481 cent incl. VAT at 9.0%)
+Mondays to Sundays from 17:00 to 19:00
+
+Your consumption	
+Smart Data 23%
+Day: 2,264 kWh€693.98(€756.44 incl. VAT at 9.0%)
+Night: 1,551 kWh€324.87(€354.10 incl. VAT at 9.0%)
+Peak: 377 kWh€132.42(€144.34 incl. VAT at 9.0%)
+
+Annual standing charge	
+Smart Data 23%
+€255.29(€278.27 incl. VAT at 9.0%)
+
+Annual PSO levy	
+Smart Data 23%
+€6.12(€6.67 incl. VAT at 9.0%)
+Calculations
+ELECTRICITY ESTIMATED ANNUAL BILL	CURRENT PLAN	NEW PLAN
+Your consumption (4,193 kWh)	€1,617.03	€1,151.27
+Annual standing charge	€260.06	€255.29
+Annual PSO levy	€6.12	€6.12
+9.0% VAT on all energy products	€169.49	€127.14
+Estimated annual bill (incl. VAT)	€2,052.70	€1,539.82
+Total savings		€512.88 in year 1
+About Energia
+
+Energia’s residential gas and electricity price plans launched in January 2014. Energia has been providing gas and electricity to Irish businesses since 1999.
+
+Loyalty program
+
+As an Energia customer you get lots of great deals with Energia Extra. We’ve partn

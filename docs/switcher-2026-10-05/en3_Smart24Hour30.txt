@@ -1,0 +1,39 @@
+##Smart 24 Hour 30%
+Tariff eligibility	This tariff is only available to new customers
+Unit rate (cent per kWh)	
+Smart 24 Hour 30%
+Day:25.78 cent(28.1002 cent incl. VAT at 9.0%)
+Mondays to Sundays from 8:00 to 17:00 and 19:00 to 23:00
+Night:25.78 cent(28.1002 cent incl. VAT at 9.0%)
+Mondays to Sundays from 23:00 to 8:00
+Peak:25.78 cent(28.1002 cent incl. VAT at 9.0%)
+Mondays to Sundays from 17:00 to 19:00
+from 05/10/26 to 11/10/26
+Smart 24 Hour 30%
+Day:26.81 cent(29.2229 cent incl. VAT at 9.0%)
+Mondays to Sundays from 8:00 to 17:00 and 19:00 to 23:00
+Night:26.81 cent(29.2229 cent incl. VAT at 9.0%)
+Mondays to Sundays from 23:00 to 8:00
+Peak:26.81 cent(29.2229 cent incl. VAT at 9.0%)
+Mondays to Sundays from 17:00 to 19:00
+from 12/10/26 to 04/10/27
+
+Your consumption	
+Smart 24 Hour 30%
+Day: 43 kWh€11.19(€12.20 incl. VAT at 9.0%)
+Night: 30 kWh€7.67(€8.36 incl. VAT at 9.0%)
+Peak: 7 kWh€1.87(€2.03 incl. VAT at 9.0%)
+from 05/10/26 to 11/10/26
+Smart 24 Hour 30%
+Day: 2,221 kWh€595.40(€648.98 incl. VAT at 9.0%)
+Night: 1,522 kWh€407.96(€444.67 incl. VAT at 9.0%)
+Peak: 370 kWh€99.23(€108.16 incl. VAT at 9.0%)
+from 12/10/26 to 04/10/27
+
+Annual standing charge	
+Smart 24 Hour 30%
+€4.66(€5.08 incl. VAT at 9.0%)
+from 05/10/26 to 11/10/26 at €243.1296/year
+Smart 24 Hour 30%
+€250.39(€272.93 incl. VAT at 9.0%)
+from 12/1
