@@ -23,6 +23,8 @@ export const signed = (v: number) => `${v < 0 ? '-' : '+'}${eur(Math.abs(v))}`;
 
 /** Chapter opener: number, rule, title, and an optional standfirst. */
 /** A bar with rounded data end and a square foot on the axis, as the app draws them. */
+const MID_GREEN: Rgb = [141, 195, 166];
+
 function topRounded(d: Doc, x: number, y: number, w: number, h: number) {
   if (!(w > 0.01 && h > 0.01)) return;
   const r = Math.min(1.2, w / 2, h);
@@ -211,7 +213,7 @@ export function callout(d: Doc, title: string, body: string, tone: Rgb = INK) {
 export function columnChart(
   d: Doc,
   data: { label: string; value: number }[],
-  opts: { height?: number; color?: Rgb; unit?: string; caption?: string } = {},
+  opts: { height?: number; color?: Rgb; unit?: string; caption?: string; highlightMax?: boolean } = {},
 ) {
   if (!data.length) return;
   const h = opts.height ?? lines(9);
@@ -233,10 +235,12 @@ export function columnChart(
 
   const gap = 3.2;
   const bw = (plotW - gap * (data.length - 1)) / data.length;
+  const peakV = Math.max(...data.map((x) => x.value));
   data.forEach((r, i) => {
     const x = x0 + i * (bw + gap);
     const bh = Math.max(0.6, (r.value / max) * h);
-    d.fill(opts.color ?? SERIES);
+    // As the app's bars: the period that matters most in the accent, the rest a soft green.
+    d.fill(opts.highlightMax ? (r.value === peakV ? ACCENT : MID_GREEN) : (opts.color ?? SERIES));
     topRounded(d, x, base - bh, bw, bh);
     d.text(Math.round(r.value).toLocaleString('en-IE'), x + bw / 2, base - bh - 1.6,
       { ...TYPE.micro!, color: INK_MID, align: 'center', maxWidth: bw });

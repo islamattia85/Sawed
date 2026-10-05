@@ -56,9 +56,9 @@ export function buildReportData(ctx) {
   const kwp = (panels * (state.panel_w || 440)) / 1000;
   const hasSolar = !!state.has_solar && panels > 0;
 
-  /** Bimonthly buckets are periods, not months — label them as such. */
+  /** The six two-month billing periods, named as the app names them. */
   const usageByPeriod = Object.entries(state.bills || {}).map(([k, v], i) => ({
-    label: `P${i + 1}`,
+    label: /^[A-Z][a-z]{2}-[A-Z][a-z]{2}$/.test(k) ? k.replace('-', '–') : `P${i + 1}`,
     value: Math.round(Number(v) || 0),
   }));
 

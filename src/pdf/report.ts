@@ -222,6 +222,21 @@ function contents(d: Doc, r: ReportData) {
   d.text('At a glance', d.left, d.y, TYPE.chapter!);
   d.y += lines(1.6);
 
+  // The Home screen's headline, as a card: the one number the report is about.
+  {
+    const Lh = r.ladder || [];
+    const most = Lh.length > 3 ? Lh[0]!.value - Lh[3]!.value : r.savings.total;
+    const say = Lh.length > 3 ? 'Switch plan and add your planned solar to save' : most > 1 ? 'Switch plan to save' : 'You are already on the best value plan';
+    const top = d.y - 2, hh = 30;
+    box(d, d.left, top, d.width, hh, ACCENT_TINT, 4);
+    d.text(say, d.left + 6, top + 8, { ...TYPE.body!, color: INK_MID });
+    if (most > 1) {
+      const w = d.text(eur(most), d.left + 6, top + 22, { face: 'helvetica', style: 'bold', size: 30, color: ACCENT });
+      d.text('less a year', d.left + 9 + w, top + 22, { ...TYPE.lead!, color: INK_MID });
+    }
+    d.y = top + hh + lines(1.6);
+  }
+
   if (r.ladder && r.ladder.length) {
     const L = r.ladder;
     finding(d, L.length > 3 ? 'What you would pay a year: your plan and the best, without and with the panels' : 'What you would pay a year, on your plan and the best one');
@@ -240,12 +255,19 @@ function contents(d: Doc, r: ReportData) {
   if (r.ev) pts.push(`The car: ${eur(r.ev.electricityIncrease)} a year to charge, ${eur(r.ev.netSaving)} less than petrol.`);
   if (r.accuracy) pts.push(`Figures within ±${r.accuracy.pct}%${r.accuracy.withMeter ? `; your smart-meter file would tighten that to ±${r.accuracy.withMeter}%` : ''}.`);
   finding(d, 'What to do');
+  // Each step on its own soft card, numbered, as the app lists next steps.
   pts.forEach((p, i) => {
-    d.ensure(lines(2));
-    box(d, d.left, d.y - 3.2, 4.4, 4.4, GREEN, 2.2);
-    d.text(String(i + 1), d.left + 2.2, d.y, { face: 'helvetica', style: 'bold', size: 7, color: PAPER, align: 'center' });
-    d.paragraph(p, TYPE.body!, { x: d.left + 7, width: d.width - 7 });
-    d.y += 1.2;
+    const rows = d.doc.splitTextToSize(p, d.width - 16).length;
+    const hh = rows * (TYPE.body!.leading ?? 4.6) + 5;
+    d.ensure(hh + 3);
+    const top = d.y - 4;
+    box(d, d.left, top, d.width, hh, [244, 242, 236], 3);
+    box(d, d.left + 3.5, top + hh / 2 - 2.6, 5.2, 5.2, GREEN, 2.6);
+    d.text(String(i + 1), d.left + 6.1, top + hh / 2 + 1.1, { face: 'helvetica', style: 'bold', size: 7.5, color: PAPER, align: 'center' });
+    const lead = TYPE.body!.leading ?? 4.6;
+    d.y = top + hh / 2 + 1.6 - ((rows - 1) * lead) / 2;
+    d.paragraph(p, TYPE.body!, { x: d.left + 12, width: d.width - 16 });
+    d.y = top + hh + 6;
   });
 
   d.skip(1);
@@ -259,7 +281,6 @@ function contents(d: Doc, r: ReportData) {
 function chHours(d: Doc, r: ReportData) {
   if (!r.hours) return;
   const H = r.hours;
-  d.newPage();
   chapter(d, 'Hours', 'Your year, hour by hour',
     'Every one of the 8,760 hours in the year, as the simulation ran them. Darker means more electricity used.');
   const M = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -316,8 +337,8 @@ function chUsage(d: Doc, r: ReportData) {
     `Everything in this report rests on how much electricity you use and when. ${r.usageBasis}.`);
 
   columnChart(d, r.usageByPeriod, {
-    color: SERIES,
-    caption: 'Consumption by billing period, kWh. Irish bills run in six two-month periods.',
+    highlightMax: true,
+    caption: 'Use by two-month billing period, kWh. The busiest period is in the darker green.',
   });
 
   definitions(d, [
