@@ -1491,7 +1491,7 @@
     "supplier": "Yuno Energy",
     "plan": "Electricity Bonus 24hr",
     "type": "flat",
-    "meter": "24hr",
+    "meter": "smart",
     "rates": {
       "day": 0.3485,
       "night": 0.3485,

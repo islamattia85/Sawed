@@ -92,3 +92,31 @@ The first group is a real question for Peakless. A home already on a smart meter
 
   Rural is €55 to €95 a year dearer for most plans. Pinergy charges the same in both, and Yuno's EV plans and Ecopower are about €32 dearer. Setup asks which applies.
 - **Still open:** Electric Ireland Night Boost. bonkers.ie shows a €328.54 standing charge, while Peakless has €250.77. To be checked against Electric Ireland's full price list.
+
+## The usage shape, settled with ESB Networks' own profile
+
+ESB Networks publishes the profile the electricity market itself assumes for a home: the Standard Load Profiles, "Load Profile Indexes 2026" on rmdservice.com. For the typical urban home on a 24-hour meter (Load Profile 1) the year splits:
+
+| | Day | Night | Weekday 5–7pm peak |
+|---|---|---|---|
+| ESB Networks, typical urban home (LP1) | **68%** | **23%** | **9%** |
+| bonkers.ie | 54% | 37% | 9% |
+| Peakless, before | 60% | 18% | 22% |
+
+bonkers.ie's 54/37/9 is ESB's **Nightsaver** profile (Load Profile 2), which the smart-meter profile (LP25) copies. That profile belongs to homes with night storage heating, and bonkers.ie applies it to every smart-meter home. So for a typical home, bonkers.ie overstates night use. That flatters night-rate plans by about 4–6%.
+
+Peakless's old hand-set curve put far too much in the teatime peak and was too seasonal (winter about 2.3 times summer, against ESB's 1.3).
+
+**Done:** a home with no electric heating now uses ESB Networks' profile month by month: Load Profile 1 for urban homes, Load Profile 3 for rural. That covers both the hourly shape and the split between seasons. Heat pump, storage and direct-electric homes keep their own shapes, because ESB publishes no standard profile for them. A meter file still overrides everything. `scripts/slp.py` rebuilds the data from the next year's file.
+
+**Gap after the change (4,200 kWh, urban, smart):**
+
+| Plan | Before | After |
+|---|---|---|
+| One-rate plans | 0% | 0% |
+| SSE Smart Everyday 30% | −8% | 0% |
+| Energia Smart Data | +3% | 0% |
+| Waterpower, Flogas, Bord Gáis day/night/peak | +6–8% | +4% |
+| SSE 30% Day/Night/Peak | −1% | +6% (bonkers.ie's night share; the prices now agree) |
+
+The remaining 4–6% on day/night/peak plans is bonkers.ie's night share, not a Peakless error. For a home with a meter file, both sites should agree closely.

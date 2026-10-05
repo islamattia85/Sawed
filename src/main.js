@@ -1,3 +1,4 @@
+import { SLP_URBAN_BIMONTHLY, SLP_RURAL_BIMONTHLY } from './slp-2026.js';
 import {
   HOURS_IN_YEAR, DAYS_IN_MONTH, DEG, LOCATION_BASE, dayOfYear, PSO_LEVY,
 } from './engine/constants';
@@ -2415,11 +2416,17 @@ const AVG_MARKET_RATE = 0.30;
 
 // Heating shape multipliers for the 6 bimonthly periods (sums = 6.0 each).
 const SEASONAL_SHAPE = {
-  gas:      [1.40, 1.20, 0.70, 0.60, 0.90, 1.20],
+  // No electric heating: ESB Networks' standard urban home (rural in seasonalShape()).
+  gas:      SLP_URBAN_BIMONTHLY,
   heatpump: [1.35, 1.20, 0.75, 0.65, 0.95, 1.10],
   storage:  [1.65, 1.30, 0.60, 0.45, 0.80, 1.20],
   direct:   [1.45, 1.25, 0.70, 0.55, 0.90, 1.15]
 };
+
+function seasonalShape(heating){
+  if (!SEASONAL_SHAPE[heating] || heating === 'gas') return state.area === 'rural' ? SLP_RURAL_BIMONTHLY : SLP_URBAN_BIMONTHLY;
+  return SEASONAL_SHAPE[heating];
+}
 
 // Rebuild state.bills from whichever usage anchor the user chose.
 // 'kwh' mode treats the entered yearly kWh as ground truth (no € inference,
@@ -2427,7 +2434,7 @@ const SEASONAL_SHAPE = {
 function applyUsageInput(){
   if (state._csv_imported) return;
   if (state.usage_input_mode === 'kwh' && (+state.annual_kwh || 0) >= 500){
-    const shape = SEASONAL_SHAPE[state.heating_type] || SEASONAL_SHAPE.gas;
+    const shape = seasonalShape(state.heating_type);
     const per = state.annual_kwh / 6;
     const keys = ["Jan-Feb","Mar-Apr","May-Jun","Jul-Aug","Sep-Oct","Nov-Dec"];
     const bills = {};
@@ -2494,7 +2501,7 @@ function calibrateBillsToBaseline(){
 
 function inferBillsFromEuro(bimonthlyEur, heatingType){
   const avgKwhPerBimonth = (bimonthlyEur || 0) / AVG_MARKET_RATE;
-  const shape = SEASONAL_SHAPE[heatingType] || SEASONAL_SHAPE.gas;
+  const shape = seasonalShape(heatingType);
   const bills = {};
   const keys = ["Jan-Feb","Mar-Apr","May-Jun","Jul-Aug","Sep-Oct","Nov-Dec"];
   keys.forEach((k, i) => { bills[k] = Math.round(avgKwhPerBimonth * shape[i]); });
@@ -11958,7 +11965,7 @@ function parseCsvHdf(text, filename){
 
     // If some buckets are empty (missing months), fill from the average of the
     // populated buckets, reshaped by the seasonal heating profile.
-    const shape = (SEASONAL_SHAPE[state.heating_type] || SEASONAL_SHAPE.gas);
+    const shape = seasonalShape(state.heating_type);
     const shapeMean = shape.reduce((a,b)=>a+b,0)/6;
     const filledVals = BIMONTHLY_KEYS.map((k,i)=> bills[k]>0 ? bills[k] : null).filter(v=>v!=null);
     const avgPerBucket = filledVals.length ? filledVals.reduce((a,b)=>a+b,0)/filledVals.length : 0;
