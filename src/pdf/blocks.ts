@@ -22,6 +22,14 @@ export const kwh = (v: number) => `${Math.round(v).toLocaleString('en-IE')} kWh`
 export const signed = (v: number) => `${v < 0 ? '-' : '+'}${eur(Math.abs(v))}`;
 
 /** Chapter opener: number, rule, title, and an optional standfirst. */
+/** A bar with rounded data end and a square foot on the axis, as the app draws them. */
+function topRounded(d: Doc, x: number, y: number, w: number, h: number) {
+  if (!(w > 0.01 && h > 0.01)) return;
+  const r = Math.min(1.2, w / 2, h);
+  d.doc.roundedRect(x, y, w, h, r, r, 'F');
+  if (h > r) d.doc.rect(x, y + h - r, w, r, 'F');
+}
+
 export function chapter(d: Doc, no: string, title: string, standfirst?: string) {
   // A chapter opens with room for its first picture, never stranded at the foot of a page.
   d.ensure(lines(6) + 70);
@@ -30,13 +38,11 @@ export function chapter(d: Doc, no: string, title: string, standfirst?: string) 
   // A coloured tab carries the chapter number, as the app's tabs do.
   const tw = d.measure(no.toUpperCase(), TYPE.chapterNo!) + 6;
   d.fill(ACCENT_TINT);
-  d.doc.roundedRect(d.left, d.y - 3.6, tw, 5, 1.5, 1.5, 'F');
+  d.doc.roundedRect(d.left, d.y - 3.7, tw, 5.4, 2.7, 2.7, 'F');
   d.text(no.toUpperCase(), d.left + 3, d.y, TYPE.chapterNo!);
-  d.y += lines(1.2);
+  d.y += lines(2);
   d.text(title, d.left, d.y, TYPE.chapter!);
-  d.y += lines(0.9);
-  d.rule(INK, LW.heavy, d.left, d.left + 22);
-  d.y += lines(1.2);
+  d.y += lines(1.8);
   if (standfirst) {
     d.paragraph(standfirst, TYPE.lead!);
     d.skip(0.6);
@@ -129,7 +135,7 @@ export function table<T>(
     const emph = opts.emphasise?.(row) ?? false;
     if (emph) {
       d.fill(ACCENT_TINT);
-      d.doc.rect(d.left - 2, d.y - lines(0.78), d.width + 4, rowH, 'F');
+      d.doc.roundedRect(d.left - 2, d.y - lines(0.78), d.width + 4, rowH, 1.6, 1.6, 'F');
     }
     columns.forEach((c, i) => {
       const x = c.align === 'right' ? xs[i]! + widths[i]! : xs[i]!;
@@ -159,9 +165,10 @@ export function cellBar(d: Doc, x: number, w: number, frac: number, color: Rgb) 
   const h = 1.5;
   const y = d.y - 1.6;
   d.fill(RULE_SOFT);
-  d.doc.rect(x, y, w - 4, h, 'F');
+  d.doc.roundedRect(x, y, w - 4, h, h / 2, h / 2, 'F');
   d.fill(color);
-  d.doc.rect(x, y, Math.max(0.4, Math.min(1, frac) * (w - 4)), h, 'F');
+  const fw = Math.max(h, Math.min(1, frac) * (w - 4));
+  d.doc.roundedRect(x, y, fw, h, h / 2, h / 2, 'F');
 }
 
 /** Definition list — term on the left, value flush right, leader-free. */
@@ -190,9 +197,9 @@ export function callout(d: Doc, title: string, body: string, tone: Rgb = INK) {
   d.ensure(h + lines(1));
   const top = d.y - lines(0.9);
   d.fill(TINT);
-  d.doc.rect(d.left, top, d.width, h, 'F');
+  d.doc.roundedRect(d.left, top, d.width, h, 3, 3, 'F');
   d.fill(tone);
-  d.doc.rect(d.left, top, 1.1, h, 'F');
+  d.doc.roundedRect(d.left + 2.4, top + 3, 1, h - 6, 0.5, 0.5, 'F');
   d.y += lines(0.4);
   d.text(title.toUpperCase(), d.left + inset, d.y, { ...TYPE.subhead!, color: tone });
   d.y += lines(1);
@@ -230,7 +237,7 @@ export function columnChart(
     const x = x0 + i * (bw + gap);
     const bh = Math.max(0.6, (r.value / max) * h);
     d.fill(opts.color ?? SERIES);
-    d.doc.rect(x, base - bh, bw, bh, 'F');
+    topRounded(d, x, base - bh, bw, bh);
     d.text(Math.round(r.value).toLocaleString('en-IE'), x + bw / 2, base - bh - 1.6,
       { ...TYPE.micro!, color: INK_MID, align: 'center', maxWidth: bw });
     d.text(r.label, x + bw / 2, base + 3.4, { ...TYPE.micro!, align: 'center', maxWidth: bw });
@@ -374,7 +381,7 @@ export function splitBar(
   let lx = d.left;
   parts.forEach((p) => {
     d.fill(p.color);
-    d.doc.rect(lx, d.y - 2, 2.4, 2.4, 'F');
+    d.doc.roundedRect(lx, d.y - 2, 2.4, 2.4, 0.7, 0.7, 'F');
     const w = d.text(`${p.label} — ${kwh(p.value)}`, lx + 3.8, d.y, { ...TYPE.micro!, color: INK_MID });
     lx += w + 11;
   });
@@ -547,7 +554,7 @@ export function houseScene(
   keys.forEach(([lbl, val, col], i) => {
     const kx = d.left + i * kw;
     d.fill(col);
-    d.doc.rect(kx, d.y - 2, 2.4, 2.4, 'F');
+    d.doc.roundedRect(kx, d.y - 2, 2.4, 2.4, 0.7, 0.7, 'F');
     d.text(lbl.toUpperCase(), kx + 3.8, d.y, { ...TYPE.micro!, color: INK_MID, maxWidth: kw - 6 });
     d.text(kwh(val), kx + 3.8, d.y + lines(1.2), { ...TYPE.dataBold!, maxWidth: kw - 6 });
   });
@@ -590,9 +597,9 @@ export function monthlyEnergyChart(
     const cx = x0 + i * slot + slot / 2;
     // Consumption sits behind as a light column; generation in front.
     d.fill(RULE_SOFT);
-    d.doc.rect(cx - bw, base - (r.consumed / max) * h, bw * 2, (r.consumed / max) * h, 'F');
+    topRounded(d, cx - bw, base - (r.consumed / max) * h, bw * 2, (r.consumed / max) * h);
     d.fill(ACCENT);
-    d.doc.rect(cx - bw * 0.55, base - (r.generated / max) * h, bw * 1.1, (r.generated / max) * h, 'F');
+    topRounded(d, cx - bw * 0.55, base - (r.generated / max) * h, bw * 1.1, (r.generated / max) * h);
     d.text(r.month, cx, base + 3.4, { ...TYPE.micro!, align: 'center', maxWidth: slot });
   });
 
@@ -600,7 +607,7 @@ export function monthlyEnergyChart(
   let lx = d.left;
   for (const [c, t] of [[RULE_SOFT, 'What the house used'], [ACCENT, 'What the panels made']] as const) {
     d.fill(c as Rgb);
-    d.doc.rect(lx, d.y - 2, 2.4, 2.4, 'F');
+    d.doc.roundedRect(lx, d.y - 2, 2.4, 2.4, 0.7, 0.7, 'F');
     lx += d.text(t as string, lx + 3.8, d.y, { ...TYPE.micro!, color: INK_MID }) + 15;
   }
   d.y += lines(1.2);
@@ -687,7 +694,7 @@ export function dayChartLegend(d: Doc, withSoc: boolean) {
   d.ensure(lines(2));
   let lx = d.left;
   d.fill(ACCENT_TINT);
-  d.doc.rect(lx, d.y - 2.2, 3, 2.4, 'F');
+  d.doc.roundedRect(lx, d.y - 2.2, 3, 2.4, 0.7, 0.7, 'F');
   lx += d.text('generated by the panels', lx + 4.4, d.y, { ...TYPE.micro!, color: INK_MID }) + 12;
   d.stroke(SERIES).weight(LW.chart);
   d.doc.line(lx, d.y - 1, lx + 5, d.y - 1);
@@ -716,9 +723,9 @@ export function barBreakdown(
     d.ensure(lines(1.6));
     d.text(r.label, d.left, d.y, { ...TYPE.data!, maxWidth: labelW - 2 });
     d.fill(RULE_SOFT);
-    d.doc.rect(d.left + labelW, d.y - 2.4, trackW, 2.6, 'F');
+    d.doc.roundedRect(d.left + labelW, d.y - 2.4, trackW, 2.6, 1.3, 1.3, 'F');
     d.fill(opts.color ?? ACCENT);
-    d.doc.rect(d.left + labelW, d.y - 2.4, Math.max(0.5, (r.value / max) * trackW), 2.6, 'F');
+    d.doc.roundedRect(d.left + labelW, d.y - 2.4, Math.max(2.6, (r.value / max) * trackW), 2.6, 1.3, 1.3, 'F');
     d.text(fmt(r.value), d.right, d.y, { ...TYPE.dataBold!, align: 'right' });
     d.y += lines(1);
     if (r.note) {

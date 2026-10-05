@@ -23,8 +23,12 @@ export const PAGE = {
   marginOuter: 22,
   /** Baseline of the running head. */
   headBaseline: 16,
-  /** Baseline of the folio. */
-  folioBaseline: 283,
+  /** Baseline of the folio, below the card. */
+  folioBaseline: 289,
+  /** The white card each page's content sits on. */
+  cardInset: 10,
+  cardTop: 21,
+  cardBottom: 281,
 };
 
 export const TEXT_LEFT = PAGE.marginInner;
@@ -56,20 +60,24 @@ export interface Spec {
   tracking?: number;
 }
 
-export const INK: Rgb = [26, 26, 24];
-export const INK_MID: Rgb = [92, 96, 92];
+export const INK: Rgb = [22, 32, 26];
+export const INK_MID: Rgb = [86, 97, 91];
 export const INK_SOFT: Rgb = [132, 136, 132];
 export const INK_FAINT: Rgb = [176, 180, 176];
 export const RULE: Rgb = [206, 208, 204];
 export const RULE_SOFT: Rgb = [230, 231, 228];
 export const PAPER: Rgb = [255, 255, 255];
-export const TINT: Rgb = [247, 246, 241];
+export const TINT: Rgb = [247, 245, 240];
+/** The app's light theme: warm background, white cards. */
+export const PAGE_BG: Rgb = [244, 242, 236];
+export const CARD_BG: Rgb = [255, 255, 255];
+export const CARD_EDGE: Rgb = [227, 224, 214];
 
 /** One accent, used only for the recommendation and money gained. */
 export const ACCENT: Rgb = [18, 122, 76];
 export const ACCENT_TINT: Rgb = [228, 242, 234];
 /** Money leaving the reader. Muted, so it never shouts over the accent. */
-export const DEBIT: Rgb = [196, 74, 34];
+export const DEBIT: Rgb = [180, 67, 47];
 export const DEBIT_TINT: Rgb = [250, 238, 236];
 /** Neutral data series, for charts that are not about money. */
 export const SERIES: Rgb = [37, 106, 191];

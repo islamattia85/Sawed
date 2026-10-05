@@ -225,7 +225,7 @@ function contents(d: Doc, r: ReportData) {
   if (r.ladder && r.ladder.length) {
     const L = r.ladder;
     finding(d, L.length > 3 ? 'What you would pay a year: your plan and the best, without and with the panels' : 'What you would pay a year, on your plan and the best one');
-    hbars(d, L.map((x) => ({ label: `${x.label}${x.solar ? '  (panels)' : ''}`, sub: x.plan, value: x.value, text: eur(x.value),
+    hbars(d, L.map((x) => ({ label: x.label, sub: x.plan, value: x.value, text: eur(x.value),
       color: x.best ? GREEN : x.label.startsWith('Current') && !x.solar ? DAY : [141, 195, 166], bold: !!x.best })), { barH: 3 });
   }
 

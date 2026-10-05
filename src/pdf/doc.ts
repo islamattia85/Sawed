@@ -10,7 +10,7 @@
 import { BRAND } from '../brand';
 import {
   PAGE, TEXT_LEFT, TEXT_RIGHT, TEXT_WIDTH, TEXT_BOTTOM, BASELINE,
-  TYPE, INK, INK_SOFT, RULE, RULE_SOFT as RULE_DOT, LW, type Rgb, type Spec,
+  TYPE, INK, INK_SOFT, RULE, RULE_SOFT as RULE_DOT, LW, PAGE_BG, CARD_BG, CARD_EDGE, type Rgb, type Spec,
 } from './theme.js';
 
 export interface PdfDoc {
@@ -34,6 +34,7 @@ export interface PdfDoc {
   link(x: number, y: number, w: number, h: number, opts: Record<string, unknown>): void;
   setProperties(p: Record<string, string>): void;
   outline?: { add(parent: unknown, title: string, options: Record<string, unknown>): unknown };
+  getFontList?(): Record<string, string[]>;
 }
 
 const finite = (v: number, fb = 0) => (Number.isFinite(v) ? v : fb);
@@ -84,7 +85,26 @@ export class Doc {
   /** Where the contents list is written back once page numbers are known. */
   contentsAnchor: { page: number; y: number } | null = null;
 
-  constructor(doc: PdfDoc) { this.doc = doc; }
+  /** True when the app's typeface (Inter Tight) was registered on this document. */
+  readonly inter: boolean;
+
+  constructor(doc: PdfDoc) {
+    this.doc = doc;
+    let fonts: Record<string, string[]> | undefined;
+    try { fonts = doc.getFontList?.(); } catch { /* older jsPDF */ }
+    this.inter = !!(fonts && fonts.Inter);
+    this.paintPage();
+  }
+
+  /**
+   * Every page reads like a screen of the app: the warm background, and the
+   * content on one white card. Drawn first, so everything sits on top.
+   */
+  paintPage() {
+    this.fill(PAGE_BG); this.doc.rect(0, 0, PAGE.width, PAGE.height, 'F');
+    this.fill(CARD_BG).stroke(CARD_EDGE).weight(LW.hair);
+    this.doc.roundedRect(PAGE.cardInset, PAGE.cardTop, PAGE.width - 2 * PAGE.cardInset, PAGE.cardBottom - PAGE.cardTop, 5, 5, 'FD');
+  }
 
   get left() { return TEXT_LEFT; }
   get right() { return TEXT_RIGHT; }
@@ -93,7 +113,11 @@ export class Doc {
 
   // ── style ────────────────────────────────────────────────────────────────
   private apply(s: TextRun) {
-    this.doc.setFont(s.face ?? 'times', s.style ?? 'normal');
+    if (this.inter) {
+      // The app's weights: 400 for text, 600 for emphasis, 800 for big figures.
+      const big = (s.size ?? 9.8) >= 13;
+      this.doc.setFont('Inter', s.style === 'bold' ? (big ? 'heavy' : 'bold') : 'normal');
+    } else this.doc.setFont(s.face ?? 'times', s.style ?? 'normal');
     this.doc.setFontSize(s.size ?? 9.8);
     const c = s.color ?? INK;
     this.doc.setTextColor(c[0], c[1], c[2]);
@@ -163,6 +187,7 @@ export class Doc {
 
   newPage() {
     this.doc.addPage();
+    this.paintPage();
     this.y = PAGE.marginTop;
     return this;
   }
