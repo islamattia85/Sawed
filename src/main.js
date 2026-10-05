@@ -4949,7 +4949,7 @@ function renderFlow(){
     solar: ['Solar panels?', ''],
     tilt: ['How steep is the roof?', 'Most Irish roofs are 30–40°.'],
     price: ['Do you have a price?', 'A quote makes the payback exact.'],
-    grant: ['Does the home get the SEAI grant?', 'Built and lived in before 2021, and no solar grant claimed before. Up to €1,800.'],
+    grant: ['Does the home get the SEAI grant?', 'Homes built before 2021 that haven’t had one. Up to €1,800.'],
     roof: ['Which way does the roof face?', 'The side that gets the sun.'],
     panels: ['How many panels?', `For your usage we suggest ${_flowSuggest()}.`],
     battery: ['A battery?', 'It stores the day’s solar for the evening.'],
@@ -5038,7 +5038,7 @@ function renderFlow(){
         ${own('price', '€', 60000, 'e.g. 11500', 'I have a quote, incl. VAT')}
         <p class="fl-note">You can upload the quote itself later in My system.</p>`;
     }
-    if (q === 'grant') return `<div class="fl-opts">${opt('grant', 'yes', 'Yes', 'Built and lived in before 2021, no grant before')}${opt('grant', 'no', 'No', 'Built from 2021, or already claimed')}${opt('grant', 'unsure', 'Not sure', 'We’ll assume yes; check with your installer')}</div>`;
+    if (q === 'grant') return `<div class="fl-opts">${opt('grant', 'yes', 'Yes')}${opt('grant', 'no', 'No')}${opt('grant', 'unsure', 'Not sure', 'We’ll assume yes')}</div>`;
     if (q === 'ev') return `<div class="fl-opts">${opt('ev', 'no', 'No')}${opt('ev', 'have', 'I have one', 'It’s already in my bill')}${opt('ev', 'thinking', 'Thinking about one', 'We’ll show the cost and petrol saved')}</div>`;
     if (q === 'km') return `<div class="fl-opts fl-three">${[8000, 16000, 25000].map((k) => opt('km', k, `${k / 1000}k km`)).join('')}</div>${own('km', 'km', 100000, 'e.g. 12000')}`;
     if (q === 'car') return `<div class="fl-opts fl-three">${opt('car', 14, 'Small')}${opt('car', 17, 'Family')}${opt('car', 20, 'SUV')}</div>`;
@@ -10360,6 +10360,14 @@ const _syFine = (part, title, body) => {
 const _dirOpts = (az) => [['S','South'],['SE','South-east'],['SW','South-west'],['E','East'],['W','West'],['NE','North-east'],['NW','North-west'],['N','North']]
   .map(([v, l]) => `<option value="${azimuthFromSector(v)}" ${sectorFromAzimuth(az) === v ? 'selected' : ''}>${l}</option>`).join('');
 
+/** The SEAI grant: one switch, the same in My home and My system. */
+function grantSwitch(){
+  const on = state.grant_eligible !== false;
+  return `<label class="sy-toggle sy-toggle-top sy-grant">
+      <span><b>${ic('euro', 16)} SEAI grant</b><small>${on ? `${eur(state.grant_seai || calcSeaiGrant(totalKwp(), state.battery_kwh || 0).total)} off` : 'Not counted'}</small></span>
+      <input type="checkbox" role="switch" aria-label="SEAI grant" ${on ? 'checked' : ''} onchange="setGrantEligible(this.checked)">
+    </label>`;
+}
 function renderSystemSheet(){
   const t = totalPanels();
   const split = state.count_B > 0 || state._sys_split;
@@ -10427,10 +10435,7 @@ function renderSystemSheet(){
            <button class="v7-link" onclick="sysTypicalPrice()">Use a typical price instead</button>`
         : `<div class="sy-field"><span><b>Typical price ${eur(state.install_cost)}</b><small>What a system this size costs in Ireland in 2026, including VAT.</small></span>
            <button class="sy-stop" onclick="state.cost_is_manual=true;renderApp();setTimeout(()=>document.querySelector('.sy-part[aria-label=Price] input')?.focus(),40)">I have a price</button></div>`}
-      <div class="sy-field sy-grant"><span><b>SEAI grant</b><small>${state.grant_eligible !== false
-          ? `${eur(state.grant_seai)} off the price: this home qualifies`
-          : 'None, this home doesn’t qualify'}</small></span>
-        <button class="v7-link" onclick="v7Sheet('home')">Change</button></div>
+      ${grantSwitch()}
       ${grantOn && state.grant_is_manual && state.grant_seai !== g ? `<div class="sy-fine-note">Using ${eur(state.grant_seai)} from your quote. The standard grant for this size is ${eur(g)}.</div>` : ''}
       <div class="sy-net">${state.cost_is_manual ? 'You pay' : 'Guide price, you’d pay about'} <b>${eur(net)}</b></div>
     </section>
@@ -10487,14 +10492,7 @@ function renderHomeSheet(){
       ${field('Discount on it', 'A sign-up discount off the unit rates, if you have one.', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="60" step="1" value="${state.baseline_discount_pct || 0}" onchange="homeSet('baseline_discount_pct',this.value)"><i>%</i></span>`)}
     </section>
 
-    <section class="sy-part" aria-label="SEAI grant">
-      <label class="sy-toggle sy-toggle-top">
-        <span><b>${ic('euro', 16)} SEAI solar grant</b><small>${state.grant_eligible !== false
-          ? 'This home qualifies: built and lived in before 2021, no solar grant claimed. Up to €1,800 off.'
-          : 'This home does not get it, so no system, quote or suggestion counts one.'}</small></span>
-        <input type="checkbox" role="switch" aria-label="This home can get the SEAI solar grant" ${state.grant_eligible !== false ? 'checked' : ''} onchange="setGrantEligible(this.checked)">
-      </label>
-    </section>
+    <section class="sy-part" aria-label="SEAI grant">${grantSwitch()}</section>
 
     <button class="sy-pointer" onclick="v7Sheet('system')">${ic('sun', 16)}<span><b>The roof</b><small>Which way it faces and where the panels go are part of each system</small></span>${ic('chevR', 16)}</button>
 

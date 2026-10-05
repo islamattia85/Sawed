@@ -11,7 +11,7 @@ const QUOTE = { id: 'qa', installer: 'Alpha Solar', price: 9800, kwp: 4.4, panel
 test('a home without the grant gets none anywhere: the system, a quote, the suggestions', async ({ page }) => {
   const errors = await boot(page, { has_solar: true, considering_solar: true, solar_planned: true, count_A: 10, battery_kwh: 5, solar_quotes: [QUOTE], current_screen: 'result' });
   await page.evaluate(() => window.openMyHome());
-  const toggle = page.getByRole('switch', { name: 'This home can get the SEAI solar grant' });
+  const toggle = page.getByRole('switch', { name: 'SEAI grant' });
   await expect(toggle).toBeChecked();
   await toggle.uncheck();
   expect(await page.evaluate(() => [window.state.grant_eligible, window.state.grant_seai])).toEqual([false, 0]);
@@ -25,7 +25,7 @@ test('a home without the grant gets none anywhere: the system, a quote, the sugg
   await page.evaluate(() => { window.v7Sheet(null); window.anTab('solar'); });
   await expect(page.locator('.ax-eq')).toContainText('no SEAI grant');
   await page.evaluate(() => window.openMySystem());
-  await expect(page.locator('#v7-sheet .sy-grant')).toContainText('doesn’t qualify');
+  await expect(page.locator('#v7-sheet .sy-grant')).toContainText('Not counted');
   await expect(page.locator('#v7-sheet .sys-head')).toContainText('does not get the SEAI grant');
   // Back on: the standard grant returns.
   await page.evaluate(() => window.setGrantEligible(true));

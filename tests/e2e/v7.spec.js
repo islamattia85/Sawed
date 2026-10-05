@@ -349,8 +349,12 @@ test('My system: sliders, battery stops, grant switch and fine-tune change the m
   await sheet.getByLabel('Exact battery size in kWh').dispatchEvent('change');
   expect(await page.evaluate(() => window.state.battery_kwh)).toBe(11.5);
 
-  // The grant is the home's: My system says so and links to it.
-  await expect(sheet.locator('.sy-grant')).toContainText('this home qualifies');
+  // The grant is the same switch here as in My home: turning it off here counts none.
+  await expect(sheet.locator('.sy-grant')).toContainText('off');
+  await sheet.getByRole('switch', { name: 'SEAI grant' }).uncheck();
+  expect(await page.evaluate(() => [window.state.grant_eligible, window.state.grant_seai])).toEqual([false, 0]);
+  await expect(page.locator('#v7-sheet .sy-grant')).toContainText('Not counted');
+  await page.locator('#v7-sheet').getByRole('switch', { name: 'SEAI grant' }).check();
 
   // Fine-tuning the panels marks them confirmed and tightens the estimate.
   await sheet.getByRole('button', { name: /Fine-tune panels/ }).click();
@@ -712,7 +716,7 @@ test('first visit: one revealing page, answers fold into lines you can change, t
   await page.locator('.fl-opt', { hasText: 'suggested' }).click();
   await page.locator('.fl-opt', { hasText: '5 kWh' }).click();
   await page.locator('.fl-opt', { hasText: 'use a guide price' }).click();
-  await page.locator('.fl-opt', { hasText: 'Built and lived in before 2021' }).click();
+  await page.locator('.fl-opt', { hasText: /^Yes$/ }).click();
   await page.locator('.fl-opt', { hasText: 'Thinking about one' }).click();
   await page.locator('.fl-opt', { hasText: '16k km' }).click();
   await page.locator('.fl-opt', { hasText: 'Family' }).click();
@@ -784,7 +788,7 @@ test('the flow reveal: planned solar leads with the most you could save, the sam
   await page.locator('.fl-opt', { hasText: 'suggested' }).click();
   await page.locator('.fl-opt', { hasText: '5 kWh' }).click();
   await page.locator('.fl-opt', { hasText: 'use a guide price' }).click();
-  await page.locator('.fl-opt', { hasText: 'Built and lived in before 2021' }).click();
+  await page.locator('.fl-opt', { hasText: /^Yes$/ }).click();
   await page.locator('.fl-opt', { hasText: /^No$/ }).click();
   const num = (sel) => page.evaluate((q) => +(document.querySelector(q)?.textContent.match(/€\s?([\d,]+)/) || [0, '0'])[1].replace(/,/g, ''), sel);
   const shown = await num('.fl-r-big');
