@@ -158,7 +158,7 @@ test('the first visit asks for the supplier, then that supplier\'s plan', async 
   expect(plans.length).toBeGreaterThan(2);                                            // its plans…
   expect(plans.at(-1)).toContain('Not sure which plan');                              // …and a way out
   await page.locator('.fl-opt').first().click();
-  expect(await page.evaluate(() => [getPlanById(window.state.baseline).supplier, window.state.baseline_known])).toEqual(['Energia', true]);
+  await expect.poll(() => page.evaluate(() => [getPlanById(window.state.baseline).supplier, window.state.baseline_known])).toEqual(['Energia', true]);
 });
 
 test('"Include solar" with no system asks first instead of inventing one', async ({ page }) => {
@@ -255,7 +255,7 @@ test('"not sure which plan" is kept as a guess, not as a known plan', async ({ p
   await page.locator('.fl-opt', { hasText: 'Urban' }).click();
   await page.locator('.fl-sup', { hasText: 'Energia' }).click();
   await page.locator('.fl-opt', { hasText: 'Not sure which plan' }).click();
-  expect(await page.evaluate(() => window.state.baseline_known)).toBe(false);
+  await expect.poll(() => page.evaluate(() => window.state.baseline_known)).toBe(false);
   await expect(page.locator('.fl-chip').nth(3)).toContainText('plan not sure');
 });
 

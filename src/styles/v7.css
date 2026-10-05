@@ -1699,3 +1699,19 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .fl-working svg { color: var(--accent); animation: pulse 1.6s ease infinite; }
 .fl-tag { display: inline-block; margin: 0 6px 4px 0; padding: 2px 8px; border-radius: 999px; background: var(--accent-faint); color: var(--accent); font: 700 var(--text-caption) var(--display); vertical-align: middle; }
 
+/* The tap answers back: the pick fills, gets a tick, the rest step back. */
+.fl-opt, .region-tile { position: relative; transition: transform .12s ease, opacity .2s ease, border-color .15s ease, background-color .15s ease; }
+.fl-opt:active, .region-tile:active { transform: scale(.97); }
+.fl-chose .fl-opt:not(.picked), .fl-chose .region-tile:not(.picked) { opacity: .45; }
+.fl-opt.picked, .region-tile.picked { border-color: var(--accent); background: var(--accent-faint); transform: scale(1.02); }
+.fl-opt.picked::after, .region-tile.picked::after { content: ''; position: absolute; top: 10px; right: 10px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); }
+.fl-opt.picked::before, .region-tile.picked::before { content: ''; position: absolute; z-index: 1; top: 14px; right: 14px; width: 14px; height: 14px; background: var(--on-accent, #fff);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/contain no-repeat;
+  animation: fl-tick .25s cubic-bezier(.3,1.6,.6,1) both; }
+.fl-opt.picked::after, .region-tile.picked::after { animation: fl-tick .25s cubic-bezier(.3,1.6,.6,1) both; }
+@keyframes fl-tick { from { transform: scale(0); } to { transform: scale(1); } }
+.region-map-zone { transition: fill .2s ease; }
+@media (prefers-reduced-motion: reduce) { .fl-opt, .region-tile { transition: none; } .fl-opt.picked::after, .region-tile.picked::after, .fl-opt.picked::before, .region-tile.picked::before { animation: none; } .fl-opt.picked, .region-tile.picked { transform: none; } }
+.fl-chose { pointer-events: none; }

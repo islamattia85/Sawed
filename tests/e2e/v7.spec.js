@@ -791,6 +791,8 @@ test('the flow reveal: planned solar leads with the most you could save, the sam
   await page.locator('.fl-opt', { hasText: /^Yes$/ }).click();
   await page.locator('.fl-opt', { hasText: /^No$/ }).click();
   const num = (sel) => page.evaluate((q) => +(document.querySelector(q)?.textContent.match(/€\s?([\d,]+)/) || [0, '0'])[1].replace(/,/g, ''), sel);
+  await expect(page.locator('.fl-chose')).toHaveCount(0);
+  await expect(page.locator('.fl-r-big')).toBeVisible();
   const shown = await num('.fl-r-big');
   await page.getByRole('button', { name: 'See my home' }).click();
   await page.waitForTimeout(1500);

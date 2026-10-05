@@ -34,6 +34,7 @@ test('guided route: any direction, slope, a quote price and the grant are asked,
   await page.locator('#flow-own-price').fill('12500'); await page.locator('.fl-own button').click();
   await expect(page.locator('.fl-q h2')).toContainText('SEAI grant');
   await page.locator('.fl-opt', { hasText: /^No$/ }).click();
+  await expect(page.locator('.fl-chose')).toHaveCount(0);
   const st = await page.evaluate(() => ({ az: state.azimuth_A, tilt: state.tilt_A, cost: state.install_cost, manual: state.cost_is_manual, grant: state.grant_seai, eligible: state.grant_eligible }));
   expect(st).toEqual({ az: 200, tilt: 30, cost: 12500, manual: true, grant: 0, eligible: false });
 });

@@ -4956,6 +4956,21 @@ function startFlow(mode){
   saveState(); renderApp();
 }
 const _flowSuggest = () => Math.max(6, Math.min(16, Math.round(v7AnnualKwh() / 450)));
+// A tap shows itself first: the choice lights up with a tick, then the next question.
+let _flowPicking = false;
+function flowPick(el, q, v){
+  if (_flowPicking) return;
+  _flowPicking = true;
+  const box = el.closest('.fl-q') || document;
+  box.querySelectorAll('.fl-opt').forEach((b) => b.classList.toggle('picked', b.dataset.q === q && b.dataset.v === String(v)));
+  box.classList.add('fl-chose');   // pointer-events off until the next question lands
+  if (q === 'where') box.querySelectorAll('[data-region]').forEach((r) => { r.classList.toggle('active', r.dataset.region === v); r.classList.toggle('picked', r.dataset.region === v && r.tagName !== 'path'); });
+  try { navigator.vibrate && navigator.vibrate(10); } catch {}
+  const wait = matchMedia('(prefers-reduced-motion: reduce)').matches ? 120 : 320;
+  setTimeout(() => { _flowPicking = false; flowAnswer(q, v); }, wait);
+}
+window.flowPick = flowPick;
+
 function flowAnswer(q, v){
   const f = state._flow = state._flow || {};
   const was = f[q]; f[q] = v;
@@ -5143,7 +5158,7 @@ function renderFlow(){
     : `<path d="M20 20V8" stroke="var(--brand-gold)" stroke-width="4" stroke-linecap="round" transform="rotate(${({ S: 180, SE: 135, SW: 225, E: 90, W: 270, N: 0 })[v] ?? 180} 20 20)"/>`}</svg>`;
   const opt = (q, v, title, sub = '') => {
     const icn = q === 'roof' ? compass(v) : optIco[q] && optIco[q][v] ? `<span class="fl-ico">${ic(optIco[q][v], 20)}</span>` : '';
-    return `<button class="fl-opt ${icn ? 'has-ico' : ''} ${String(f[q]) === String(v) ? 'on' : ''}" onclick="flowAnswer('${q}', '${v}')">${icn}<span><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span></button>`;
+    return `<button class="fl-opt ${icn ? 'has-ico' : ''} ${String(f[q]) === String(v) ? 'on' : ''}" data-q="${q}" data-v="${v}" onclick="flowPick(this, '${q}', '${v}')">${icn}<span><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span></button>`;
   };
   const body = (q) => {
     // Any number, not only the three shown.
@@ -5211,7 +5226,7 @@ function renderFlow(){
     if (q === 'house') return `<div class="fl-opts fl-two">${opt('house', 'terraced', 'Terraced', 'Up to 10 panels, 18 on two faces')}${opt('house', 'semi', 'Semi-detached', 'Up to 14, 26 on two faces')}${opt('house', 'detached', 'Detached', 'Up to 20, 36 on two faces')}${opt('house', 'bungalow', 'Bungalow', 'Up to 18, 32 on two faces')}</div>
       ${opt('house', 'apartment', 'Apartment', 'Only with a roof of your own')}`;
     if (q === 'system') return flowSystemStep(opt);
-    if (q === 'where') return `<div class="fl-where">${renderIrelandMap(state.region || 'east').replace(/setRegion\('/g, "flowAnswer('where', '")}</div>
+    if (q === 'where') return `<div class="fl-where">${renderIrelandMap(state.region || 'east').replace(/setRegion\('/g, "flowPick(this, 'where', '")}</div>
       <div class="fl-opts fl-two">${Object.entries(IRISH_REGIONS).map(([id, r]) => opt('where', id, r.name, r.counties)).join('')}</div>`;
     if (q === 'meter') return `<div class="fl-opts">${opt('meter', 'smart', 'Smart meter', 'Most homes now. No meter readings')}${opt('meter', '24hr', 'Standard meter', 'One reading, the same rate all day')}${opt('meter', 'nightsaver', 'Day and night meter', 'Two readings, cheaper at night (Nightsaver)')}</div>
       <button class="sg-link" onclick="flowAnswer('meter', 'smart')">Not sure (assume smart)</button>`;
@@ -6392,7 +6407,7 @@ function renderIrelandMap(selectedRegion){
   return `<svg class="region-map-svg" viewBox="0 0 130 130" xmlns="http://www.w3.org/2000/svg">
     <path class="region-map-outline" d="M 32,18 Q 54,14 76,21 Q 93,28 101,52 Q 109,72 99,98 Q 90,106 76,104 Q 56,108 41,104 Q 28,99 24,84 Q 16,64 20,46 Q 23,27 32,18 Z"/>
     ${Object.entries(zones).map(([id, z]) => `
-      <path class="region-map-zone ${id === selectedRegion ? 'active' : ''}" d="${z.d}" onclick="setRegion('${id}')"></path>
+      <path class="region-map-zone ${id === selectedRegion ? 'active' : ''}" data-region="${id}" d="${z.d}" onclick="setRegion('${id}')"></path>
     `).join('')}
   </svg>`;
 }
@@ -6413,7 +6428,7 @@ function renderRegionPicker(currentRegion){
       // it — so on the first screen after the front door it covered the region
       // name it was describing.
       const label = pct === 0 ? '0%' : pct > 0 ? `+${pct}%` : `${pct}%`;
-      return `<div class="region-tile ${id === currentRegion ? 'active' : ''}" onclick="setRegion('${id}')">
+      return `<div class="region-tile ${id === currentRegion ? 'active' : ''}" data-region="${id}" onclick="setRegion('${id}')">
         <div class="region-tile-head">
           <div class="region-tile-icon">${ic('pin',16)}</div>
           <div class="region-tile-name">${r.name}</div>
