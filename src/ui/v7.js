@@ -59,7 +59,7 @@ export function createV7(api) {
   /** What a bottom-bar tap does: scroll up on the page you're on, else go there. */
   function navGo(id, cur) {
     const up = "window.scrollTo({top:0,behavior:'smooth'})";
-    if (id === 'analytics') return cur === 'analytics' || cur === 'solar' ? up : "state._an_from=null;anTab(state._an_tab||'bill')";
+    if (id === 'analytics') return cur === 'analytics' ? up : "state._an_from=null;anTab(state._an_tab||'bill')";
     return cur === id ? up : `setScreen('${id}')`;
   }
 

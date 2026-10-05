@@ -4910,7 +4910,13 @@ function flowAnswer(q, v){
   state._flow_edit = null;
   try { applyRegion(state.region || 'east'); } catch (e) {}
   invalidate(); saveState(); renderApp();
-  setTimeout(() => { const b = document.querySelector('.fl-body'); if (b) b.scrollTop = b.scrollHeight; window.scrollTo(0, document.body.scrollHeight); }, 30);
+  // Bring the new question (or the answer) into view in one instant jump. A
+  // jump to the very bottom, while the card was still sliding in, left iOS
+  // hit-testing the old spot: "See my home" ignored taps until a scroll.
+  requestAnimationFrame(() => {
+    const el = document.querySelector('.fl-reveal') || [...document.querySelectorAll('.fl-q')].pop();
+    if (el) window.scrollTo(0, Math.max(0, el.getBoundingClientRect().top + window.scrollY - 16));
+  });
 }
 function flowSupplier(i){
   const sups = [...new Set(activeTariffsSorted().map((p) => p.supplier))].sort((a, b) => a.localeCompare(b));
@@ -11231,7 +11237,6 @@ function renderApp(){
 
   if (screenChanged){
     const sc = root.querySelector('.screen');
-    if (sc) sc.classList.add('screen-enter');
     window.scrollTo(0, keepScroll);
     runCountUps(root);
     window.__lastScreen = state.current_screen;

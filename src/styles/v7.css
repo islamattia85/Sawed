@@ -1025,7 +1025,7 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .fl-next, .fl-go { padding: 14px; border: 0; border-radius: var(--radius-xl); background: var(--accent); color: var(--on-accent); font: 700 var(--text-body) var(--display); cursor: pointer; flex: 1; }
 .fl-ghost { padding: 14px; border-radius: var(--radius-xl); border: 1.5px solid var(--accent); background: transparent; color: var(--accent); font: 700 var(--text-body) var(--display); cursor: pointer; flex: 1; }
 .fl-select { width: 100%; }
-.fl-reveal { display: grid; gap: var(--space-3); padding: var(--space-5) var(--space-4); border-radius: var(--radius-xl); background: var(--brand-ink); color: var(--brand-paper); animation: flIn .6s; }
+.fl-reveal { display: grid; gap: var(--space-3); padding: var(--space-5) var(--space-4); border-radius: var(--radius-xl); background: var(--brand-ink); color: var(--brand-paper); animation: flIn .3s; }
 .fl-r-k { font-size: var(--text-data); color: var(--brand-mist); }
 .fl-r-big { font: 800 min(64px, 16vw)/1 var(--display); letter-spacing: -.045em; color: var(--brand-gold); }
 .fl-r-big span { font-size: var(--text-lead); font-weight: 600; color: var(--brand-mist); letter-spacing: 0; }
@@ -1033,12 +1033,13 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .fl-r-list { display: grid; gap: 6px; font-size: var(--text-data); color: var(--brand-mist); }
 .fl-r-list b { color: var(--brand-paper); }
 .fl-go { background: var(--brand-gold); color: var(--brand-ink); }
-.fl-save { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-4); border-radius: var(--radius-xl); border: 1px solid var(--line); background: var(--panel); font-size: var(--text-data); color: var(--ink-soft); animation: flIn .6s .3s both; }
+.fl-save { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-4); border-radius: var(--radius-xl); border: 1px solid var(--line); background: var(--panel); font-size: var(--text-data); color: var(--ink-soft); animation: flIn .3s; }
 .fl-save > div { display: grid; gap: 4px; }
 .fl-save b { font-size: var(--text-body); color: var(--ink); }
 .fl-save-ico { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--radius-lg); background: var(--accent-faint); color: var(--accent); }
 .fl-save-link { justify-self: start; display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; padding: 0; border: 0; background: none; color: var(--accent); font: 700 var(--text-data) var(--display); cursor: pointer; }
-@keyframes flIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+/* Opacity only: a moving card left iOS taps landing where it used to be. */
+@keyframes flIn { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .fl-q, .fl-done, .fl-reveal, .fl-save { animation: none; } }
 .fl-prog { flex: none; height: 8px; }
 
