@@ -5081,7 +5081,9 @@ function flowSystemStep(opt){
       </span>
       <span class="sys-foot"><span class="sys-price"><b>${eur(d.net)}</b><small>guide price</small></span><span class="sys-stats"><span><b>${pay}</b> payback</span><span><b>${eur(d.benefit)}</b> saved a year</span></span></span>
     </button>`; };
-  return `<div class="fl-opts">${opt('system', 'custom', 'Model your own system', 'Your panel count and battery, or a quote you have')}${goals.map(card).join('')}</div>`;
+  return `<div class="fl-opts">${opt('system', 'custom', 'Model your own system', 'Your panel count and battery, or a quote you have')}</div>
+    <div class="fl-group"><h3>Suggested by Peakless</h3><small>Guide prices, after the SEAI grant</small></div>
+    <div class="fl-opts">${goals.map(card).join('')}</div>`;
 }
 function flowSupplier(i){
   const sups = [...new Set(activeTariffsSorted().map((p) => p.supplier))].sort((a, b) => a.localeCompare(b));
@@ -5115,7 +5117,7 @@ function renderFlow(){
     plan: ['Who do you pay now?', 'Not sure? We’ll estimate.'],
     disc: ['Any discount on your bill?', 'It’s on your bill, as a % off the unit rates.'],
     house: ['What kind of house is it?', 'It tells us how many panels the roof can take.'],
-    system: ['Suggested by Peakless', 'Sized for your home, or set your own. Prices are after the SEAI grant.'],
+    system: ['Pick a system', 'Model your own, or take one Peakless sized for your home.'],
     where: ['Where in Ireland is the home?', 'The sunshine, and how cold it gets, differ by region.'],
     meter: ['Which electricity meter do you have?', 'It decides which plans you can switch to.'],
     area: ['Urban or rural?', 'It’s on your bill. Rural standing charges are about €70 a year higher.'],

@@ -1738,3 +1738,6 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .fl-sys > span.sys-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .fl-sys .sys-foot .sys-price { display: flex; align-items: baseline; gap: 6px; }
 .fl-chose { pointer-events: none; }
+.fl-group { margin: var(--space-4) 0 var(--space-2); display: grid; gap: 2px; }
+.fl-group h3 { margin: 0; font: 800 var(--text-body)/1.2 var(--display); color: var(--ink); }
+.fl-group small { font-size: var(--text-caption); color: var(--ink-soft); }
