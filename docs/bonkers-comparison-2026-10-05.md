@@ -80,3 +80,15 @@ The first group is a real question for Peakless. A home already on a smart meter
 - bonkers.ie: Electricity only → continue without upload → current supplier → Urban, Smart meter, Direct debit → "I know how much I consume" → no export, no EV optimising, no cashback, all plans. Two runs at 4,200 kWh, with Electric Ireland and with Pinergy as the current supplier, because bonkers.ie leaves out the current supplier's own plans.
 - Peakless: the app's own ranking for the same home, with usage entered in kWh, gas heating and an Electric Ireland baseline.
 - Each figure is the first-year cost including VAT, standing charge and PSO levy, with announced price changes counted from the date they start. Welcome credits and cashback are left out on both sides.
+
+## Follow-up, same day
+
+- **SSE Airtricity re-read.** All six plans now carry SSE's prices, which its own price sheet says are "valid from 5 October 2026". The daily check hadn't missed anything: the rise started this morning, and the scheduled run hadn't fired yet.
+- **Meter type.** Every plan now says which meter it needs (smart, standard 24-hour, or day/night). Setup asks which meter the home has, and the ranking only offers plans that work with it. A smart-meter home no longer sees Nightsaver plans.
+- **Urban or rural.** Every plan now carries a rural standing charge:
+  - SSE's comes from SSE's own price sheet.
+  - Most others come from bonkers.ie's rural results.
+  - Non-smart plans, which bonkers.ie didn't price, are estimated from the same supplier's urban-to-rural difference and labelled as estimates.
+
+  Rural is €55 to €95 a year dearer for most plans. Pinergy charges the same in both, and Yuno's EV plans and Ecopower are about €32 dearer. Setup asks which applies.
+- **Still open:** Electric Ireland Night Boost. bonkers.ie shows a €328.54 standing charge, while Peakless has €250.77. To be checked against Electric Ireland's full price list.

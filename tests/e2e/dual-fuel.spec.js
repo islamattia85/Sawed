@@ -33,7 +33,7 @@ test('the answer is a setting in My home, and does not change any figure', async
 
 test('setup asks about gas only for a gas home whose supplier sells gas', async ({ page }) => {
   await boot(page, { current_screen: 'result' });
-  await page.evaluate(() => { startFlow(); flowAnswer('bill', 250); flowAnswer('plan', 'BG-24'); flowAnswer('disc', 0); flowAnswer('heat', 'gas'); });
+  await page.evaluate(() => { startFlow(); flowAnswer('bill', 250); flowAnswer('plan', 'BG-24'); flowAnswer('disc', 0); flowAnswer('meter', 'smart'); flowAnswer('area', 'urban'); flowAnswer('heat', 'gas'); });
   await expect(page.locator('.fl-opts')).toContainText('Yes, both with them');
   await page.screenshot({ path: '/tmp/claude-0/-home-user-Sawed/74c17acb-5048-514f-a9cb-512d72f36e1c/scratchpad/gas.png' });
   await page.locator('.fl-opt', { hasText: 'Yes, both with them' }).click();

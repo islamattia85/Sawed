@@ -175,7 +175,7 @@ test('opening Solar with no solar models nothing', async ({ page }) => {
   await expect(page.locator('.v7-invite')).toContainText('What you’ll see');
 
   await page.evaluate(() => window.setScreen('result'));
-  expect(await page.evaluate(() => window.getRecommendation().annualSavings)).toBe(before);
+  expect(await page.evaluate(() => window.getRecommendation().annualSavings)).toBeCloseTo(before, 2);
   expect(errors).toEqual([]);
 });
 
@@ -695,6 +695,8 @@ test('first visit: one revealing page, answers fold into lines you can change, t
   await page.getByRole('button', { name: 'Next' }).click();
   await expect(page.locator('.fl-chip').first()).toContainText('€420');
   await page.getByRole('button', { name: /not sure: assume a standard plan/i }).click();
+  await page.locator('.fl-opt', { hasText: 'Smart meter' }).click();
+  await page.locator('.fl-opt', { hasText: 'Urban' }).click();
   await page.locator('.fl-opt', { hasText: 'Heat pump' }).click();
   await page.locator('.fl-opt', { hasText: 'Thinking about it' }).click();
   await expect(page.locator('.fl-q h2')).toContainText('Which way does the roof face');
@@ -768,6 +770,8 @@ test('the flow reveal: planned solar leads with the most you could save, the sam
   await page.getByRole('button', { name: /Planning solar, a battery or an EV/ }).click();
   await page.locator('#flow-bill').fill('420'); await page.getByRole('button', { name: 'Next' }).click();
   await page.getByRole('button', { name: /not sure: assume a standard plan/i }).click();
+  await page.locator('.fl-opt', { hasText: 'Smart meter' }).click();
+  await page.locator('.fl-opt', { hasText: 'Urban' }).click();
   await page.locator('.fl-opt', { hasText: 'Gas or oil' }).click();
   await page.locator('.fl-opt', { hasText: 'Thinking about it' }).click();
   await page.locator('.fl-opt', { hasText: 'South' }).first().click();

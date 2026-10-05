@@ -6,7 +6,7 @@ test('setup takes any panel count, battery and discount, not only the tiles', as
   await page.evaluate(() => { startFlow(); flowAnswer('bill', 250); flowAnswer('plan', 'EI-24'); });
   await page.locator('#flow-own-disc').fill('22'); await page.locator('.fl-own button').click();
   expect(await page.evaluate(() => state.baseline_discount_pct)).toBe(22);
-  await page.evaluate(() => { flowAnswer('heat', 'heatpump'); flowAnswer('solar', 'thinking'); flowAnswer('roof', 'S'); flowAnswer('tilt', 35); });
+  await page.evaluate(() => { flowAnswer('meter', 'smart'); flowAnswer('area', 'urban'); flowAnswer('heat', 'heatpump'); flowAnswer('solar', 'thinking'); flowAnswer('roof', 'S'); flowAnswer('tilt', 35); });
   await page.locator('#flow-own-panels').fill('13'); await page.locator('.fl-own button').click();
   await page.locator('#flow-own-battery').fill('9'); await page.locator('.fl-own button').click();
   expect(await page.evaluate(() => [state.count_A + state.count_B, state.battery_kwh])).toEqual([13, 9]);
