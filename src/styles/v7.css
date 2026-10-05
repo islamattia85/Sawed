@@ -1695,3 +1695,7 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 /* Region question: the map above the six regions. */
 .fl-where { display: grid; place-items: center; }
 .fl-where .region-map-svg { width: 170px; height: 170px; }
+.fl-working { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-4); border-radius: var(--radius-lg); background: var(--well); color: var(--ink-soft); font-size: var(--text-data); }
+.fl-working svg { color: var(--accent); animation: pulse 1.6s ease infinite; }
+.fl-tag { display: inline-block; margin: 0 6px 4px 0; padding: 2px 8px; border-radius: 999px; background: var(--accent-faint); color: var(--accent); font: 700 var(--text-caption) var(--display); vertical-align: middle; }
+

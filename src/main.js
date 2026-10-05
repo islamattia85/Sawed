@@ -20,7 +20,7 @@ import { GAS_TARIFFS } from './gas-tariffs.js';
 import { BRAND, CONTROLLER, MARK_PATHS, iconDataUri, wordmarkHtml } from './brand';
 import { IC, ic } from './icons';
 import {
-  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
+  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
   outcomeAgainst, sweepSetup, evaluateDesign, finishSweep,
 } from './model';
 
@@ -4166,7 +4166,7 @@ function sweepGoalDesigns(){
   const noSolarCost = getBestPlan().net;
 
   const designs = [];
-  for (const p of GOAL_PANELS){
+  for (const p of goalPanels()){
     for (const b of GOAL_BATTS){
       const nB = Math.round(p * shareB), nA = p - nB;
       state.count_A = nA; state.count_B = nB; state.azimuth_A = az; state.tilt_A = tilt;
@@ -4318,6 +4318,7 @@ function runInWorker(job){
 
 /** The sizes are in: show them where they are waited for. */
 function sweepLanded(){
+  if (state.current_screen === 'flow' && document.querySelector('.fl-working')){ renderApp(); return; }
   if (state._sheet && state._sheet.kind === 'system') { patchSystemsList(); return; }
   // Swap the placeholder for the result rather than re-rendering the screen.
   // A full repaint a second after landing detaches whatever the reader was
@@ -4926,7 +4927,15 @@ function flowSteps(){
     if (q === 'heat' && (f.heat === 'heatpump' || f.heat === 'storage') && f.bill !== 'meter') out.push('heattime');
     // Where in Ireland: sunshine for panels, and temperature for a heat pump.
     if (q === 'solar' && (f.solar === 'have' || f.solar === 'thinking' || f.heat === 'heatpump')) out.push('where');
-    if (q === 'solar' && (f.solar === 'have' || f.solar === 'thinking')) out.push('roof', 'tilt', 'panels', 'battery', 'price', 'grant');
+    // Panels already on the roof: say what they are. Panels planned: the house
+    // type sets how many the roof takes, then three ready-made systems to pick
+    // from, or your own.
+    if (q === 'solar' && f.solar === 'have') out.push('roof', 'tilt', 'panels', 'battery', 'price', 'grant');
+    if (q === 'solar' && f.solar === 'thinking'){
+      out.push('house', 'roof', 'tilt', 'system');
+      if (f.system === 'own') out.push('panels', 'battery');
+      out.push('price', 'grant');
+    }
     if (q === 'ev' && (f.ev === 'have' || f.ev === 'thinking')) out.push('km', 'car');
     if (q === 'ev' && f.ev === 'have') out.push('evtime');
   }
@@ -4964,6 +4973,11 @@ function flowAnswer(q, v){
   } else if (q === 'plan'){ if (v === 'unsure'){ state.baseline = 'EI-24'; state.baseline_known = false; } else { state.baseline = v; state.baseline_known = true; } }
   if (q === 'gas') state.gas_same_supplier = v;
   if (q === 'meter') state.meter_type = v;
+  if (q === 'house'){ state.house_type = v; delete f.system; }
+  if (q === 'system' && v !== 'own'){
+    const g = designGoals().find((x) => x.keys.includes(v));
+    if (g){ const c = designToConfig(g.d); state.count_A = c.count_A; state.count_B = c.count_B || 0; state.battery_kwh = c.battery_kwh || 0; if (state.battery_kwh > 0) state.charge_from_grid = true; }
+  }
   if (q === 'where' && IRISH_REGIONS[v]){ state.region = v; state.region_asked = true; applyRegion(v); }
   if (q === 'night') state.immersion_night = v === 'immersion';
   if (q === 'evtime') state.ev_charge_time = v === 'evening' ? 'evening' : 'night';
@@ -5013,6 +5027,9 @@ function flowAnswer(q, v){
   if (q === 'km') state.ev_km_per_year = +v;
   if (q === 'car') state.ev_kwh_per_100km = +v;
   if (state.has_solar && totalPanels() > 0) applyEstimatedSolarCost();
+  // Start pricing the ready-made systems as soon as the roof is known, so the
+  // choice is usually waiting by the time it is asked.
+  if (['house', 'roof', 'tilt', 'where'].includes(q) && f.solar === 'thinking'){ try { invalidate(); scheduleGoalSweep(); } catch (e) {} }
   // Panels already on the roof change what the bill means: re-read it.
   if (['solar', 'roof', 'tilt', 'panels', 'battery'].includes(q) && state.usage_input_mode !== 'kwh' && !state._csv_imported) applyUsageInput();
   state._flow_edit = null;
@@ -5025,6 +5042,19 @@ function flowAnswer(q, v){
     const el = document.querySelector('.fl-reveal') || [...document.querySelectorAll('.fl-q')].pop();
     if (el) window.scrollTo(0, Math.max(0, el.getBoundingClientRect().top + window.scrollY - 16));
   });
+}
+/** The ready-made systems for this home, as a setup step. */
+function flowSystemStep(opt){
+  if (state.house_type === 'apartment' && !state._apt_roof) return `<p class="fl-note">Panels need a roof of your own. Most apartments share theirs.</p>
+    <div class="fl-opts"><button class="fl-opt" onclick="state._apt_roof=true;renderApp()"><b>I have a roof I can use</b><small>Show systems that fit a small roof</small></button>
+    <button class="fl-opt" onclick="flowAnswer('solar', 'no')"><b>Leave solar out</b><small>Just compare plans</small></button></div>`;
+  const ready = CACHE._goalSweep_ck === goalSweepCk() && CACHE._goalSweep;
+  if (!ready){ scheduleGoalSweep(); return `<div class="fl-working" aria-busy="true">${ic('spark', 16)} Working out systems for your roof…</div>`; }
+  const goals = designGoals().slice(0, 3);
+  const card = (g) => { const d = g.d;
+    return opt('system', g.keys[0], `${g.labels.map((l) => `<span class="fl-tag">${l}</span>`).join('')}<br>${d.panels} panels${d.batt ? ` and a ${d.batt} kWh battery` : ''}`,
+      `${eur(d.net)} after the grant. Pays back in ${d.payback < 50 ? d.payback.toFixed(1) + ' years' : 'over 25 years'}, ${eur(d.benefit)} a year.`); };
+  return `<div class="fl-opts">${goals.map(card).join('')}${opt('system', 'own', 'Choose my own size', 'Your own panel count and battery, or a quote')}</div>`;
 }
 function flowSupplier(i){
   const sups = [...new Set(activeTariffsSorted().map((p) => p.supplier))].sort((a, b) => a.localeCompare(b));
@@ -5057,6 +5087,8 @@ function renderFlow(){
     bill: ['What’s your electricity bill?', 'Every two months, electricity only.'],
     plan: ['Who do you pay now?', 'Not sure? We’ll estimate.'],
     disc: ['Any discount on your bill?', 'It’s on your bill, as a % off the unit rates.'],
+    house: ['What kind of house is it?', 'It tells us how many panels the roof can take.'],
+    system: ['Pick a system', 'Worked out on your usage, roof and region. Guide prices, after the SEAI grant.'],
     where: ['Where in Ireland is the home?', 'The sunshine, and how cold it gets, differ by region.'],
     meter: ['Which electricity meter do you have?', 'It decides which plans you can switch to.'],
     area: ['Urban or rural?', 'It’s on your bill. Rural standing charges are about €70 a year higher.'],
@@ -5084,6 +5116,8 @@ function renderFlow(){
     plan: (v) => v === 'unsure' ? 'Plan not sure' : String(v).startsWith('guess:') ? `${(getPlanById(String(v).slice(6)) || {}).supplier}, plan not sure` : (() => { const p = getPlanById(v); return `${p.supplier} ${p.plan}`; })(),
     disc: (v) => (+v > 0 ? `${v}% discount` : 'No discount'),
     where: (v) => (IRISH_REGIONS[v] || {}).name || v,
+    house: (v) => ({ apartment: 'Apartment', terraced: 'Terraced', semi: 'Semi-detached', detached: 'Detached', bungalow: 'Bungalow' })[v] || v,
+    system: (v) => v === 'own' ? 'My own size' : `${totalPanels()} panels${state.battery_kwh > 0 ? ` + ${state.battery_kwh} kWh battery` : ''}`,
     meter: (v) => ({ smart: 'Smart meter', '24hr': 'Standard meter', nightsaver: 'Day and night meter' })[v],
     area: (v) => (v === 'rural' ? 'Rural' : 'Urban'),
     night: (v) => (v === 'immersion' ? 'Immersion at night' : 'Nothing at night'),
@@ -5174,6 +5208,9 @@ function renderFlow(){
     if (q === 'evtime') return `<div class="fl-opts">${opt('evtime', 'night', 'Overnight, on a timer', 'Or the car or charger is set to the cheap hours')}${opt('evtime', 'evening', 'As soon as I plug in', 'Usually in the evening')}</div>`;
     if (q === 'night') return `<div class="fl-opts">${opt('night', 'no', 'No', 'Hot water from the boiler, or not on a timer')}${opt('night', 'immersion', 'Yes, the immersion', 'Set to come on overnight')}</div>
       <button class="sg-link" onclick="flowAnswer('night', 'no')">Not sure (assume not)</button>`;
+    if (q === 'house') return `<div class="fl-opts fl-two">${opt('house', 'terraced', 'Terraced', 'Room for about 6–10 panels')}${opt('house', 'semi', 'Semi-detached', 'About 8–14')}${opt('house', 'detached', 'Detached', 'About 12–20')}${opt('house', 'bungalow', 'Bungalow', 'About 10–18')}</div>
+      ${opt('house', 'apartment', 'Apartment', 'Only with a roof of your own')}`;
+    if (q === 'system') return flowSystemStep(opt);
     if (q === 'where') return `<div class="fl-where">${renderIrelandMap(state.region || 'east').replace(/setRegion\('/g, "flowAnswer('where', '")}</div>
       <div class="fl-opts fl-two">${Object.entries(IRISH_REGIONS).map(([id, r]) => opt('where', id, r.name, r.counties)).join('')}</div>`;
     if (q === 'meter') return `<div class="fl-opts">${opt('meter', 'smart', 'Smart meter', 'Most homes now. No meter readings')}${opt('meter', '24hr', 'Standard meter', 'One reading, the same rate all day')}${opt('meter', 'nightsaver', 'Day and night meter', 'Two readings, cheaper at night (Nightsaver)')}</div>

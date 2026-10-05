@@ -1231,12 +1231,23 @@ export function computeNpv20(annualBenefit, sysCostNet, batteryKwh){
 // electricity-only solar benefit — identical convention to the hero.
 // ════════════════════════════════════════════════════════════
 export const GOAL_PANELS = [6, 9, 12, 15];
+/**
+ * How many panels the roof takes, by house type (asked in setup). The sizes
+ * tried stay within it, and the largest the roof takes is always tried.
+ */
+export const ROOF_MAX_PANELS = { apartment: 6, terraced: 10, semi: 14, detached: 20, bungalow: 18 };
+export function goalPanels(){
+  const max = ROOF_MAX_PANELS[state.house_type];
+  if (!max) return GOAL_PANELS;
+  const sizes = [6, 8, 10, 12, 14, 16, 18, 20].filter((p) => p <= max);
+  return sizes.length > 4 ? [sizes[0], sizes[Math.round((sizes.length - 1) / 3)], sizes[Math.round(2 * (sizes.length - 1) / 3)], max] : sizes;
+}
 export const GOAL_BATTS  = [0, 5, 10];
 
 export function goalSweepCk(){
   return JSON.stringify(['goalsweep', state.region, state.heating_type, state.bimonthly_bill_eur,
     JSON.stringify(state.bills), state.ev_active, state.ev_in_bill, state.ev_km_per_year,
-    state.ev_kwh_per_100km, state.azimuth_A, state.tilt_A, state.panel_w, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.heat_time, state.area, state.grant_eligible !== false,
+    state.ev_kwh_per_100km, state.azimuth_A, state.tilt_A, state.panel_w, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.heat_time, state.area, state.house_type, state.grant_eligible !== false,
     // The roof as it is used: one face, or two and how the panels share them.
     state.count_B > 0 ? [state.azimuth_B, state.tilt_B, +(state.count_B / Math.max(1, totalPanels())).toFixed(2)] : 0]);
 }
@@ -1298,7 +1309,7 @@ export function noSolarNetNow(){
 /** The twelve sizes, laid out on the roof as the home uses it. */
 export function sweepSetup(){
   const two = state.count_B > 0;
-  return { list: GOAL_PANELS.flatMap((p) => GOAL_BATTS.map((b) => [p, b])),
+  return { list: goalPanels().flatMap((p) => GOAL_BATTS.map((b) => [p, b])),
     az: state.azimuth_A || 180, tilt: state.tilt_A || 30, two, azB: state.azimuth_B, tiltB: state.tilt_B,
     shareB: two ? state.count_B / Math.max(1, totalPanels()) : 0 };
 }
