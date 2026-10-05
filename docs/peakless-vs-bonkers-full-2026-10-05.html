@@ -1,0 +1,167 @@
+<!doctype html><html lang="en-IE"><head><meta charset="utf-8"><title>Peakless vs bonkers.ie: full comparison</title><style>
+  @page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+  :root { --ink:#16201b; --soft:#4b5a52; --dim:#7d8a83; --line:#d9e0dc; --well:#f3f6f4; --green:#1f8a55; --amber:#b26b00; --red:#b3372e; }
+  body { font: 10.5pt/1.5 "Helvetica Neue", Arial, sans-serif; color: var(--ink); margin: 0; }
+  h1 { font-size: 22pt; margin: 0 0 2mm; letter-spacing: -.02em; }
+  h2 { font-size: 13.5pt; margin: 8mm 0 2.5mm; padding-top: 2mm; border-top: 1px solid var(--line); }
+  h3 { font-size: 11pt; margin: 5mm 0 1.5mm; }
+  p { margin: 0 0 2.5mm; }
+  .sub { color: var(--soft); margin-bottom: 6mm; }
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 9.5pt; }
+  th, td { text-align: left; padding: 1.6mm 2mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 700; background: var(--well); }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .good { color: var(--green); font-weight: 700; }
+  .bad { color: var(--red); font-weight: 700; }
+  .mid { color: var(--amber); font-weight: 700; }
+  .verdict { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 4mm 0; }
+  .verdict div { border: 1px solid var(--line); border-radius: 3mm; padding: 3mm; }
+  .verdict b { display: block; font-size: 9pt; color: var(--soft); text-transform: uppercase; letter-spacing: .06em; }
+  .verdict span { display: block; font-size: 13pt; font-weight: 800; margin: 1mm 0; }
+  .verdict small { color: var(--soft); font-size: 9pt; line-height: 1.4; display: block; }
+  .note { background: var(--well); border-radius: 2mm; padding: 3mm 4mm; font-size: 9.5pt; color: var(--soft); }
+  ul { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1mm; }
+  .k { color: var(--dim); font-size: 9pt; }
+  .page { page-break-before: always; border-top: 0; }
+
+table.res td, table.res th { padding: 1.3mm 1.6mm; font-size: 8.8pt; }
+.grp td { background: var(--well); font-weight: 700; }
+.y { color: var(--green); font-weight: 700; } .x { color: var(--dim); }
+</style></head><body>
+<h1>Peakless vs bonkers.ie: the full comparison</h1>
+<div class="sub">Thirteen Irish households, every way in each site offers, scored against the true cost of every plan. Plus every feature, side by side. Run 5 October 2026.</div>
+
+<div class="verdict">
+  <div><b>More accurate</b><span>Peakless</span><small>With a meter file Peakless picked the cheapest plan for all 12 smart-meter homes, within 0.5% on average. bonkers.ie picked it for 6 (11 if Energia's disputed price goes its way) and was 2.9% out on average, up to 21% on EV homes.</small></div>
+  <div><b>Easier</b><span>Peakless, clearly with a file</span><small>A meter file is 3 taps to a full ranking on Peakless, 12 on bonkers.ie, which then shows only 15 plans and warns the file is incomplete when it is not. Typing: 11–19 short questions on Peakless against 13–14 on one long bonkers.ie form.</small></div>
+  <div><b>Wider</b><span>bonkers.ie</span><small>Gas and dual fuel for every supplier, bill-photo upload, prepay, business, switching done for you, cashback, multi-year cost, and CRU accreditation. Peakless goes deeper on the home: solar, battery, car, payback, alerts.</small></div>
+</div>
+
+<h2>How it was tested</h2>
+<p><b>Thirteen homes, each a full year of half-hourly meter readings</b> in ESB Networks' download format: small, typical and large homes; two people working from home; a night-heavy home; a heat pump; night storage heaters; an EV charged on a 2–5am timer and one charged at teatime; 4 kWp solar with and without a 10 kWh battery; a rural home; and a home on an older 24-hour meter. They are built from ESB's published standard profiles, with heating, cars, panels and batteries added hour by hour.</p>
+<p><b>The true cost</b> of every plan over the next 12 months was then worked out exactly: each half hour at the supplier's published rate, announced price changes from their date, export paid at each plan's export rate, the urban or rural standing charge and the €6.67 PSO levy.</p>
+<p><b>Each home went through both sites twice:</b> typing its yearly kWh (and its export, car, heating and panels where the site asks), and uploading its meter file. 50 runs in all: 25 on bonkers.ie through its public form, one at a time, and 25 on Peakless.</p>
+<p><b>Scored on</b> two things: how far each site's yearly cost was from the truth, averaged over every plan it priced, and what following its number-one plan would cost against the truly cheapest plan.</p>
+
+<h2 class="page">Results, home by home</h2>
+<p class="k">Each pair of columns is the average error on every plan the site priced, then the cost of following its top plan against the truly cheapest (€0 = it picked the cheapest).</p>
+<table class="res">
+<tr><th rowspan="2">Home</th><th rowspan="2">Truly cheapest plan</th><th colspan="2">bonkers.ie, typed</th><th colspan="2">Peakless, typed</th><th colspan="2">bonkers.ie, file</th><th colspan="2">Peakless, file</th></tr>
+<tr><th class="n">Error</th><th class="n">Cost</th><th class="n">Error</th><th class="n">Cost</th><th class="n">Error</th><th class="n">Cost</th><th class="n">Error</th><th class="n">Cost</th></tr>
+<tr><td>Small flat, 2,000 kWh</td><td>Waterpower Smart Tariff (SST)<br><span class="k">€867</span></td><td class="n">3.3%</td><td class="n mid">€4</td><td class="n">0.1%</td><td class="n good">€0</td><td class="n">0.4%</td><td class="n good">€0</td><td class="n">0.4%</td><td class="n good">€0</td></tr>
+<tr><td>Typical home, 4,200 kWh</td><td>Energia Smart 24 Hour<br><span class="k">€1,509</span></td><td class="n">3.7%</td><td class="n mid">€33</td><td class="n">0.1%</td><td class="n good">€0</td><td class="n">0.5%</td><td class="n mid">€27</td><td class="n">0.5%</td><td class="n good">€0</td></tr>
+<tr><td>Large family, 7,500 kWh</td><td>Energia Smart 24 Hour<br><span class="k">€2,478</span></td><td class="n">4.1%</td><td class="n bad">€81</td><td class="n">0.1%</td><td class="n good">€0</td><td class="n">1.0%</td><td class="n mid">€30</td><td class="n">0.5%</td><td class="n good">€0</td></tr>
+<tr><td>Two working from home, 5,100 kWh</td><td>Energia Smart 24 Hour<br><span class="k">€1,776</span></td><td class="n">4.5%</td><td class="n bad">€77</td><td class="n">0.9%</td><td class="n good">€0</td><td class="n">0.7%</td><td class="n mid">€28</td><td class="n">0.6%</td><td class="n good">€0</td></tr>
+<tr><td>Night-heavy (immersion on a night timer), 5,000 kWh</td><td>Electric Ireland Home Electric + SST Saver 16%<br><span class="k">€1,674</span></td><td class="n">1.3%</td><td class="n good">€0</td><td class="n">0.8%</td><td class="n good">€0</td><td class="n">1.0%</td><td class="n good">€0</td><td class="n">0.2%</td><td class="n good">€0</td></tr>
+<tr><td>Heat pump, 9,000 kWh</td><td>Energia Smart 24 Hour<br><span class="k">€2,817</span></td><td class="n">3.5%</td><td class="n mid">€38</td><td class="n">5.0%</td><td class="n mid">€38</td><td class="n">1.0%</td><td class="n mid">€31</td><td class="n">0.2%</td><td class="n good">€0</td></tr>
+<tr><td>Night storage heaters, 11,000 kWh</td><td>Electric Ireland Home Electric + SST Saver 16%<br><span class="k">€2,522</span></td><td class="n">14.0%</td><td class="n good">€0</td><td class="n">8.4%</td><td class="n good">€0</td><td class="n">0.8%</td><td class="n good">€0</td><td class="n">1.2%</td><td class="n good">€0</td></tr>
+<tr><td>EV charged 2am-5am, 6,700 kWh</td><td>Flogas Smart EV Night Charge 29%<br><span class="k">€1,915</span></td><td class="n">3.6%</td><td class="n good">€0</td><td class="n">0.2%</td><td class="n good">€0</td><td class="n">12.8%</td><td class="n good">€0</td><td class="n">0.8%</td><td class="n good">€0</td></tr>
+<tr><td>EV charged at teatime, 6,700 kWh</td><td>Energia Smart 24 Hour<br><span class="k">€2,236</span></td><td class="n">14.2%</td><td class="n bad">€302</td><td class="n">0.1%</td><td class="n good">€0</td><td class="n">13.8%</td><td class="n bad">€173</td><td class="n">0.4%</td><td class="n good">€0</td></tr>
+<tr><td>4 kWp solar, no battery<br><span class="k">exports 1,828 kWh</span></td><td>Electric Ireland Home Electric + SST Saver 16%<br><span class="k">€564</span></td><td class="n">4.0%</td><td class="n good">€0</td><td class="n">2.6%</td><td class="n good">€0</td><td class="n">1.2%</td><td class="n good">€0</td><td class="n">0.6%</td><td class="n good">€0</td></tr>
+<tr><td>4 kWp solar + 10 kWh battery<br><span class="k">exports 840 kWh</span></td><td>Electric Ireland Home Electric + SST Saver 16%<br><span class="k">€491</span></td><td class="n">3.2%</td><td class="n good">€0</td><td class="n">12.5%</td><td class="n bad">€147</td><td class="n">0.7%</td><td class="n good">€0</td><td class="n">0.4%</td><td class="n good">€0</td></tr>
+<tr><td>Rural typical home, 4,200 kWh</td><td>Energia Smart 24 Hour<br><span class="k">€1,583</span></td><td class="n">3.6%</td><td class="n mid">€18</td><td class="n">0.1%</td><td class="n good">€0</td><td class="n">0.5%</td><td class="n mid">€13</td><td class="n">0.5%</td><td class="n good">€0</td></tr>
+<tr><td>Typical home, older 24-hour meter</td><td>Energia Standard Electricity<br><span class="k">€1,578</span></td><td class="n">1.8%</td><td class="n mid">€10</td><td class="n">0.0%</td><td class="n good">€0</td><td class="n">–</td><td class="n">–</td><td class="n">–</td><td class="n">–</td></tr>
+</table>
+<p class="k">The older 24-hour meter cannot produce a half-hourly file, so it has no file test.</p>
+
+<h3>Totals</h3>
+<table>
+<tr><th></th><th class="n">Average error</th><th class="n">Picked the cheapest</th><th class="n">Lost a year by following it, all homes</th></tr>
+<tr><td>bonkers.ie, typed</td><td class="n">5.0%</td><td class="n">5 of 13</td><td class="n">€563</td></tr>
+<tr><td>Peakless, typed</td><td class="n good">2.4%</td><td class="n good">11 of 13</td><td class="n good">€185</td></tr>
+<tr><td>bonkers.ie, file</td><td class="n">2.9%</td><td class="n">6 of 12</td><td class="n">€302</td></tr>
+<tr><td>Peakless, file</td><td class="n good">0.5%</td><td class="n good">12 of 12</td><td class="n good">€0</td></tr>
+</table>
+<div class="note"><b>One disputed price moves bonkers.ie's score.</b> Energia's own page today prices Smart 24 Hour at 28.10c, rising on 12 October; bonkers.ie prices it higher for the year. The true costs here follow Energia's page, which makes Energia Smart 24 Hour the cheapest plan for most ordinary homes. If Energia's new price turns out as bonkers.ie shows, Flogas Smart 24hr becomes the cheapest instead and bonkers.ie's file results improve to <b>11 of 12</b>: its only remaining miss is the teatime-charging EV home (€144 a year). Its typed results would be 6 of 13. Peakless's would drop by the same disputed margin (about €27 a year) on those homes. Either way, the ranking of the two sites does not change.</div>
+
+<h2>Where each one goes wrong</h2>
+<h3>bonkers.ie</h3>
+<ul>
+<li><b>Typed usage assumes a night-heavy home.</b> bonkers.ie prices every smart-meter home on ESB's Nightsaver profile (37% of use at night). Ordinary homes use 23% at night, so night-rate plans look 3–11% cheaper than they are, and it recommends Electric Ireland's day/night plan to almost everyone. Fine for the night-heavy and storage homes; €33–81 a year wrong for typical, large and working-from-home homes.</li>
+<li><b>"Optimise for EV" assumes overnight charging.</b> A car charged at teatime was steered onto an EV night plan: <b>€302 a year</b> more than the cheapest. Even with the meter file it recommended a night-rate plan for that home (€173).</li>
+<li><b>Meter files from EV homes are misread.</b> With the file, EV plans were priced 13–14% too cheap on average (up to 26%). Every file was flagged "incomplete" and topped up with estimates, though each held a full year.</li>
+<li><b>Only 15 plans after a file upload;</b> "show more" does not load the rest.</li>
+<li><b>Storage heaters, typed: 14% average error</b> (up to 42%): one split for every home cannot fit a home with most of its use overnight.</li>
+</ul>
+<h3>Peakless</h3>
+<ul>
+<li><b>Heat pumps and storage heaters, typed: 5% and 8% out.</b> Peakless has its own shape for these homes, and so does this test; neither is measured, so this gap is uncertain. With the meter file both are within 0.2–1.2%.</li>
+<li><b>Solar with a battery, typed: recommends an EV plan</b> (€147 a year off for this home) because it assumes the battery can top up from the grid at night. That is advice to change a setting, not an error in the sums, but the screen should say so plainly.</li>
+<li><b>Everything else, typed or file: the cheapest plan, within 1%.</b></li>
+</ul>
+
+<h2>What the test changed in Peakless</h2>
+<table>
+<tr><th>Found</th><th>Effect before the fix</th><th>Fixed</th></tr>
+<tr><td>A solar owner's bill was read as if the home had no panels; the panels were then counted a second time.</td><td>A 4 kWp home with a €840 bill was priced as earning €97 a year. Recommendation wrong by €151.</td><td>The bill is matched against the home with its panels and export credit.</td></tr>
+<tr><td>Adding a battery made the bill matching run away.</td><td>Usage pushed to 12,000 kWh; every figure wrong.</td><td>A search that always settles on the bill given.</td></tr>
+<tr><td>Export in an uploaded meter file was ignored.</td><td>Solar homes 24–43% out with the file.</td><td>Export credited at each plan's rate: now 0.4–0.6%.</td></tr>
+<tr><td>Every car was assumed to charge 2–5am.</td><td>Teatime charging home steered to an EV plan: €302 a year.</td><td>New question: "When does the car usually charge?"</td></tr>
+<tr><td>(Earlier today) meter-file half hours an hour early; no night-use question; Night Boost standing charge; Ecopower missing.</td><td>See the first report.</td><td>Fixed.</td></tr>
+</table>
+<p>The results tables above are after all of these fixes. Each has its own automated test.</p>
+
+<h2 class="page">Ease</h2>
+<table>
+<tr><th></th><th>bonkers.ie</th><th>Peakless</th></tr>
+<tr><td>Questions, typical home typed</td><td>13 on one long form</td><td>9, one at a time (usage, meter, area, supplier, plan, discount, heating, night use, solar/EV)</td></tr>
+<tr><td>Questions, solar home</td><td>14 (adds export kWh)</td><td>16 (roof, slope, panels, battery, price, grant)</td></tr>
+<tr><td>Questions, EV home</td><td>13 (one EV switch)</td><td>13 (mileage, car, charging time)</td></tr>
+<tr><td>From meter file to ranking</td><td>12 taps, about 45 seconds of loading; then 15 plans, and an "incomplete data" warning</td><td>3 taps; every plan that suits the meter</td></tr>
+<tr><td>Show the working</td><td>Line-by-line calculation per plan</td><td>Bill, hours, solar and accuracy tabs; a downloadable PDF report</td></tr>
+</table>
+
+<h2>Every feature, side by side</h2>
+<table>
+<tr><th>Feature</th><th>bonkers.ie</th><th>Peakless</th></tr>
+<tr class="grp"><td colspan="3">Getting your usage in</td></tr>
+<tr><td>Typed yearly kWh / € spend</td><td class="y">Yes / Yes</td><td class="y">Yes / Yes</td></tr>
+<tr><td>ESB smart-meter file</td><td class="y">Yes (top 15 shown)</td><td class="y">Yes (all plans)</td></tr>
+<tr><td>Photo or PDF of a bill</td><td class="y">Yes</td><td class="x">No</td></tr>
+<tr><td>National average if unsure</td><td class="y">Yes</td><td class="y">Yes (typical home)</td></tr>
+<tr class="grp"><td colspan="3">About the home</td></tr>
+<tr><td>Urban / rural</td><td class="y">Yes</td><td class="y">Yes</td></tr>
+<tr><td>Smart, 24-hour or Nightsaver meter</td><td class="y">Yes</td><td class="y">Yes</td></tr>
+<tr><td>Heating type, night immersion</td><td class="x">No</td><td class="y">Yes</td></tr>
+<tr><td>Electric car</td><td>One "optimise for EV" switch</td><td class="y">Mileage, car, charging time</td></tr>
+<tr><td>Solar panels</td><td>Export kWh only</td><td class="y">Roof, slope, size: generation modelled hour by hour</td></tr>
+<tr><td>Battery</td><td class="x">No</td><td class="y">Size and how it is used</td></tr>
+<tr class="grp"><td colspan="3">Plans and prices</td></tr>
+<tr><td>Electricity plans</td><td class="y">About 50 for a smart home</td><td>35 for a smart home (50 in all)</td></tr>
+<tr><td>Gas and dual fuel</td><td class="y">Every supplier</td><td>Five suppliers, for dual-fuel homes</td></tr>
+<tr><td>Prepay, business</td><td class="y">Yes</td><td class="x">No</td></tr>
+<tr><td>Dynamic (wholesale) plans</td><td class="y">Filter</td><td class="y">Opt in</td></tr>
+<tr><td>Announced price rises</td><td class="y">Included</td><td class="y">Included from their date</td></tr>
+<tr><td>Welcome credits, cashback</td><td class="y">Cashback option</td><td>Welcome credits shown beside the yearly figure</td></tr>
+<tr><td>Multi-year cost (2 or 3 years)</td><td class="y">Yes</td><td class="x">No</td></tr>
+<tr><td>Export rate per plan</td><td>Used when export is given</td><td class="y">Shown and used</td></tr>
+<tr><td>Rates checked daily against suppliers' pages</td><td>Not stated</td><td class="y">Yes, with the source on each plan</td></tr>
+<tr class="grp"><td colspan="3">After the answer</td></tr>
+<tr><td>Switch for you</td><td class="y">Yes, for partner plans</td><td class="x">No: links to the supplier</td></tr>
+<tr><td>Solar payback, quote check, SEAI grant</td><td class="x">No</td><td class="y">Yes</td></tr>
+<tr><td>Price-rise and cheaper-plan alerts, contract-end reminder</td><td class="x">Not on the comparison</td><td class="y">Yes</td></tr>
+<tr><td>Where the money goes, hour by hour</td><td>Per-plan calculation</td><td class="y">Bill, hours, solar, car and accuracy tabs</td></tr>
+<tr><td>Report to download, share card</td><td class="x">No</td><td class="y">PDF report, share card</td></tr>
+<tr><td>Phone help</td><td class="y">Yes</td><td class="x">No</td></tr>
+<tr><td>Regulator accreditation</td><td class="y">CRU since 2012</td><td class="x">No</td></tr>
+<tr><td>How it is paid</td><td>Supplier commission on switches</td><td>No supplier payments</td></tr>
+</table>
+
+<h2>Limits</h2>
+<ul>
+<li><b>The homes are synthetic,</b> built from ESB's published profiles. The heat pump and storage-heater shapes, and the solar and battery behaviour, are this test's own assumptions, so typed-usage results for those homes are less certain than the rest.</li>
+<li><b>The true cost uses each supplier's published prices as Peakless holds them,</b> checked today. Where the sites disagree (Energia's 12 October price; Ecopower, whose own page shows 2024 prices), the truth follows the supplier's page. The Energia effect is shown above.</li>
+<li><b>Plans only one site lists are left out of the error figures.</b> bonkers.ie leaves out the current supplier's plans, so Pinergy (used as the current supplier) is missing from its results.</li>
+<li><b>Gas, prepay and business were not tested.</b> Peakless does not compare them in the same way.</li>
+</ul>
+
+<h2>What would close the remaining gaps in Peakless</h2>
+<ul>
+<li>Say plainly when a recommendation depends on letting the battery charge from the grid at night, and show the figure without it.</li>
+<li>Ask one question about when a heat pump or storage heaters run, or nudge those homes towards the meter file, where Peakless is already within 1%.</li>
+<li>Read a bill photo, as bonkers.ie does: the easiest way in for people without their meter file.</li>
+<li>Add prepay plans for prepay homes, and two- and three-year costs.</li>
+</ul>
+<p class="k">Run 5 October 2026. bonkers.ie was used through its public comparison form in a browser, one session at a time with pauses; its data API, which its robots file bars, was not used. Homes, true costs, scripts and every raw result are kept with the Peakless repository in docs/deep-2026-10-05.</p>
+</body></html>
