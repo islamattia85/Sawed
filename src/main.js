@@ -4883,7 +4883,11 @@ function flowAnswer(q, v){
   const f = state._flow = state._flow || {};
   const was = f[q]; f[q] = v;
   const clear = (keys) => keys.forEach((k) => delete f[k]);
-  if (q === 'bill'){ state.usage_input_mode = 'bill'; state.bimonthly_bill_eur = Math.max(30, Math.round(+v) || 250); }
+  if (q === 'bill' && String(v).startsWith('kwh:')){
+    // Usage straight off the bill or the ESB account, in kWh a year.
+    state.usage_input_mode = 'kwh'; state.annual_kwh = Math.max(500, Math.min(40000, Math.round(+String(v).slice(4)) || 4200));
+    f[q] = 'kwh:' + state.annual_kwh;
+  } else if (q === 'bill'){ state.usage_input_mode = 'bill'; state.bimonthly_bill_eur = Math.max(30, Math.round(+v) || 250); }
   if (q === 'plan') state._flow_sup = null;
   if (q === 'plan' && String(v).startsWith('guess:')){
     const g = getPlanById(String(v).slice(6));
@@ -4992,7 +4996,7 @@ function renderFlow(){
     car: ['What kind of car?', ''],
   };
   const shown = {
-    bill: (v) => v === 'meter' ? 'Smart-meter data' : `€${v} / 2 months`,
+    bill: (v) => v === 'meter' ? 'Smart-meter data' : String(v).startsWith('kwh:') ? `${(+String(v).slice(4)).toLocaleString('en-IE')} kWh a year` : `€${v} / 2 months`,
     plan: (v) => v === 'unsure' ? 'Plan not sure' : String(v).startsWith('guess:') ? `${(getPlanById(String(v).slice(6)) || {}).supplier}, plan not sure` : (() => { const p = getPlanById(v); return `${p.supplier} ${p.plan}`; })(),
     disc: (v) => (+v > 0 ? `${v}% discount` : 'No discount'),
     heat: (v) => ({ gas: 'Gas or oil', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heaters' })[v],
@@ -5022,13 +5026,26 @@ function renderFlow(){
     const own = (q, unit, max, ph, lab = 'Or your own') => `<div class="fl-own"><label for="flow-own-${q}">${lab}</label>
         <span class="sy-num"><input id="flow-own-${q}" type="number" inputmode="numeric" min="0" max="${max}" placeholder="${ph}"><i>${unit}</i></span>
         <button class="sy-stop" onclick="const v = document.getElementById('flow-own-${q}').value; if (v !== '') flowAnswer('${q}', Math.max(0, Math.min(${max}, Math.round(+v))))">Use</button></div>`;
-    if (q === 'bill') return `<div class="fl-bill"><span>€</span><input id="flow-bill" inputmode="numeric" value="${f.bill || state.bimonthly_bill_eur || 250}" aria-label="Two-month bill in euro"></div>
+    if (q === 'bill'){
+      const kwhMode = state._flow_unit === 'kwh' || (state._flow_unit == null && String(f.bill || '').startsWith('kwh:'));
+      const tabs = `<div class="fl-unit" role="group" aria-label="Enter as">
+        <button class="${kwhMode ? '' : 'on'}" aria-pressed="${!kwhMode}" onclick="state._flow_unit='eur';renderApp()">My bill in €</button>
+        <button class="${kwhMode ? 'on' : ''}" aria-pressed="${kwhMode}" onclick="state._flow_unit='kwh';renderApp()">My usage in kWh</button></div>`;
+      if (kwhMode){
+        const cur = String(f.bill || '').startsWith('kwh:') ? +String(f.bill).slice(4) : (state.usage_input_mode === 'kwh' && state.annual_kwh) || 4200;
+        return `${tabs}<div class="fl-bill"><input id="flow-bill" inputmode="numeric" value="${cur}" aria-label="Electricity used in a year, in kWh"><span class="fl-unit-k">kWh a year</span></div>
+      <p class="fl-note">On your bill as "units", or in your ESB Networks account. A typical Irish home uses about 4,200.</p>
+      <div class="fl-row">${[2500, 4200, 6000].map((v) => `<button class="sy-stop" onclick="document.getElementById('flow-bill').value=${v}">${v.toLocaleString('en-IE')}</button>`).join('')}</div>
+      <button class="fl-next" onclick="flowAnswer('bill', 'kwh:' + document.getElementById('flow-bill').value.replace(/[^0-9]/g, ''))">Next</button>`;
+      }
+      return `${tabs}<div class="fl-bill"><span>€</span><input id="flow-bill" inputmode="numeric" value="${String(f.bill || '').startsWith('kwh:') ? state.bimonthly_bill_eur || 250 : f.bill || state.bimonthly_bill_eur || 250}" aria-label="Two-month bill in euro"></div>
       <div class="fl-row">${[150, 250, 420].map((v) => `<button class="sy-stop" onclick="document.getElementById('flow-bill').value=${v}">€${v}</button>`).join('')}</div>
       <button class="fl-next" onclick="flowAnswer('bill', document.getElementById('flow-bill').value)">Next</button>
       <div class="fl-or"><span>or, most accurate</span></div>
       <label class="fl-upload">${ic('csv', 20)}<span><b>Upload your ESB smart-meter file</b><small>Every half hour of your real year. Download it free at esbnetworks.ie → My account → Download data.</small></span>
         <input type="file" accept=".csv,.CSV" onchange="handleCsvFile(event)" hidden></label>
       <div id="csv-parse-result"></div>`;
+    }
     if (q === 'plan'){
       const plans = activeTariffsSorted();
       const sups = [...new Set(plans.map((p) => p.supplier))].sort((a, b) => a.localeCompare(b));

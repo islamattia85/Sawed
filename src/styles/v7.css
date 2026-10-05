@@ -1680,3 +1680,8 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .v7-plan .v7-meta:empty { display: none; }
 .v7-hero .v7-ladder-k { margin-top: var(--space-2); }
 .hm-take { margin-top: var(--space-3); }
+/* Bill or usage: two halves of one switch. */
+.fl-unit { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: var(--radius-pill); background: var(--well); }
+.fl-unit button { padding: 10px 8px; border: 0; border-radius: var(--radius-pill); background: none; color: var(--ink-soft); font: 700 var(--text-data) var(--display); cursor: pointer; }
+.fl-unit button.on { background: var(--panel); color: var(--ink); box-shadow: var(--lift); }
+.fl-bill .fl-unit-k { font: 600 var(--text-body) var(--display); color: var(--ink-soft); white-space: nowrap; }
