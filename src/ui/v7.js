@@ -116,7 +116,7 @@ export function createV7(api) {
   function nowLabel() {
     const st = S();
     const p = api.getPlanById(st.baseline);
-    return st.baseline_known && p ? `Now, ${p.supplier}` : 'Now, a standard plan';
+    return st.baseline_known && p ? `Now, ${p.supplier} ${p.plan}` : 'Now, a standard plan';
   }
 
   function ladderData(rec) {
@@ -132,7 +132,7 @@ export function createV7(api) {
       return {
         rungs: [
           { label: nowLabel(), value: today, token: '--ink-dim' },
-          { label: `On ${best.plan.supplier}`, value: best.net, token: '--accent' },
+          { label: `On ${best.plan.supplier} ${best.plan.plan}`, value: best.net, token: '--accent' },
         ],
         fromSwitch: today - best.net, fromSolar: 0,
       };
@@ -143,7 +143,7 @@ export function createV7(api) {
       rungs: [
         { label: 'Your plan, without solar', value: today, token: '--ink-dim' },
         { label: `${nowLabel()}, with ${solarWord}`, value: mineWithSolar, token: '--v7-mid' },
-        { label: `On ${best.plan.supplier}, with ${solarWord}`, value: best.net, token: '--accent' },
+        { label: `On ${best.plan.supplier} ${best.plan.plan}, with ${solarWord}`, value: best.net, token: '--accent' },
       ],
       fromSolar: today - mineWithSolar,
       fromSwitch: mineWithSolar - best.net,
@@ -198,9 +198,9 @@ export function createV7(api) {
     const pl = plannedSolar ? api.plannedLadder() : null;
     const stair = pl ? [
       { label: `${nowLabel()}, no solar`, value: pl.today, token: '--ink-dim' },
-      { label: `On ${pl.noSolar.plan.supplier}, no solar`, value: pl.noSolar.net, token: '--v7-mid' },
+      { label: `On ${pl.noSolar.plan.supplier} ${pl.noSolar.plan.plan}, no solar`, value: pl.noSolar.net, token: '--v7-mid' },
       { label: `${nowLabel()}, with the planned solar`, value: pl.mine, token: '--v7-mid' },
-      { label: `On ${pl.best.plan.supplier}, with the planned solar`, value: pl.best.net, token: '--accent' },
+      { label: `On ${pl.best.plan.supplier} ${pl.best.plan.plan}, with the planned solar`, value: pl.best.net, token: '--accent' },
     ] : null;
     let rungs = stair || (withSolar ? lad.rungs.slice(1) : lad.rungs);
     const saving = pl ? pl.today - pl.best.net : withSolar ? fromSwitch : rec.annualSavings;

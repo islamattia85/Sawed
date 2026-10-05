@@ -214,28 +214,18 @@ export function bandDonut({ slices = [], size = 128 } = {}) {
  *
  * @param {{rungs:{label:string,value:number,token:string,note?:string}[], width?:number}} o
  */
-export function savingsLadder({ rungs = [], width = 320 } = {}) {
+export function savingsLadder({ rungs = [] } = {}) {
   const items = rungs.filter((r) => r && Number.isFinite(r.value));
   if (!items.length) return '';
-  const rowH = 22;
-  const gap = 14;
-  const labelH = 16;
   const max = Math.max(1, ...items.map((r) => Math.max(0, r.value)));
-  const height = items.length * (rowH + gap + labelH) - gap;
+  // Plain rows, not SVG text: a full plan name has to be able to wrap.
   const rows = items.map((r, i) => {
-    const y = i * (rowH + gap + labelH);
-    const w = Math.max(3, (Math.max(0, r.value) / max) * width);
-    return `<g data-rung="${i}" data-label="${esc(r.label)}" data-value="${n(r.value)}">
-      <title>${esc(r.label)}: ${eur(r.value)}/yr</title>
-      <text x="0" y="${y + 12}" font-size="13" fill="var(--ink-soft)">${esc(r.label)}</text>
-      <text x="${width}" y="${y + 12}" font-size="13" text-anchor="end" font-weight="700"
-        fill="var(--ink)">${eur(r.value)}</text>
-      <rect x="0" y="${y + labelH}" width="${width}" height="${rowH}" rx="${rowH / 2}" fill="var(--track-soft)"/>
-      <rect x="0" y="${y + labelH}" width="${n(w)}" height="${rowH}" rx="${rowH / 2}" fill="var(${r.token})"/>
-    </g>`;
+    const w = Math.max(1, (Math.max(0, r.value) / max) * 100);
+    return `<div class="lad-row" data-rung="${i}" data-label="${esc(r.label)}" data-value="${n(r.value)}" title="${esc(r.label)}: ${eur(r.value)}/yr">
+      <span class="lad-k">${esc(r.label)}</span><b class="lad-v">${eur(r.value)}</b>
+      <i class="lad-t"><i style="width:${n(w)}%;background:var(${r.token})"></i></i></div>`;
   }).join('');
-  return `<svg class="v7-ladder" viewBox="0 0 ${width} ${height}" width="100%" height="${height}"
-    role="group" aria-label="Your yearly bill, step by step">${rows}</svg>`;
+  return `<div class="v7-ladder" role="group" aria-label="Your yearly bill, step by step">${rows}</div>`;
 }
 
 /**

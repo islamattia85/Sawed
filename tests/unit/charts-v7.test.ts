@@ -8,9 +8,9 @@ import { savingsLadder, rateStrip, scoreRing, monthBars } from '../../src/ui/cha
  * here than anywhere: a bar that is the wrong length is a wrong answer.
  */
 
-const widths = (svg: string) =>
-  [...svg.matchAll(/<rect x="0" y="[\d.]+" width="([\d.]+)" height="22" rx="11" fill="var\(--(?!track)/g)]
-    .map((m) => parseFloat(m[1]!));
+// The ladder is plain rows now (full plan names wrap); each bar is a % of the largest.
+const widths = (html: string) =>
+  [...html.matchAll(/<i style="width:([\d.]+)%;background:var\(--/g)].map((m) => parseFloat(m[1]!));
 
 describe('savingsLadder', () => {
   const svg = savingsLadder({
@@ -23,13 +23,13 @@ describe('savingsLadder', () => {
   });
 
   it('draws each rung in proportion to the largest', () => {
-    expect(widths(svg)).toEqual([400, 300, 100]);
+    expect(widths(svg)).toEqual([100, 75, 25]);
   });
 
   it('keeps the exact euro figure on every rung', () => {
     expect(svg).toContain('data-value="2000"');
     expect(svg).toContain('€1,500');
-    expect(svg).toContain('<title>With solar: €500/yr</title>');
+    expect(svg).toContain('title="With solar: €500/yr"');
   });
 
   it('never draws a negative bill as a negative bar', () => {

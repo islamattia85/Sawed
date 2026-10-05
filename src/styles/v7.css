@@ -1685,3 +1685,10 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .fl-unit button { padding: 10px 8px; border: 0; border-radius: var(--radius-pill); background: none; color: var(--ink-soft); font: 700 var(--text-data) var(--display); cursor: pointer; }
 .fl-unit button.on { background: var(--panel); color: var(--ink); box-shadow: var(--lift); }
 .fl-bill .fl-unit-k { font: 600 var(--text-body) var(--display); color: var(--ink-soft); white-space: nowrap; }
+/* The savings ladder: full plan names wrap; the figure stays on the right. */
+.v7-ladder { display: grid; gap: var(--space-3); }
+.lad-row { display: grid; grid-template-columns: 1fr auto; gap: 6px var(--space-3); align-items: end; }
+.lad-k { min-width: 0; font-size: var(--text-data); line-height: 1.35; color: var(--ink-soft); }
+.lad-v { font-size: var(--text-data); color: var(--ink); }
+.lad-t { grid-column: 1 / -1; display: block; height: 22px; border-radius: 999px; background: var(--track-soft); overflow: hidden; }
+.lad-t > i { display: block; height: 100%; border-radius: 999px; }

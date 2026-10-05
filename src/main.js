@@ -4806,7 +4806,7 @@ function renderEvGuide(){
  * into a line that can be reopened with "Change", so the person always sees
  * what the answer is built on. The end is the answer itself, then one offer
  * to keep the home in an account. */
-const FLOW_Q = ['bill', 'plan', 'meter', 'area', 'heat', 'solar', 'ev'];
+const FLOW_Q = ['bill', 'meter', 'area', 'plan', 'heat', 'solar', 'ev'];
 /* Dual fuel. Peakless compares electricity only, but a home with gas from the
    same supplier usually gets a dual-fuel discount that ends if the
    electricity moves. We ask once, and warn on any switch to another supplier. */
@@ -5066,13 +5066,21 @@ function renderFlow(){
         // Most homes are on a standard plan: list those first, and "not sure"
         // assumes one. EV and dynamic plans only suit some homes, so they go last.
         const order = { flat: 0, tou: 1, ev: 2, dynamic: 3 };
-        const mine = plans.filter((p) => p.supplier === sup).sort((a, b) => (order[a.type] ?? 1) - (order[b.type] ?? 1));
-        return `<button class="fl-crumb" onclick="state._flow_sup=null;renderApp()">${ic('chevL', 14)} All suppliers</button>
+        // The meter decides which plans a home can be on now: a smart meter
+        // also keeps older 24-hour plans, a day/night meter its Nightsaver ones.
+        const meter = state.meter_type || 'smart';
+        const canBeOn = (p) => meter === 'smart' ? p.meter !== 'nightsaver' : meter === '24hr' ? p.meter === '24hr' : p.meter !== 'smart';
+        const all = plans.filter((p) => p.supplier === sup).sort((a, b) => (order[a.type] ?? 1) - (order[b.type] ?? 1));
+        const fit = all.filter(canBeOn);
+        const mine = state._flow_allplans || !fit.length ? all : fit;
+        const others = all.length - fit.length;
+        return `<button class="fl-crumb" onclick="state._flow_sup=null;state._flow_allplans=false;renderApp()">${ic('chevL', 14)} All suppliers</button>
           <div class="fl-k">${esc(sup)}: which plan? It’s on your bill, near the top.</div>
           <div class="fl-opts">${mine.map((p) => opt('plan', p.id, esc(p.plan))).join('')}
           ${!['ev', 'dynamic'].includes(mine[0].type)
             ? opt('plan', 'guess:' + mine[0].id, 'Not sure which plan', `We’ll assume ${esc(mine[0].plan)}`)
-            : opt('plan', 'unsure', 'Not sure which plan', 'We’ll assume a standard plan')}</div>`;
+            : opt('plan', 'unsure', 'Not sure which plan', 'We’ll assume a standard plan')}</div>
+          ${others && !state._flow_allplans && fit.length ? `<button class="sg-link" onclick="state._flow_allplans=true;renderApp()">Show ${others} plan${others > 1 ? 's' : ''} for other meters</button>` : ''}`;
       }
       return `<div class="fl-sups">${sups.map((n, i) => `<button class="fl-sup ${f.plan && f.plan !== 'unsure' && (getPlanById(f.plan) || {}).supplier === n ? 'on' : ''}" onclick="flowSupplier(${i})"><span class="fl-sup-mark">${esc(n.split(/\s+/).map((w) => w[0]).join('').slice(0, 2))}</span>${esc(n)}</button>`).join('')}</div>
         <button class="sg-link" onclick="flowAnswer('plan', 'unsure')">I’m not sure: assume a standard plan</button>`;
@@ -5141,8 +5149,8 @@ function renderFlow(){
     } catch (e) {}
     const bp = getPlanById(state.baseline);
     const bars = rec && save > 10 ? `<div class="fl-bars">
-        <div><span>Now${state.baseline_known && bp ? `, ${esc(bp.supplier)}` : ''}</span><b>${eur(mine)}</b><i style="width:100%"></i></div>
-        <div><span>On ${esc(rec.best.plan.supplier)}${pl ? ', with the solar' : ''}</span><b>${eur(rec.best.net)}</b><i class="is-best" style="width:${Math.max(8, Math.round(rec.best.net / mine * 100))}%"></i></div>
+        <div><span>Now${state.baseline_known && bp ? `, ${esc(bp.supplier)} ${esc(bp.plan)}` : ''}</span><b>${eur(mine)}</b><i style="width:100%"></i></div>
+        <div><span>On ${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}${pl ? ', with the solar' : ''}</span><b>${eur(rec.best.net)}</b><i class="is-best" style="width:${Math.max(8, Math.round(rec.best.net / mine * 100))}%"></i></div>
       </div>` : '';
     const acc = modelAccuracy().pct;
     h += `<section class="fl-reveal">

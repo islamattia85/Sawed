@@ -151,6 +151,8 @@ test('the first visit asks for the supplier, then that supplier\'s plan', async 
   await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
   await page.getByRole('button', { name: /Planning solar, a battery or an EV/ }).click();
   await page.getByRole('button', { name: 'Next' }).click();
+  await page.locator('.fl-opt', { hasText: 'Smart meter' }).click();
+  await page.locator('.fl-opt', { hasText: 'Urban' }).click();
   await page.locator('.fl-sup', { hasText: 'Energia' }).click();
   const plans = await page.locator('.fl-opt').allTextContents();
   expect(plans.length).toBeGreaterThan(2);                                            // its plans…
@@ -228,6 +230,8 @@ test('"not sure which plan" assumes a standard plan, never an EV or dynamic one'
   await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
   await page.getByRole('button', { name: /Planning solar, a battery or an EV/ }).click();
   await page.getByRole('button', { name: 'Next' }).click();
+  await page.locator('.fl-opt', { hasText: 'Smart meter' }).click();
+  await page.locator('.fl-opt', { hasText: 'Urban' }).click();
   await page.locator('.fl-sup', { hasText: 'Energia' }).click();
   await page.locator('.fl-opt', { hasText: 'Not sure which plan' }).click();
   expect(await page.evaluate(() => getPlanById(window.state.baseline).type)).not.toMatch(/ev|dynamic/);
@@ -247,10 +251,12 @@ test('"not sure which plan" is kept as a guess, not as a known plan', async ({ p
   await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
   await page.getByRole('button', { name: /Planning solar, a battery or an EV/ }).click();
   await page.getByRole('button', { name: 'Next' }).click();
+  await page.locator('.fl-opt', { hasText: 'Smart meter' }).click();
+  await page.locator('.fl-opt', { hasText: 'Urban' }).click();
   await page.locator('.fl-sup', { hasText: 'Energia' }).click();
   await page.locator('.fl-opt', { hasText: 'Not sure which plan' }).click();
   expect(await page.evaluate(() => window.state.baseline_known)).toBe(false);
-  await expect(page.locator('.fl-chip').nth(1)).toContainText('plan not sure');
+  await expect(page.locator('.fl-chip').nth(3)).toContainText('plan not sure');
 });
 
 test('video fixes: one panels figure, and left-out solar is offered back', async ({ page }) => {
