@@ -4933,7 +4933,7 @@ function flowSteps(){
     if (q === 'solar' && f.solar === 'have') out.push('roof', 'tilt', 'panels', 'battery', 'price', 'grant');
     if (q === 'solar' && f.solar === 'thinking'){
       out.push('house', 'roof', 'tilt', 'system');
-      if (f.system === 'own') out.push('panels', 'battery');
+      if (f.system === 'custom') out.push('panels', 'battery');
       out.push('price', 'grant');
     }
     if (q === 'ev' && (f.ev === 'have' || f.ev === 'thinking')) out.push('km', 'car');
@@ -4989,7 +4989,7 @@ function flowAnswer(q, v){
   if (q === 'gas') state.gas_same_supplier = v;
   if (q === 'meter') state.meter_type = v;
   if (q === 'house'){ state.house_type = v; delete f.system; }
-  if (q === 'system' && v !== 'own'){
+  if (q === 'system' && v !== 'custom'){
     const g = designGoals().find((x) => x.keys.includes(v));
     if (g){ const c = designToConfig(g.d); state.count_A = c.count_A; state.count_B = c.count_B || 0; state.battery_kwh = c.battery_kwh || 0; if (state.battery_kwh > 0) state.charge_from_grid = true; }
   }
@@ -5081,7 +5081,7 @@ function flowSystemStep(opt){
       </span>
       <span class="sys-foot"><span class="sys-price"><b>${eur(d.net)}</b><small>guide price</small></span><span class="sys-stats"><span><b>${pay}</b> payback</span><span><b>${eur(d.benefit)}</b> saved a year</span></span></span>
     </button>`; };
-  return `<div class="fl-opts">${opt('system', 'own', 'Model your own system', 'Your panel count and battery, or a quote you have')}${goals.map(card).join('')}</div>`;
+  return `<div class="fl-opts">${opt('system', 'custom', 'Model your own system', 'Your panel count and battery, or a quote you have')}${goals.map(card).join('')}</div>`;
 }
 function flowSupplier(i){
   const sups = [...new Set(activeTariffsSorted().map((p) => p.supplier))].sort((a, b) => a.localeCompare(b));
@@ -5144,7 +5144,7 @@ function renderFlow(){
     disc: (v) => (+v > 0 ? `${v}% discount` : 'No discount'),
     where: (v) => (IRISH_REGIONS[v] || {}).name || v,
     house: (v) => ({ apartment: 'Apartment', terraced: 'Terraced', semi: 'Semi-detached', detached: 'Detached', bungalow: 'Bungalow' })[v] || v,
-    system: (v) => v === 'own' ? 'My own size' : `${totalPanels()} panels${state.battery_kwh > 0 ? ` + ${state.battery_kwh} kWh battery` : ''}`,
+    system: (v) => v === 'custom' ? 'My own size' : `${totalPanels()} panels${state.battery_kwh > 0 ? ` + ${state.battery_kwh} kWh battery` : ''}`,
     meter: (v) => ({ smart: 'Smart meter', '24hr': 'Standard meter', nightsaver: 'Day and night meter' })[v],
     area: (v) => (v === 'rural' ? 'Rural' : 'Urban'),
     night: (v) => (v === 'immersion' ? 'Immersion at night' : 'Nothing at night'),

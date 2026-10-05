@@ -29,7 +29,7 @@ test('guided route: any direction, slope, a quote price and the grant are asked,
   await expect(page.locator('.fl-q')).toContainText('North');
   await page.locator('#flow-own-roof').fill('200'); await page.locator('.fl-own button').click();
   await expect(page.locator('.fl-q h2')).toHaveText('How steep is the roof?');
-  await page.evaluate(() => { flowAnswer('tilt', 30); flowAnswer('system', 'own'); flowAnswer('panels', 12); flowAnswer('battery', 10); });
+  await page.evaluate(() => { flowAnswer('tilt', 30); flowAnswer('system', 'custom'); flowAnswer('panels', 12); flowAnswer('battery', 10); });
   await expect(page.locator('.fl-q h2')).toHaveText('Do you have a price?');
   await page.locator('#flow-own-price').fill('12500'); await page.locator('.fl-own button').click();
   await expect(page.locator('.fl-q h2')).toContainText('SEAI grant');
@@ -41,6 +41,6 @@ test('guided route: any direction, slope, a quote price and the grant are asked,
 
 test('a guide price is labelled as one in My system', async ({ page }) => {
   await fresh(page);
-  await page.evaluate(() => { startFlow('full'); flowAnswer('bill', 250); flowAnswer('plan', 'EI-24'); flowAnswer('disc', 0); flowAnswer('meter', 'smart'); flowAnswer('area', 'urban'); flowAnswer('heat', 'heatpump'); flowAnswer('heattime', 'day'); flowAnswer('solar', 'thinking'); flowAnswer('where', 'east'); flowAnswer('house', 'semi'); flowAnswer('roof', 'S'); flowAnswer('tilt', 35); flowAnswer('system', 'own'); flowAnswer('panels', 10); flowAnswer('battery', 5); flowAnswer('price', 0); flowAnswer('grant', 'yes'); flowAnswer('ev', 'no'); flowFinish(); openMySystem(); });
+  await page.evaluate(() => { startFlow('full'); flowAnswer('bill', 250); flowAnswer('plan', 'EI-24'); flowAnswer('disc', 0); flowAnswer('meter', 'smart'); flowAnswer('area', 'urban'); flowAnswer('heat', 'heatpump'); flowAnswer('heattime', 'day'); flowAnswer('solar', 'thinking'); flowAnswer('where', 'east'); flowAnswer('house', 'semi'); flowAnswer('roof', 'S'); flowAnswer('tilt', 35); flowAnswer('system', 'custom'); flowAnswer('panels', 10); flowAnswer('battery', 5); flowAnswer('price', 0); flowAnswer('grant', 'yes'); flowAnswer('ev', 'no'); flowFinish(); openMySystem(); });
   await expect(page.locator('#v7-sheet .sy-net')).toContainText('Guide price');
 });
