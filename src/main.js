@@ -11989,11 +11989,15 @@ function parseCsvHdf(text, filename){
       if (readType2 && !readType2.toLowerCase().includes('active import')) continue;
       const val = parseFloat(valueStr2);
       if (!isFinite(val) || val < 0 || val > 50) continue;
-      // Extract hour-of-day using the same parseDateHour helper
-      const hour = parseDateHour(dateStr2);
-      // ESB HDF timestamps are end-of-interval: 00:30 means 00:00–00:30 → hour 0
-      if (hour !== null && hour >= 0 && hour < 24){
-        const bucketHour = hour === 0 ? 23 : hour - 1; // shift end-of-interval to start
+      // ESB stamps the END of each half hour: 00:30 is 00:00–00:30 (hour 0),
+      // 01:00 is 00:30–01:00 (hour 0), 00:00 the last half hour of the day before
+      // (hour 23). Subtracting a whole hour from every stamp put half the
+      // readings an hour early, and moved overnight EV charging out of the
+      // cheap window.
+      const tm2 = dateStr2.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*$/);
+      if (tm2){
+        const start = ((+tm2[1]) * 60 + (+tm2[2]) - 30 + 1440) % 1440;
+        const bucketHour = Math.floor(start / 60);
         hourBuckets[bucketHour] += val * ENERGY_FACTOR;
         hourCounts[bucketHour]++;
       }
