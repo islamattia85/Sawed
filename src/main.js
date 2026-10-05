@@ -4962,7 +4962,7 @@ function flowPick(el, q, v){
   if (_flowPicking) return;
   _flowPicking = true;
   const box = el.closest('.fl-q') || document;
-  box.querySelectorAll('.fl-opt').forEach((b) => b.classList.toggle('picked', b.dataset.q === q && b.dataset.v === String(v)));
+  box.querySelectorAll('.fl-opt').forEach((b) => { const me = b.dataset.q === q && b.dataset.v === String(v); b.classList.toggle('picked', me); if (!me) b.classList.remove('on'); });
   box.classList.add('fl-chose');   // pointer-events off until the next question lands
   if (q === 'where') box.querySelectorAll('[data-region]').forEach((r) => { r.classList.toggle('active', r.dataset.region === v); r.classList.toggle('picked', r.dataset.region === v && r.tagName !== 'path'); });
   try { navigator.vibrate && navigator.vibrate(10); } catch {}
@@ -5074,14 +5074,14 @@ function flowSystemStep(opt){
   const card = (g) => { const d = g.d;
     const pay = d.payback < 50 ? `${d.payback < 10 ? d.payback.toFixed(1) : Math.round(d.payback)} yrs` : '25+ yrs';
     return `<button class="fl-opt fl-sys ${String((state._flow || {}).system) === String(g.keys[0]) ? 'on' : ''}" data-q="system" data-v="${g.keys[0]}" onclick="flowPick(this, 'system', '${g.keys[0]}')">
-      <span class="sys-top"><span class="sys-tags">${g.labels.map((l) => `<span class="fl-tag">${l}</span>`).join('')}</span><span class="sys-price"><b>${eur(d.net)}</b><small>guide price</small></span></span>
+      <span class="sys-tags">${g.labels.map((l) => `<span class="fl-tag">${l}</span>`).join('')}</span>
       <span class="sys-kit">
         <span class="sys-part">${roof(d.panels)}<span><b>${d.panels}</b><small>panels · ${d.kwp} kWp</small></span></span>
         <span class="sys-part">${batt(d.batt)}<span><b>${d.batt ? d.batt + ' kWh' : 'No'}</b><small>battery</small></span></span>
       </span>
-      <span class="sys-stats"><span><b>${pay}</b> payback</span><span><b>${eur(d.benefit)}</b> saved a year</span></span>
+      <span class="sys-foot"><span class="sys-price"><b>${eur(d.net)}</b><small>guide price</small></span><span class="sys-stats"><span><b>${pay}</b> payback</span><span><b>${eur(d.benefit)}</b> saved a year</span></span></span>
     </button>`; };
-  return `<div class="fl-opts">${goals.map(card).join('')}${opt('system', 'own', 'Choose my own size', 'Your own panel count and battery, or a quote')}</div>`;
+  return `<div class="fl-opts">${opt('system', 'own', 'Model your own system', 'Your panel count and battery, or a quote you have')}${goals.map(card).join('')}</div>`;
 }
 function flowSupplier(i){
   const sups = [...new Set(activeTariffsSorted().map((p) => p.supplier))].sort((a, b) => a.localeCompare(b));
@@ -5115,7 +5115,7 @@ function renderFlow(){
     plan: ['Who do you pay now?', 'Not sure? We’ll estimate.'],
     disc: ['Any discount on your bill?', 'It’s on your bill, as a % off the unit rates.'],
     house: ['What kind of house is it?', 'It tells us how many panels the roof can take.'],
-    system: ['Pick a system', 'Sized for your home. Prices are after the SEAI grant.'],
+    system: ['Suggested by Peakless', 'Sized for your home, or set your own. Prices are after the SEAI grant.'],
     where: ['Where in Ireland is the home?', 'The sunshine, and how cold it gets, differ by region.'],
     meter: ['Which electricity meter do you have?', 'It decides which plans you can switch to.'],
     area: ['Urban or rural?', 'It’s on your bill. Rural standing charges are about €70 a year higher.'],

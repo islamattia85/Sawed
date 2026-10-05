@@ -705,7 +705,7 @@ test('first visit: one revealing page, answers fold into lines you can change, t
   await expect(page.locator('.fl-q h2')).toContainText('Which way does the roof face');
   await page.locator('.fl-opt', { hasText: 'East and west' }).click();
   await page.locator('.fl-opt', { hasText: 'typical' }).click();   // roof slope
-  await page.locator('.fl-opt', { hasText: 'Choose my own size' }).click();
+  await page.locator('.fl-opt', { hasText: 'Model your own system' }).click();
   await page.locator('.fl-opt', { hasText: 'suggested' }).click();
   await page.locator('.fl-opt', { hasText: '5 kWh' }).click();
   await page.locator('.fl-opt', { hasText: 'use a guide price' }).click();
@@ -784,7 +784,7 @@ test('the flow reveal: planned solar leads with the most you could save, the sam
   await page.locator('.fl-opt', { hasText: 'Semi-detached' }).click();
   await page.locator('.fl-opt', { hasText: 'South' }).first().click();
   await page.locator('.fl-opt', { hasText: 'typical' }).click();   // roof slope
-  await page.locator('.fl-opt', { hasText: 'Choose my own size' }).click();
+  await page.locator('.fl-opt', { hasText: 'Model your own system' }).click();
   await page.locator('.fl-opt', { hasText: 'suggested' }).click();
   await page.locator('.fl-opt', { hasText: '5 kWh' }).click();
   await page.locator('.fl-opt', { hasText: 'use a guide price' }).click();
