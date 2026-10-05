@@ -76,8 +76,8 @@ test('dark theme @shots', async ({ page }) => {
 });
 
 test('setup wizard and landing @shots', async ({ page }) => {
-  await boot(page, { current_screen: 'me' });
-  await page.getByRole('button', { name: /Re-run setup/ }).click();
+  await boot(page, { current_screen: 'profile' });
+  await page.getByRole('button', { name: /Go through setup again/ }).click();
   await page.waitForTimeout(350);
   await page.screenshot(SHOT('15-wizard'));
   await page.evaluate(() => window.setScreen('welcome'));

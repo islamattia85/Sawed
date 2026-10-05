@@ -550,8 +550,8 @@ function renderProfileNavBtn(){
     const initials = (_sbProfile && _sbProfile.display_name
       ? _sbProfile.display_name : (_sbUser.email || '?')).slice(0,1).toUpperCase();
     const nAl = state.onboarding_complete ? unseenAlerts().length : 0;
-    return `<button class="profile-nav-btn" onclick="setScreen('me')" aria-label="My ${BRAND.name}${nAl ? `, ${nAl} new alerts` : ''}">
-      <div class="profile-nav-avatar">${initials}${nAl ? `<i class="nav-badge">${nAl}</i>` : ''}</div>
+    return `<button class="profile-nav-btn" onclick="setScreen('account')" aria-label="Account">
+      <div class="profile-nav-avatar">${initials}</div>
     </button>`;
   }
   if (!sbInitialized()) return '';
@@ -8609,7 +8609,7 @@ function planKindText(p){
   return p.windows && p.windows.peak ? 'day, night and peak prices' : 'day and night prices';
 }
 
-function renderScoreBlock(){
+function renderScoreBlock(opts = {}){
   state.score_seen = true;   // from here on, a rise in the score is news worth a toast
   const sc = householdScore();
   const lv = scoreLevel(sc.score);
@@ -8626,7 +8626,7 @@ function renderScoreBlock(){
     </div>
     <div class="gm-parts">${sc.parts.map((p) => `<span class="gm-part"><b>${p.pts}</b>/${p.max} ${p.label.toLowerCase()}</span>`).join('')}</div>
 
-    ${sc.quests.length ? `<div class="gm-h">Next challenges</div>
+    ${sc.quests.length && !opts.noQuests ? `<div class="gm-h">Next challenges</div>
     ${sc.quests.map((q, qi) => `<button class="gm-q ${(state._quest_sel ?? 0) === qi ? 'is-sel' : ''}" onclick="state._quest_sel=${qi};v7Sheet('quest','${qi}')">
         <span class="gm-q-ico">${ic(q.icon, 18)}</span>
         <span class="gm-q-text"><b>${q.title}</b><small>${q.sub}</small></span>
@@ -8802,7 +8802,7 @@ function quoteOutcomes(){
         for (const q of state.solar_quotes || []) v[q.id] = withSimState(quoteChanges(q), systemOutcome);
       } catch (e) { /* rows keep their placeholder */ }
       _qoMemo = { k: modelKey(), v }; _qoPending = false;
-      if (state.current_screen === 'me') renderApp();
+      if (['me', 'updates', 'profile', 'account'].includes(state.current_screen)) renderApp();
     }, 300);
   }
   return null;
@@ -9129,7 +9129,7 @@ async function loadMyLeads(){
     const { data, error } = await _sb.rpc('my_quote_requests');
     _myLeads = error ? [] : (data || []);
   } catch (e){ _myLeads = []; }
-  if (state.current_screen === 'me') renderApp();
+  if (['me', 'updates', 'profile', 'account'].includes(state.current_screen)) renderApp();
 }
 
 function meOpenAuth(view){
@@ -9322,6 +9322,116 @@ function renderMe(){
   ${bottomNav()}`;
 }
 
+
+/* ── UPDATES, PROFILE, ACCOUNT ────────────────────────────────
+ * "Me" did three jobs in one long list. It is split by what the reader came
+ * for: Updates (what changed, what to do next), Profile (the home itself),
+ * and Account (rarely needed, behind the icon at the top). */
+
+/** One feed: alerts and challenges merged, each thing once, with its points. */
+function updatesFeed(){
+  const alerts = state.onboarding_complete ? computeAlerts() : [];
+  const sc = householdScore();
+  // A challenge that says the same as an alert adds its points to it instead.
+  const twin = { swap: 'cheaper', csv: 'meter', calendar: 'contract' };
+  const items = alerts.map((a) => ({ ...a, pts: 0 }));
+  sc.quests.forEach((q, qi) => {
+    const t = items.find((a) => a.kind === twin[q.icon]);
+    if (t){ t.pts = Math.max(t.pts, q.pts || 0); if (q.eur) t.eur = q.eur; return; }
+    items.push({ id: 'quest:' + q.title, kind: 'quest', level: q.eur ? 'gain' : 'info', icon: q.icon, title: q.title, body: q.sub,
+      go: `state._quest_sel=${qi};v7Sheet('quest','${qi}')`, cta: 'Do it', pts: q.pts || 0, eur: q.eur || 0 });
+  });
+  const order = { warn: 0, gain: 1, info: 2 };
+  return items.sort((a, b) => (order[a.level] ?? 2) - (order[b.level] ?? 2) || (b.pts || 0) - (a.pts || 0));
+}
+function renderUpdates(){
+  if (state.onboarding_complete && unseenAlerts().length) setTimeout(markAlertsSeen, 1500);
+  const seen = state.alerts_seen || {};
+  const sc = householdScore(), lv = scoreLevel(sc.score);
+  const perYear = (state.journey || []).reduce((a, e) => a + (e.per_year || 0), 0);
+  const feed = updatesFeed();
+  const cls = { warn: 'is-warn', gain: 'is-gain', info: '' };
+  const item = (a) => `<div class="al ${cls[a.level] || ''} ${a.kind === 'quest' || seen[a.id] ? '' : 'is-new'}">
+      <div class="al-dot" aria-hidden="true"></div>
+      <div class="al-text"><b>${a.title}</b><small>${a.body || ''}</small>
+        <span class="up-act"><button class="al-go" onclick="${a.go}">${a.cta} ${ic('chevR', 14)}</button>${a.pts ? `<i class="up-pts">+${a.pts} points</i>` : ''}</span></div>
+    </div>`;
+  return `${topbar('Updates', 'sage')}
+  <div class="screen me updates">
+    ${_handover ? `<button class="me-warn" onclick="v7Sheet('handover')">${ic('warn', 16)} This phone and your account have different homes. Choose which to keep.</button>` : ''}
+    <details class="up-progress">
+      <summary><span class="up-score"><b>${sc.score}</b> points · ${lv.name}</span><span>${perYear > 0 ? `${eur(perYear)} a year saved so far` : 'Your progress'}</span>${ic('chevD', 16)}</summary>
+      ${renderTallyBlock()}
+      ${renderScoreBlock({ noQuests: true })}
+    </details>
+    <section class="me-list al-list">${feed.length ? feed.map(item).join('') : `<div class="me-empty">Nothing new. We check every plan daily.</div>`}</section>
+    <div class="section-title">This quarter</div>
+    ${renderAdviceBlock()}
+    <section class="me-list">
+      <button class="me-row me-link" onclick="setScreen('monitor')"><span><b>Price watch</b><small>Daily, for price rises, cheaper plans and your contract end</small></span>${ic('chevR', 16)}</button>
+      ${_sbUser ? `<label class="sy-toggle al-email"><span><b>Email me these</b><small>No marketing</small></span>
+        <input type="checkbox" role="switch" ${state.alerts_email ? 'checked' : ''} onchange="state.alerts_email=this.checked;saveState();renderApp()"></label>` : ''}
+    </section>
+  </div>
+  ${bottomNav()}`;
+}
+
+function renderProfile(){
+  const region = IRISH_REGIONS[state.region || 'east'];
+  const kwh = Math.round(v7AnnualKwh());
+  const plan = getPlanById(state.baseline);
+  const hasSys = state.considering_solar && totalPanels() > 0;
+  const quotes = (state.solar_quotes || []).filter((q) => q.source !== 'previous').length, saved = (state.saved_systems || []).length;
+  const row = (go, icon, title, sub, tag) => `<button class="me-row me-link pf-row" onclick="${go}"><span class="pf-ico">${ic(icon, 18)}</span><span><b>${title}</b><small>${sub}</small></span>${tag ? `<i class="pf-tag ${tag === 'guess' ? 'is-guess' : ''}">${tag === 'guess' ? 'guide' : tag}</i>` : ''}${ic('chevR', 16)}</button>`;
+  const gasSub = state.heating_type !== 'gas' ? '' : state.gas_same_supplier === 'yes' ? `With ${esc(plan.supplier)}${+state.gas_bill_eur > 0 ? ` · €${state.gas_bill_eur} every 2 months` : ' · typical use'}` : 'With another supplier, or not set';
+  const leads = _sbUser && _myLeads && _myLeads.length ? `<div class="section-title">Quote requests</div><section class="me-list">${_myLeads.map((l) => `<div class="me-row"><span><b>${esc(l.spec?.panels ? `${l.spec.panels} panels` : 'Solar')}${l.spec?.battery_kwh ? ` · ${l.spec.battery_kwh} kWh` : ''} · ${esc(l.county)}</b><small>${l.installers ? `sent to ${l.installers} installer${l.installers > 1 ? 's' : ''}${l.responded ? ` · ${l.responded} responded` : ''}` : 'no partner installer in this county yet'}</small></span></div>`).join('')}</section>` : '';
+  if (_sbUser && _myLeads === null){ _myLeads = []; loadMyLeads(); }
+  return `${topbar('Profile', 'sage')}
+  <div class="screen me profile">
+    ${state.onboarding_complete ? householdScene() : ''}
+    <section class="me-list">
+      ${row('openMyHome()', 'home', 'Home and usage', `${esc(region ? region.name : '')} · ${kwh.toLocaleString('en-IE')} kWh a year · ${state.baseline_known === false ? 'plan not sure' : esc(plan.supplier)}`, state._csv_imported ? 'meter data' : 'guess')}
+      ${gasSub ? row('openMyHome()', 'flame', 'Gas', gasSub, state.gas_same_supplier === 'yes' && !(+state.gas_bill_eur > 0) ? 'guess' : '') : ''}
+      ${row('openMySystem()', 'sun', 'Solar and battery', hasSys ? `${totalPanels()} panels${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh battery` : ''}${quotes ? ` · ${quotes} quote${quotes > 1 ? 's' : ''}` : ''}${saved ? ` · ${saved} saved` : ''}` : 'No solar yet', hasSys ? (state.cost_is_manual ? 'quoted' : 'guess') : '')}
+      ${row('startEvGuide()', 'car', 'EV', state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No EV', '')}
+      <button class="me-add" onclick="v7Sheet('quote')">${ic('clip', 16)} Upload an installer's quote</button>
+    </section>
+    ${leads}
+    <section class="me-list">
+      <button class="me-row me-link" onclick="startFlow('full')"><span><b>Go through setup again</b><small>One question at a time, starting from your answers</small></span>${ic('chevR', 16)}</button>
+      <button class="me-row me-link" onclick="setScreen('account')"><span><b>Account and settings</b><small>${_sbUser ? 'Your account, privacy, help' : 'Sign in, privacy, help'}</small></span>${ic('chevR', 16)}</button>
+    </section>
+  </div>
+  ${bottomNav()}`;
+}
+
+function renderAccount(){
+  const signedIn = !!_sbUser;
+  const name = (_sbProfile && _sbProfile.display_name) || (signedIn ? (_sbUser.email || '').split('@')[0] : '');
+  const head = signedIn
+    ? `<section class="me-head"><div class="me-avatar" aria-hidden="true">${esc((name || '?').slice(0, 1).toUpperCase())}</div>
+        <div class="me-who"><b>${esc(name)}</b><small>${esc(_sbUser.email || '')}</small><small class="me-sync" id="me-sync">${ic('checkC', 12)} ${esc(syncLine())}</small></div></section>`
+    : `<section class="me-head me-guest"><div class="me-guest-top">${wordmarkHtml('pk-word-top')}<span class="me-badge">Guest</span></div>
+        <p class="me-p">Saved on this phone only. A free account backs it up and works on any device.</p>
+        ${sbInitialized() ? `<div class="me-auth"><button class="v7-cta-2" onclick="meOpenAuth('signup')">Create a free account</button><button class="me-ghost" onclick="meOpenAuth('login')">I have an account</button></div>` : ''}</section>`;
+  const link = (go, title, sub) => `<button class="me-row me-link" onclick="${go}"><span><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span>${ic('chevR', 16)}</button>`;
+  return `${topbar('Account', 'sage', true)}
+  <div class="screen me account">
+    ${head}
+    <section class="me-list">
+      ${link("setScreen('privacy')", 'Privacy and your data', 'What we keep, download or delete it')}
+      ${link("setScreen('independence')", 'How we make money', '')}
+      ${link("setScreen('how-to-switch')", 'How switching works', '')}
+      ${link("setScreen('more')", 'Settings and help', 'Appearance, advanced, methodology')}
+    </section>
+    <section class="me-list">
+      ${signedIn ? link('doSignOut()', 'Sign out', 'Your home stays on this phone and in your account') : ''}
+      ${link('startFresh()', 'Start fresh', 'Clears this phone')}
+    </section>
+  </div>
+  ${bottomNav()}`;
+}
+
 function renderMore(){
   const nQuotes = (state.solar_quotes || []).length;
   // Up front: the analytics (the app's edge) and the two everyday actions.
@@ -9349,7 +9459,7 @@ function renderMore(){
   const th = state.theme === 'dark' ? 'dark' : 'light';
   return `${topbar('More', 'sage', true)}
   <div class="screen">
-    <button class="me-entry" onclick="setScreen('me')">
+    <button class="me-entry" onclick="setScreen('profile')">
       <span class="me-avatar" aria-hidden="true">${_sbUser ? esc(((_sbProfile && _sbProfile.display_name) || _sbUser.email || '?').slice(0, 1).toUpperCase()) : ic('home', 18)}</span>
       <span class="me-who"><b>My ${BRAND.name}</b><small>${(() => { const n = unseenAlerts().length; return n ? `${n} new alert${n > 1 ? 's' : ''} · ` : ''; })()}${_sbUser ? 'Your home, savings, alerts and quotes' : 'Your home, savings and quotes · saved on this phone'}</small></span>
       ${unseenAlerts().length ? `<i class="me-entry-badge" aria-hidden="true">${unseenAlerts().length}</i>` : ''}
@@ -10554,7 +10664,7 @@ function v7Choose(planId){
    in-app screen stack instead of leaving the app. Screens are
    pushed as hash entries; the ?s= share param is left untouched.
    ============================================================ */
-const APP_SCREENS = ['result','plans','plan-detail','solar','analytics','monitor','privacy','installer','me',
+const APP_SCREENS = ['result','plans','plan-detail','solar','analytics','monitor','privacy','installer','me','updates','profile','account',
                      'compare','more','independence','quotes','auditor','refine',
                      'how-to-switch','methodology','csv-import'];
 
@@ -11046,7 +11156,10 @@ function renderApp(){
     case 'quotes':       html = renderQuotes(); break;
     case 'auditor':      html = renderAuditor(); break;
     case 'privacy':      html = renderPrivacy(); break;
-    case 'me':           html = renderMe(); break;
+    case 'me':
+    case 'updates':      html = renderUpdates(); break;
+    case 'profile':      html = renderProfile(); break;
+    case 'account':      html = renderAccount(); break;
     case 'installer':    html = renderInstallerPortal(); break;
     case 'refine':       html = renderRefine(); break;
     case 'how-to-switch':html = renderHowToSwitch(); break;

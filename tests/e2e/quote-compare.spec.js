@@ -70,8 +70,8 @@ test('the system as it is can be saved under a name, and removed', async ({ page
 });
 
 test('Me points to the one place systems are compared', async ({ page }) => {
-  await boot(page, { current_screen: 'me', solar_quotes: QUOTES, saved_systems: SAVED });
+  await boot(page, { current_screen: 'profile', solar_quotes: QUOTES, saved_systems: SAVED });
   await expect(page.locator('.me-quote')).toHaveCount(0);
-  await page.locator('.me-row', { hasText: 'Compare systems' }).click();
+  await page.locator('.pf-row', { hasText: 'Solar and battery' }).click();
   await expect(page.locator('#v7-sheet .sys-list')).toBeVisible();
 });

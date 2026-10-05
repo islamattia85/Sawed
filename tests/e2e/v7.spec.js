@@ -120,7 +120,7 @@ test('no screen shouts: nothing is set in uppercase by style', async ({ page }) 
 
 test('the four tabs are destinations: no back arrow on any of them', async ({ page }) => {
   await boot(page);
-  for (const s of ['result', 'plans', 'analytics', 'me']) {
+  for (const s of ['result', 'plans', 'analytics', 'updates', 'profile']) {
     await page.evaluate((x) => window.setScreen(x), s);
     await expect(page.locator('.v7-top [aria-label="Back"]'), `${s} shows a back arrow`).toHaveCount(0);
   }
@@ -133,9 +133,9 @@ test('the way back into setup, and sharing, survive the redesign', async ({ page
   const errors = await boot(page);
   await page.evaluate(() => window.anTab('accuracy'));
   await expect(page.getByRole('button', { name: /Share this analysis/ })).toBeVisible();
-  await page.evaluate(() => window.setScreen('me'));
-  await page.getByRole('button', { name: /Re-run setup/ }).click();
-  await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('onboarding');
+  await page.evaluate(() => window.setScreen('profile'));
+  await page.getByRole('button', { name: /Go through setup again/ }).click();
+  await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('flow');
   expect(errors).toEqual([]);
 });
 
@@ -438,30 +438,27 @@ test('sheet fields never trigger the iOS focus zoom, and sheets never scroll sid
   }
 });
 
-test('My Peakless: a guest sees the household, the quotes and why an account helps', async ({ page }) => {
+test('Profile: the household, each part of the home with its quotes, and the account behind it', async ({ page }) => {
   await boot(page, { current_screen: 'more', has_solar: true, considering_solar: true, count_A: 12, battery_kwh: 5,
     solar_quotes: [{ id: 'q1', installer: 'Sunny Ltd', price: 9800, kwp: 6.6, battery: 10, source: 'upload' }] });
   await page.locator('.me-entry').click();
-  expect(await page.evaluate(() => window.state.current_screen)).toBe('me');
-  const me = page.locator('.screen.me');
-  await expect(me.locator('.me-guest')).toContainText('only saved on this phone');
-  await expect(me.locator('.me-card')).toHaveCount(3);
-  await expect(me.locator('.me-row', { hasText: 'Compare systems' })).toContainText('1 quote');
-  // The More tab stays lit: My Peakless lives under it.
-  await expect(page.locator('.v7-nav-item.active')).toContainText('Me');
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('profile');
+  const pf = page.locator('.screen.profile');
+  await expect(pf.locator('.hs')).toBeVisible();
+  await expect(pf.locator('.pf-row', { hasText: 'Solar and battery' })).toContainText('1 quote');
+  await expect(page.locator('.v7-nav-item.active')).toContainText('Profile');
 
   // Quotes are compared, and switched to, in My system's list.
-  await me.locator('.me-row', { hasText: 'Compare systems' }).click();
+  await pf.locator('.pf-row', { hasText: 'Solar and battery' }).click();
   await page.locator('.sys-row', { hasText: 'Sunny Ltd' }).locator('.sys-main').click();
   await expect(page.locator('.sys-busy')).toHaveCount(0, { timeout: 15_000 });
   const s = await page.evaluate(() => ({ b: window.state.battery_kwh, c: window.state.install_cost, manual: window.state.cost_is_manual }));
   expect(s).toEqual({ b: 10, c: 9800, manual: true });
   await page.evaluate(() => window.v7Sheet(null));
 
-  // The household cards open the sheets.
-  await page.evaluate(() => window.setScreen('me'));
-  await page.locator('.me-card', { hasText: 'My home' }).click();
-  await expect(page.locator('#v7-sheet')).toContainText('My home');
+  // A guest's account card is behind Account, not in the way.
+  await page.evaluate(() => window.setScreen('account'));
+  await expect(page.locator('.screen.account .me-guest')).toContainText('Saved on this phone only');
 });
 
 test('account sync: screen state stays local, quotes are never lost, the same home is recognised', async ({ page }) => {
@@ -512,12 +509,12 @@ test('a quote is saved without touching the system; modelling it keeps the old s
 });
 
 test('closing My home or My system goes back to the screen it was opened from', async ({ page }) => {
-  await boot(page, { current_screen: 'me', has_solar: true, considering_solar: true, count_A: 12 });
+  await boot(page, { current_screen: 'profile', has_solar: true, considering_solar: true, count_A: 12 });
   for (const open of ['openMyHome()', 'openMySystem()']) {
     await page.evaluate(open);
     await expect(page.locator('#v7-sheet')).toBeVisible();
     await page.locator('.v7-sheet-x').click();
-    expect(await page.evaluate(() => window.state.current_screen)).toBe('me');
+    expect(await page.evaluate(() => window.state.current_screen)).toBe('profile');
   }
   // The household picture opens them too.
   await expect(page.locator('.hs')).toBeVisible();
@@ -531,7 +528,7 @@ test('alerts: a contract ending shows in My Peakless with a badge that clears on
   const kinds = await page.evaluate(() => window.computeAlerts().map((a) => a.kind));
   expect(kinds).toContain('contract');
   await expect(page.locator('.nav-badge')).toBeVisible();
-  await page.evaluate(() => window.setScreen('me'));
+  await page.evaluate(() => window.setScreen('updates'));
   await expect(page.locator('.al-list')).toContainText('Your contract ends in');
   await expect.poll(() => page.evaluate(() => Object.keys(window.state.alerts_seen || {}).length), { timeout: 5000 })
     .toBeGreaterThan(0);
@@ -540,7 +537,8 @@ test('alerts: a contract ending shows in My Peakless with a badge that clears on
 });
 
 test('the tally: recording a switch makes it the plan, sets the contract, and counts the saving from the date', async ({ page }) => {
-  await boot(page, { current_screen: 'me', journey: [] });
+  await boot(page, { current_screen: 'updates', journey: [] });
+  await page.locator('.up-progress > summary').click();
   await page.getByRole('button', { name: /I switched plan/ }).click();
   const sheet = page.locator('#v7-sheet');
   const to = await sheet.locator('#jr-plan').inputValue();
@@ -580,7 +578,7 @@ test('step 5: a recorded switch is checked against the meter, and the score show
     days[d] = [...Array.from({ length: 24 }, (_, h) => (h < 7 ? 1.5 : h >= 17 && h < 19 ? 1 : 0.4)), ...new Array(24).fill(0)];
   }
   const at = Object.keys(days)[10];
-  await boot(page, { current_screen: 'me', baseline: 'EN-SMART', meter: { days },
+  await boot(page, { current_screen: 'updates', baseline: 'EN-SMART', meter: { days },
     journey: [{ type: 'switch', at, from: 'BG-24', to: 'EN-SMART', label: 'Switched to Energia Smart Data', per_year: 250 }] });
   const sc = await page.evaluate(() => window.householdScore());
   expect(sc.parts.map((p) => p.key)).toEqual(expect.arrayContaining(['plan', 'know', 'timing']));
@@ -591,7 +589,7 @@ test('step 5: a recorded switch is checked against the meter, and the score show
 });
 
 test('step 5: suggestions are fetched once, kept for the quarter, and carry no personal details', async ({ page }) => {
-  await boot(page, { current_screen: 'me', user_email: 'me@example.ie', address: '1 Main St' });
+  await boot(page, { current_screen: 'updates', user_email: 'me@example.ie', address: '1 Main St' });
   let sent = null;
   await page.route('**/api/advice', async (route) => {
     sent = route.request().postDataJSON();
@@ -614,22 +612,24 @@ test('the alert count shows on the My Peakless card in More, not only on the tab
 });
 
 test('"I switched plan" opens with the best plan for the home already chosen', async ({ page }) => {
-  await boot(page, { current_screen: 'me', journey: [] });
+  await boot(page, { current_screen: 'updates', journey: [] });
   const best = await page.evaluate(() => window.getRecommendation().ranked.map((r) => r.plan.id).find((id) => id !== window.state.baseline));
+  await page.locator('.up-progress > summary').click();
   await page.getByRole('button', { name: /I switched plan/ }).click();
   await expect(page.locator('#jr-plan')).toHaveValue(best);
 });
 
 test('"I switched plan" starts on the plan the person chose, when they chose one', async ({ page }) => {
-  await boot(page, { current_screen: 'me', journey: [] });
+  await boot(page, { current_screen: 'updates', journey: [] });
   const pick = await page.evaluate(() => window.getRecommendation().ranked.map((r) => r.plan.id).filter((id) => id !== window.state.baseline)[4]);
   await page.evaluate((id) => { window.state.chosen_plan = id; window.renderApp(); }, pick);
+  await page.locator('.up-progress > summary').click();
   await page.getByRole('button', { name: /I switched plan/ }).click();
   await expect(page.locator('#jr-plan')).toHaveValue(pick);
 });
 
 test('a second switch within two weeks corrects the first instead of adding to it', async ({ page }) => {
-  await boot(page, { current_screen: 'me', journey: [] });
+  await boot(page, { current_screen: 'updates', journey: [] });
   const orig = await page.evaluate(() => window.state.baseline);
   const ids = await page.evaluate(() => window.getRecommendation().ranked.map((r) => r.plan.id).filter((id) => id !== window.state.baseline));
   await page.evaluate((id) => window.recordSwitch(id), ids[0]);
@@ -641,7 +641,8 @@ test('a second switch within two weeks corrects the first instead of adding to i
 });
 
 test('the score is a game: a dial and level always, challenges worth points, and the plan gap matches the Plans tab', async ({ page }) => {
-  await boot(page, { current_screen: 'me', has_solar: true, considering_solar: true, count_A: 12, battery_kwh: 5, solar_planned: true });
+  await boot(page, { current_screen: 'updates', has_solar: true, considering_solar: true, count_A: 12, battery_kwh: 5, solar_planned: true });
+  await page.locator('.up-progress > summary').click();   // the score sits folded under the one-line progress
   await expect(page.locator('.gm .sc-ring')).toBeVisible();
   await expect(page.locator('.gm-level-name')).toHaveText(/Starter|Saver|Smart saver|Peakless/);
   const r = await page.evaluate(() => {
@@ -652,12 +653,12 @@ test('the score is a game: a dial and level always, challenges worth points, and
   });
   // The gap is measured on the same home as the Plans tab: panels on both sides.
   if (r.qEur != null) expect(r.qEur).toBe(r.gap);
-  await expect(page.locator('.gm-q').first()).toContainText('+');
-  await expect(page.locator('.gm-q', { hasText: 'Upload your ESB meter file' })).toBeVisible();
+  await expect(page.locator('.up-pts').first()).toContainText('+');   // challenges sit in the feed with their points
+  await expect(page.locator('.al', { hasText: 'Upload your ESB meter file' }).locator('.al-go')).toBeVisible();
 });
 
 test('suggestions written for another plan are set aside, not shown as current', async ({ page }) => {
-  await boot(page, { current_screen: 'me' });
+  await boot(page, { current_screen: 'updates' });
   await page.evaluate(() => {
     const d = new Date(); const q = d.getFullYear() + '-Q' + (Math.floor(d.getMonth() / 3) + 1);
     window.state.advice = { quarter: q, key: 'some other setup', items: [{ title: 'Old tip', why: 'x', saving_eur: 1, effort: 'easy' }] };
@@ -802,7 +803,7 @@ test('v8 Home adapts: a card per part of the home, invitations for what it lacks
   await boot(page, { has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, ev_active: false });
   await expect(page.locator('.hc')).toHaveCount(0);
   await expect(page.locator('.hc-invite')).toHaveCount(2);
-  expect((await page.locator('.v7-nav-item .nav-label').allInnerTexts())).toEqual(['Home', 'Plans', 'Analytics', 'Me']);
+  expect((await page.locator('.v7-nav-item .nav-label').allInnerTexts())).toEqual(['Home', 'Plans', 'Analytics', 'Updates', 'Profile']);
 
   await boot(page, { has_solar: true, considering_solar: true, solar_planned: true, count_A: 12, battery_kwh: 5, ev_active: true, ev_km_per_year: 15000 });
   // Planned solar and the car are both lines on the answer, each with Leave out.

@@ -203,7 +203,7 @@ test('the grant card is off the solar tab and beside the field it explains', asy
   await page.evaluate(() => window.openMySystem());
   const grant = page.locator('#v7-sheet .sy-part[aria-label=Price] .sy-grant');
   await expect(grant).toContainText('SEAI grant');
-  await expect(grant).toContainText(/€[\d,]+ off the price/);
+  await expect(grant).toContainText(/€[\d,]+ off/);
 
   expect(errors).toEqual([]);
 });

@@ -1625,3 +1625,20 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .pk-route-ico { display: flex; gap: 6px; font-style: normal; opacity: .9; }
 .pk-btn-route .pk-route-ico { color: var(--brand-gold); }
 .pk-btn-route .pk-route-ico { flex-direction: column; gap: 4px; }
+
+/* Updates: progress in one line, then one feed. */
+.up-progress { margin: var(--space-3) 0; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--line); }
+.up-progress > summary { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3); cursor: pointer; list-style: none; font-size: var(--text-caption); color: var(--ink-soft); }
+.up-progress > summary::-webkit-details-marker { display: none; }
+.up-progress > summary > span:nth-child(2) { margin-left: auto; }
+.up-progress[open] > summary svg { transform: rotate(180deg); }
+.up-progress > :not(summary) { margin: 0 var(--space-3) var(--space-3); }
+.up-score b { font: 800 var(--text-h3) var(--display); color: var(--ink); }
+.up-act { display: flex; align-items: center; gap: var(--space-2); }
+.up-pts { font-style: normal; font: 700 var(--text-caption) var(--display); color: var(--accent); }
+/* Profile: one row per part of the home, guess or confirmed. */
+.me-row.pf-row { display: flex; align-items: center; gap: var(--space-3); grid-template-columns: none; }
+.pf-row > span:nth-child(2) { flex: 1; min-width: 0; }
+.pf-ico { flex: none; color: var(--accent); }
+.pf-tag { flex: none; font-style: normal; font: 700 var(--text-caption) var(--display); padding: 2px 8px; border-radius: var(--radius-pill); background: var(--accent-soft); color: var(--accent); }
+.pf-tag.is-guess { background: var(--amber-soft); color: color-mix(in srgb, var(--amber) 85%, var(--ink)); }

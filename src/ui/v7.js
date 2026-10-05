@@ -31,8 +31,9 @@ export const V7_SURFACES = [
   // The full solar analysis (the payback curve) is depth, so it sits under
   // Analytics: the lit tab always says where you are, and Home is only Home.
   { id: 'analytics', icon: 'chart', label: 'Analytics', screens: ['analytics', 'csv-import', 'solar'] },
-  { id: 'me', icon: 'user', label: 'Me',
-    screens: ['me', 'monitor', 'more', 'refine', 'auditor', 'quotes', 'methodology', 'independence', 'how-to-switch', 'privacy', 'installer'] },
+  { id: 'updates', icon: 'bell', label: 'Updates', screens: ['updates', 'me', 'monitor'] },
+  { id: 'profile', icon: 'user', label: 'Profile',
+    screens: ['profile', 'account', 'more', 'refine', 'auditor', 'quotes', 'methodology', 'independence', 'how-to-switch', 'privacy', 'installer'] },
 ];
 
 export function createV7(api) {
@@ -71,7 +72,7 @@ export function createV7(api) {
         return `
         <button class="bottom-nav-item v7-nav-item ${active === s.id ? 'active' : ''}"
           onclick="${go}" aria-current="${active === s.id ? 'page' : 'false'}">
-          <span class="nav-ico">${api.ic(s.icon, 22)}${s.id === 'me' && api.alertCount() ? `<i class="nav-badge" aria-label="${api.alertCount()} new alerts">${api.alertCount()}</i>` : ''}</span>
+          <span class="nav-ico">${api.ic(s.icon, 22)}${s.id === 'updates' && api.alertCount() ? `<i class="nav-badge" aria-label="${api.alertCount()} new alerts">${api.alertCount()}</i>` : ''}</span>
           <span class="nav-label">${s.label}</span>
         </button>`;
       }).join('')}
