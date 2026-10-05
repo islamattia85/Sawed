@@ -360,6 +360,33 @@ export function getShape(month){
    - Rebalance step to ensure annual total = sum of bills exactly
    - EV smearing: 2-5am up to charger limit, overflow to 6-10am
    ------------------------------------------------------------ */
+/** The meter's days laid on the model year (1 Jan is a Wednesday, as above),
+ * or null when there is no file, the panels are already installed, or fewer
+ * than 330 of the year's days can be matched to a reading. */
+export function meterYearDays(){
+  const days = state._csv_imported && state.meter && state.meter.days;
+  if (!days || (state.has_solar && !state.solar_planned)) return null;
+  const keys = Object.keys(days).sort();
+  if (keys.length < 330) return null;
+  // Index the readings by month-day; several years keep the most recent.
+  const byMd = {};
+  for (const k of keys) byMd[k.slice(5)] = k;
+  const out = new Array(365); let found = 0;
+  for (let doy = 0; doy < 365; doy++){
+    const date = new Date(Date.UTC(2025, 0, 1 + doy));
+    const want = date.getUTCDay();
+    let best = null;
+    for (const off of [0, -1, 1, -2, 2, -3, 3]){
+      const t = new Date(date.getTime() + off * 86400000);
+      const md = t.toISOString().slice(5, 10);
+      const k = byMd[md];
+      if (k && new Date(k + 'T12:00:00Z').getUTCDay() === want){ best = k; break; }
+    }
+    if (best){ out[doy] = days[best].slice(0, 24); found++; }
+  }
+  return found >= 330 ? out : null;
+}
+
 export function buildConsumption(){
   // Build "without EV" array first (the user's CURRENT actual usage from bills)
   const consNoEv = new Float32Array(HOURS_IN_YEAR);
@@ -410,6 +437,21 @@ export function buildConsumption(){
   if (total > 0){
     const k = targetTotal / total;
     for (let i=0;i<HOURS_IN_YEAR;i++) consNoEv[i] *= k;
+  }
+
+  // A year of meter readings: price the home's real days, not a typical one.
+  // Each day of the model year takes the recorded day nearest the same date
+  // that fell on the same weekday, so weekend and weekday plans are priced on
+  // what actually happened. Only when the meter shows the home's whole usage:
+  // with panels already on the roof it records what was left after them.
+  const realDays = meterYearDays();
+  if (realDays){
+    let i = 0;
+    for (let m = 0; m < 12; m++) for (let d = 0; d < DAYS_IN_MONTH[m]; d++){
+      const row = realDays[dayOfYear(m, d + 1) - 1];
+      if (row) for (let h = 0; h < 24; h++) consNoEv[i + h] = row[h];
+      i += 24;
+    }
   }
 
   // EV-in-bill carve-out: if the user's entered bill already includes their EV
