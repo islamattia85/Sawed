@@ -7724,7 +7724,8 @@ function renderMonitor(){
   const best = rec.best;
   const baselinePlan = getPlanById(state.baseline);
   const baseCost = rec.baseCost;
-  const savings = rec.annualSavings;
+  // The same figure Home and Updates show: against what the home pays now, solar included.
+  const savings = Math.max(0, myPlanCost() - rec.best.net);
   const onBest = best.plan.id === state.baseline;
   const rank = rec.baselineRank;
   const total = rec.rankedCount;
@@ -7759,7 +7760,7 @@ function renderMonitor(){
       <div class="mon-status-meta">${rank ? `Your current plan ranks #${rank} of ${rec.rankedCount} for your usage` : `Your current plan isn’t in the ranking (dynamic plans are left out unless you turn them on in Settings)`}</div>
       <button class="switch-cta" style="margin-top:13px;margin-bottom:0;font-size:13px;padding:13px"
         onclick="v7Sheet('switch','${best.plan.id}')">
-        Review the switch →</button>
+        See the switch</button>
     </div>`;
   }
 
@@ -7798,7 +7799,7 @@ function renderMonitor(){
     sub: onBest ? `${countLabel} plans checked. You’re already on the best one.`
                 : `${best.plan.supplier} ${best.plan.plan} now leads for your home.` });
   events.push({ c:'var(--blue)', when:'Your ranking',
-    title: rank ? `Your plan sits #${rank} of ${countLabel}` : `Your plan is outside the ranking of ${countLabel}`,
+    title: rank ? `Your plan is #${rank} of ${rec.rankedCount} for your home` : `Your plan isn’t in the ranking`,
     sub:`Top 3 for your profile: ${top3.map(t => { const p = getPlanById(t.id); return `${p.supplier} ${p.plan}`; }).join('; ')}.` });
   if (state.switched_to){
     const sp = getPlanById(state.switched_to);
@@ -7859,7 +7860,7 @@ function renderMonitor(){
       <div class="secondary-card-icon">${ic('shield',19)}</div>
       <div class="secondary-card-body">
         <div class="secondary-card-title">How we make money</div>
-        <div class="secondary-card-sub">How we make money</div>
+        <div class="secondary-card-sub">Free to use, and why</div>
       </div>
       <div class="secondary-card-arrow">›</div>
     </div>

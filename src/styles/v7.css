@@ -1643,3 +1643,11 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .pf-ico { flex: none; color: var(--accent); }
 .pf-tag { flex: none; font-style: normal; font: 700 var(--text-caption) var(--display); padding: 2px 8px; border-radius: var(--radius-pill); background: var(--accent-soft); color: var(--accent); }
 .pf-tag.is-guess { background: var(--amber-soft); color: color-mix(in srgb, var(--amber) 85%, var(--ink)); }
+/* Profile rows: a fixed icon column, left-aligned text. */
+.me-row.pf-row { text-align: left; }
+.pf-row > .pf-ico { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--radius-lg); background: var(--well); color: var(--ink-soft); }
+/* Cards stacked on Updates and Profile never touch. */
+.screen.me > * + section, .me-list + .me-list { margin-top: var(--space-3); }
+/* Sort options stay on one line and scroll, like the filters above. */
+.v7-sort { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.v7-sort .plans-sort-btn { flex: none; min-height: 36px; }

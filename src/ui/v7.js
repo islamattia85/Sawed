@@ -604,7 +604,7 @@ export function createV7(api) {
           <span><i class="v7-dot" style="background:var(--bandink-peak)"></i>peak</span>
           <span><i class="v7-dot" style="background:var(--bandink-ev)"></i>EV</span>
           ${api.latestVerifiedLabel() ? `<span class="plan-verified">Rates verified ${api.latestVerifiedLabel()} · ${ranked.length} active plans</span>` : ''}
-          <div class="v7-notices">${ranked[0] ? api.freshnessChip(ranked[0].plan) : ""}</div>
+          ${ranked[0] && /is-stale/.test(api.freshnessChip(ranked[0].plan)) ? `<div class="v7-notices">${api.freshnessChip(ranked[0].plan)}</div>` : ""}
         </div>
       </div>
 
