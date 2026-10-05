@@ -5066,9 +5066,21 @@ function flowSystemStep(opt){
   const ready = CACHE._goalSweep_ck === goalSweepCk() && CACHE._goalSweep;
   if (!ready){ scheduleGoalSweep(); return `<div class="fl-working" aria-busy="true">${ic('spark', 16)} Working out systems for your roof…</div>`; }
   const goals = designGoals().slice(0, 3);
+  // Each card shows the kit itself: the panels as a little roof, the battery as a gauge.
+  const roof = (n) => { const per = n > 14 ? 7 : n > 8 ? 5 : 3, rows = Math.ceil(n / per), w = 9, h = 13, g = 2;
+    let r = ''; for (let i = 0; i < n; i++) r += `<rect x="${(i % per) * (w + g)}" y="${Math.floor(i / per) * (h + g)}" width="${w}" height="${h}" rx="1.5"/>`;
+    return `<svg class="sys-roof" viewBox="0 0 ${per * (w + g) - g} ${rows * (h + g) - g}" style="width:${Math.round((per * (w + g) - g) * .8)}px;height:${Math.round((rows * (h + g) - g) * .8)}px" aria-hidden="true">${r}</svg>`; };
+  const batt = (k) => `<svg class="sys-batt ${k ? '' : 'none'}" viewBox="0 0 22 34" aria-hidden="true"><rect x="7" y="0" width="8" height="3" rx="1"/><rect class="b-case" x="1" y="3" width="20" height="30" rx="3"/>${k ? `<rect class="b-fill" x="4" y="${30 - Math.min(1, k / 10) * 24}" width="14" height="${Math.min(1, k / 10) * 24}" rx="1.5"/>` : ''}</svg>`;
   const card = (g) => { const d = g.d;
-    return opt('system', g.keys[0], `${g.labels.map((l) => `<span class="fl-tag">${l}</span>`).join('')}<br>${d.panels} panels${d.batt ? ` and a ${d.batt} kWh battery` : ''}`,
-      `${eur(d.net)} after the grant. Pays back in ${d.payback < 50 ? d.payback.toFixed(1) + ' years' : 'over 25 years'}, ${eur(d.benefit)} a year.`); };
+    const pay = d.payback < 50 ? `${d.payback < 10 ? d.payback.toFixed(1) : Math.round(d.payback)} yrs` : '25+ yrs';
+    return `<button class="fl-opt fl-sys ${String((state._flow || {}).system) === String(g.keys[0]) ? 'on' : ''}" data-q="system" data-v="${g.keys[0]}" onclick="flowPick(this, 'system', '${g.keys[0]}')">
+      <span class="sys-top"><span class="sys-tags">${g.labels.map((l) => `<span class="fl-tag">${l}</span>`).join('')}</span><span class="sys-price"><b>${eur(d.net)}</b><small>guide price</small></span></span>
+      <span class="sys-kit">
+        <span class="sys-part">${roof(d.panels)}<span><b>${d.panels}</b><small>panels · ${d.kwp} kWp</small></span></span>
+        <span class="sys-part">${batt(d.batt)}<span><b>${d.batt ? d.batt + ' kWh' : 'No'}</b><small>battery</small></span></span>
+      </span>
+      <span class="sys-stats"><span><b>${pay}</b> payback</span><span><b>${eur(d.benefit)}</b> saved a year</span></span>
+    </button>`; };
   return `<div class="fl-opts">${goals.map(card).join('')}${opt('system', 'own', 'Choose my own size', 'Your own panel count and battery, or a quote')}</div>`;
 }
 function flowSupplier(i){
@@ -5103,7 +5115,7 @@ function renderFlow(){
     plan: ['Who do you pay now?', 'Not sure? We’ll estimate.'],
     disc: ['Any discount on your bill?', 'It’s on your bill, as a % off the unit rates.'],
     house: ['What kind of house is it?', 'It tells us how many panels the roof can take.'],
-    system: ['Pick a system', 'Worked out on your usage, roof and region. Guide prices, after the SEAI grant.'],
+    system: ['Pick a system', 'Sized for your home. Prices are after the SEAI grant.'],
     where: ['Where in Ireland is the home?', 'The sunshine, and how cold it gets, differ by region.'],
     meter: ['Which electricity meter do you have?', 'It decides which plans you can switch to.'],
     area: ['Urban or rural?', 'It’s on your bill. Rural standing charges are about €70 a year higher.'],
