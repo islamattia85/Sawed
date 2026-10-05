@@ -9358,11 +9358,18 @@ function renderUpdates(){
   const perYear = (state.journey || []).reduce((a, e) => a + (e.per_year || 0), 0);
   const feed = updatesFeed();
   const cls = { warn: 'is-warn', gain: 'is-gain', info: '' };
-  const item = (a) => `<div class="al ${cls[a.level] || ''} ${a.kind === 'quest' || seen[a.id] ? '' : 'is-new'}">
-      <div class="al-dot" aria-hidden="true"></div>
-      <div class="al-text"><b>${a.title}</b><small>${a.body || ''}</small>
-        <span class="up-act"><button class="al-go" onclick="${a.go}">${a.cta} ${ic('chevR', 14)}</button>${a.pts ? `<i class="up-pts">+${a.pts} points</i>` : ''}</span></div>
+  const icons = { price: 'warn', cheaper: 'bolt', contract: 'calendar', meter: 'chart' };
+  // News (a price rise, a cheaper plan, a contract ending) gets a card of its own.
+  const card = (a) => `<div class="al up-card ${cls[a.level] || ''} ${seen[a.id] ? '' : 'is-new'}">
+      <div class="up-card-top"><span class="up-ico">${ic(icons[a.kind] || 'bell', 16)}</span>${a.pts ? `<i class="up-pts">+${a.pts} points</i>` : ''}</div>
+      <b>${a.title}</b>${a.body ? `<small>${a.body}</small>` : ''}
+      <button class="al-go up-btn" onclick="${a.go}">${a.cta}</button>
     </div>`;
+  // Things to do are one tappable line each.
+  const row = (a) => `<div class="al up-row"><button class="al-go" onclick="${a.go}">
+      <span><b>${a.title}</b>${a.body ? `<small>${a.body}</small>` : ''}</span>
+      ${a.pts ? `<i class="up-pts">+${a.pts}</i>` : ''}${ic('chevR', 16)}</button></div>`;
+  const news = feed.filter((a) => a.kind !== 'quest'), todo = feed.filter((a) => a.kind === 'quest');
   return `${topbar('Updates', 'sage')}
   <div class="screen me updates">
     ${_handover ? `<button class="me-warn" onclick="v7Sheet('handover')">${ic('warn', 16)} This phone and your account have different homes. Choose which to keep.</button>` : ''}
@@ -9371,7 +9378,8 @@ function renderUpdates(){
       ${renderTallyBlock()}
       ${renderScoreBlock({ noQuests: true })}
     </details>
-    <section class="me-list al-list">${feed.length ? feed.map(item).join('') : `<div class="me-empty">Nothing new. We check every plan daily.</div>`}</section>
+    <section class="al-list up-news">${news.length ? news.map(card).join('') : `<div class="me-empty">Nothing new. We check every plan daily.</div>`}</section>
+    ${todo.length ? `<div class="section-title">To do</div><section class="me-list up-todo">${todo.map(row).join('')}</section>` : ''}
     <div class="section-title">This quarter</div>
     ${renderAdviceBlock()}
     <section class="me-list">

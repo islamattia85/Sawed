@@ -1651,3 +1651,26 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 /* Sort options stay on one line and scroll, like the filters above. */
 .v7-sort { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 .v7-sort .plans-sort-btn { flex: none; min-height: 36px; }
+/* Updates: news as cards, things to do as lines. */
+.up-news { display: grid; gap: var(--space-3); }
+.up-card { display: grid; gap: var(--space-2); padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--panel); }
+.up-card.is-new { background: var(--panel); }
+.up-card > b { font-size: var(--text-body); line-height: 1.35; color: var(--ink); }
+.up-card > small { font-size: var(--text-data); line-height: 1.5; color: var(--ink-soft); }
+.up-card-top { display: flex; align-items: center; justify-content: space-between; }
+.up-ico { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius-pill); background: var(--well); color: var(--ink-soft); }
+.up-card.is-warn { border-color: color-mix(in srgb, var(--amber) 45%, transparent); }
+.up-card.is-warn .up-ico { background: var(--amber-soft); color: var(--amber); }
+.up-card.is-gain { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.up-card.is-gain .up-ico { background: var(--accent-faint); color: var(--accent); }
+.up-card .up-btn { margin-top: var(--space-2); justify-content: center; width: 100%; padding: 12px; border-radius: var(--radius-lg); border: 1.5px solid var(--line); color: var(--ink); font-size: var(--text-data); }
+.up-card.is-gain .up-btn { border: 0; background: var(--accent); color: var(--on-accent); }
+.up-card .up-pts { padding: 3px 10px; border-radius: var(--radius-pill); background: var(--accent-faint); }
+.up-row { padding: 0; border-bottom: 1px solid var(--hair); }
+.up-row:last-child { border-bottom: 0; }
+.up-row .al-go { display: flex; align-items: center; gap: var(--space-3); width: 100%; margin: 0; padding: var(--space-3) var(--space-4); text-align: left; color: var(--ink-dim); }
+.up-row .al-go > span { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.up-row b { font-size: var(--text-data); color: var(--ink); }
+.up-row small { font-weight: 400; font-size: var(--text-caption); line-height: 1.45; color: var(--ink-soft); }
+.up-row .up-pts { flex: none; padding: 2px 8px; border-radius: var(--radius-pill); background: var(--accent-faint); }
+.screen.me .section-title { margin-top: var(--space-5); }
