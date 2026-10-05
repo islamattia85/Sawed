@@ -1,0 +1,41 @@
+import { test } from '@playwright/test';
+import { isolate } from './support.js';
+import fs from 'fs';
+const D = '/tmp/claude-0/-home-user-Sawed/74c17acb-5048-514f-a9cb-512d72f36e1c/scratchpad/h2h/';
+const ranked = (page) => page.evaluate(() => window.getRecommendation().ranked.map((x) => ({ id: x.plan.id, net: x.net })));
+for (const [h, kwh] of [['h1', 4200], ['h2', 5000], ['h3', 6700]]) {
+  test('typed ' + h, async ({ page }) => {
+    await isolate(page); await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
+    const t0 = Date.now(); let taps = 0; const tap = async (l) => { await l.click(); taps++; };
+    await tap(page.getByRole('button', { name: h === 'h3' ? /Planning solar, a battery or an EV/ : /Am I paying too much/ }));
+    await tap(page.getByRole('button', { name: 'My usage in kWh' }));
+    await page.locator('#flow-bill').fill(String(kwh)); taps++;
+    await tap(page.getByRole('button', { name: 'Next' }));
+    await tap(page.locator('.fl-opt', { hasText: 'Smart meter' }));
+    await tap(page.locator('.fl-opt', { hasText: 'Urban' }));
+    await tap(page.locator('.fl-sup', { hasText: 'Pinergy' }));
+    await tap(page.locator('.fl-opt').first());
+    try { await page.locator('.fl-opt', { hasText: /^No discount|^0%|None/ }).first().click({ timeout: 1500 }); taps++; } catch { await page.evaluate(() => flowAnswer('disc', 0)); taps++; }
+    await tap(page.locator('.fl-opt', { hasText: 'Gas or oil' }));
+    if (h === 'h3') {
+      await tap(page.locator('.fl-opt', { hasText: /^No$/ }).first());               // solar
+      await tap(page.locator('.fl-opt', { hasText: 'I have one' }).first());
+      await page.evaluate(() => { flowAnswer('km', 15000); flowAnswer('car', 17); }); taps += 2;
+    }
+    await page.locator('.fl-reveal').waitFor();
+    const secs = (Date.now() - t0) / 1000;
+    await tap(page.getByRole('button', { name: 'See my home' }));
+    fs.writeFileSync(D + `pk_${h}_kwh.json`, JSON.stringify({ taps, secs, ranked: await ranked(page) }));
+  });
+  test('file ' + h, async ({ page }) => {
+    await isolate(page); await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
+    const t0 = Date.now(); let taps = 0; const tap = async (l) => { await l.click(); taps++; };
+    await tap(page.getByRole('button', { name: /Am I paying too much/ }));
+    await page.locator('.fl-upload input[type=file]').setInputFiles(D + h + '.csv'); taps++;
+    await page.getByRole('button', { name: /Use this data/ }).waitFor({ timeout: 20000 });
+    await tap(page.getByRole('button', { name: /Use this data/ }));
+    await page.waitForTimeout(1500);
+    const st = await page.evaluate(() => ({ s: window.state.current_screen, csv: !!window.state._csv_imported, kwh: Object.values(window.state.bills).reduce((a, b) => a + b, 0) }));
+    fs.writeFileSync(D + `pk_${h}_file.json`, JSON.stringify({ taps, secs: (Date.now() - t0) / 1000, st, ranked: await ranked(page) }));
+  });
+}
