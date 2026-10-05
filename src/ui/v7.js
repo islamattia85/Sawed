@@ -223,6 +223,14 @@ export function createV7(api) {
         <div class="v7-eyebrow">${pl ? 'Switch plan and add your planned solar to save' : saving > 10 ? (withSolar ? 'Switching plan saves, with your solar' : 'You could pay less') : 'Your best plan'}</div>
         <div class="qr-value v7-figure ${saving > 10 ? 'is-saving' : ''}" data-countup="${Math.round(Math.max(0, saving))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, saving))}</span><span class="v7-figure-unit">${saving > 10 ? 'less a year' : 'a year'}</span></div>
         ${pl ? '' : `<div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Best for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`}
+        ${(() => {
+          // An answer that rests on charging the battery from the grid says so,
+          // with what it would be if the battery only takes solar.
+          let ng = null; try { ng = api.withoutGridCharge(); } catch (e) {}
+          if (!ng || chosen) return '';
+          const same = ng.plan.id === best.plan.id;
+          return `<div class="v7-note is-check gc-note">${api.ic('battery', 16)}<div><b>This needs your battery to charge from the grid at night.</b> Set it in your inverter app. ${same ? `If it only takes solar, this plan is still the best, at ${eur(ng.net)} a year.` : `If it only takes solar, the best plan is <b>${esc(ng.plan.supplier)} ${esc(ng.plan.plan)}</b>, at ${eur(ng.net)} a year.`}</div></div>`;
+        })()}
         ${(() => { const mp = api.getPlanById(st.baseline), pc = mp && mp.price_change;
           return pc && pc.effective_date && Date.parse(pc.effective_date) > Date.now()
             ? `<div class="v7-evnote">${api.ic('trendUp', 14)} ${esc(mp.supplier)}’s prices rise on ${fmtDate(pc.effective_date)}. That’s counted.</div>` : ''; })()}

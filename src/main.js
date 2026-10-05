@@ -1039,6 +1039,25 @@ function solarExtrasReady(){
   return false;
 }
 const SOLAR_EXTRA_WAIT = (title) => `<div class="v7-imp v7-imp-wait" aria-busy="true"><b>${title}</b><div class="v7-imp-sub">Working it out on your home…</div></div>`;
+/**
+ * The answer depends on the battery charging from the grid overnight? Then also
+ * work out the best plan with the battery filled from the panels only, so the
+ * reader sees what the advice rests on and what it is without it. Null when
+ * the best plan does not use grid charging.
+ */
+let _noGridMemo = { key: null, val: null };
+function withoutGridCharge(){
+  const rec = getRecommendation();
+  if (!rec.best || !(state.battery_kwh > 0) || sim(rec.best.plan.id).strategy_used !== 'arbitrage') return null;
+  const key = JSON.stringify([rec.best.plan.id, Math.round(rec.best.net), state.battery_kwh, usageKey(), totalPanels(), state.area, state.meter_type, state.baseline]);
+  if (_noGridMemo.key === key) return _noGridMemo.val;
+  const val = withSimState({ strategy_mode: 'self-consume', charge_from_grid: false }, () => {
+    const r = getRecommendation();
+    return r.cheapest ? { plan: r.cheapest.plan, net: r.cheapest.net } : null;
+  });
+  _noGridMemo = { key, val };
+  return val;
+}
 /** True when grid-charging arbitrage is genuinely running. */
 function arbitrageOn(){
   const s = effectiveStrategy();
@@ -1219,7 +1238,7 @@ function cachedScenario(hasSolar, hasEv){
   const ck = JSON.stringify([hasSolar, hasEv, state.region, state.count_A, state.count_B,
     state.tilt_A, state.azimuth_A, state.battery_kwh, state.panel_w, state.heating_type,
     usageKey(), state.ev_km_per_year, state.baseline, state.chosen_plan,
-    state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.area, state._ghi_override,
+    state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.heat_time, state.area, state._ghi_override,
     // The scenario now costs the current plan too, so its discount is an input.
     state.baseline_discount_pct]);
   const hit = singleScenarioMemo.get(ck);
@@ -1241,7 +1260,7 @@ function computeSolarPaybackScenarios(){
   const ck = JSON.stringify([state.region, state.count_A, state.count_B, state.azimuth_A, state.azimuth_B,
     state.tilt_A, state.tilt_B, state.battery_kwh, state.panel_w, state.install_cost, state.grant_seai,
     state.heating_type, usageKey(), state.ev_km_per_year, state.ev_kwh_per_100km,
-    state.fuel_price, state.ice_l_per_100km, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.area, state.region, state.ev_in_bill,
+    state.fuel_price, state.ice_l_per_100km, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.heat_time, state.area, state.region, state.ev_in_bill,
     // The hand-picked plan changes the with-solar side of every scenario.
     state.chosen_plan,
     // computeScenarioRange() re-runs this whole set at three different
@@ -1796,7 +1815,7 @@ function undoBar(){
 }
 function _undoKeep(){ _undo = null; renderApp(); }
 function computeOptimisations(){
-  const ck = JSON.stringify([state.strategy_mode, state.charge_from_grid, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.area,
+  const ck = JSON.stringify([state.strategy_mode, state.charge_from_grid, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.heat_time, state.area,
     state.export_enabled, state.battery_kwh, state.heating_type, usageKey(), state.region,
     state.count_A, state.count_B, state.has_solar, state.baseline, state.ev_active, state.ev_km_per_year, state.ev_in_bill]);
   if (CACHE._opt_ck === ck && CACHE._opt) return CACHE._opt;
@@ -4903,6 +4922,7 @@ function flowSteps(){
     // Without a meter file we assume a typical home's hours. One question
     // catches the commonest exception: water heated overnight on a timer.
     if (q === 'heat' && f.heat === 'gas' && f.bill !== 'meter') out.push('night');
+    if (q === 'heat' && (f.heat === 'heatpump' || f.heat === 'storage') && f.bill !== 'meter') out.push('heattime');
     if (q === 'solar' && (f.solar === 'have' || f.solar === 'thinking')) out.push('roof', 'tilt', 'panels', 'battery', 'price', 'grant');
     if (q === 'ev' && (f.ev === 'have' || f.ev === 'thinking')) out.push('km', 'car');
     if (q === 'ev' && f.ev === 'have') out.push('evtime');
@@ -4943,13 +4963,14 @@ function flowAnswer(q, v){
   if (q === 'meter') state.meter_type = v;
   if (q === 'night') state.immersion_night = v === 'immersion';
   if (q === 'evtime') state.ev_charge_time = v === 'evening' ? 'evening' : 'night';
+  if (q === 'heattime') state.heat_time = v === 'night' ? 'night' : 'day';
   if (q === 'area') state.area = v === 'rural' ? 'rural' : 'urban';
   if (q === 'disc') state.baseline_discount_pct = Math.max(0, Math.min(60, Math.round(+v) || 0));
   if (q === 'gasbill') state.gas_bill_eur = Math.max(0, Math.round(+v) || 0);
   if ((q === 'heat' && v !== 'gas') || q === 'plan'){ delete f.gas; delete f.gasbill; }
   if (q === 'plan'){ delete f.disc; state.baseline_discount_pct = 0; }
   if (q === 'gas' && v !== 'yes') delete f.gasbill;
-  if (q === 'heat'){ state.heating_type = v; state.hot_water_strategy = DEFAULT_HW_FOR_HEATING[v] || 'none'; delete f.night; if (v !== 'gas') state.immersion_night = false; }
+  if (q === 'heat'){ state.heating_type = v; state.hot_water_strategy = DEFAULT_HW_FOR_HEATING[v] || 'none'; delete f.night; delete f.heattime; state.heat_time = null; if (v !== 'gas') state.immersion_night = false; }
   if (q === 'bill' || q === 'heat') applyUsageInput();
   if (q === 'solar'){
     if (was !== v) clear(['roof', 'panels', 'battery']);
@@ -5036,6 +5057,9 @@ function renderFlow(){
     area: ['Urban or rural?', 'It’s on your bill. Rural standing charges are about €70 a year higher.'],
     heat: ['How is the home heated?', ''],
     evtime: ['When does the car usually charge?', 'Night-rate and EV plans only pay off if it charges in their cheap hours.'],
+    heattime: state.heating_type === 'storage'
+      ? ['When do the heaters take their charge?', 'It decides how much of the bill is at the night rate.']
+      : ['When does the heat pump mostly run?', 'It decides how much of the bill is at the night rate.'],
     night: ['Is water heated at night on a timer?', 'An immersion on a night timer moves a lot of use into the cheap hours.'],
     gas: [`Is your gas with ${esc(plan.supplier)} too?`, 'It changes what a switch is worth.'],
     gasbill: ['What’s your gas bill?', 'Every two months. Not sure? We’ll use a typical home.'],
@@ -5057,6 +5081,7 @@ function renderFlow(){
     meter: (v) => ({ smart: 'Smart meter', '24hr': 'Standard meter', nightsaver: 'Day and night meter' })[v],
     area: (v) => (v === 'rural' ? 'Rural' : 'Urban'),
     night: (v) => (v === 'immersion' ? 'Immersion at night' : 'Nothing at night'),
+    heattime: (v) => (v === 'night' ? 'Heating mostly at night' : 'Heating through the day'),
     evtime: (v) => (v === 'evening' ? 'Car charges in the evening' : 'Car charges overnight'),
     heat: (v) => ({ gas: 'Gas or oil', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heaters' })[v],
     gas: (v) => (v === 'yes' ? `Gas with ${plan.supplier} too` : 'Gas with another supplier'),
@@ -5137,6 +5162,9 @@ function renderFlow(){
       <button class="fl-next" onclick="flowAnswer('gasbill', document.getElementById('flow-gas').value)">Next</button>
       <button class="v7-link" onclick="flowAnswer('gasbill', 0)">Not sure</button>`;
     if (q === 'gas') return `<div class="fl-opts">${opt('gas', 'yes', 'Yes, both with them')}${opt('gas', 'no', 'No, or oil')}</div>`;
+    if (q === 'heattime') return state.heating_type === 'storage'
+      ? `<div class="fl-opts">${opt('heattime', 'night', 'Overnight only', 'On the night rate, the usual way')}${opt('heattime', 'day', 'Also during the day', 'A daytime boost, or other electric heaters')}</div>`
+      : `<div class="fl-opts">${opt('heattime', 'day', 'Through the day, as needed', 'The usual way')}${opt('heattime', 'night', 'Mostly overnight', 'On a timer for the night rate')}</div>`;
     if (q === 'evtime') return `<div class="fl-opts">${opt('evtime', 'night', 'Overnight, on a timer', 'Or the car or charger is set to the cheap hours')}${opt('evtime', 'evening', 'As soon as I plug in', 'Usually in the evening')}</div>`;
     if (q === 'night') return `<div class="fl-opts">${opt('night', 'no', 'No', 'Hot water from the boiler, or not on a timer')}${opt('night', 'immersion', 'Yes, the immersion', 'Set to come on overnight')}</div>
       <button class="sg-link" onclick="flowAnswer('night', 'no')">Not sure (assume not)</button>`;
@@ -10026,7 +10054,7 @@ const V7 = createV7({
   householdScore: () => householdScore(),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,
-  getPlanById, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, renderConsentBar,
+  getPlanById, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, withoutGridCharge, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, renderConsentBar,
   fmtCurrency, fmtCent, fmtVerifiedDate, latestVerifiedLabel, planDataFlag, planCategoryLabel,
   freshnessChip, priceChangeChip, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
   renderSavingsBreakdown, renderAssumptions,
@@ -10937,7 +10965,7 @@ const SCENARIO_FIELDS = [
   'has_solar','considering_solar','solar_planned','solar_is_estimate',
   'count_A','azimuth_A','tilt_A','count_B','azimuth_B','tilt_B','panel_w',
   'battery_kwh','install_cost','grant_seai','grant_is_manual','cost_is_manual',
-  'strategy_mode','charge_from_grid','hot_water_strategy','include_dynamic','meter_type','area','immersion_night','ev_charge_time',
+  'strategy_mode','charge_from_grid','hot_water_strategy','include_dynamic','meter_type','area','immersion_night','ev_charge_time','heat_time',
   'ev_active','ev_in_bill','ev_km_per_year','ev_kwh_per_100km',
   'plan_overrides','_csv_imported','_csv_filename','_csv_days','_csv_periods'
 ];

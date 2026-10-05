@@ -698,6 +698,7 @@ test('first visit: one revealing page, answers fold into lines you can change, t
   await page.locator('.fl-opt', { hasText: 'Urban' }).click();
   await page.getByRole('button', { name: /not sure: assume a standard plan/i }).click();
   await page.locator('.fl-opt', { hasText: 'Heat pump' }).click();
+  await page.locator('.fl-opt', { hasText: 'Through the day' }).click();
   await page.locator('.fl-opt', { hasText: 'Thinking about it' }).click();
   await expect(page.locator('.fl-q h2')).toContainText('Which way does the roof face');
   await page.locator('.fl-opt', { hasText: 'East and west' }).click();

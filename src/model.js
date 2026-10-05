@@ -288,6 +288,20 @@ export function getShape(month){
   // - "smart" shifts 15% of daily load from morning/evening peaks → 2-5am
   // - "legacy" boosts evening peaks 10% (immersion on timer at peak times)
   // - "none" no change
+  // When the heating runs (asked in setup): a heat pump on a night timer, or
+  // storage heaters that charge only overnight, move part of the day's use into
+  // 11pm–8am. Unasked, the heating type's own shape stands.
+  if ((heatingType === 'heatpump' || heatingType === 'storage') && state.heat_time === 'night'){
+    const isNight = (h) => h >= 23 || h < 8;
+    const dayLoad = base.reduce((a, v, h) => a + (isNight(h) ? 0 : v), 0);
+    const move = dayLoad * (heatingType === 'heatpump' ? 0.35 : 0.30);
+    const nightW = base.reduce((a, v, h) => a + (isNight(h) ? v : 0), 0);
+    for (let h = 0; h < 24; h++){
+      if (isNight(h)) base[h] += move * base[h] / nightW;
+      else base[h] -= move * base[h] / dayLoad;
+    }
+  }
+
   // A gas home that heats water with the immersion on a night timer
   // (asked in setup): the same 15% move into the small hours.
   const nightImmersion = state.immersion_night && !['heatpump', 'storage', 'direct'].includes(heatingType);
@@ -938,7 +952,7 @@ export const SIM_FIELDS = [
   'battery_kwh', 'strategy_mode', 'charge_from_grid',
   'install_cost', 'grant_seai',
   'ev_active', 'ev_in_bill', 'ev_km_per_year', 'ev_kwh_per_100km',
-  'heating_type', 'hot_water_strategy', 'immersion_night', 'ev_charge_time', 'region', 'area', 'meter_type',
+  'heating_type', 'hot_water_strategy', 'immersion_night', 'ev_charge_time', 'heat_time', 'region', 'area', 'meter_type',
   'baseline', 'baseline_discount_pct', 'chosen_plan', 'include_dynamic',
   // Registering for export payments is a lever the optimisation advisor trials
   // by turning it OFF. It was missing here, so opening the Solar tab left it
@@ -1222,7 +1236,7 @@ export const GOAL_BATTS  = [0, 5, 10];
 export function goalSweepCk(){
   return JSON.stringify(['goalsweep', state.region, state.heating_type, state.bimonthly_bill_eur,
     JSON.stringify(state.bills), state.ev_active, state.ev_in_bill, state.ev_km_per_year,
-    state.ev_kwh_per_100km, state.azimuth_A, state.tilt_A, state.panel_w, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.area, state.grant_eligible !== false,
+    state.ev_kwh_per_100km, state.azimuth_A, state.tilt_A, state.panel_w, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.heat_time, state.area, state.grant_eligible !== false,
     // The roof as it is used: one face, or two and how the panels share them.
     state.count_B > 0 ? [state.azimuth_B, state.tilt_B, +(state.count_B / Math.max(1, totalPanels())).toFixed(2)] : 0]);
 }

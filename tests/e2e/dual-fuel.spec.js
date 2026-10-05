@@ -38,7 +38,7 @@ test('setup asks about gas only for a gas home whose supplier sells gas', async 
   await page.screenshot({ path: '/tmp/claude-0/-home-user-Sawed/74c17acb-5048-514f-a9cb-512d72f36e1c/scratchpad/gas.png' });
   await page.locator('.fl-opt', { hasText: 'Yes, both with them' }).click();
   expect(await page.evaluate(() => state.gas_same_supplier)).toBe('yes');
-  await page.evaluate(() => { flowAnswer('heat', 'heatpump'); });
+  await page.evaluate(() => { flowAnswer('heat', 'heatpump'); flowAnswer('heattime', 'day'); });
   await expect(page.locator('.fl-opts')).not.toContainText('Yes, both with them');
 });
 
