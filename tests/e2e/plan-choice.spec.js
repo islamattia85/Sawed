@@ -249,13 +249,11 @@ test('the primary action is above the fold, and the reasoning is below it', asyn
   expect(errors).toEqual([]);
 });
 
-test('the report is offered where the figures are explained, and the novelty tile is gone', async ({ page }) => {
+test('the report is on Home, one tap to download, and the novelty tile is gone', async ({ page }) => {
   const errors = await boot(page);
-  // v8: "Take it with you" on the Accuracy tab: the report, and sharing.
-  await page.evaluate(() => window.anTab('accuracy'));
-  const card = page.locator('.ax-card', { hasText: 'Take it with you' });
-  await expect(card.getByRole('button', { name: /Full report, PDF/ })).toBeVisible();
-  await expect(card.getByRole('button', { name: /Share this analysis/ })).toBeVisible();
+  const card = page.locator('.hm-take');
+  await expect(card.getByRole('button', { name: /Download report/ })).toBeVisible();
+  await expect(card.getByRole('button', { name: /Share/ })).toBeVisible();
 
   const text = await page.evaluate(() => document.body.innerText);
   expect(text).not.toMatch(/Challenge a friend/i);

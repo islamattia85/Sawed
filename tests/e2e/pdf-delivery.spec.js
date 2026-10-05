@@ -80,8 +80,7 @@ test('platforms where downloads work still get a download', async ({ page }) => 
 test('the whole path still works from the button a person actually taps', async ({ page }) => {
   // The other PDF tests call doGeneratePdf() directly and never touch the UI,
   // so the modal and its buttons were never covered.
-  await page.locator('.ax-door', { hasText: 'Accuracy' }).click();
-  await page.getByRole('button', { name: /Full report, PDF/ }).click();
+  await page.getByRole('button', { name: /Download report/ }).click();
   await expect(page.locator('#pdf-modal')).toBeVisible();
 
   const download = page.waitForEvent('download', { timeout: 45_000 });

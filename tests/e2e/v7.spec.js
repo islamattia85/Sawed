@@ -116,10 +116,9 @@ test('the four tabs are destinations: no back arrow on any of them', async ({ pa
 test('the way back into setup, and sharing, survive the redesign', async ({ page }) => {
   // V7's first cut dropped both from the home screen and nothing noticed — a
   // returning visitor then had no route back into the guided setup at all.
-  // v8: sharing sits with the report on Analytics' Accuracy tab; setup is in Me.
+  // Sharing sits with the report on Home; setup is in Profile.
   const errors = await boot(page);
-  await page.evaluate(() => window.anTab('accuracy'));
-  await expect(page.getByRole('button', { name: /Share this analysis/ })).toBeVisible();
+  await expect(page.locator('.hm-take').getByRole('button', { name: /Share/ })).toBeVisible();
   await page.evaluate(() => window.setScreen('profile'));
   await page.getByRole('button', { name: /Go through setup again/ }).click();
   await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('flow');

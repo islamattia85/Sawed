@@ -1679,3 +1679,4 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .v7-plan-foot .v7-plan-strip { flex: 1; min-width: 0; }
 .v7-plan .v7-meta:empty { display: none; }
 .v7-hero .v7-ladder-k { margin-top: var(--space-2); }
+.hm-take { margin-top: var(--space-3); }

@@ -381,6 +381,10 @@ export function createV7(api) {
         ${door('solar', 'sun', 'Solar', solar, `Solar: ${solar}`)}
         ${door('accuracy', 'shield', 'Accuracy', `±${acc}%`, `Accuracy, within ${acc}%`)}
       </div>
+      <div class="ax-two hm-take">
+        <button class="ax-tile" onclick="openPdfReportModal()">${api.ic('doc', 18)}<b>Download report</b></button>
+        <button class="ax-tile" onclick="shareSavingsCard()">${api.ic('link', 18)}<b>Share</b></button>
+      </div>
     </section>`;
   }
 
@@ -1315,10 +1319,6 @@ export function createV7(api) {
       ${anCard('The sum behind your answer', `${sums.map((x) => `<div class="ax-sum"><b>${x.name}</b><div><span>${x.line}</span><b>${x.total}</b></div></div>`).join('')}
         ${sums.length > 1 ? `<div class="ax-sum-d">Difference: ${eur(Math.abs(ch.net - T.total))} a year ${ch.net >= T.total ? 'less' : 'more'} than now, the figure on the Bill tab.</div>` : ''}
         ${working(rec)}${api.renderSolarWorking()}`)}
-      ${anCard('Take it with you', `<div class="ax-two">
-          <button class="ax-tile" onclick="openPdfReportModal()">${api.ic('doc', 18)}<b>Full report, PDF</b></button>
-          <button class="ax-tile" onclick="shareSavingsCard()">${api.ic('link', 18)}<b>Share this analysis</b></button>
-        </div>`)}
       ${st._csv_imported ? (a.tip ? cta(esc(a.tip.tip), a.tip.go) : '') : cta('Upload your ESB meter file', "v7Sheet('meter')")}`;
   }
 
