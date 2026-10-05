@@ -1,0 +1,21 @@
+{
+  "about": "Example homes for the futures scripts. 'state' is merged over the base household in run.mts; 'annual_kwh' with 'seasonal' builds the six bimonthly kWh figures the way applyUsageInput() does in kWh mode.",
+  "homes": [
+    {
+      "id": "attia",
+      "label": "Cork, 5,300 kWh a year, air-to-water heat pump, no EV, owns 10 panels + 9 kWh",
+      "annual_kwh": 5300,
+      "seasonal": [1.35, 1.20, 0.75, 0.65, 0.95, 1.10],
+      "state": { "heating_type": "heatpump", "hot_water_strategy": "smart", "region": "south", "area": "urban" },
+      "own_system": { "panels": 10, "panel_w": 460, "battery_kwh": 9, "inverter_kw": 5.0 }
+    },
+    {
+      "id": "gas_ev",
+      "label": "Dublin, gas-heated, 4,200 kWh a year plus an EV doing 17,000 km",
+      "annual_kwh": 4200,
+      "seasonal": null,
+      "state": { "heating_type": "gas", "hot_water_strategy": "none", "region": "east", "area": "urban",
+                 "ev_active": true, "ev_km_per_year": 17000, "ev_kwh_per_100km": 17, "ev_in_bill": false }
+    }
+  ]
+}

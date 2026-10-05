@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "about": "Tariff futures for the Futures module (docs/futures-module.md). Each future is an end state reached by year 5 and held to year 20, applied to every plan on top of today's rates. Multipliers are in real terms (today's money). 'core' futures are weighted equally in the averages; 'ladder' futures are only drawn on the export-rate chart.",
+  "ramp_years": 4,
+  "futures": [
+    { "id": "hold",     "core": true,  "label": "Today's prices hold" },
+    { "id": "exp5",     "core": true,  "label": "Export pays 5c",                          "export_to": 0.05 },
+    { "id": "exp0",     "core": true,  "label": "Export pays nothing",                     "export_to": 0 },
+    { "id": "night_up", "core": true,  "label": "Night and EV rates up 80%",               "night_ev": 1.8 },
+    { "id": "spread",   "core": true,  "label": "Wider gap between peak and night",        "night_ev": 0.75, "peak": 1.2 },
+    { "id": "crisis",   "core": true,  "label": "Energy crisis: imports up 40%",           "imports": 1.4, "export_mult": 1.2 },
+    { "id": "cheap",    "core": true,  "label": "Cheap power: imports down 20%, export halves", "imports": 0.8, "export_mult": 0.5 },
+    { "id": "standing", "core": true,  "label": "Fixed charges up 70%, unit rates down 12%", "imports": 0.88, "standing": 1.7 },
+    { "id": "exp10",    "core": false, "label": "Export pays 10c",                         "export_to": 0.10 },
+    { "id": "exp15",    "core": false, "label": "Export pays 15c",                         "export_to": 0.15 }
+  ]
+}

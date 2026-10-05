@@ -1,0 +1,274 @@
+<title>Your Home's Solar Options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one working screen — chart (left) beside the selected system's card (right); stacks on phones. Table below. */
+:root{
+  --bg:#f6f7f5; --panel:#ffffff; --ink:#151a1c; --ink-2:#4b5559; --ink-3:#7b8589; --rule:#dde2e1; --grid:#e9edec;
+  --accent:#2a78d6; --mine:#e0612b; --front:#151a1c; --good:#0b7a3e; --bad:#b33a2e;
+  --b0:#86b6ef; --b5:#5598e7; --b10:#2a78d6; --b15:#1c5cab; --b20:#104281; --b25:#0a2a52;
+  --tip-bg:#151a1c; --tip-ink:#f3f5f4;
+  --font-ui:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-num:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121516; --panel:#1b1f21; --ink:#eef1f0; --ink-2:#b4bcbe; --ink-3:#848d90; --rule:#2c3235; --grid:#23282a;
+  --accent:#5598e7; --mine:#f07a45; --front:#eef1f0; --good:#4cc183; --bad:#f07d6f;
+  --b0:#1c5cab; --b5:#2a78d6; --b10:#3987e5; --b15:#6da7ec; --b20:#9ec5f4; --b25:#cde2fb;
+  --tip-bg:#eef1f0; --tip-ink:#151a1c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121516; --panel:#1b1f21; --ink:#eef1f0; --ink-2:#b4bcbe; --ink-3:#848d90; --rule:#2c3235; --grid:#23282a;
+  --accent:#5598e7; --mine:#f07a45; --front:#eef1f0; --good:#4cc183; --bad:#f07d6f;
+  --b0:#1c5cab; --b5:#2a78d6; --b10:#3987e5; --b15:#6da7ec; --b20:#9ec5f4; --b25:#cde2fb;
+  --tip-bg:#eef1f0; --tip-ink:#151a1c; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-ui);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:28px 48px;display:flex;flex-direction:column;gap:22px}
+h1{font-size:26px;line-height:1.2;margin:0;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+.lede{margin:6px 0 0;color:var(--ink-2);max-width:70ch}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.controls{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:999px;padding:3px;background:var(--panel)}
+.seg button{font:inherit;font-size:13.5px;border:0;background:transparent;color:var(--ink-2);padding:7px 14px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);font-weight:600}
+.seg button:focus-visible,.dot:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ctl-label{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin-right:8px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:13px;color:var(--ink-2);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:11px;height:11px;border-radius:50%;display:inline-block}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+@media (max-width:900px){.main{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:10px}
+.chart-card{padding:14px 12px 8px;position:relative;min-width:0}
+#chart{display:block;width:100%;height:auto}
+.legend svg{width:12px;height:12px;flex:none}
+.axis text{fill:var(--ink-3);font-family:var(--font-num);font-size:11px}
+.axis-title{fill:var(--ink-2);font-size:12px;font-family:var(--font-ui)}
+.gridline{stroke:var(--grid);stroke-width:1}
+.zero{stroke:var(--ink-3);stroke-width:1;stroke-dasharray:4 4}
+.zero-label{fill:var(--ink-3);font-size:11px;font-family:var(--font-ui)}
+.front-line{fill:none;stroke:var(--front);stroke-width:1.5;opacity:.55}
+.dot{cursor:pointer}
+.dot .mark{stroke:var(--panel);stroke-width:2;transition:r .12s}
+.dot.is-front .ring{fill:none;stroke:var(--front);stroke-width:1.5}
+.dot.is-sel .mark{stroke:var(--ink);stroke-width:2.5}
+.dot .hit{fill:transparent}
+.mine-label{fill:var(--mine);font-size:12px;font-weight:600;font-family:var(--font-ui)}
+.tip{position:absolute;pointer-events:none;background:var(--tip-bg);color:var(--tip-ink);border-radius:8px;padding:9px 11px;font-size:12.5px;line-height:1.45;min-width:190px;max-width:240px;box-shadow:0 6px 18px rgba(0,0,0,.18);z-index:5}
+.tip b{font-weight:600}
+.tip .row{display:flex;justify-content:space-between;gap:12px}
+.detail{padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.eyebrow{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3)}
+.detail h2{margin:2px 0 0;font-size:20px;line-height:1.25}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12.5px;border:1px solid var(--rule);border-radius:999px;padding:3px 10px;color:var(--ink-2)}
+.chip.front{border-color:var(--front);color:var(--ink);font-weight:600}
+.chip.mine{border-color:var(--mine);color:var(--mine);font-weight:600}
+dl.kv{display:grid;grid-template-columns:1fr auto;gap:5px 12px;margin:0;font-size:14px}
+dl.kv dt{color:var(--ink-2)} dl.kv dd{margin:0;text-align:right}
+.big{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.big div{border-top:2px solid var(--rule);padding-top:8px}
+.big .v{font-size:22px;font-weight:500}
+.big .l{font-size:12px;color:var(--ink-3)}
+.verdict{font-size:13.5px;color:var(--ink-2);background:var(--bg);border-radius:8px;padding:10px 12px}
+.bars{display:flex;flex-direction:column;gap:5px}
+.bar-row{display:grid;grid-template-columns:minmax(0,1fr) 84px 50px;gap:8px;align-items:center;font-size:12.5px;line-height:1.3}
+.bar-row .lab{color:var(--ink-2)}
+.bar-track{position:relative;height:10px}
+.bar-track .axis0{position:absolute;top:-2px;bottom:-2px;width:1px;background:var(--ink-3)}
+.bar-track .fill{position:absolute;top:0;height:10px;border-radius:2px}
+.bar-row .val{text-align:right}
+details{border-top:1px solid var(--rule);padding-top:14px}
+summary{cursor:pointer;font-weight:600}
+.tbl-wrap{overflow-x:auto;margin-top:12px}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:640px}
+th,td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--rule)}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:600;color:var(--ink-2);font-size:12px;cursor:pointer;user-select:none}
+tr.is-front td:first-child{font-weight:600}
+tr.is-mine td{color:var(--mine)}
+tbody tr{cursor:pointer} tbody tr:hover{background:var(--bg)}
+.notes{font-size:12.5px;color:var(--ink-3);max-width:90ch;margin:0}
+@media (prefers-reduced-motion:reduce){.dot .mark{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Your home's solar options</h1>
+    <p class="lede">49 systems for your 5,300 kWh heat-pump home in Cork. Each one is run through Peakless V8's own model against 8 possible tariff futures over 20 years, on tariffs checked 5 Oct 2026. Hover over or tap a dot to see what the system is and what it costs.</p>
+  </header>
+
+  <div class="controls">
+    <div><span class="ctl-label">Battery life</span>
+      <div class="seg" role="group" aria-label="Battery life assumption">
+        <button id="r12" aria-pressed="true">Replaced in year 12</button>
+        <button id="r20" aria-pressed="false">Lasts 20 years</button>
+      </div>
+    </div>
+    <div class="legend" id="legend" aria-label="Dot colour shows battery size"></div>
+  </div>
+
+  <div class="main">
+    <div class="card chart-card" id="chartCard">
+      <svg id="chart" viewBox="0 0 720 500" role="img" aria-label="Scatter chart of average against worst-case 20-year gain for each system"></svg>
+      <div class="tip" id="tip" hidden></div>
+    </div>
+    <aside class="card detail" id="detail" aria-live="polite"></aside>
+  </div>
+
+  <details>
+    <summary>All 49 systems as a table</summary>
+    <div class="tbl-wrap"><table id="tbl"><thead><tr>
+      <th data-k="name">System</th><th data-k="net">Price after grant</th><th data-k="savingToday">Saving/yr today</th><th data-k="avg">Average 20-yr gain</th><th data-k="worst">Worst 20-yr gain</th><th data-k="front">Best trade-off</th>
+    </tr></thead><tbody></tbody></table></div>
+  </details>
+
+  <p class="notes">20-year gain = bill savings over 20 years minus the system's price after the SEAI grant, in today's money (future savings discounted 3% a year). Savings are measured against the cheapest plan you could be on without solar. Export income above €400 a year is taxed at 40%. Prices use V8's 2026 install guide prices (mid-market), not quotes. "Your system" is 10 panels at 460 W plus 9 kWh, with the benchmark price. The 8 futures phase in over five years and are weighted equally. The battery is modelled with a 5 kW charge limit and simple rules, so smart controls such as a SigenStor may do better than shown.</p>
+</div>
+
+<script>
+const DATA = __DATA__;
+const BATTS = [0,5,10,15,20,25];
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const eur = v => (v<0?'−':'') + '€' + Math.abs(Math.round(v)).toLocaleString('en-IE');
+const eurk = v => (v<0?'−':'') + '€' + (Math.abs(v)/1000).toFixed(1) + 'k';
+const nameOf = s => s.mine ? 'Your system' : `${s.panels} panels${s.batt ? ' + ' + s.batt + ' kWh' : ', no battery'}`;
+const specOf = s => `${s.panels} panels · ${s.kwp} kWp · ${s.batt ? s.batt + ' kWh battery' : 'no battery'}`;
+const battVar = b => s => s.mine ? 'var(--mine)' : `var(--b${b})`;
+
+let mode = 'r12', selected = DATA.systems.find(s => s.mine).id, sortKey = 'avg', sortDir = -1;
+
+function compute(){
+  for (const s of DATA.systems){
+    const v = s[mode];
+    s.avg = v.reduce((a,b)=>a+b,0)/v.length; s.worst = Math.min(...v); s.vals = v;
+  }
+  const pool = DATA.systems.filter(s => !s.mine);
+  for (const s of DATA.systems){
+    s.beatenBy = pool.filter(q => q !== s && q.avg >= s.avg && q.worst >= s.worst && (q.avg > s.avg || q.worst > s.worst));
+    s.front = !s.mine && s.beatenBy.length === 0;
+  }
+}
+
+// Fixed scales spanning both assumptions, so dots visibly move when toggled.
+const all = DATA.systems.flatMap(s => ['r12','r20'].map(m => { const v=s[m]; return {a:v.reduce((x,y)=>x+y,0)/v.length, w:Math.min(...v)}; }));
+const X0 = Math.floor(Math.min(...all.map(p=>p.w))/2000)*2000, X1 = Math.ceil(Math.max(...all.map(p=>p.w))/2000)*2000;
+const Y0 = Math.floor(Math.min(...all.map(p=>p.a))/2000)*2000, Y1 = Math.ceil(Math.max(...all.map(p=>p.a))/2000)*2000;
+let W=720,H=500; const M={l:62,r:18,t:16,b:52};
+function sizeChart(){ const c=document.getElementById('chartCard'); W=Math.max(320,Math.min(760,(c.clientWidth||720)-24)); H=W<560?Math.round(W*1.15):500; document.getElementById('chart').setAttribute('viewBox',`0 0 ${W} ${H}`); }
+const sx = v => M.l + (v-X0)/(X1-X0)*(W-M.l-M.r);
+const sy = v => H-M.b - (v-Y0)/(Y1-Y0)*(H-M.t-M.b);
+const NS='http://www.w3.org/2000/svg';
+const el = (t,a={},p) => { const e=document.createElementNS(NS,t); for (const k in a) e.setAttribute(k,a[k]); if (p) p.appendChild(e); return e; };
+
+function legend(){
+  const L = document.getElementById('legend');
+  L.innerHTML = '<span class="ctl-label" style="margin:0">Battery</span>' +
+    BATTS.map(b=>`<span><i class="sw" style="background:var(--b${b})"></i>${b?b+' kWh':'none'}</span>`).join('') +
+    `<span><i class="sw" style="background:transparent;border:1.5px solid var(--front)"></i>best trade-off</span>` +
+    `<span><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 0 L12 6 L6 12 L0 6Z" fill="var(--mine)"/></svg>your system</span>`;
+}
+
+function draw(){
+  sizeChart();
+  const svg = document.getElementById('chart'); svg.innerHTML='';
+  const g = el('g',{class:'axis'},svg);
+  for (let v=X0; v<=X1; v+=2000){ el('line',{x1:sx(v),x2:sx(v),y1:M.t,y2:H-M.b,class:'gridline'},g); const t=el('text',{x:sx(v),y:H-M.b+18,'text-anchor':'middle'},g); t.textContent=v===0?'€0':eurk(v).replace('.0k','k'); }
+  for (let v=Y0; v<=Y1; v+=2000){ el('line',{x1:M.l,x2:W-M.r,y1:sy(v),y2:sy(v),class:'gridline'},g); const t=el('text',{x:M.l-8,y:sy(v)+4,'text-anchor':'end'},g); t.textContent=v===0?'€0':eurk(v).replace('.0k','k'); }
+  el('line',{x1:sx(0),x2:sx(0),y1:M.t,y2:H-M.b,class:'zero'},svg);
+  el('line',{x1:M.l,x2:W-M.r,y1:sy(0),y2:sy(0),class:'zero'},svg);
+  const zl1 = el('text',{x:sx(0)+6,y:M.t+12,class:'zero-label'},svg); zl1.textContent='← loses money in its worst future';
+  zl1.setAttribute('x', sx(0)-6); zl1.setAttribute('text-anchor','end');
+  const zl2 = el('text',{x:W-M.r-4,y:sy(0)+15,class:'zero-label','text-anchor':'end'},svg); zl2.textContent='below: loses money on average';
+  const t1 = el('text',{x:(M.l+W-M.r)/2,y:H-10,class:'axis-title','text-anchor':'middle'},svg); t1.textContent='Worst-case 20-year gain (the worst of 8 futures)  →  safer';
+  const t2 = el('text',{x:16,y:(M.t+H-M.b)/2,class:'axis-title','text-anchor':'middle',transform:`rotate(-90 16 ${(M.t+H-M.b)/2})`},svg); t2.textContent='Average 20-year gain  →  better';
+
+  const fr = DATA.systems.filter(s=>s.front).sort((a,b)=>a.worst-b.worst);
+  el('polyline',{class:'front-line',points:fr.map(s=>`${sx(s.worst)},${sy(s.avg)}`).join(' ')},svg);
+
+  const order = [...DATA.systems].sort((a,b)=> (a.mine?1:0)-(b.mine?1:0) || (a.front?1:0)-(b.front?1:0));
+  for (const s of order){
+    const gg = el('g',{class:'dot'+(s.front?' is-front':'')+(s.id===selected?' is-sel':''),tabindex:0,role:'button','aria-label':`${nameOf(s)}: average ${eurk(s.avg)}, worst ${eurk(s.worst)}, ${eur(s.net)} after grant`,'data-id':s.id},svg);
+    const x=sx(s.worst), y=sy(s.avg);
+    el('circle',{cx:x,cy:y,r:13,class:'hit'},gg);
+    if (s.mine){
+      el('path',{d:`M${x} ${y-9} L${x+9} ${y} L${x} ${y+9} L${x-9} ${y}Z`,class:'mark',fill:'var(--mine)'},gg);
+      const lb = el('text',{x:x+13,y:y+4,class:'mine-label'},gg); lb.textContent='Your system';
+    } else {
+      if (s.front) el('circle',{cx:x,cy:y,r:9.5,class:'ring'},gg);
+      el('circle',{cx:x,cy:y,r:6,class:'mark',fill:`var(--b${s.batt})`},gg);
+    }
+    gg.addEventListener('mouseenter',e=>showTip(s,x,y));
+    gg.addEventListener('mouseleave',hideTip);
+    gg.addEventListener('focus',()=>{showTip(s,x,y);});
+    gg.addEventListener('blur',hideTip);
+    gg.addEventListener('click',()=>select(s.id));
+    gg.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();select(s.id);} });
+  }
+}
+
+function showTip(s,x,y){
+  const tip=document.getElementById('tip'), card=document.getElementById('chartCard'), svg=document.getElementById('chart');
+  tip.innerHTML = `<b>${nameOf(s)}</b><div style="opacity:.8;margin-bottom:5px">${specOf(s)}</div>
+    <div class="row"><span>Price before grant</span><span class="num">${eur(s.gross)}</span></div>
+    <div class="row"><span>After €${s.grant.toLocaleString('en-IE')} grant</span><span class="num">${eur(s.net)}</span></div>
+    <div class="row"><span>Saving per year today</span><span class="num">${eur(s.savingToday)}</span></div>
+    <div class="row" style="margin-top:4px"><span>Average 20-yr gain</span><span class="num">${eurk(s.avg)}</span></div>
+    <div class="row"><span>Worst 20-yr gain</span><span class="num">${eurk(s.worst)}</span></div>`;
+  tip.hidden=false;
+  const r = svg.getBoundingClientRect(), k = r.width/W, cr = card.getBoundingClientRect();
+  let left = r.left-cr.left + x*k + 14, top = r.top-cr.top + y*k - 20;
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  if (left + tw > cr.width - 6) left = r.left-cr.left + x*k - tw - 14;
+  if (top + th > cr.height - 6) top = cr.height - th - 6;
+  tip.style.left = Math.max(6,left)+'px'; tip.style.top = Math.max(6,top)+'px';
+}
+function hideTip(){ document.getElementById('tip').hidden = true; }
+
+function select(id){ selected=id; draw(); renderDetail(); renderTable(); }
+
+function renderDetail(){
+  const s = DATA.systems.find(x=>x.id===selected), D=document.getElementById('detail');
+  const vals = s.vals, lo = Math.min(0,...DATA.systems.flatMap(x=>x.vals)), hi = Math.max(...DATA.systems.flatMap(x=>x.vals));
+  const pos = v => ((v-lo)/(hi-lo)*100);
+  let verdict;
+  if (s.front) verdict = `<b>Best trade-off.</b> No other system gives both a higher average and a better worst case.`;
+  else {
+    const n = s.beatenBy.length;
+    const b = [...s.beatenBy].sort((a,c)=>a.net-c.net)[0];
+    const diff = b.net - s.net;
+    verdict = `Beaten on both counts by ${n} other system${n>1?'s':''}. The cheapest of them is <b>${nameOf(b)}</b>: ${eurk(b.avg)} average and ${eurk(b.worst)} worst case, for ${diff<=0? eur(-diff)+' less' : eur(diff)+' more'} after the grant.`;
+  }
+  D.innerHTML = `
+    <div><div class="eyebrow">Selected system</div><h2>${nameOf(s)}</h2></div>
+    <div class="chips"><span class="chip">${s.panels} panels</span><span class="chip">${s.kwp} kWp</span><span class="chip">${s.batt? s.batt+' kWh battery':'No battery'}</span>${s.front?'<span class="chip front">Best trade-off</span>':''}${s.mine?'<span class="chip mine">Yours</span>':''}</div>
+    <dl class="kv">
+      <dt>Price before grant</dt><dd class="num">${eur(s.gross)}</dd>
+      <dt>SEAI grant</dt><dd class="num">−${eur(s.grant)}</dd>
+      <dt><b>Price after grant</b></dt><dd class="num"><b>${eur(s.net)}</b></dd>
+      <dt>Saving per year at today's prices</dt><dd class="num">${eur(s.savingToday)}</dd>
+    </dl>
+    <div class="big"><div><div class="v num">${eurk(s.avg)}</div><div class="l">Average 20-year gain</div></div><div><div class="v num">${eurk(s.worst)}</div><div class="l">Worst-case 20-year gain</div></div></div>
+    <div class="verdict">${verdict}</div>
+    <div><div class="eyebrow" style="margin-bottom:6px">20-year gain in each future</div>
+      <div class="bars">${DATA.futures.map((f,i)=>{ const v=vals[i], a=pos(0), b=pos(v);
+        return `<div class="bar-row"><span class="lab" title="${f}">${f}</span><span class="bar-track"><span class="axis0" style="left:${a}%"></span><span class="fill" style="left:${Math.min(a,b)}%;width:${Math.abs(b-a)}%;background:${v<0?'var(--bad)':(s.mine?'var(--mine)':'var(--accent)')}"></span></span><span class="val num">${eurk(v)}</span></div>`;}).join('')}</div>
+    </div>`;
+}
+
+function renderTable(){
+  const rows = [...DATA.systems].map(s=>({s, name:nameOf(s), net:s.net, savingToday:s.savingToday, avg:s.avg, worst:s.worst, front:s.front?1:0}));
+  rows.sort((a,b)=> (typeof a[sortKey]==='string' ? a[sortKey].localeCompare(b[sortKey]) : a[sortKey]-b[sortKey]) * sortDir);
+  document.querySelector('#tbl tbody').innerHTML = rows.map(r=>`<tr data-id="${r.s.id}" class="${r.s.front?'is-front':''} ${r.s.mine?'is-mine':''}"><td>${r.name}${r.s.mine?' (10 panels + 9 kWh)':''}</td><td class="num">${eur(r.net)}</td><td class="num">${eur(r.savingToday)}</td><td class="num">${eurk(r.avg)}</td><td class="num">${eurk(r.worst)}</td><td>${r.s.front?'Yes':''}</td></tr>`).join('');
+  document.querySelectorAll('#tbl tbody tr').forEach(tr=>tr.addEventListener('click',()=>{ select(tr.dataset.id); document.getElementById('chartCard').scrollIntoView({behavior:'smooth',block:'nearest'}); }));
+}
+document.querySelectorAll('#tbl th').forEach(th=>th.addEventListener('click',()=>{ const k=th.dataset.k; sortDir = sortKey===k ? -sortDir : (k==='name'?1:-1); sortKey=k; renderTable(); }));
+
+function setMode(m){ mode=m; document.getElementById('r12').setAttribute('aria-pressed', m==='r12'); document.getElementById('r20').setAttribute('aria-pressed', m==='r20'); compute(); draw(); renderDetail(); renderTable(); }
+document.getElementById('r12').addEventListener('click',()=>setMode('r12'));
+document.getElementById('r20').addEventListener('click',()=>setMode('r20'));
+document.getElementById('chart').addEventListener('mouseleave',hideTip);
+
+legend(); setMode('r12');
+let _rz; window.addEventListener('resize',()=>{ clearTimeout(_rz); _rz=setTimeout(()=>{ hideTip(); draw(); },120); });
+</script>

@@ -12,3 +12,6 @@ __pycache__/
 .pytest_cache/
 screenshots/
 verify_report.md
+
+# Futures experiment output (scripts/futures)
+futures-out/
