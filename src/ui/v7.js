@@ -546,7 +546,8 @@ export function createV7(api) {
         const wc = isCurrent ? 0 : welcomeFor(r.plan);
         const meta = [
           wc ? `<span class="v7-flag is-gift">${api.ic('spark', 12)} +${api.fmtCurrency(wc)} welcome credit</span>` : '',
-          r.plan.verified_date ? `<span class="plan-verified">Verified ${api.fmtVerifiedDate(r.plan.verified_date)}</span>` : '',
+          // The date sits once above the list; a card only says so when it was checked earlier.
+          r.plan.verified_date && api.fmtVerifiedDate(r.plan.verified_date) !== api.latestVerifiedLabel() ? `<span class="plan-verified">Checked ${api.fmtVerifiedDate(r.plan.verified_date)}</span>` : '',
           api.planDataFlag(r.plan) ? `<span class="v7-flag is-check">${api.ic('warn', 12)} confirm rates</span>` : '',
           r.plan.price_change ? `<span class="v7-flag is-rise">${api.ic('trendUp', 12)} rising ${fmtDate(r.plan.price_change.effective_date)}</span>` : '',
           r.onHold ? `<span class="v7-flag">wholesale-linked, not ranked</span>` : '',
@@ -565,10 +566,9 @@ export function createV7(api) {
               ${isCurrent ? '<div class="v7-plan-delta">today</div>' : `<div class="v7-plan-delta ${saving > 0 ? 'is-gain' : 'is-loss'}">${saving > 0 ? '−' : '+'}${api.fmtCurrency(Math.abs(saving))}</div>`}
             </div>
           </div>
-          <div class="v7-bar" title="${api.fmtCurrency(r.cost)} of ${api.fmtCurrency(ruler)}"><span style="width:${w.toFixed(1)}%"></span></div>
-          <div class="v7-plan-strip">${rateStrip({ bands: BANDS24(r.plan), rates: r.plan.rates, height: 6 })}</div>
+          ${meta ? `<div class="v7-meta">${meta}</div>` : ''}
           <div class="v7-plan-foot">
-            <div class="v7-meta">${meta}</div>
+            <div class="v7-plan-strip">${rateStrip({ bands: BANDS24(r.plan), rates: r.plan.rates, height: 6 })}</div>
             <button class="cmp-btn v7-cmp ${cmpSel.includes(r.plan.id) ? 'on' : ''}"
               onclick="event.stopPropagation(); toggleCompare('${r.plan.id}')"
               aria-pressed="${cmpSel.includes(r.plan.id)}">${cmpSel.includes(r.plan.id) ? '✓ Comparing' : 'Compare'}</button>
@@ -640,14 +640,14 @@ export function createV7(api) {
    */
   const AN_TABS = [
     { id: 'bill', label: 'Bill', icon: 'euro', q: 'Where does your money go?',
-      sub: 'What you pay in a year, what it is made of, and what would change it.' },
+      sub: '' },
     { id: 'hours', label: 'Hours', icon: 'clock', q: 'When do you use it, and what does each hour cost?',
-      sub: 'Your typical day, the price of every hour, and any day of the year.' },
+      sub: '' },
     { id: 'solar', label: 'Solar', icon: 'sun', q: 'Would the panels pay off, and how?', sub: '' },
     { id: 'car', label: 'Car', icon: 'car', q: 'What does the car cost to run here?',
-      sub: 'Charging, the hours that make it cheap, and the plans that suit it.' },
+      sub: '' },
     { id: 'accuracy', label: 'Accuracy', icon: 'shield', q: 'How sure are these figures?',
-      sub: 'What every figure is built on, what is assumed, and how to make it sharper.' },
+      sub: '' },
   ];
   /** Cheapest to dearest, so a stacked bar reads like the rates do. */
   const BAND_ORDER = ['ev', 'night', 'wfh', 'day', 'peak'];
@@ -884,7 +884,7 @@ export function createV7(api) {
       </div>`).join('');
     const legend = covered.length || neg ? `<div class="ax-mb-key"><span><i class="k-pay"></i>You pay</span>${covered.length ? '<span><i class="k-cov"></i>Paid by credit</span>' : ''}${neg ? '<span><i class="k-cr"></i>Credit built</span>' : ''}</div>` : '';
     return { title, html: `<div class="ax-mb" role="group" aria-label="The bill by month; choose a month to see it">${cols}</div>${legend}${reads}
-      ${note(`Fixed charges, electricity${sys ? ' and export payments' : ''} for each month, the way the bill adds them. Bills come every two months; this splits each into its two.`)}` };
+      ` };
   }
 
   function analytics(tab) {
@@ -960,17 +960,17 @@ export function createV7(api) {
       ${anAnswer({
         k: `This home${homeWith() ? `, with ${homeWith()},` : ''} pays`,
         big: eur(T.total), unit: 'a year',
-        line: `On ${esc(plan.supplier)} · ${esc(plan.plan)}, ${d.picked ? 'the plan you picked' : d.bestIsChoice ? 'your chosen plan' : 'the best plan for this home'}, for ${kwh(T.kwh)}. That’s ${api.fmtCent(T.total / Math.max(1, T.kwh))} a kWh, fixed charges included.`,
+        line: `On ${esc(plan.supplier)} ${esc(plan.plan)}. ${api.fmtCent(T.total / Math.max(1, T.kwh))} a kWh, all in.`,
       })}
       ${anCard(partsTitle, `${stack(parts, parts.map((p) => `${p.label} ${p.val}`).join(', '))}${rows(parts)}${credit}`)}
       ${anCard(bill.title, bill.html)}
       ${cheap}
       ${health ? `<button class="ax-link-row ax-health" onclick="v7Sheet('score')" aria-label="Plan health ${health.overall} of 100">
         ${scoreRing({ value: health.overall, size: 44 })}
-        <span><b>Plan health: ${health.overall} of 100</b><small>How well your plan fits this home, and what would raise it</small></span>
+        <span><b>Plan health: ${health.overall} of 100</b><small>How well your plan fits, and how to raise it</small></span>
         ${api.ic('chevR', 18)}
       </button>` : ''}
-      ${cta('Compare every plan, priced for your home', "setScreen('plans')")}`;
+      ${cta('See every plan', "setScreen('plans')")}`;
   }
 
   /* --- Hours: when do you use it, and what does each hour cost? --- */

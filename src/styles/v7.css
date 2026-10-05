@@ -1674,3 +1674,8 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .up-row small { font-weight: 400; font-size: var(--text-caption); line-height: 1.45; color: var(--ink-soft); }
 .up-row .up-pts { flex: none; padding: 2px 8px; border-radius: var(--radius-pill); background: var(--accent-faint); }
 .screen.me .section-title { margin-top: var(--space-5); }
+/* Plan cards: name and price, the day's rates, compare. Nothing repeated. */
+.v7-plan { gap: var(--space-3); padding: var(--space-4); }
+.v7-plan-foot .v7-plan-strip { flex: 1; min-width: 0; }
+.v7-plan .v7-meta:empty { display: none; }
+.v7-hero .v7-ladder-k { margin-top: var(--space-2); }

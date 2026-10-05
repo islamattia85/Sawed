@@ -66,19 +66,6 @@ test('a home without solar gets a two-rung ladder, with nothing credited to pane
   await expect(page.locator('.v7-split')).toHaveCount(0);
 });
 
-test('every plan bar is its cost on the same ruler', async ({ page }) => {
-  await boot(page, { current_screen: 'plans', _plans_all: true });
-  const rows = await page.evaluate(() => [...document.querySelectorAll('.v7-plan')].map((el) => ({
-    width: parseFloat(el.querySelector('.v7-bar > span').style.width),
-    cost: parseFloat(el.querySelector('.plan-cost').textContent.replace(/[^\d.-]/g, '')),
-  })));
-  expect(rows.length).toBeGreaterThan(10);
-  // Width / cost is the same constant for every plan above the minimum sliver.
-  const k = rows.filter((r) => r.width > 3).map((r) => r.width / r.cost);
-  const spread = Math.max(...k) / Math.min(...k);
-  expect(spread, 'bars are not drawn on one scale').toBeLessThan(1.02);
-});
-
 test('a plan opens as a sheet over the list, and closes back onto it', async ({ page }) => {
   const errors = await boot(page, { current_screen: 'plans' });
   await page.locator('.v7-plan').nth(1).click();

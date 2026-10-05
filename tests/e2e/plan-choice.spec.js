@@ -163,7 +163,7 @@ test('every plan, ranked, is one plain tap from the Bill question', async ({ pag
   // v8: "Pick a different plan" left people asking why it was there. Home's
   // Plans tab is the ranked list; the Bill tab ends on the same action, named.
   await page.locator('.ax-door', { hasText: 'Bill' }).click();
-  await page.getByRole('button', { name: /Compare every plan, priced for your home/ }).click();
+  await page.getByRole('button', { name: /See every plan/ }).click();
   await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('plans');
   expect(errors).toEqual([]);
 });
