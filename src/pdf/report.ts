@@ -333,7 +333,7 @@ function chAccuracy(d: Doc, r: ReportData) {
 /* ── chapters ────────────────────────────────────────────────────────────── */
 
 function chUsage(d: Doc, r: ReportData) {
-  chapter(d, 'One', 'What you use',
+  chapter(d, 'Usage', 'What you use',
     `Everything in this report rests on how much electricity you use and when. ${r.usageBasis}.`);
 
   columnChart(d, r.usageByPeriod, {
@@ -354,7 +354,7 @@ function chUsage(d: Doc, r: ReportData) {
 
 function chComparison(d: Doc, r: ReportData) {
   const saved = r.savings.total > 1;
-  chapter(d, 'Two', 'What you could pay',
+  chapter(d, 'Plans', 'What you could pay',
     r.choice
       ? `Every one of the ${r.tariffCount} plans available was simulated against your consumption across all 8,760 hours of a year. You have chosen to go with ${r.best.name}, and the rest of this report is built on that plan.`
       : saved
@@ -445,7 +445,7 @@ function chComparison(d: Doc, r: ReportData) {
 function chSolar(d: Doc, r: ReportData) {
   const s = r.solar;
   if (!s) return;
-  chapter(d, 'Three', 'Your solar and battery',
+  chapter(d, 'Solar', 'Your solar and battery',
     `A ${s.kwp.toFixed(2)} kWp array — ${s.panels}, ${s.orientation} — with ${s.battery}.`);
 
   houseScene(d, {
@@ -496,7 +496,7 @@ function chSolar(d: Doc, r: ReportData) {
 function chTransport(d: Doc, r: ReportData) {
   const e = r.ev;
   if (!e) return;
-  chapter(d, r.solar ? 'Four' : 'Three', 'Running the car',
+  chapter(d, 'Car', 'Running the car',
     `Charging at home instead of buying petrol, over ${e.km.toLocaleString('en-IE')} km a year.`);
 
   tiles(d, [
@@ -518,8 +518,7 @@ function chTransport(d: Doc, r: ReportData) {
 }
 
 function chAct(d: Doc, r: ReportData) {
-  const n = r.solar && r.ev ? 'Five' : r.solar || r.ev ? 'Four' : 'Three';
-  chapter(d, n, 'Acting on this',
+  chapter(d, 'Next steps', 'Acting on this',
     'Switching supplier in Ireland is a short online process. Your supply is never interrupted and nobody visits the property.');
 
   r.switchSteps.forEach((s, i) => {
@@ -545,8 +544,7 @@ function chAct(d: Doc, r: ReportData) {
 }
 
 function chMethod(d: Doc, r: ReportData) {
-  const n = r.solar && r.ev ? 'Six' : r.solar || r.ev ? 'Five' : 'Four';
-  chapter(d, n, 'Method and assumptions',
+  chapter(d, 'Method', 'Method and assumptions',
     'Every figure in this report can be traced to an input. Those inputs are listed here so you can judge how much weight to put on the result.');
 
   chAccuracy(d, r);
@@ -599,7 +597,7 @@ function appendix(d: Doc, r: ReportData) {
 function chYear(d: Doc, r: ReportData) {
   if (!r.months?.length) return;
   const y = r.year;
-  chapter(d, 'Performance', 'Your year, month by month',
+  chapter(d, 'Months', 'Your year, month by month',
     'A solar system in Ireland does not deliver evenly. These are the twelve months as the simulation produced them, hour by hour, on your own consumption.');
 
   monthlyEnergyChart(d, r.months, {
@@ -693,7 +691,7 @@ function chDays(d: Doc, r: ReportData) {
 
 function chWhereMoneyGoes(d: Doc, r: ReportData) {
   if (!r.bands?.length) return;
-  chapter(d, 'Analysis', 'Where the money actually goes',
+  chapter(d, 'Costs', 'Where the money actually goes',
     `Not every kilowatt-hour costs the same. This is your annual import cost split by the rate band it fell in, on ${planWord(r)}.`);
 
   const fixed = r.best.standing + 19.1;
@@ -738,7 +736,7 @@ function chWhereMoneyGoes(d: Doc, r: ReportData) {
 
 function chLevers(d: Doc, r: ReportData) {
   if (!r.levers?.length) return;
-  chapter(d, 'Variables', 'What would change these numbers',
+  chapter(d, 'What if', 'What would change these numbers',
     'Every figure in this report rests on assumptions. These are the ones that move the answer most, each re-simulated rather than estimated.');
 
   const best = r.levers.slice().sort((x, y) => y.value - x.value)[0]!;
