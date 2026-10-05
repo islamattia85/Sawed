@@ -1,0 +1,602 @@
+[
+ {
+  "home": "small",
+  "mode": "kwh",
+  "best": "WP-SST",
+  "pk": {
+   "med": 0.0,
+   "mean": 0.1,
+   "regret": 0,
+   "pick": "WP-SST"
+  },
+  "kw": {
+   "med": 1.9,
+   "mean": 2.7,
+   "med_adj": 1.9,
+   "regret": 4,
+   "pick": "EI-SST"
+  },
+  "bk": {
+   "mean": 3.3,
+   "regret": 4,
+   "pick": "EI-SST",
+   "med": 3.4
+  }
+ },
+ {
+  "home": "small",
+  "mode": "file",
+  "best": "WP-SST",
+  "pk": {
+   "med": 0.4,
+   "mean": 0.4,
+   "regret": 0,
+   "pick": "WP-SST"
+  },
+  "kw": {
+   "med": 1.4,
+   "mean": 2.8,
+   "med_adj": 0.0,
+   "regret": 0,
+   "pick": "WP-SST"
+  },
+  "bk": {
+   "mean": 0.4,
+   "regret": 0,
+   "pick": "WP-SST",
+   "med": 0.0
+  }
+ },
+ {
+  "home": "typical",
+  "mode": "kwh",
+  "best": "EN-SMART-24-HOUR",
+  "pk": {
+   "med": 0.0,
+   "mean": 0.1,
+   "regret": 0,
+   "pick": "EN-SMART-24-HOUR"
+  },
+  "kw": {
+   "med": 2.1,
+   "mean": 2.5,
+   "med_adj": 2.3,
+   "regret": 33,
+   "pick": "EI-SST"
+  },
+  "bk": {
+   "mean": 3.7,
+   "regret": 33,
+   "pick": "EI-SST",
+   "med": 4.0
+  }
+ },
+ {
+  "home": "typical",
+  "mode": "file",
+  "best": "EN-SMART-24-HOUR",
+  "pk": {
+   "med": 0.5,
+   "mean": 0.5,
+   "regret": 0,
+   "pick": "EN-SMART-24-HOUR"
+  },
+  "kw": {
+   "med": 0.8,
+   "mean": 2.0,
+   "med_adj": 0.0,
+   "regret": 27,
+   "pick": "FL-24"
+  },
+  "bk": {
+   "mean": 0.5,
+   "regret": 27,
+   "pick": "FL-24",
+   "med": 0.0
+  }
+ },
+ {
+  "home": "large",
+  "mode": "kwh",
+  "best": "EN-SMART-24-HOUR",
+  "pk": {
+   "med": 0.0,
+   "mean": 0.1,
+   "regret": 0,
+   "pick": "EN-SMART-24-HOUR"
+  },
+  "kw": {
+   "med": 2.2,
+   "mean": 2.5,
+   "med_adj": 2.3,
+   "regret": 81,
+   "pick": "EI-SST"
+  },
+  "bk": {
+   "mean": 4.1,
+   "regret": 81,
+   "pick": "EI-SST",
+   "med": 4.4
+  }
+ },
+ {
+  "home": "large",
+  "mode": "file",
+  "best": "EN-SMART-24-HOUR",
+  "pk": {
+   "med": 0.5,
+   "mean": 0.5,
+   "regret": 0,
+   "pick": "EN-SMART-24-HOUR"
+  },
+  "kw": {
+   "med": 0.5,
+   "mean": 1.7,
+   "med_adj": 0.0,
+   "regret": 30,
+   "pick": "FL-24"
+  },
+  "bk": {
+   "mean": 1.0,
+   "regret": 30,
+   "pick": "FL-24",
+   "med": 0.0
+  }
+ },
+ {
+  "home": "wfh",
+  "mode": "kwh",
+  "best": "EN-SMART-24-HOUR",
+  "pk": {
+   "med": 0.8,
+   "mean": 0.9,
+   "regret": 0,
+   "pick": "EN-SMART-24-HOUR"
+  },
+  "kw": {
+   "med": 2.7,
+   "mean": 3.1,
+   "med_adj": 3.0,
+   "regret": 77,
+   "pick": "EI-SST"
+  },
+  "bk": {
+   "mean": 4.5,
+   "regret": 77,
+   "pick": "EI-SST",
+   "med": 4.8
+  }
+ },
+ {
+  "home": "wfh",
+  "mode": "file",
+  "best": "EN-SMART-24-HOUR",
+  "pk": {
+   "med": 0.6,
+   "mean": 0.6,
+   "regret": 0,
+   "pick": "EN-SMART-24-HOUR"
+  },
+  "kw": {
+   "med": 0.7,
+   "mean": 1.9,
+   "med_adj": 0.0,
+   "regret": 28,
+   "pick": "FL-24"
+  },
+  "bk": {
+   "mean": 0.7,
+   "regret": 28,
+   "pick": "FL-24",
+   "med": 0.0
+  }
+ },
+ {
+  "home": "night",
+  "mode": "kwh",
+  "best": "EI-SST",
+  "pk": {
+   "med": 0.2,
+   "mean": 0.8,
+   "regret": 0,
+   "pick": "EI-SST"
+  },
+  "kw": {
+   "med": 2.7,
+   "mean": 3.0,
+   "med_adj": 2.4,
+   "regret": 0,
+   "pick": "EI-SST"
+  },
+  "bk": {
+   "mean": 1.3,
+   "regret": 0,
+   "pick": "EI-SST",
+   "med": 0.1
+  }
+ },
+ {
+  "home": "night",
+  "mode": "file",
+  "best": "EI-SST",
+  "pk": {
+   "med": 0.2,
+   "mean": 0.2,
+   "regret": 0,
+   "pick": "EI-SST"
+  },
+  "kw": {
+   "med": 0.7,
+   "mean": 1.9,
+   "med_adj": 0.0,
+   "regret": 0,
+   "pick": "EI-SST"
+  },
+  "bk": {
+   "mean": 1.0,
+   "regret": 0,
+   "pick": "EI-SST",
+   "med": 0.0
+  }
+ },
+ {
+  "home": "heatpump",
+  "mode": "kwh",
+  "best": "EN-SMART-24-HOUR",
+  "pk": {
+   "med": 4.7,
+   "mean": 5.0,
+   "regret": 38,
+   "pick": "EI-SST"
+  },
+  "kw": {
+   "med": 2.9,
+   "mean": 3.3,
+   "med_adj": 2.8,
+   "regret": 38,
+   "pick": "EI-SST"
+  },
+  "bk": {
+   "mean": 3.5,
+   "regret": 38,
+   "pick": "EI-SST",
+   "med": 3.4
+  }
+ },
+ {
+  "home": "heatpump",
+  "mode": "file",
+  "best": "EN-SMART-24-HOUR",
+  "pk": {
+   "med": 0.2,
+   "mean": 0.2,
+   "regret": 0,
+   "pick": "EN-SMART-24-HOUR"
+  },
+  "kw": {
+   "med": 0.4,
+   "mean": 1.6,
+   "med_adj": 0.0,
+   "regret": 31,
+   "pick": "FL-24"
+  },
+  "bk": {
+   "mean": 1.0,
+   "regret": 31,
+   "pick": "FL-24",
+   "med": 0.0
+  }
+ },
+ {
+  "home": "storage",
+  "mode": "kwh",
+  "best": "EI-SST",
+  "pk": {
+   "med": 4.1,
+   "mean": 3.7,
+   "regret": 0,
+   "pick": "EI-SST"
+  },
+  "kw": {
+   "med": 19.3,
+   "mean": 16.8,
+   "med_adj": 19.0,
+   "regret": 0,
+   "pick": "EI-SST"
+  },
+  "bk": {
+   "mean": 14.0,
+   "regret": 0,
+   "pick": "EI-SST",
+   "med": 14.1
+  }
+ },
+ {
+  "home": "storage",
+  "mode": "file",
+  "best": "EI-SST",
+  "pk": {
+   "med": 1.1,
+   "mean": 1.2,
+   "regret": 0,
+   "pick": "EI-SST"
+  },
+  "kw": {
+   "med": 0.8,
+   "mean": 2.7,
+   "med_adj": 1.1,
+   "regret": 0,
+   "pick": "EI-SST"
+  },
+  "bk": {
+   "mean": 0.8,
+   "regret": 0,
+   "pick": "EI-SST",
+   "med": 0.0
+  }
+ },
+ {
+  "home": "ev_night",
+  "mode": "kwh",
+  "best": "FL-EV",
+  "pk": {
+   "med": 0.2,
+   "mean": 0.2,
+   "regret": 0,
+   "pick": "FL-EV"
+  },
+  "kw": {
+   "med": 2.1,
+   "mean": 4.2,
+   "med_adj": 2.4,
+   "regret": 0,
+   "pick": "FL-EV"
+  },
+  "bk": {
+   "mean": 3.6,
+   "regret": 0,
+   "pick": "FL-EV",
+   "med": 3.1
+  }
+ },
+ {
+  "home": "ev_night",
+  "mode": "file",
+  "best": "FL-EV",
+  "pk": {
+   "med": 0.2,
+   "mean": 0.8,
+   "regret": 0,
+   "pick": "FL-EV"
+  },
+  "kw": {
+   "med": 0.6,
+   "mean": 1.8,
+   "med_adj": 0.0,
+   "regret": 0,
+   "pick": "FL-EV"
+  },
+  "bk": {
+   "mean": 12.8,
+   "regret": 0,
+   "pick": "FL-EV",
+   "med": 15.0
+  }
+ },
+ {
+  "home": "ev_evening",
+  "mode": "kwh",
+  "best": "EN-SMART-24-HOUR",
+  "pk": {
+   "med": 0.1,
+   "mean": 0.1,
+   "regret": 0,
+   "pick": "EN-SMART-24-HOUR"
+  },
+  "kw": {
+   "med": 11.2,
+   "mean": 12.9,
+   "med_adj": 11.6,
+   "regret": 302,
+   "pick": "FL-EV"
+  },
+  "bk": {
+   "mean": 14.2,
+   "regret": 302,
+   "pick": "FL-EV",
+   "med": 14.1
+  }
+ },
+ {
+  "home": "ev_evening",
+  "mode": "file",
+  "best": "EN-SMART-24-HOUR",
+  "pk": {
+   "med": 0.4,
+   "mean": 0.4,
+   "regret": 0,
+   "pick": "EN-SMART-24-HOUR"
+  },
+  "kw": {
+   "med": 0.5,
+   "mean": 1.7,
+   "med_adj": 0.1,
+   "regret": 29,
+   "pick": "FL-24"
+  },
+  "bk": {
+   "mean": 13.8,
+   "regret": 173,
+   "pick": "EI-SST",
+   "med": 13.9
+  }
+ },
+ {
+  "home": "solar",
+  "mode": "kwh",
+  "best": "EI-SST",
+  "pk": {
+   "med": 2.2,
+   "mean": 2.6,
+   "regret": 0,
+   "pick": "EI-SST"
+  },
+  "kw": {
+   "med": 25.3,
+   "mean": 26.0,
+   "med_adj": 23.4,
+   "regret": 0,
+   "pick": "EI-SST"
+  },
+  "bk": {
+   "mean": 4.0,
+   "regret": 0,
+   "pick": "EI-SST",
+   "med": 2.8
+  }
+ },
+ {
+  "home": "solar",
+  "mode": "file",
+  "best": "EI-SST",
+  "pk": {
+   "med": 0.5,
+   "mean": 0.6,
+   "regret": 0,
+   "pick": "EI-SST"
+  },
+  "kw": {
+   "med": 3.8,
+   "mean": 6.7,
+   "med_adj": 2.1,
+   "regret": 0,
+   "pick": "EI-SST"
+  },
+  "bk": {
+   "mean": 1.2,
+   "regret": 0,
+   "pick": "EI-SST",
+   "med": 0.0
+  }
+ },
+ {
+  "home": "solar_batt",
+  "mode": "kwh",
+  "best": "EI-SST",
+  "pk": {
+   "med": 0.9,
+   "mean": 12.5,
+   "regret": 147,
+   "pick": "EN-EV"
+  },
+  "kw": {
+   "med": 40.5,
+   "mean": 38.8,
+   "med_adj": 41.5,
+   "regret": 184,
+   "pick": "YN-EV-DNP"
+  },
+  "bk": {
+   "mean": 3.2,
+   "regret": 0,
+   "pick": "EI-SST",
+   "med": 1.5
+  }
+ },
+ {
+  "home": "solar_batt",
+  "mode": "file",
+  "best": "EI-SST",
+  "pk": {
+   "med": 0.2,
+   "mean": 0.4,
+   "regret": 0,
+   "pick": "EI-SST"
+  },
+  "kw": {
+   "med": 6.6,
+   "mean": 14.4,
+   "med_adj": 8.8,
+   "regret": 184,
+   "pick": "YN-EV-DNP"
+  },
+  "bk": {
+   "mean": 0.7,
+   "regret": 0,
+   "pick": "EI-SST",
+   "med": 0.0
+  }
+ },
+ {
+  "home": "rural",
+  "mode": "kwh",
+  "best": "EN-SMART-24-HOUR",
+  "pk": {
+   "med": 0.0,
+   "mean": 0.1,
+   "regret": 0,
+   "pick": "EN-SMART-24-HOUR"
+  },
+  "kw": {
+   "med": 1.9,
+   "mean": 2.4,
+   "med_adj": 2.1,
+   "regret": 18,
+   "pick": "EI-SST"
+  },
+  "bk": {
+   "mean": 3.6,
+   "regret": 18,
+   "pick": "EI-SST",
+   "med": 3.8
+  }
+ },
+ {
+  "home": "rural",
+  "mode": "file",
+  "best": "EN-SMART-24-HOUR",
+  "pk": {
+   "med": 0.5,
+   "mean": 0.5,
+   "regret": 0,
+   "pick": "EN-SMART-24-HOUR"
+  },
+  "kw": {
+   "med": 0.8,
+   "mean": 1.9,
+   "med_adj": 0.1,
+   "regret": 13,
+   "pick": "FL-24"
+  },
+  "bk": {
+   "mean": 0.5,
+   "regret": 13,
+   "pick": "FL-24",
+   "med": 0.0
+  }
+ },
+ {
+  "home": "legacy24",
+  "mode": "kwh",
+  "best": "EN-24",
+  "pk": {
+   "med": 0.0,
+   "mean": 0.0,
+   "regret": 0,
+   "pick": "EN-24"
+  },
+  "kw": {
+   "med": 0.8,
+   "mean": 2.7,
+   "med_adj": 0.0,
+   "regret": 10,
+   "pick": "WP-24"
+  },
+  "bk": {
+   "mean": 1.8,
+   "regret": 10,
+   "pick": "WP-24",
+   "med": 0.0
+  }
+ }
+]

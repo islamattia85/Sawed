@@ -1,0 +1,134 @@
+Skip to main content
+Electricity & Gas
+Solar
+Solar Panel Quotes
+Kilowatt.ie Electricity Price Comparison Methodology
+This page describes the methodology behind the Kilowatt.ie electricity price comparison tool. [change history]
+The core idea is simple: load shifting depends on the tariff, so it must be accounted for separately for each tariff type. For example, a household on a tariff with a cheap 2am–5am EV window should charge a home battery on a different schedule than one on a traditional night-rate tariff, and the comparison should reflect that automatically.
+All figures include VAT.
+Overview
+For each half-hour of a full year, we simulate your electricity imports and exports, then rank every applicable tariff by estimated annual cost. Rather than building a single modified load profile and pricing every tariff against it, the tool:
+Separates your usage into a fixed part and a movable part. The fixed ("non-shiftable") part is baseline household load: lights, fridge, standby, etc. The movable part is large, time-flexible loads: EV charging, battery cycling, and other big peaks.
+Shifts the movable load into each structure's cheapest hours, respecting device charge rates and a whole-home import cap, producing a tariff-specific import profile.
+Prices every tariff based on the tariff-tailored import profile, then sorts all results cheapest-first.
+All of the pre-existing features that made kilowatt.ie special are also included: Smart meter data inclusion, accounting for solar exports, option to factor in new additions like EVs and heat pumps, etc.
+Fuel types
+You can compare electricity, gas, or dual fuel.
+Gas is priced from a flat annual kWh figure (standing charge + unit rate + carbon tax). Gas has no half-hourly detail, meter type or additions.
+Dual fuel combines the two into a single annual cost and breakdown.
+Dual-fuel "separate vs combined" advisory
+For dual fuel, we also run background electricity-only and gas-only comparisons (which are not shown as results) to work out whether a single dual-fuel tariff or a separate electricity + gas pairing would be cheaper. We compare the cheapest dual-fuel tariff against the sum of the cheapest separate electricity and gas tariffs, and show a note stating which option wins and by roughly how much per year. If separate tariffs are cheaper, you can switch the fuel choice at the top of the page to see them; your inputs persist for as long as the page stays open.
+Your usage data
+There are two ways to provide your consumption.
+Smart meter data (half-hourly)
+The most accurate option is to upload your ESB Networks HDF half-hourly smart meter data. As with our main tool:
+Where the file contains more than 12 months of records, we use the most recent 365 days to avoid seasonal bias.
+Where it contains fewer than 12 months, we use the whole dataset and warn that results may be less accurate.
+Missing time slots are treated as zero consumption, as these are likely to reflect an electricity outage.
+The spring clock change is handled correctly: on the last Sunday of March the 1:00am and 1:30am slots do not exist, and are excluded rather than treated as missing data.
+Please upload the half-hourly file directly from ESB Networks (not a "Daily" file, and not from your supplier), and avoid opening it first, as some spreadsheet software silently mangles the format.
+Annual kWh figure
+If you don't have smart meter data, you can enter an estimated annual consumption (with a bi-monthly entry box for convenience, since many Irish bills are bi-monthly). You can also reset to the national average of 4,200 kWh/year.
+From this figure we synthesise a realistic half-hourly profile using a normalised load-shape model built from the Irish 2026 RMDS standard 24-hour meter load profile (for the average daily shape and seasonality) combined with real household half-hourly texture and day-to-day volatility from the UK Power Networks 2011-2014 study (non-ToU household data as this is used as the before any load-shifting).
+Separating movable load from baseline (smart meter data)
+For uploaded smart meter data, we split your recorded import into a fixed baseline and a movable component in two passes.
+Pass 1: Existing battery removal
+If you tell us you already have a home battery used for load shifting, your recorded data already reflects its charging (extra import in cheap hours) and discharging (reduced import in expensive hours). To compare fairly, we first undo this so the battery can be re-scheduled optimally for each tariff.
+For each day we:
+Remove charging by subtracting up to the battery's daily energy (accounting for round-trip losses) from that day's highest-import half-hours, capped at the battery's charge rate.
+Add back the masked demand that discharging had hidden, distributing the day's discharged energy back into the lowest-import half-hours (avoiding slots that were exporting).
+The reconstruction of hidden demand is approximate as the true demand a battery masked genuinely cannot be recovered exactly from an import profile. It is a plausible reconstruction for comparison purposes, not a measurement.
+You can tell us whether the battery has been load-shifting for the whole recorded period (the default) or only since a specific recent date, in which case the removal is scoped to that date onward.
+Pass 2: Peeling other large shiftable loads
+We then detect large, time-flexible loads by taking the median import as the baseline (the median is robust to the large spikes we want to peel) and peeling off any half-hour whose import exceeds the median by more than a threshold (3 kW by default; adjustable via a slider). The excess above the baseline becomes "generic shiftable" energy; the baseline itself stays fixed.
+You can inspect all of this in the optional advanced "Import Segmentation" view, which shows your recorded import decomposed into battery charging, other large shiftable loads, and baseline import.
+Placing movable load per tariff
+For each tariff structure, we determine how expensive each half-hour is and place the movable load into the cheapest hours.
+For a standard time-of-use tariff, each half-hour's cost is simply its band rate.
+For a dynamic tariff, each half-hour's cost is the real all-in rate at that moment — the fixed base component plus the wholesale-linked component — so flexible load is shifted to genuinely different hours each day, following that day's wholesale prices.
+We then place each type of movable load:
+Large shiftable sessions are slid, as whole intact blocks that keep their shape, up to ±24 hours from where they originally occurred, and dropped at the cheapest landing point that fits under the import cap. A load already sitting in the cheapest hours stays put.
+EV charging is filled into the cheapest hours (or, for dynamic tariffs, the cheapest individual half-hours), capped at the charger's rate.
+The whole-home import is capped at your maximum import capacity (MIC). By default this is 12 kW, the standard domestic connection; if your home has an enhanced 16 kW connection, tick "Enhanced supply (16 kW MIC)" under The basics.
+Battery simulation
+Where you have (or add) a home battery, every tariff result card states the exact charging schedule assumed in its estimated price. We simulate two charging policies, selected via the Smart Control toggle under Home Battery:
+Fixed Timer (Smart Control OFF, default). Simulates a standard home inverter with a fixed time-of-use timer, the most common setup in Irish homes. For each tariff we test a range of commonsense charge windows based on its rate bands (such as 23:00–08:00 for Night rates or 02:00–05:00 for EV rates) and pick the cheapest. The battery discharges to meet household demand outside those hours. On flat 24-hour tariffs, where charging from the grid would lose money, the battery sits idle.
+Smart Control (Smart Control ON, opt-in). Simulates automated price-following control, such as Home Assistant / Predbat or a smart inverter app. Each day the battery charges in the cheapest slots and discharges only when the price is high enough to make it worthwhile, guided by a forecast of the day's demand.
+How the simulation works
+Simulations run chronologically: energy cannot be discharged before it has been charged, and charge carries over from day to day. Each planning day starts at 23:00, so the overnight cheap hours sit together at the start of each daily cycle.
+A charging cycle goes ahead only when it makes economic sense: the price at which the energy will be discharged must exceed the charge price by enough to cover round-trip losses plus a battery wear allowance of 4 c/kWh. This allowance is a decision threshold, not a line item on your bill; displayed costs remain pure electricity costs.
+Smart Control forecasts each day's demand from the same weekday over the previous four weeks. Because it must act without knowing the future, it can occasionally land slightly above the cheapest fixed schedule, which is chosen with the benefit of hindsight.
+Exclusions
+Export arbitrage. Batteries discharge only to offset household import; selling stored grid electricity back to the grid is not modelled.
+Solar charging of the battery. Solar generation offsets demand directly and exports any surplus to the grid.
+Unless you specify otherwise, batteries are assumed to have an 87% round-trip efficiency, a 3 kW charge rate and a 3.5 kW discharge rate, and capacity refers to usable AC discharge per cycle.
+Weather-driven additions: solar and heat pumps
+Solar is simulated from Typical Meteorological Year irradiance data for the geographical centre of Ireland. Within a single half-hour, a household can simultaneously import a little (when instantaneous demand momentarily exceeds generation) and export a little (when generation momentarily exceeds demand) — we model this sub-interval effect statistically rather than assuming all solar produced within a half-hour offsets imports. Because exported energy is worth less than avoided imports (export payments are typically 15–20c/kWh versus ~30c/kWh or more for imports), this means our solar savings estimates are more conservative than models that assume perfect within-slot self-consumption. Inverter clipping is applied and modelled in a variance-aware way against a clear-sky ceiling (rather than a flat cap on the half-hour average, which would miss clipping during broken-cloud periods); the inverter capacity defaults to 5.5 kW and can be adjusted under the solar panel Advanced options. The "what if you added solar?" estimate shown on each tariff card is clipped on the same basis, so those advertised savings are not optimistically un-clipped.
+Heat pumps are simulated from Typical Meteorological Year temperature data, assuming heating begins below 16°C and increases as temperature falls, a Heat Loss Indicator of 2.0, and a COP of 3.25 at 0°C that rises/falls by 0.0875 per degree.
+Install dates
+For each addition you tell us the installation date (defaulting to today):
+Smart meter data, past install — the recorded data already reflects the addition on and after that date, so we only back-fill the earlier period.
+Smart meter data, future install — your recorded year stands in for the year ahead, but the addition won't exist for the first part of it. We apply it across the whole profile, then remove it from the specific upcoming calendar window before the install date. This is seasonally aware: panels due in four months get roughly eight months of solar in the actual months they'll exist, not a flat pro-rata. Where an addition is only applied to part of the year, we show a note stating how many of the 365 days it was factored in for.
+Annual kWh figure — the addition is applied across the whole synthetic baseline.
+On the annual-kWh path, if you tell us an EV or heat pump is already included in your entered figure, we net it out of the baseline first and then re-apply it in the correct place, and show a breakdown of baseline / EV / heat pump / total. If additions marked "already included" exceed your entered total, we ask you to correct the inputs rather than produce a misleading result.
+Tariff filtering
+We show tariffs you can actually take:
+Meter type. A physical 24-hour or day/night meter fixes the tariff structure to match. A smart meter can run smart tariffs, and — where your current tariff type indicates it — the legacy 24-hour or day/night structures it may still be billed on. A "Smart · No Signal" meter can run the non-half-hourly smart variants but not full half-hourly smart tariffs.
+Dynamic tariffs are opt-in. Dynamic (wholesale-linked) tariffs are excluded unless you explicitly choose to include them.
+Costs included
+Each tariff's estimated annual cost includes:
+Unit rates for every pricing band (including threshold/stepped rates where applicable).
+Standing charges and, where a supplier applies one, prepayment service charges (flat annual fees added on top of the standing charge).
+The PSO levy (a fixed regulated charge of €19.10/year, never discounted).
+Export credits (where you generate and export).
+Welcome credits / cashback, subtracted as a one-off.
+Unit-rate discounts, cashback and "welcome bonuses". Where a tariff's rates depend on a payment or billing method, each valid combination is compared as its own option, and the breakdown shows both the standard and discounted rates. If a supplier has offered you a different discount than the published one, you can set a custom discount rate on any tariff card that shows a discount (pencil icon in its Discount Rate column header): the quoted rates are re-derived from the published standard rate at your discount. Customised tariffs are marked "User Customised" on the card and can be reset to the published figures at any time.
+Early exit fees are shown on each single tariff for transparency but are not added into its annual cost (we treat the 12-month comparison window as "no exit"). The winter/summer switching scenario below is the exception: it includes both exit fees.
+Winter/summer switching scenario (electricity only)
+For a full year's electricity profile, we also compare a Lowest-Cost Winter/Summer Split: a clearly labelled scenario, not a supplier tariff. It models two six-month stints — winter (Jan–Mar and Oct–Dec) and summer (Apr–Sep) — with a switch at each season boundary, including an early exit fee for each stint. Month membership follows the dated usage profile, rather than cutting the data into two equal blocks.
+We re-simulate movable loads and battery charging separately for each season and tariff structure, starting from the non-shiftable baseline. We do not simply cut the annually optimised import profile in half. The cheapest tariff for each season is selected including its own exit fee. The scenario is shown in the ordinary cost-ranked list only if the two winning tariffs differ and their combined cost, including both fees, is strictly below the cheapest single tariff.
+Standing charges, prepayment service charges, the PSO levy and any threshold-rate allowance are prorated by the season's duration divided by 365 days. Welcome credits are excluded: the model treats these as annual credits that lapse when switching mid-contract. Announced price-change blends count only days belonging to the relevant season within the forward comparison year.
+Check eligibility and terms for both tariffs before switching. Custom discount edits trigger a fresh electricity comparison so the scenario stays consistent. This scenario is not calculated for gas, dual fuel or incomplete-year smart-meter uploads. Solar and heat-pump effects already in the headline baseline remain included, but separate hypothetical-solar projections and “factored in, saving you” annotations remain single-tariff calculations and are not shown on the split row.
+Gas
+Gas is priced from your annual kWh as standing charge + unit rate + carbon tax (€0.0125132/kWh).
+Upcoming rate changes
+Where a supplier has announced a price change taking effect within the 12-month comparison window, we blend the current and upcoming rates in proportion to how many of the 365 days fall on each side of the change date. For dynamic tariffs, only the fixed components are blended; the wholesale-linked component is computed separately from wholesale data and is unaffected. Where blending is applied, a note appears under the tariff's rate table.
+Dynamic tariffs and wholesale prices
+Dynamic tariffs include a pricing component tied to the half-hourly wholesale electricity price. We price them against real half-hourly wholesale data:
+against the time period corresponding to your smart meter data, if you uploaded it; or
+otherwise against the most recent 12 months.
+Solar and battery savings notes
+If you don't have solar, each tariff card shows a per-tariff estimate of how much adding a typical (6 kW) solar array could save you on that specific tariff, computed by running the full tariff-dependent comparison a second time with solar layered on. This links to our free solar quotes service.
+If you already have solar and/or a battery, each card can instead show how much those additions are saving you on that tariff, computed by re-pricing with the additions stripped out and taking the difference. On smart meter data this note is only shown when there is a clean full-year counterfactual to compare against (e.g. a very recent or same-day solar install).
+Data Credit
+Thanks to Alan Smeaton, Shuxiang Cai, and Xianjuan Chen for publishing their open repository of anonymised Irish smart meter data, which has been of great use during the development and testing of the tool.
+Remember to switch often
+Finally, note that suppliers routinely raise prices once your contract expires. To keep getting good value, re-evaluate your options and switch again as soon as your contract ends. Mark your calendar!
+Ireland's most advanced energy price comparison. Simple and accurate so you save more money.
+Tools
+Energy Price Comparison
+All Electricity Tariffs
+Irish Solar Dashboard
+Wholesale Electricity Prices
+EV Charging Calculator
+Kilowatt.ie Apps
+Pension Comparison
+Company
+About
+Contact
+Complaints
+Privacy Policy
+Blog
+Cheapest Tariffs For
+Average Households
+Solar Panels
+Electric Vehicles
+Heat Pumps
+Home Batteries
+Storage Heaters
+Solar
+Get Solar Quotes
+Solar BER Calculator
+Solar Guide
+© 2026 Kilowatt Limited. All rights reserved.
+Kilowatt.ie is owned and operated by Kilowatt Limited, a company registered in Ireland (No. 814620). Registered address: Line Road, Carrick, Donegal, F94 VY84, Ireland.
