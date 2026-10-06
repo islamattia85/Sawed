@@ -104,3 +104,17 @@ test('a meter file from a home with panels up is not given the panels twice', as
   await page.evaluate(() => { flowAnswer('solar', 'have'); flowAnswer('where', 'east'); flowAnswer('roof', 'S'); flowAnswer('tilt', 35); flowAnswer('panels', 9); flowAnswer('battery', 10); });
   expect(await cost()).toBe(fileOnly);
 });
+
+test('a battery that only stores solar today: the current plan is priced that way, and the gain from night top-ups is shown', async ({ page }) => {
+  const run = (ans) => page.evaluate((ans) => {
+    startFlow('full'); flowAnswer('bill', 120); flowAnswer('meter', 'smart'); flowAnswer('area', 'urban'); flowAnswer('plan', 'EI-SST'); flowAnswer('disc', 0);
+    flowAnswer('heat', 'gas'); flowAnswer('night', 'no'); flowAnswer('solar', 'have'); flowAnswer('where', 'east'); flowAnswer('roof', 'S'); flowAnswer('tilt', 35); flowAnswer('panels', 9); flowAnswer('battery', 10);
+    flowAnswer('gridnow', ans); flowAnswer('price', 0); flowAnswer('grant', 'no'); flowAnswer('ev', 'no'); flowFinish();
+    return { kwh: Object.values(state.bills).reduce((a, b) => a + b, 0), note: !!document.querySelector('.gc-now') };
+  }, ans);
+  await fresh(page); const yes = await run('yes');
+  await fresh(page); const no = await run('no');
+  expect(no.kwh).toBeLessThan(yes.kwh);
+  expect(no.note).toBe(true);
+  expect(yes.note).toBe(false);
+});

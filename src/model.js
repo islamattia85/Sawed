@@ -826,7 +826,10 @@ export function sim(planId){
     return r;
   };
   let ssim;
-  if (eff.hasBattery && eff.mode === 'auto'){
+  if (planId === state.baseline && batteryRunsSolarOnlyNow()){
+    // The plan the home is on, priced the way its battery runs today.
+    ssim = run('self-consume', false);
+  } else if (eff.hasBattery && eff.mode === 'auto'){
     // What an owner would do: set the inverter to whichever pays on this plan.
     // Grid charging earns on a plan with a cheap window and loses round-trip
     // energy on a flat one, so the choice is per plan, not global.
@@ -974,6 +977,17 @@ export function invalidate(){
  * the engine. With no battery installed it cannot apply, so everything that
  * simulates or displays the strategy reads it through here.
  */
+/**
+ * A battery already installed that, as far as we know, only stores solar: the
+ * owner said it doesn't charge from the grid, wasn't sure, or wasn't asked.
+ * The current plan is then priced that way, so the bill it is matched to and
+ * the saving from switching are not built on a setting the home doesn't use.
+ */
+export function batteryRunsSolarOnlyNow(){
+  return !!(state.has_solar && !state.solar_planned && (state.battery_kwh || 0) > 0
+    && !fileIsNet() && state.grid_charge_now !== 'yes');
+}
+
 export function effectiveStrategy(){
   const hasBattery = (state.battery_kwh || 0) > 0 && !fileIsNet();
   return {
@@ -1019,7 +1033,7 @@ export function effectiveStrategy(){
 export const SIM_FIELDS = [
   'has_solar', 'solar_planned', 'count_A', 'count_B',
   'azimuth_A', 'azimuth_B', 'tilt_A', 'tilt_B', 'panel_w', 'panel_degradation',
-  'battery_kwh', 'strategy_mode', 'charge_from_grid',
+  'battery_kwh', 'strategy_mode', 'charge_from_grid', 'grid_charge_now',
   'install_cost', 'grant_seai', 'inverter_kw',
   'ev_active', 'ev_in_bill', 'ev_km_per_year', 'ev_kwh_per_100km',
   'heating_type', 'hot_water_strategy', 'immersion_night', 'ev_charge_time', 'heat_time', 'region', 'area', 'meter_type',

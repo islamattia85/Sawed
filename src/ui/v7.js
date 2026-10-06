@@ -231,6 +231,12 @@ export function createV7(api) {
           const same = ng.plan.id === best.plan.id;
           return `<div class="v7-note is-check gc-note">${api.ic('battery', 16)}<div><b>This needs your battery to charge from the grid at night.</b> Set it in your inverter app. ${same ? `If it only takes solar, this plan is still the best, at ${eur(ng.net)} a year.` : `If it only takes solar, the best plan is <b>${esc(ng.plan.supplier)} ${esc(ng.plan.plan)}</b>, at ${eur(ng.net)} a year.`}</div></div>`;
         })()}
+        ${(() => {
+          // A battery that only stores solar today: what the plan the home is on
+          // would cost if it also topped up at night, before any switch.
+          let g = null; try { g = api.currentGridGain(); } catch (e) {}
+          return g ? `<div class="v7-note gc-note gc-now">${api.ic('battery', 16)}<div>Your battery only stores solar now. Set it to top up on night power and your current plan costs <b>${eur(g)} a year less</b>, before any switch.</div></div>` : '';
+        })()}
         ${(() => { const mp = api.getPlanById(st.baseline), pc = mp && mp.price_change;
           return pc && pc.effective_date && Date.parse(pc.effective_date) > Date.now()
             ? `<div class="v7-evnote">${api.ic('trendUp', 14)} ${esc(mp.supplier)}’s prices rise on ${fmtDate(pc.effective_date)}. That’s counted.</div>` : ''; })()}

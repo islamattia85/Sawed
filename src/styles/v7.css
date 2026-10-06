@@ -1742,3 +1742,6 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .fl-group h3 { margin: 0; font: 800 var(--text-body)/1.2 var(--display); color: var(--ink); }
 .fl-group small { font-size: var(--text-caption); color: var(--ink-soft); }
 .ax-inline.ax-dear { color: var(--loss); }
+.sy-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; }
+.sy-row-l { display: grid; gap: 2px; } .sy-row-l small { color: var(--ink-soft); font-size: var(--text-caption); }
+.sy-seg { display: flex; gap: 6px; }
