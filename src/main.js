@@ -20,7 +20,7 @@ import { GAS_TARIFFS } from './gas-tariffs.js';
 import { BRAND, CONTROLLER, MARK_PATHS, iconDataUri, wordmarkHtml } from './brand';
 import { IC, ic } from './icons';
 import {
-  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, meterYearDays, inverterFor, batteryRunsSolarOnlyNow, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
+  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, meterYearDays, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileDays, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
   outcomeAgainst, sweepSetup, evaluateDesign, finishSweep,
 } from './model';
 
@@ -2458,6 +2458,55 @@ const SEASONAL_SHAPE = {
   direct:   [1.45, 1.25, 0.70, 0.55, 0.90, 1.15]
 };
 
+/**
+ * Rebuild the six billing periods from the part of the meter file being priced
+ * (fileBasis): before the panels, after them, or all of it. Periods with no
+ * readings are filled from the others by the heating type's seasonal shape.
+ */
+/** One line on what the meter file was read to say: its dates, and the panels. */
+function fileSummary(){
+  const fs = fileSolar(), fb = fileBasis();
+  if (!fs || !fb) return '';
+  const d = fmtDay;
+  let t = `Your file runs ${d(fs.first)} to ${d(fs.last)}.`;
+  if (fs.exportFrom) t += ` Panels show from ${d(fs.exportFrom)}, sending ${fs.exportKwh.toLocaleString('en-IE')} kWh to the grid.`;
+  else if (fb.start) t += ` Panels show from ${d(fb.start)}.`;
+  else t += ' No solar shows in it.';
+  if (fb.mode === 'net') t += fb.from === fs.first ? ' It is priced as recorded, panels included.' : ` We price the readings from ${d(fb.from)}, with the panels running.`;
+  else if (fb.from !== fs.first || fb.to !== fs.last) t += ` We use ${d(fb.from)} to ${d(fb.to)}, before the panels, and add them on top.`;
+  return t;
+}
+
+function refreshFileBills(){
+  if (!state._csv_imported) return;
+  const fb = fileBasis(), fs = fileSolar();
+  // The whole file: the import's own figures stand.
+  if (!fb || !fs || (fb.from === fs.first && fb.to === fs.last && !state._file_split)) return;
+  state._file_split = !(fb.from === fs.first && fb.to === fs.last);
+  const days = fileDays();
+  if (!days || !Object.keys(days).length) return;
+  const B = [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], [11, 12]];
+  const KEYS = ['Jan-Feb', 'Mar-Apr', 'May-Jun', 'Jul-Aug', 'Sep-Oct', 'Nov-Dec'];
+  const DAYS = [59, 61, 61, 62, 61, 61];
+  const sum = [0, 0, 0, 0, 0, 0], n = [0, 0, 0, 0, 0, 0];
+  let exp = 0;
+  for (const [d, row] of Object.entries(days)){
+    const m = +d.slice(5, 7), i = B.findIndex(([a, b]) => m === a || m === b);
+    if (i < 0) continue;
+    sum[i] += row.slice(0, 24).reduce((a, b) => a + b, 0); n[i]++;
+    exp += row.slice(24).reduce((a, b) => a + b, 0);
+  }
+  const bills = {};
+  KEYS.forEach((k, i) => { bills[k] = n[i] ? Math.round(sum[i] / n[i] * DAYS[i]) : 0; });
+  const shape = seasonalShape(state.heating_type), mean = shape.reduce((a, b) => a + b, 0) / 6;
+  const have = KEYS.filter((k) => bills[k] > 0), avg = have.length ? have.reduce((a, k) => a + bills[k], 0) / have.length : 0;
+  KEYS.forEach((k, i) => { if (!bills[k] && avg) bills[k] = Math.round(avg * shape[i] / mean); });
+  state.bills = bills;
+  const nd = Object.keys(days).length;
+  state._csv_export_kwh = nd ? Math.round(exp * 365 / nd) : 0;
+  invalidate();
+}
+
 function seasonalShape(heating){
   if (!SEASONAL_SHAPE[heating] || heating === 'gas') return state.area === 'rural' ? SLP_RURAL_BIMONTHLY : SLP_URBAN_BIMONTHLY;
   return SEASONAL_SHAPE[heating];
@@ -2495,6 +2544,9 @@ function syncDerivedBill(){
   } catch(e){}
 }
 
+const _MOH = (() => { const a = new Uint8Array(8760); let h = 0; [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31].forEach((d, m) => { for (let i = 0; i < d * 24; i++) a[h++] = m; }); return a; })();
+const monthOfHour = (h) => _MOH[h] ?? 11;
+
 function calibrateBillsToBaseline(){
   // kWh mode: consumption is ground truth — never rescale it to match a €
   // figure. Just refresh the derived display bill instead.
@@ -2513,7 +2565,8 @@ function calibrateBillsToBaseline(){
   // A home whose panels are already on the roof gets a bill for what it buys
   // after the panels, less what it sells back. Calibrate against that, not
   // against the house without them, or the panels are counted twice.
-  const installed = state.has_solar && !state.solar_planned && totalPanels() > 0;
+  // A bill from before the panels is the house on its own: calibrate it as one.
+  const installed = state.has_solar && !state.solar_planned && totalPanels() > 0 && state.bill_when !== 'before';
   if (installed){
     // With panels (and perhaps a battery) the bill does not move in step with
     // usage, so rescaling by the ratio overshoots. A bigger home always costs
@@ -2523,6 +2576,14 @@ function calibrateBillsToBaseline(){
       for (const key in start) state.bills[key] = Math.max(1, Math.round(start[key] * k));
       invalidate(); rebuildBase();
       const plan = getPlanById(state.baseline); const sm = sim(state.baseline);
+      // A bill for particular months is matched on those months: a summer
+      // bill after solar is far below a year's average.
+      const M = { winter: [10, 11, 0, 1], shoulder: [2, 3, 8, 9], summer: [4, 5, 6, 7] }[state.bill_months];
+      if (M){
+        let e = 0;
+        for (let h = 0; h < sm.cost.length; h++) if (M.includes(monthOfHour(h))) e += sm.cost[h] - (sm.revenue ? sm.revenue[h] : 0);
+        return (e / (M.length / 2) + (plan.standing + PSO_LEVY) / 6) * 6;
+      }
       return sumF(sm.cost) - (sm.revenue ? sumF(sm.revenue) : 0) + plan.standing + PSO_LEVY;
     };
     let lo = 0.1, hi = 6;
@@ -4948,6 +5009,10 @@ function flowSteps(){
       // How the battery runs today decides what the current plan really costs.
       // A meter file already shows it, so the question is only for typed bills.
       if (+f.battery > 0 && !state._csv_imported) out.push('gridnow');
+      // A meter file and a typed bill each need to be placed before or after
+      // the panels went up.
+      if (state._csv_imported){ const fb = fileBasis(); if ((fb && fb.ask) || f.filewhen !== undefined) out.push('filewhen'); }
+      else { out.push('billwhen'); if (f.billwhen === 'after') out.push('billmonths'); }
       out.push('price', 'grant');
     }
     if (q === 'solar' && f.solar === 'thinking'){
@@ -5046,6 +5111,9 @@ function flowAnswer(q, v){
   if (q === 'panels'){ const n = +v; if (state.count_B > 0){ state.count_A = Math.ceil(n / 2); state.count_B = Math.floor(n / 2); } else state.count_A = n; }
   if (q === 'battery'){ state.battery_kwh = +v; if (+v > 0) state.charge_from_grid = true; }
   if (q === 'gridnow') state.grid_charge_now = v;
+  if (q === 'filewhen'){ state.file_when = v; refreshFileBills(); }
+  if (q === 'billwhen') state.bill_when = v;
+  if (q === 'billmonths') state.bill_months = v;
   if (q === 'tilt'){ state.tilt_A = +v; if (state.count_B > 0) state.tilt_B = +v; }
   if (q === 'price'){
     // A quote's price is used as it is; otherwise a guide price, labelled as one everywhere.
@@ -5066,7 +5134,8 @@ function flowAnswer(q, v){
   // choice is usually waiting by the time it is asked.
   if (['house', 'roof', 'tilt', 'where'].includes(q) && f.solar === 'thinking'){ try { invalidate(); scheduleGoalSweep(); } catch (e) {} }
   // Panels already on the roof change what the bill means: re-read it.
-  if (['solar', 'roof', 'tilt', 'panels', 'battery', 'gridnow'].includes(q) && state.usage_input_mode !== 'kwh' && !state._csv_imported) applyUsageInput();
+  if (['solar', 'roof', 'tilt', 'panels', 'battery', 'gridnow', 'billwhen', 'billmonths'].includes(q) && state.usage_input_mode !== 'kwh' && !state._csv_imported) applyUsageInput();
+  if (q === 'solar' && state._csv_imported) refreshFileBills();
   state._flow_edit = null;
   try { applyRegion(state.region || 'east'); } catch (e) {}
   invalidate(); saveState(); renderApp();
@@ -5156,6 +5225,11 @@ function renderFlow(){
     roof: ['Which way does the roof face?', 'The side that gets the sun.'],
     panels: ['How many panels?', `For your usage we suggest ${_flowSuggest()}.`],
     battery: ['A battery?', 'It stores the day’s solar for the evening.'],
+    filewhen: (() => { const fb = fileBasis(); return fb && fb.ask === 'drop'
+      ? [`Did the panels go up around ${fmtDay(fb.dropFrom)}?`, 'Your meter file shows daytime buying dropping from then, with nothing sent to the grid.']
+      : ['Is your meter file from before the panels went up?', 'It shows no solar going to the grid, which panels usually do.']; })(),
+    billwhen: ['Is the bill you entered from before or after the panels went up?', 'A bill from after them is already lower.'],
+    billmonths: ['Which months is that bill for?', 'Bills after solar swing a lot with the seasons.'],
     gridnow: ['Does the battery charge from the grid at night now?', 'Some are set to top up on cheap night power. It changes what your plan costs you today.'],
     ev: ['An electric car?', ''],
     km: ['How far do you drive in a year?', 'The Irish average is about 16,000 km.'],
@@ -5180,6 +5254,9 @@ function renderFlow(){
     roof: (v) => ({ S: 'South', SE: 'South-east', SW: 'South-west', E: 'East', W: 'West', N: 'North', NE: 'North-east', NW: 'North-west', EW: 'East and west', SESW: 'South-east and south-west', unsure: 'Not sure, south assumed' })[v] || `Facing ${v}°`,
     panels: (v) => `${v} panels`, battery: (v) => +v ? `${v} kWh` : 'No battery',
     gridnow: (v) => v === 'yes' ? 'Tops up at night' : v === 'no' ? 'Solar only' : 'Not sure how it charges',
+    filewhen: (v) => v === 'before' ? 'File from before the panels' : v === 'noexport' ? 'System never exports' : v === 'dropyes' ? 'Panels from that date' : 'File checked',
+    billwhen: (v) => v === 'before' ? 'Bill from before the panels' : 'Bill from after the panels',
+    billmonths: (v) => ({ winter: 'Winter bill', shoulder: 'Spring or autumn bill', summer: 'Summer bill', average: 'An average month' })[v] || v,
     tilt: (v) => `${v}° roof`,
     price: (v) => (+v > 0 ? `Quote €${(+v).toLocaleString('en-IE')}` : 'Guide price'),
     grant: (v) => (v === 'no' ? 'No grant' : v === 'unsure' ? 'Grant assumed' : 'Grant'),
@@ -5278,6 +5355,12 @@ function renderFlow(){
     if (q === 'disc') return `<div class="fl-opts fl-three">${opt('disc', 0, 'None')}${opt('disc', 15, '15%')}${opt('disc', 30, '30%')}</div>${own('disc', '%', 60, 'e.g. 22')}
       <button class="sg-link" onclick="flowAnswer('disc', 0)">Not sure</button>`;
     if (q === 'panels'){ const s = _flowSuggest(); return `<div class="fl-opts fl-three">${[Math.max(4, s - 4), s, s + 4].filter((n, i, a) => a.indexOf(n) === i).map((n) => opt('panels', n, `${n}`, n === s ? 'suggested' : '')).join('')}</div>${own('panels', 'panels', 60, 'e.g. 12')}`; }
+    if (q === 'filewhen'){ const fb = fileBasis();
+      return fb && fb.ask === 'drop'
+        ? `<div class="fl-opts">${opt('filewhen', 'dropyes', 'Yes, around then', 'We’ll use the readings after that date')}${opt('filewhen', 'before', 'No, it’s from before them', 'We’ll add the panels to it')}</div>`
+        : `<div class="fl-opts">${opt('filewhen', 'before', 'Yes, from before them', 'We’ll add the panels to it')}${opt('filewhen', 'noexport', 'No, my system never sends power to the grid', 'We’ll use it as it is')}</div>`; }
+    if (q === 'billwhen') return `<div class="fl-opts">${opt('billwhen', 'before', 'Before', 'We’ll add the panels to it')}${opt('billwhen', 'after', 'After', 'We’ll work back from it')}</div>`;
+    if (q === 'billmonths') return `<div class="fl-opts">${opt('billmonths', 'winter', 'Winter', 'November to February')}${opt('billmonths', 'shoulder', 'Spring or autumn', 'March, April, September, October')}${opt('billmonths', 'summer', 'Summer', 'May to August')}${opt('billmonths', 'average', 'An average month', 'Worked out over a year')}</div>`;
     if (q === 'gridnow') return `<div class="fl-opts">${opt('gridnow', 'yes', 'Yes', 'It tops up on night power')}${opt('gridnow', 'no', 'No', 'It only stores solar')}${opt('gridnow', 'unsure', 'Not sure', 'We’ll assume it only stores solar')}</div>`;
     if (q === 'battery') return `<div class="fl-opts">${opt('battery', 0, 'No battery')}${opt('battery', 5, '5 kWh', 'Covers a typical evening')}${opt('battery', 10, '10 kWh', 'Evening and night, or a cheap-rate top-up')}${opt('battery', 13, '13 kWh', 'A bigger home or an EV')}</div>${own('battery', 'kWh', 40, 'e.g. 9')}`;
     if (q === 'tilt') return `<div class="fl-opts fl-three">${opt('tilt', 15, '15°', 'shallow')}${opt('tilt', 35, '35°', 'typical')}${opt('tilt', 45, '45°', 'steep')}</div>${own('tilt', '°', 90, 'e.g. 30')}
@@ -10159,7 +10242,7 @@ const V7 = createV7({
   householdScore: () => householdScore(),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,
-  getPlanById, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, withoutGridCharge, currentGridGain, infoTip, meterYearDays, batteryReplacement, batterySwapYear, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, renderConsentBar,
+  getPlanById, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, withoutGridCharge, currentGridGain, infoTip, fileSolar, fileBasis, fileSummary, meterYearDays, batteryReplacement, batterySwapYear, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, renderConsentBar,
   fmtCurrency, fmtCent, fmtVerifiedDate, latestVerifiedLabel, planDataFlag, planCategoryLabel,
   freshnessChip, priceChangeChip, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
   renderSavingsBreakdown, renderAssumptions,
@@ -10536,10 +10619,17 @@ function modelAccuracy(){
   const parts = [
     { label: 'Weather and our estimates', err: 3 },
     state._csv_imported
-      ? { label: 'Your meter data', err: 1 }
+      ? (() => { const fb = fileBasis();
+          if (fb && fb.ask) return { label: 'Meter file: before or after the panels?', err: 8, tip: 'Say when the panels went up', go: "flowEdit('filewhen')" };
+          if (fb && fb.contradicts) return { label: 'Meter file shows panels already running', err: 6, tip: 'Mark the panels as installed', go: 'openMySystem()' };
+          return { label: 'Your meter data', err: 1 }; })()
       : state.usage_input_mode === 'kwh'
         ? { label: 'Usage from your yearly kWh', err: 5, tip: 'Add your ESB meter file', go: "v7Sheet('meter')" }
-        : { label: 'Usage worked out from your bill', err: 9, tip: 'Enter your yearly kWh from a bill, or import meter data', go: "v7Sheet('home')" },
+        : state.has_solar && !state.solar_planned && state.bill_when !== 'before'
+          ? (state.bill_months === 'summer' || !state.bill_months
+            ? { label: 'Usage worked out from a bill after the panels', err: 15, tip: 'A winter bill or your meter file is steadier', go: "v7Sheet('meter')" }
+            : { label: 'Usage worked out from a bill after the panels', err: 11, tip: 'Import your meter file', go: "v7Sheet('meter')" })
+          : { label: 'Usage worked out from your bill', err: 9, tip: 'Enter your yearly kWh from a bill, or import meter data', go: "v7Sheet('home')" },
   ];
   if (sys){
     parts.push(fine.roof ? { label: 'Roof direction and tilt confirmed', err: 1 }
@@ -12303,6 +12393,7 @@ function parseCsvHdf(text, filename){
 
     state.bills = bills;
     state._csv_imported = true;
+    state._file_split = false;
     state._csv_filename = filename;
     invalidate();
     saveState();
@@ -12318,6 +12409,7 @@ function parseCsvHdf(text, filename){
           ${periodsCovered < 6 ? `<br><span style="color:var(--amber)">* estimated, no readings for this period</span>` : ''}
         </div>
         ${coverageHtml}
+        ${(() => { try { const t = fileSummary(); return t ? `<div style="margin-top:8px;font-size:12px;color:var(--ink-soft);line-height:1.6">${esc(t)}</div>` : ''; } catch (e) { return ''; } })()}
         <button class="switch-cta" style="margin-top:12px;font-size:13px;padding:12px 16px" onclick="applyImportedBills()">Use this data →</button>
       </div>`;
     fireEvent('csv_imported', { rows: rowsRead, total_kwh: Math.round(total), region: state.region });

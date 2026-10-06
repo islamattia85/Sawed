@@ -167,7 +167,95 @@ export let state;
  * top would count them twice.
  */
 export function fileIsNet(){
-  return !!(state._csv_imported && state.has_solar && !state.solar_planned);
+  const b = fileBasis();
+  return !!(b && b.mode === 'net');
+}
+
+/**
+ * What the meter file says about panels, read from its own rows: the day
+ * exports begin (an ESB smart meter records every unit sent to the grid), or
+ * for a system that never exports, the day daytime buying drops for good
+ * against the evening. Null without a file.
+ */
+let _fsMemo = { key: '', val: null };
+export function fileSolar(){
+  const days = state._csv_imported && state.meter && state.meter.days;
+  if (!days) return null;
+  const keys = Object.keys(days).sort();
+  if (!keys.length) return null;
+  const key = keys.length + keys[0] + keys[keys.length - 1];
+  if (_fsMemo.key === key) return _fsMemo.val;
+  const exp = keys.map((k) => days[k].slice(24).reduce((a, b) => a + b, 0));
+  const exporting = exp.map((e) => e > 0.3);
+  let exportFrom = null;
+  for (let i = 0; i < keys.length; i++){
+    if (!exporting[i]) continue;
+    let n = 0; for (let j = i; j < Math.min(keys.length, i + 30); j++) if (exporting[j]) n++;
+    if (n >= 8){ exportFrom = keys[i]; break; }
+  }
+  // No exports: look for the midday-to-evening ratio of what is bought
+  // falling by half and staying there, as panels running behind the meter do.
+  let dropFrom = null;
+  if (!exportFrom && keys.length >= 120){
+    const ratio = keys.map((k) => {
+      const r = days[k], mid = r.slice(10, 16).reduce((a, b) => a + b, 0), eve = r.slice(17, 23).reduce((a, b) => a + b, 0);
+      return mid / (eve + 0.1);
+    });
+    const med = (a) => { const s = a.slice().sort((x, y) => x - y); return s[Math.floor(s.length / 2)] || 0; };
+    let best = 1;
+    for (let i = 56; i <= keys.length - 56; i += 7){
+      const before = med(ratio.slice(i - 56, i)), after = med(ratio.slice(i, i + 56));
+      const f = before > 0.05 ? after / before : 1;
+      if (f < 0.5 && f < best){ best = f; dropFrom = keys[i]; }
+    }
+  }
+  const val = { first: keys[0], last: keys[keys.length - 1], days: keys.length, exportFrom, dropFrom,
+    exportKwh: Math.round(exp.reduce((a, b) => a + b, 0)) };
+  _fsMemo = { key, val };
+  return val;
+}
+
+/**
+ * Which part of the meter file to price, and how. 'gross': the home's own use,
+ * panels added by the model (no panels yet, or a file from before them).
+ * 'net': what was bought and sold with the panels running, priced as recorded.
+ * `ask` is set when the file and the answers disagree and only the person can
+ * say which is right.
+ */
+export function fileBasis(){
+  const fs = fileSolar();
+  if (!fs) return null;
+  const installed = !!(state.has_solar && !state.solar_planned);
+  const all = { from: fs.first, to: fs.last };
+  const start = fs.exportFrom || (state.file_when === 'dropyes' ? fs.dropFrom : null);
+  const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000) + 1;
+  if (!installed){
+    // Planned or no panels: the home's own use. If the file shows panels
+    // already running, use the part before them when there is enough of it.
+    if (start && start !== fs.first && daysBetween(fs.first, start) > 60)
+      return { mode: 'gross', from: fs.first, to: prevDay(start), start, contradicts: true };
+    return { mode: 'gross', ...all, start, contradicts: !!start };
+  }
+  if (!start){
+    if (state.file_when === 'noexport') return { mode: 'net', ...all };
+    if (fs.dropFrom && !state.file_when) return { mode: 'gross', ...all, ask: 'drop', dropFrom: fs.dropFrom };
+    return { mode: 'gross', ...all, ask: state.file_when ? null : 'noexport' };
+  }
+  if (daysBetween(fs.first, start) <= 14) return { mode: 'net', ...all, start };
+  const post = daysBetween(start, fs.last), pre = daysBetween(fs.first, start) - 1;
+  if (post >= 330) return { mode: 'net', from: start, to: fs.last, start };
+  if (pre >= 60) return { mode: 'gross', from: fs.first, to: prevDay(start), start };
+  return { mode: 'net', from: start, to: fs.last, start };
+}
+function prevDay(d){ const t = new Date(d + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() - 1); return t.toISOString().slice(0, 10); }
+
+/** The meter file's days inside the part being priced. */
+export function fileDays(){
+  const days = state.meter && state.meter.days, b = fileBasis();
+  if (!days || !b) return null;
+  const out = {};
+  for (const k of Object.keys(days)) if (k >= b.from && k <= b.to) out[k] = days[k];
+  return out;
 }
 
 export function buildSolar(){
@@ -384,7 +472,7 @@ export function getShape(month){
  * or null when there is no file, the panels are already installed, or fewer
  * than 330 of the year's days can be matched to a reading. */
 export function meterYearDays(){
-  const days = state._csv_imported && state.meter && state.meter.days;
+  const days = state._csv_imported && fileDays();
   // With panels already up, the file is net of them (see fileIsNet), so the
   // recorded days are exactly what each plan should price.
   if (!days) return null;

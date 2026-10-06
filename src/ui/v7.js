@@ -1282,6 +1282,9 @@ export function createV7(api) {
     const L = p.label;
     const conf = /confirmed/.test(L);
     if (/^Weather/.test(L)) return { name: 'Weather and our estimates', how: 'A typical Irish year; real years vary', state: 'Always' };
+    if (/^Your meter data|^Meter file/.test(L)) { let how = ''; try { how = api.fileSummary(); } catch (e) {}
+      return { name: 'Your usage', how: how || 'Your meter data', state: /^Meter file/.test(L) ? 'Assumed' : 'Measured' }; }
+    if (/after the panels/.test(L)) return { name: 'Your usage', how: 'Worked out from a bill after the panels. Bills after solar swing with the seasons, and credit months can be near zero.', state: 'Estimated' };
     if (/smart-meter/.test(L)) return { name: 'Your usage', how: 'Your meter data', state: 'Measured' };
     if (/yearly kWh/.test(L)) return { name: 'Your usage', how: 'Your yearly kWh, spread over a typical day', state: 'Estimated' };
     if (/from your bill/.test(L)) return { name: 'Your usage', how: 'Worked out from your bill', state: 'Estimated' };
