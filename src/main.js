@@ -3110,7 +3110,7 @@ function obStep2Usage(){
   if (m === 'csv'){
     return `${head}
     <div class="card" style="margin-top:0;margin-bottom:12px">
-      <div style="font-size:12px;color:var(--ink-soft);line-height:1.7">Log in at <b>myaccount.esbnetworks.ie</b> → My Meter → <b>Download HDF Data</b> (12 months if offered). The file looks like <span style="font-family:var(--mono);font-size:12px;background:var(--well);padding:2px 6px;border-radius:4px">HDF_XXXXXXXX_YYYY-MM-DD.csv</span>.</div>
+      <div style="font-size:12px;color:var(--ink-soft);line-height:1.7">Log in at <b>myaccount.esbnetworks.ie</b> → My Meter → Downloads → <b>30-minute readings in kW</b> (12 months if offered). The file looks like <span style="font-family:var(--mono);font-size:12px;background:var(--well);padding:2px 6px;border-radius:4px">HDF_XXXXXXXX_YYYY-MM-DD.csv</span>.</div>
       <label class="btn-secondary" style="display:block;text-align:center;cursor:pointer;margin-top:10px;padding:12px 16px;border:1px dashed var(--blue);color:var(--blue)">
         Choose CSV file
         <input id="csv-file-input" type="file" accept=".csv,.CSV" style="display:none" onchange="handleCsvFile(event)">
@@ -5294,7 +5294,7 @@ function renderFlow(){
       <div class="fl-row">${[150, 250, 420].map((v) => `<button class="sy-stop" onclick="document.getElementById('flow-bill').value=${v}">€${v}</button>`).join('')}</div>
       <button class="fl-next" onclick="flowAnswer('bill', document.getElementById('flow-bill').value)">Next</button>
       <div class="fl-or"><span>or, most accurate</span></div>
-      <label class="fl-upload">${ic('csv', 20)}<span><b>Upload your ESB smart-meter file</b><small>Every half hour of your real year. Download it free at esbnetworks.ie → My account → Download data.</small></span>
+      <label class="fl-upload">${ic('csv', 20)}<span><b>Upload your ESB smart-meter file</b><small>Every half hour of your real year. Free at esbnetworks.ie: My Meter → Downloads → “30-minute readings in kW”.</small></span>
         <input type="file" accept=".csv,.CSV" onchange="handleCsvFile(event)" hidden></label>
       <div id="csv-parse-result"></div>`;
     }
@@ -8567,7 +8567,7 @@ function computeAlerts(){
     if (old.length && old.some((e) => lastDay < addDays(e.at, 14))){
       out.push({ id: `meter:${quarterKey()}`, kind: 'meter', level: 'info',
         title: 'Check your savings against your meter',
-        body: 'Download your meter file from esbnetworks.ie (My Account, then Downloads) and add it here. We’ll show what you really saved.',
+        body: 'Download your meter file from esbnetworks.ie (My Meter, then Downloads, “30-minute readings in kW”) and add it here. We’ll show what you really saved.',
         go: "v7Sheet('meter')", cta: 'Upload meter data' });
     }
     if (state.contract_end){
@@ -9898,7 +9898,7 @@ function renderFastPath(){
       </div>`}
       ${state._fp_csv_mode ? `
       <div style="text-align:left">
-        <div style="font-size:12px;color:var(--ink-soft);line-height:1.7">Most accurate. Your real half-hourly readings, from <b>myaccount.esbnetworks.ie</b> → My Meter → <b>Download HDF Data</b>. Less than a year still works — we scale it to a full-year profile.</div>
+        <div style="font-size:12px;color:var(--ink-soft);line-height:1.7">Most accurate. Your real half-hourly readings, from <b>myaccount.esbnetworks.ie</b> → My Meter → Downloads → <b>30-minute readings in kW</b>. Less than a year still works — we scale it to a full-year profile.</div>
         <label class="btn-secondary" style="display:block;text-align:center;cursor:pointer;margin-top:10px;padding:12px 16px;border:1px dashed var(--blue);color:var(--blue);border-radius:8px">
           Choose CSV file
           <input id="csv-file-input" type="file" accept=".csv,.CSV" style="display:none" onchange="handleCsvFile(event)">
@@ -12035,7 +12035,7 @@ function renderCsvImport(){
     <div class="card" style="margin-top:${hasImport ? '10px' : '0'}">
       <div class="card-label">1. Download your data from ESB Networks</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.7;margin:8px 0">
-        Log in to <b>esbnetworks.ie</b> → "My Meter" → "Download HDF Data" → select "HDF CSV" format for the last 12 months.
+        Log in to <b>esbnetworks.ie</b> → My Meter → Downloads → <b>30-minute readings in kW</b>, for the last 12 months. The kWh version works too; the daily files don’t have the hours.
       </div>
       <a href="https://myaccount.esbnetworks.ie" target="_blank" rel="noopener noreferrer">
         <button class="btn-secondary" style="width:100%;margin-top:8px">Open ESB Networks →</button>
@@ -12061,7 +12061,7 @@ function renderCsvImport(){
 10309xxxxxx,000000000xxxxxxxxx,0.154,Active Import Interval (kWh),01-01-2025 00:30
 10309xxxxxx,000000000xxxxxxxxx,0.142,Active Import Interval (kWh),01-01-2025 01:00
 ...</div>
-      <div style="font-size:12px;color:var(--ink-dim);margin-top:8px">Supports the current ESB Networks HDF format (5-column, <b>DD-MM-YYYY</b> dates). Log in at <b>myaccount.esbnetworks.ie</b> → My Meter → Download HDF Data → select last 12 months.</div>
+      <div style="font-size:12px;color:var(--ink-dim);margin-top:8px">Supports the current ESB Networks HDF format (5-column, <b>DD-MM-YYYY</b> dates). Log in at <b>myaccount.esbnetworks.ie</b> → My Meter → Downloads → “30-minute readings in kW”, last 12 months.</div>
     </div>
   </div>
   ${bottomNav()}`;
@@ -12132,6 +12132,30 @@ function parseCsvHdf(text, filename){
     const _dateCol  = dateColIdx  >= 0 ? dateColIdx  : 1;
     const _valueCol = valueColIdx >= 0 ? valueColIdx : 2;
     const _typeCol  = typeColIdx  >= 0 ? typeColIdx  : 3;
+
+    // ESB offers daily files too. They have a row or two a day where the
+    // half-hour files have 48, so the shape of the file tells them apart,
+    // whatever the download was called. Neither shows the hours that decide
+    // most plans: say which file to get instead of misreading them.
+    {
+      const perDay = {};
+      let types = '';
+      for (const line of dataLines.slice(0, 5000)){
+        const cols = line.split(',').map((c) => c.replace(/^"|"$/g, '').trim());
+        const m = (cols[_dateCol] || '').match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})|(\d{4})-(\d{2})-(\d{2})/);
+        if (!m) continue;
+        const k = m[0] + '|' + (cols[_typeCol] || '');
+        perDay[k] = (perDay[k] || 0) + 1;
+        if (types.length < 400) types += ' ' + (cols[_typeCol] || '').toLowerCase();
+      }
+      const counts = Object.values(perDay).sort((a, b) => a - b);
+      const typical = counts.length ? counts[Math.floor(counts.length / 2)] : 48;
+      const GET = 'In your ESB Networks account, open My Meter, then Downloads, and choose “30-minute readings in kW” (the kWh version works too).';
+      if (counts.length >= 3 && typical <= 4 && counts[counts.length - 1] <= 4){
+        if (/demand|max/.test(types)) throw new Error(`This is ESB’s daily highest-demand file: your biggest half hour each day, not how much you used. ${GET}`);
+        throw new Error(`This is one of ESB’s daily files: a reading a day, without the hours that decide most plans. ${GET}`);
+      }
+    }
 
     // Helper: parse date string → month number (1-12)
     function parseDateMonth(s){

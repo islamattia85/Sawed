@@ -85,3 +85,15 @@ test('a typed summer bill after the panels widens the accuracy range', async ({ 
   await page.evaluate(() => { flowAnswer('price', 0); flowAnswer('grant', 'no'); flowAnswer('ev', 'no'); flowFinish(); anTab('accuracy'); });
   await expect(page.locator('.ax-acc', { hasText: 'Your usage' })).toContainText('±15%');
 });
+
+test('ESB’s daily files are recognised and the right download is named', async ({ page }) => {
+  for (const [type, want] of [['Active Import Daily Max Demand (kW)', 'highest-demand'], ['Active Import Register Day (kWh)', 'daily files']]) {
+    await fresh(page);
+    await page.getByRole('button', { name: /Am I paying too much/ }).click();
+    const rows = ['MPRN,Meter Serial Number,Read Value,Read Type,Read Date and End Time'];
+    for (let d = 1; d <= 28; d++) rows.push(`1,2,${1000 + d * 10},${type},${String(d).padStart(2, '0')}-09-2026 00:00`);
+    await page.locator('.fl-upload input[type=file]').setInputFiles({ name: 'esb.csv', mimeType: 'text/csv', buffer: Buffer.from(rows.join('\n')) });
+    await expect(page.locator('body')).toContainText(want);
+    await expect(page.locator('body')).toContainText('30-minute readings in kW');
+  }
+});
