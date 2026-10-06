@@ -167,22 +167,27 @@ export function buildSolar(){
   // solar savings into no-solar results.
   const nA = state.has_solar ? (state.count_A || 0) : 0;
   const nB = state.has_solar ? (state.count_B || 0) : 0;
-  // Match the engineering tool's behavior: clip per-array at the inverter limit.
-  // Less accurate than combined clipping but matches the original engine.
+  // Both faces feed one inverter, so the limit applies to their combined
+  // output. Clipping each face on its own let an east-west roof make up to
+  // twice the inverter's rating.
   const poaA = buildPOA(state.azimuth_A, state.tilt_A, ghi);
   const invKw = state.inverter_kw || 5.0;
-  const genA = buildPVGeneration(poaA, nA, state.panel_w, 0.86, invKw);
+  const genA = buildPVGeneration(poaA, nA, state.panel_w, 0.86, nB > 0 ? Infinity : invKw);
 
   // Roof B — only compute if panels present, to save cycles
   let poaB = null, genB = null;
   if (nB > 0){
     poaB = buildPOA(state.azimuth_B, state.tilt_B, ghi);
-    genB = buildPVGeneration(poaB, nB, state.panel_w, 0.86, invKw);
+    genB = buildPVGeneration(poaB, nB, state.panel_w, 0.86, Infinity);
   }
 
   const total = new Float32Array(HOURS_IN_YEAR);
   for (let i=0;i<HOURS_IN_YEAR;i++){
-    total[i] = genA[i] + (genB ? genB[i] : 0);
+    const sum = genA[i] + (genB ? genB[i] : 0);
+    if (genB && sum > invKw){
+      // Clip the pair, each face keeping its share of what the inverter passes.
+      const k = invKw / sum; genA[i] *= k; genB[i] *= k; total[i] = invKw;
+    } else total[i] = sum;
   }
   return { ghi, poaA, poaB, genA, genB, total };
 }
