@@ -159,14 +159,29 @@ export let state;
 
 // Erbs model — diffuse fraction from monthly clearness index
 
+/**
+ * True when the usage comes from a meter file and the panels (and any battery)
+ * were already installed while it was recorded. The file is then the home's
+ * net position: what it bought and sold with its own system running as it
+ * runs. Pricing it on each plan is exact; adding the panels or the battery on
+ * top would count them twice.
+ */
+export function fileIsNet(){
+  return !!(state._csv_imported && state.has_solar && !state.solar_planned);
+}
+
 export function buildSolar(){
   const ghi = buildHourlyGHI();
   // has_solar gates generation: panel config is preserved in state so users can
   // toggle solar back on without re-entering it, but a "no solar" home must
   // simulate ZERO generation — otherwise default panel counts leak phantom
   // solar savings into no-solar results.
-  const nA = state.has_solar ? (state.count_A || 0) : 0;
-  const nB = state.has_solar ? (state.count_B || 0) : 0;
+  // A meter file from a home whose panels are already up records what the
+  // home bought after them: the panels are in the readings, so they are not
+  // added again.
+  const live = state.has_solar && !fileIsNet();
+  const nA = live ? (state.count_A || 0) : 0;
+  const nB = live ? (state.count_B || 0) : 0;
   // Both faces feed one inverter, so the limit applies to their combined
   // output. Clipping each face on its own let an east-west roof make up to
   // twice the inverter's rating.
@@ -370,7 +385,9 @@ export function getShape(month){
  * than 330 of the year's days can be matched to a reading. */
 export function meterYearDays(){
   const days = state._csv_imported && state.meter && state.meter.days;
-  if (!days || (state.has_solar && !state.solar_planned)) return null;
+  // With panels already up, the file is net of them (see fileIsNet), so the
+  // recorded days are exactly what each plan should price.
+  if (!days) return null;
   const keys = Object.keys(days).sort();
   if (keys.length < 330) return null;
   // Index the readings by month-day; several years keep the most recent.
@@ -607,7 +624,7 @@ export function getPlanById(id){
    ============================================================ */
 
 export function simulate(plan, gen, cons, strategy){
-  const cap = state.battery_kwh || 0;          // usable kWh
+  const cap = fileIsNet() ? 0 : (state.battery_kwh || 0);   // usable kWh; a net meter file already has the battery in it
   const minSoc = state.battery_min * cap;
   const maxSoc = (state.battery_max || 1.0) * cap;
   const eff = Math.sqrt(state.battery_eff); // applied each way
@@ -785,7 +802,7 @@ export function rebuildBase(){
  * at each plan's export rate (a flat rate, so the hours do not matter).
  */
 function creditFileExport(r, plan){
-  if (state.has_solar || !state._csv_imported || !(state._csv_export_kwh > 0)) return r;
+  if ((state.has_solar && !fileIsNet()) || !state._csv_imported || !(state._csv_export_kwh > 0)) return r;
   const n = r.cost.length, per = state._csv_export_kwh * (plan.export_rate || 0) / n;
   const rev = new Float32Array(n);
   for (let i = 0; i < n; i++) rev[i] = per + (r.revenue ? r.revenue[i] : 0);
@@ -958,7 +975,7 @@ export function invalidate(){
  * simulates or displays the strategy reads it through here.
  */
 export function effectiveStrategy(){
-  const hasBattery = (state.battery_kwh || 0) > 0;
+  const hasBattery = (state.battery_kwh || 0) > 0 && !fileIsNet();
   return {
     mode: hasBattery ? (state.strategy_mode || 'auto') : 'self-consume',
     charge_from_grid: hasBattery ? state.charge_from_grid !== false : false,

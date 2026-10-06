@@ -87,3 +87,20 @@ test('setup asks where in Ireland for a solar home, and the answer changes what 
   expect(s.asked).toContain('Where in Ireland');
   expect([s.region, n.region]).toEqual(['south', 'northwest']);
 });
+
+test('a meter file from a home with panels up is not given the panels twice', async ({ page }) => {
+  await fresh(page);
+  await page.getByRole('button', { name: /Am I paying too much/ }).click();
+  const rows = ['MPRN,Meter Serial Number,Read Value,Read Type,Read Date and End Time'];
+  for (let d = 1; d <= 28; d++) for (let h = 1; h <= 24; h++) {
+    const t = `${String(d).padStart(2, '0')}-09-2026 ${String(h % 24).padStart(2, '0')}:00`;
+    rows.push(`1,2,${h >= 11 && h <= 15 ? 0.1 : 0.8},Active Import Interval (kW),${t}`);
+    rows.push(`1,2,${h >= 11 && h <= 15 ? 2 : 0},Active Export Interval (kW),${t}`);
+  }
+  await page.locator('.fl-upload input[type=file]').setInputFiles({ name: 'esb.csv', mimeType: 'text/csv', buffer: Buffer.from(rows.join('\n')) });
+  await page.getByRole('button', { name: /Use this data/ }).click();
+  const cost = () => page.evaluate(() => { window.invalidate(); window.rebuildBase(); return Math.round(window.getRecommendation().ranked.find((x) => x.plan.id === 'EI-SST').net); });
+  const fileOnly = await cost();
+  await page.evaluate(() => { flowAnswer('solar', 'have'); flowAnswer('where', 'east'); flowAnswer('roof', 'S'); flowAnswer('tilt', 35); flowAnswer('panels', 9); flowAnswer('battery', 10); });
+  expect(await cost()).toBe(fileOnly);
+});

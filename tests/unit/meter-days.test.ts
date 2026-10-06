@@ -20,9 +20,9 @@ describe('a year of meter readings is priced day by day', () => {
       expect(out[doy][0]).toBe(dow === 0 || dow === 6 ? 2 : 1);
     }
   });
-  it('is not used with panels already on the roof, or with too few days', () => {
+  it('is used with panels already on the roof (the file is net of them), not with too few days', () => {
     setState({ _csv_imported: true, meter: { days }, has_solar: true, solar_planned: false });
-    expect(meterYearDays()).toBeNull();
+    expect(meterYearDays()).not.toBeNull();
     const few = Object.fromEntries(Object.entries(days).slice(0, 200));
     setState({ _csv_imported: true, meter: { days: few } });
     expect(meterYearDays()).toBeNull();
