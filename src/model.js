@@ -997,7 +997,7 @@ export const SIM_FIELDS = [
   'has_solar', 'solar_planned', 'count_A', 'count_B',
   'azimuth_A', 'azimuth_B', 'tilt_A', 'tilt_B', 'panel_w', 'panel_degradation',
   'battery_kwh', 'strategy_mode', 'charge_from_grid',
-  'install_cost', 'grant_seai',
+  'install_cost', 'grant_seai', 'inverter_kw',
   'ev_active', 'ev_in_bill', 'ev_km_per_year', 'ev_kwh_per_100km',
   'heating_type', 'hot_water_strategy', 'immersion_night', 'ev_charge_time', 'heat_time', 'region', 'area', 'meter_type',
   'baseline', 'baseline_discount_pct', 'chosen_plan', 'include_dynamic',
@@ -1365,11 +1365,20 @@ export function sweepSetup(){
     shareB: two ? state.count_B / Math.max(1, totalPanels()) : 0 };
 }
 /** One size: its price, grant and what it earns on its best plan. */
+/**
+ * The inverter an installer would fit for an array: about 1.2 kWp of panels
+ * per kW of inverter, at least 3 kW, and at most 6 kW, the single-phase limit
+ * for a home in Ireland. Suggested systems use it; a home's own system keeps
+ * the inverter it has.
+ */
+export function inverterFor(kwp){
+  return Math.min(6, Math.max(3, Math.round(kwp / 1.2 * 10) / 10));
+}
 export function evaluateDesign(J, p, b, noSolar){
   const nB = Math.round(p * J.shareB), nA = p - nB;
   const kwp = p * (state.panel_w || 440) / 1000;
   const cost = estimateInstallCost(kwp, b), grant = calcSeaiGrant(kwp, b).total, net = cost - grant;
-  const ch = { count_A: nA, count_B: nB, azimuth_A: J.az, tilt_A: J.tilt, battery_kwh: b, has_solar: true, install_cost: cost, grant_seai: grant };
+  const ch = { count_A: nA, count_B: nB, azimuth_A: J.az, tilt_A: J.tilt, battery_kwh: b, has_solar: true, install_cost: cost, grant_seai: grant, inverter_kw: inverterFor(kwp) };
   if (J.two){ ch.azimuth_B = J.azB; ch.tilt_B = J.tiltB; }
   const best = withSimState(ch, () => getBestPlan());
   const benefit = Math.max(0, noSolar - best.net);

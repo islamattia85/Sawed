@@ -20,7 +20,7 @@ import { GAS_TARIFFS } from './gas-tariffs.js';
 import { BRAND, CONTROLLER, MARK_PATHS, iconDataUri, wordmarkHtml } from './brand';
 import { IC, ic } from './icons';
 import {
-  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, meterYearDays, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
+  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, meterYearDays, inverterFor, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
   outcomeAgainst, sweepSetup, evaluateDesign, finishSweep,
 } from './model';
 
@@ -4176,7 +4176,7 @@ function sweepGoalDesigns(){
       const cost = estimateInstallCost(kwp, b);
       const grant = calcSeaiGrant(kwp, b).total;
       const net = cost - grant;
-      state.install_cost = cost; state.grant_seai = grant;
+      state.install_cost = cost; state.grant_seai = grant; state.inverter_kw = inverterFor(kwp);
       invalidate(); rebuildBase();
       const best = getBestPlan();
       const benefit = Math.max(0, noSolarCost - best.net);
@@ -4446,7 +4446,7 @@ function startGoalDesign(goal){
 // renders whatever view is active; 'mine' is the user's own configuration,
 // snapshotted before any design preview so it can never be lost.
 const SYS_KEYS = ['has_solar','count_A','count_B','azimuth_A','azimuth_B','tilt_A','tilt_B',
-                  'battery_kwh','install_cost','grant_seai','solar_is_estimate','solar_planned'];
+                  'battery_kwh','install_cost','grant_seai','solar_is_estimate','solar_planned','inverter_kw'];
 
 function snapshotMySystem(){
   const s = {};
@@ -4460,7 +4460,7 @@ function applySystemConfig(cfg){
 }
 
 function designToConfig(d){
-  return { has_solar: true, count_A: d.a ?? d.panels, count_B: d.b ?? 0,
+  return { has_solar: true, count_A: d.a ?? d.panels, count_B: d.b ?? 0, inverter_kw: inverterFor(d.kwp || (d.panels * (state.panel_w || 440) / 1000)),
     azimuth_A: state.azimuth_A || 180, tilt_A: state.tilt_A || 30,
     battery_kwh: d.batt, install_cost: d.cost, grant_seai: d.grant,
     solar_is_estimate: true, solar_planned: state.my_system && state.my_system.has_solar ? !!state.my_system.solar_planned : true };
@@ -4991,7 +4991,7 @@ function flowAnswer(q, v){
   if (q === 'house'){ state.house_type = v; delete f.system; }
   if (q === 'system' && v !== 'custom'){
     const g = designGoals().find((x) => x.keys.includes(v));
-    if (g){ const c = designToConfig(g.d); state.count_A = c.count_A; state.count_B = c.count_B || 0; state.battery_kwh = c.battery_kwh || 0; if (state.battery_kwh > 0) state.charge_from_grid = true; }
+    if (g){ const c = designToConfig(g.d); state.count_A = c.count_A; state.count_B = c.count_B || 0; state.battery_kwh = c.battery_kwh || 0; state.inverter_kw = c.inverter_kw; if (state.battery_kwh > 0) state.charge_from_grid = true; }
   }
   if (q === 'where' && IRISH_REGIONS[v]){ state.region = v; state.region_asked = true; applyRegion(v); }
   if (q === 'night') state.immersion_night = v === 'immersion';
