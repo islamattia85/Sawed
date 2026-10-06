@@ -788,9 +788,9 @@ export function createV7(api) {
       </div>
       ${paybackCurve({ cumulative: L.curve })}
       <div class="ax-life-sum">
-        ${row('Saved on bills over 20 years', eur(saved), 'is-gain')}
+        ${row(`Saved on bills over 20 years${api.infoTip('the 20-year saving', 'Panels make about 0.5% less each year as they age, so each year saves a little less than the one before. Prices are held at today’s.')}`, eur(saved), 'is-gain')}
         ${row(`The system${S().cost_is_manual ? '' : ' (guide price)'}${L.grant > 0 ? `, after the ${eur(L.grant)} grant` : ''}`, `−${eur(L.sysCost)}`)}
-        ${L.battery ? row(`A new battery, around year ${api.batterySwapYear()} (the part used before year 20)`, `−${eur(L.battery)}`) : ''}
+        ${L.battery ? row(`A new battery, around year ${api.batterySwapYear()}${api.infoTip('the battery replacement', 'Home batteries last about 15 years. We count the part of a new one used before year 20, at today’s €400 per kWh falling 3% a year.')}`, `−${eur(L.battery)}`) : ''}
         <div class="ax-mb-head"><span>${end >= 0 ? 'Ahead' : 'Short'}</span><b>${end >= 0 ? '+' : '−'}${eur(Math.abs(end))}</b></div>
       </div>
       <div class="ax-life-marks">
@@ -947,7 +947,7 @@ export function createV7(api) {
       : flat || big.key === 'rise' ? `Electricity is ${pct(T.energy, gross)}% of it; fixed charges the rest`
         : `Electricity at ${RATE_NAME[big.key] || big.label} is the biggest part: ${big.p}`;
     const credit = d.sys && T.credit > 0.5 ? `<div class="ax-row ax-row-credit"><i class="ax-sw" style="background:var(--ax-sold)"></i>
-        <span class="ax-row-l"><b>Paid for what you sell back</b><small>Export payments, taken off the bill</small></span>
+        <span class="ax-row-l"><b>Paid for what you sell back${api.infoTip('export payments', 'What the supplier pays for the solar you send to the grid, taken off the bill. Each plan has its own export rate.')}</b></span>
         <span class="ax-row-v"><b class="is-gain">−${eur(T.credit)}</b></span></div>` : '';
 
     const mo = T.month;
@@ -1058,14 +1058,14 @@ export function createV7(api) {
     const dCost = sum(one.hours.map((x) => x.cost));
     const chip = (label, idx) => `<button class="ax-chip ${idx === one.day ? 'on' : ''}" aria-pressed="${idx === one.day}" onclick="setAnalyticsDay(${idx})">${label}</button>`;
     const open = !!st._an_day_open;
-    const anyDay = anCard('Any day of the year', `
+    const dayHow = st._csv_imported ? (api.meterYearDays && api.meterYearDays() ? 'Drawn on one scale for the whole year. Each day is the day your meter recorded nearest that date, on the same weekday.' : 'Drawn on one scale for the whole year. Your file covers less than a year, so each day follows its average daily shape, scaled to the month.') : 'Drawn on one scale for the whole year. Each day follows a typical home’s daily shape, scaled to the month.';
+    const anyDay = anCard(`Any day of the year${api.infoTip('this chart', dayHow)}`, `
       <div class="ax-chips">${chip('21 June', 171)}${chip('21 December', 354)}</div>
       <label class="ax-range"><span>Or pick a day: <b>${dayName(one.day)}</b></span>
         <input type="range" min="0" max="364" value="${one.day}" onchange="setAnalyticsDay(+this.value)" aria-label="Day of the year"></label>
       ${vbars(oh.map((v, h) => ({ v, token: flat ? '--bandink-day' : bandToken(one.hours[h].band),
         tip: `${hhmm(h)} · ${v.toFixed(2)} kWh · ${api.fmtCent(one.hours[h].rate)}` })), { height: 96, max: one.yearMax, label: `Used by hour on ${dayName(one.day)}` })}${hourAxis()}
       <div class="ax-fact">${dayName(one.day)}: ${sum(oh).toFixed(1)} kWh used${bought ? `, ${ob.toFixed(1)} bought` : ''}, ${dCost >= 0 ? `${dayMoney(dCost)} of electricity` : dayMoney(dCost)}</div>
-      ${st._csv_imported ? note(api.meterYearDays && api.meterYearDays() ? 'Drawn on one scale for the whole year. Each day is the day your meter recorded nearest that date, on the same weekday.' : 'Drawn on one scale for the whole year. Your file covers less than a year, so each day follows its average daily shape, scaled to the month.') : note('Drawn on one scale for the whole year. Each day follows a typical home’s daily shape, scaled to the month.')}
       <p class="ax-note">Dearest day: <button class="ax-inline ax-dear" onclick="setAnalyticsDay(${T.dearest.day})">${dayName(T.dearest.day)}, ${dayMoney(T.dearest.cost)}</button>.
         Cheapest: <button class="ax-inline" onclick="setAnalyticsDay(${T.cheapest.day})">${dayName(T.cheapest.day)}, ${dayMoney(T.cheapest.cost)}</button>. ${bought ? 'Electricity less export payments.' : 'Electricity only.'}</p>
       <button class="ax-more ax-more-in ${open ? 'open' : ''}" aria-expanded="${open}" onclick="state._an_day_open=!state._an_day_open;saveState();renderApp()">
@@ -1111,13 +1111,13 @@ export function createV7(api) {
       ${flow('imp', 'Bought from the grid', '--bandink-peak')}
       ${S0 ? flow('exp', 'Sold to the grid', '--ax-sold') : ''}
       ${batt ? `<div class="ax-flow">
-        <div class="ax-flow-k"><span><i class="v7-dot" style="background:var(--ax-kept)"></i>Battery</span><b>in ${tot('ch').toFixed(1)} · out ${tot('dis').toFixed(1)} kWh</b></div>
+        <div class="ax-flow-k"><span><i class="v7-dot" style="background:var(--ax-kept)"></i>Battery${api.infoTip('the battery chart', 'Bars up: charging. Bars down: running the house. The line: how full it is.')}</span><b>in ${tot('ch').toFixed(1)} · out ${tot('dis').toFixed(1)} kWh</b></div>
         <div class="ax-batt">
           ${vbars(H.map((x) => ({ v: x.ch, token: '--ax-kept', tip: `${hhmm(x.h)} · charging ${x.ch.toFixed(2)} kWh` })), { height: 40, max: bMax, label: 'Battery charging by hour' })}
           <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><polyline points="${socPts}" fill="none" stroke="var(--ink)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>
         </div>
         ${vbars(H.map((x) => ({ v: x.dis, token: '--ax-sold', tip: `${hhmm(x.h)} · giving back ${x.dis.toFixed(2)} kWh` })), { height: 32, max: bMax, label: 'Battery giving back by hour' })}
-        <p class="ax-note">Up: charging. Down: running the house. Line: how full${full && full.soc > 0.05 ? `, fullest at ${hhmm(full.h)} (${full.soc.toFixed(1)} of ${S0.cap} kWh)` : ''}.</p>
+        ${full && full.soc > 0.05 ? `<p class="ax-note">Fullest at ${hhmm(full.h)}, ${full.soc.toFixed(1)} of ${S0.cap} kWh.</p>` : ''}
       </div>` : ''}
       <div class="ax-day-k">The rate, hour by hour</div>
       ${rateStrip({ bands: H.map((x) => x.band), rates: H.reduce((o, x) => ({ ...o, [x.band]: x.rate }), {}), height: 18 })}
@@ -1266,13 +1266,13 @@ export function createV7(api) {
         line: `${eur(Math.abs(net))} ${net >= 0 ? 'less' : 'more'} than petrol. ${Math.round(ev.km).toLocaleString('en-IE')} km a year would take ${Math.round(ev.litres).toLocaleString('en-IE')} litres, about ${eur(ev.petrolCost)} at €${(st.fuel_price || 1.83).toFixed(2)} a litre.`,
       })}
       ${lost > 1
-        ? anCard(`Charging at 6 pm would cost ${eur(lost)} more a year`, `${hbars([
+        ? anCard(`Charging at 6 pm would cost ${eur(lost)} more a year${api.infoTip('charging times', 'A charger timer, or the car’s own schedule, does it for you.')}`, `${hbars([
           { name: cheapName, val: `${api.fmtCent(cheapRate)} a kWh`, v: cheapRate, token: plan.windows?.ev ? '--bandink-ev' : '--bandink-night' },
           { name: 'Straight home at 6 pm', val: `${api.fmtCent(at6)} a kWh`, v: at6, token: '--bandink-peak' },
-        ])}${note('A charger timer, or the car’s own schedule, does it for you.')}`)
+        ])}`)
         : anCard('This plan charges the same at any hour', note(`${api.fmtCent(cheapRate)} a kWh whenever you plug in. Plans with a cheap night or EV window would charge it for less.`))}
-      ${anCard('Cheapest plans to charge on', `${hbars(byCharging.map((x, i) => ({ name: `${esc(x.p.supplier)} ${esc(x.p.plan)}`, val: eur(x.cost), v: x.cost, token: i === 0 ? '--accent' : '--bandink-day' })))}
-        ${note(`Charging alone. Your best plan overall, ${esc(plan.supplier)} ${esc(plan.plan)}, weighs the car with everything else you use.`)}`)}
+      ${anCard(`Cheapest plans to charge on${api.infoTip('this list', `Charging alone. Your best plan overall, ${esc(plan.supplier)} ${esc(plan.plan)}, weighs the car with everything else you use.`)}`, `${hbars(byCharging.map((x, i) => ({ name: `${esc(x.p.supplier)} ${esc(x.p.plan)}`, val: eur(x.cost), v: x.cost, token: i === 0 ? '--accent' : '--bandink-day' })))}
+        `)}
       ${cta('Compare EV plans', "state._plans_filter='ev';setScreen('plans')")}
       ${cta2('Leave the car out of the figures', 'toggleEvModel()', 'x')}`;
   }
@@ -1304,14 +1304,12 @@ export function createV7(api) {
     const list = sorted.map((p) => {
       const r = accRow(p);
       return `<div class="ax-acc">
-        <div class="ax-acc-top"><b>${esc(r.name)}</b><span class="ax-pill is-${r.state.toLowerCase()}">${r.state}</span><b class="ax-acc-err">±${p.err}%</b></div>
-        ${r.how ? `<small>${esc(r.how)}</small>` : ''}
+        <div class="ax-acc-top"><b>${esc(r.name)}${r.how ? api.infoTip(r.name, esc(r.how)) : ''}</b><span class="ax-pill is-${r.state.toLowerCase()}">${r.state}</span><b class="ax-acc-err">±${p.err}%</b></div>
         ${p.tip ? `<button class="ax-act" onclick="${p.go}">${esc(p.tip)}</button>` : ''}
       </div>`;
     }).join('');
     const price = a.priceTypical ? `<div class="ax-acc">
-        <div class="ax-acc-top"><b>System price</b><span class="ax-pill is-assumed">Assumed</span><b class="ax-acc-err"></b></div>
-        <small>A typical price for this size. Changes the payback, not your bills.</small>
+        <div class="ax-acc-top"><b>System price${api.infoTip('the system price', 'A typical price for this size. It changes the payback, not your bills.')}</b><span class="ax-pill is-assumed">Assumed</span><b class="ax-acc-err"></b></div>
         <button class="ax-act" onclick="openMySystem()">Add the price from your quote</button>
       </div>` : '';
 

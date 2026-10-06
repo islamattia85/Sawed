@@ -5102,7 +5102,7 @@ function flowSystemStep(opt){
       <span class="sys-foot"><span class="sys-price"><b>${eur(d.net)}</b><small>guide price</small></span><span class="sys-stats"><span><b>${pay}</b> payback</span><span><b>${eur(d.benefit)}</b> saved a year</span></span></span>
     </button>`; };
   return `<div class="fl-opts">${opt('system', 'custom', 'Model your own system', 'Your panel count and battery, or a quote you have')}</div>
-    <div class="fl-group"><h3>Suggested by Peakless</h3><small>Guide prices, after the SEAI grant</small></div>
+    <div class="fl-group"><h3>Suggested by Peakless${infoTip('the suggested systems', 'Sized for your usage, roof and region, and priced on the cheapest plan for each. Prices are typical Irish installer prices for that size, after the SEAI grant. A quote for your roof can differ.')}</h3></div>
     <div class="fl-opts">${goals.map(card).join('')}</div>`;
 }
 function flowSupplier(i){
@@ -10159,7 +10159,7 @@ const V7 = createV7({
   householdScore: () => householdScore(),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,
-  getPlanById, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, withoutGridCharge, currentGridGain, meterYearDays, batteryReplacement, batterySwapYear, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, renderConsentBar,
+  getPlanById, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, withoutGridCharge, currentGridGain, infoTip, meterYearDays, batteryReplacement, batterySwapYear, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, renderConsentBar,
   fmtCurrency, fmtCent, fmtVerifiedDate, latestVerifiedLabel, planDataFlag, planCategoryLabel,
   freshnessChip, priceChangeChip, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
   renderSavingsBreakdown, renderAssumptions,
@@ -10722,8 +10722,37 @@ const _syRange = (id, key, val, min, max, step, fmt, label) =>
     <input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${state[key] ?? 0}"
       aria-label="${label}" oninput="sysPreview(this,'${fmt}')" onchange="sysSet('${key}',this.value)">
   </div>`;
+/**
+ * An "i" that opens a short explanation under the line it belongs to, for
+ * detail most readers don't need: how a figure is worked out, what a term
+ * means. Anything that changes what someone would do stays on the screen.
+ * A real button (keyboard and screen readers), one open at a time, Escape
+ * closes it.
+ */
+let _infoN = 0;
+function infoTip(label, text){
+  const id = `info-${++_infoN}`;
+  return `<button type="button" class="info-i" aria-expanded="false" aria-controls="${id}" aria-label="About ${esc(label)}" onclick="event.preventDefault();event.stopPropagation();toggleInfo(this)">i</button><span class="info-pop" id="${id}" role="note" hidden>${text}</span>`;
+}
+function closeInfos(except){
+  document.querySelectorAll('.info-i[aria-expanded="true"]').forEach((x) => {
+    if (x === except) return;
+    x.setAttribute('aria-expanded', 'false');
+    const q = document.getElementById(x.getAttribute('aria-controls')); if (q) q.hidden = true;
+  });
+}
+function toggleInfo(b){
+  const p = document.getElementById(b.getAttribute('aria-controls'));
+  const open = b.getAttribute('aria-expanded') !== 'true';
+  closeInfos(b);
+  b.setAttribute('aria-expanded', String(open));
+  if (p) p.hidden = !open;
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeInfos(null); });
+window.toggleInfo = toggleInfo;
+
 const _syNum = (key, val, min, max, step, unit, label, help) =>
-  `<label class="sy-field"><span><b>${label}</b>${help ? `<small>${help}</small>` : ''}</span>
+  `<label class="sy-field"><span><b>${label}${help ? infoTip(label, help) : ''}</b></span>
     <span class="sy-num"><input type="number" inputmode="decimal" min="${min}" max="${max}" step="${step}" value="${val}"
       onchange="sysSet('${key}',this.value)">${unit ? `<i>${unit}</i>` : ''}</span></label>`;
 const _syFine = (part, title, body) => {
