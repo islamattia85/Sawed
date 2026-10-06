@@ -122,7 +122,7 @@ export function buildReportData(ctx) {
       { term: 'Battery dispatch', value: state.battery_kwh > 0 ? `${state.battery_kwh} kWh, ${state.strategy_mode === 'arbitrage' ? 'grid-charging arbitrage' : 'self-consumption first'}` : 'No battery modelled' },
       { term: 'Location', value: `${regionName || cap(state.region || 'east')} · PVGIS-calibrated irradiance` },
       { term: 'Solar finance', value: '20-year horizon, 3% real discount rate, 0.5%/yr panel degradation' },
-      { term: 'Battery replacement', value: 'Modelled at year 12, €400 per kWh' },
+      { term: 'Battery replacement', value: 'Lasts 15 years; the part of a new one used to year 20, €400/kWh falling 3% a year' },
       { term: 'SEAI grant', value: 'Auto-calculated to the current scheme cap unless set manually' },
       { term: 'Netting convention', value: 'Every cost is import + standing charge - export income' },
     ],

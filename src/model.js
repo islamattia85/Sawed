@@ -1263,14 +1263,31 @@ export function baselineDiscountFactor(planId){
 // auditor uses (midpoint of €950-1,200/kWp + €350-480/kWh + €1,100-1,300 fixed).
 // Calibrated against real Cork-market quotes: 12 panels + 9 kWh ≈ €9.5k-12k gross.
 // 20-yr NPV — same constants as the NPV breakdown card (3% discount, 0.5%/yr
-// panel degradation, battery replacement at year 12 priced €400/kWh).
+// panel degradation, battery replacement as batteryReplacement() prices it).
+/**
+ * What replacing the battery costs within the 20 years. A home battery lasts
+ * about 15 years (state.battery_life_years); its replacement is priced at
+ * today's EUR 400/kWh falling 3% a year, and only the part of the new battery
+ * used before year 20 is charged. `r` discounts it to today (0: in that
+ * year's money).
+ */
+/** The year a battery is replaced in, or 0 when it lasts the 20 years. */
+export function batterySwapYear(){ const life = +state.battery_life_years || 15; return life < 20 ? life : 0; }
+export function batteryReplacement(batteryKwh, r = 0){
+  const life = +state.battery_life_years || 15;
+  if (!(batteryKwh > 0) || life >= 20) return 0;
+  const price = 400 * Math.pow(0.97, life) * batteryKwh;
+  const usedShare = Math.min(1, (20 - life) / life);
+  return price * usedShare / Math.pow(1 + r, life);
+}
+
 export function computeNpv20(annualBenefit, sysCostNet, batteryKwh){
   const r = 0.03, deg = 0.005;
   let cumulative = -sysCostNet;
   for (let y = 1; y <= 20; y++){
     cumulative += (annualBenefit * Math.pow(1 - deg, y - 1)) / Math.pow(1 + r, y);
-    if (batteryKwh > 0 && y === 12) cumulative -= 400 * batteryKwh / Math.pow(1 + r, 12);
   }
+  cumulative -= batteryReplacement(batteryKwh, r);
   return Math.round(cumulative);
 }
 
@@ -1356,7 +1373,7 @@ export function outcomeAgainst(noSolarNet){
   const cost = Math.max(0, (state.install_cost || 0) - (grantOn ? (state.grant_seai || 0) : 0));
   const deg = state.panel_degradation || 0.005;
   let saved = 0; for (let y = 1; y <= 20; y++) saved += ben * Math.pow(1 - deg, y - 1);
-  const batt = state.battery_kwh > 0 ? 400 * state.battery_kwh : 0;
+  const batt = batteryReplacement(state.battery_kwh);
   return { payback: ben > 0 ? cost / ben : 999, benefit: ben, cost, life: saved - cost - batt, plan: `${best.plan.supplier} ${best.plan.plan}` };
 }
 /** What the home pays on its best plan with no panels. */

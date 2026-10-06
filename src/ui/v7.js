@@ -784,7 +784,7 @@ export function createV7(api) {
       <div class="ax-life-sum">
         ${row('Saved on bills over 20 years', eur(saved), 'is-gain')}
         ${row(`The system${S().cost_is_manual ? '' : ' (guide price)'}${L.grant > 0 ? `, after the ${eur(L.grant)} grant` : ''}`, `−${eur(L.sysCost)}`)}
-        ${L.battery ? row('A new battery, around year 12', `−${eur(L.battery)}`) : ''}
+        ${L.battery ? row(`A new battery, around year ${api.batterySwapYear()} (the part used before year 20)`, `−${eur(L.battery)}`) : ''}
         <div class="ax-mb-head"><span>${end >= 0 ? 'Ahead' : 'Short'}</span><b>${end >= 0 ? '+' : '−'}${eur(Math.abs(end))}</b></div>
       </div>
       <div class="ax-life-marks">
@@ -1168,11 +1168,11 @@ export function createV7(api) {
       // Euros as they come in, the same count as the payback years, so the
       // line crosses zero where the big number says.
       const disc = benefit * Math.pow(1 - deg, y - 1);
-      const batt = st.battery_kwh > 0 && y === 12 ? -400 * st.battery_kwh : 0;
+      const batt = st.battery_kwh > 0 && y === api.batterySwapYear() ? -api.batteryReplacement(st.battery_kwh) : 0;
       curve.push(curve[y - 1] + disc + batt);
     }
 
-    _life = { curve, benefit, sysCost, pb, deg, battery: st.battery_kwh > 0 ? 400 * st.battery_kwh : 0, grant: st.grant_seai || 0 };
+    _life = { curve, benefit, sysCost, pb, deg, battery: Math.round(api.batteryReplacement(st.battery_kwh)), grant: st.grant_seai || 0 };
 
     const m = api.monthlyTotals(best);
     const over = m.gen.map((g, i) => (g > m.cons[i] ? i : -1)).filter((i) => i >= 0);

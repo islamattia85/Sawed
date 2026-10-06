@@ -20,7 +20,7 @@ import { GAS_TARIFFS } from './gas-tariffs.js';
 import { BRAND, CONTROLLER, MARK_PATHS, iconDataUri, wordmarkHtml } from './brand';
 import { IC, ic } from './icons';
 import {
-  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, meterYearDays, inverterFor, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
+  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, meterYearDays, inverterFor, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
   outcomeAgainst, sweepSetup, evaluateDesign, finishSweep,
 } from './model';
 
@@ -782,6 +782,7 @@ const DEFAULT_STATE = {
   battery_kwh: 0,              // precise kWh (was tier-based, now numeric)
   battery_eff: 0.92,
   battery_min: 0.10,
+  battery_life_years: 15,
   battery_max_cycles: 1.2,
   battery_charge_kw: 3.0,
   battery_discharge_kw: 5.0,
@@ -1696,8 +1697,8 @@ function renderNpvBreakdown(annualBenefit, sysCostNet, batteryKwh, panelDegradat
     const undiscounted = annualBenefit * Math.pow(1 - deg, y - 1);
     let discounted = undiscounted / Math.pow(1 + r, y);
     let batteryCost = 0;
-    if (batteryKwh > 0 && y === 12){
-      batteryCost = -400 * batteryKwh / Math.pow(1 + r, 12);
+    if (batteryKwh > 0 && y === batterySwapYear()){
+      batteryCost = -batteryReplacement(batteryKwh, r);
     }
     totalDiscountedSavings += discounted;
     cumulative += discounted + batteryCost;
@@ -1706,8 +1707,8 @@ function renderNpvBreakdown(annualBenefit, sysCostNet, batteryKwh, panelDegradat
   const finalNpv = cumulative;
   const breakevenYear = rows.findIndex(r => r.cumulative >= 0);
   const breakevenLabel = breakevenYear < 0 ? 'never within 20yr' : 'Year ' + (breakevenYear + 1);
-  const batterySwapNominal = batteryKwh > 0 ? 400 * batteryKwh : 0;
-  const batterySwapDiscounted = batteryKwh > 0 ? 400 * batteryKwh / Math.pow(1 + r, 12) : 0;
+  const batterySwapNominal = Math.round(batteryReplacement(batteryKwh));
+  const batterySwapDiscounted = batteryReplacement(batteryKwh, r);
 
   return `<div class="card" style="margin-bottom:14px;cursor:default;padding:18px 20px;border-color:var(--accent);background:linear-gradient(140deg,var(--panel) 0%,var(--panel-2) 100%);box-shadow:0 0 24px -12px var(--accent-glow)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
@@ -1727,7 +1728,7 @@ function renderNpvBreakdown(annualBenefit, sysCostNet, batteryKwh, panelDegradat
       <div>· Annual benefit (Y1): <b style="color:var(--ink)">${fmtCurrency(annualBenefit)}</b> = solar electricity benefit only (same EV state, with vs without solar — petrol savings excluded)</div>
       <div>· Discount rate: <b style="color:var(--ink)">3%/yr</b> (Irish bond yields + small premium)</div>
       <div>· Panel degradation: <b style="color:var(--ink)">${(deg*100).toFixed(1)}%/yr</b> (LG/Jinko Tier-1 spec)</div>
-      ${batteryKwh > 0 ? `<div>· Battery swap: <b style="color:var(--ink)">€${batterySwapNominal} nominal</b> in year 12, at about €400 per kWh in today’s money</div>` : ''}
+      ${batteryKwh > 0 ? `<div>· Battery swap: <b style="color:var(--ink)">€${batterySwapNominal}</b> in year ${batterySwapYear()}, for the share of a new battery used before year 20, its price falling 3% a year from €400 per kWh</div>` : ''}
       <div>Prices: kept flat after inflation</div>
     </div>
 
@@ -6753,7 +6754,7 @@ async function doGeneratePdf(email){
         npvSeries.push(cum);
         for (let yv = 1; yv <= 20; yv++){
           cum += (scenario.solarBenefit * Math.pow(1-deg, yv-1)) / Math.pow(1+r, yv);
-          if ((state.battery_kwh||0) > 0 && yv === 12) cum -= (400*state.battery_kwh)/Math.pow(1+r,12);
+          if ((state.battery_kwh||0) > 0 && yv === batterySwapYear()) cum -= batteryReplacement(state.battery_kwh, r);
           npvSeries.push(cum);
           if (breakevenYear === null && cum >= 0) breakevenYear = yv;
         }
@@ -8992,7 +8993,7 @@ function systemOutcome(){
   const d = v7SolarData();
   const ben = d.cur.solarBenefit, cost = d.sysCost, deg = state.panel_degradation || 0.005;
   let saved = 0; for (let y = 1; y <= 20; y++) saved += ben * Math.pow(1 - deg, y - 1);
-  const batt = state.battery_kwh > 0 ? 400 * state.battery_kwh : 0;
+  const batt = batteryReplacement(state.battery_kwh);
   // Own power: the share of what the home uses that is not bought from the grid.
   let own = null;
   try { const b = getBestPlan(); const r = b.sim || sim(b.plan.id); const u = sumF(r.use || r.cons || []), i = sumF(r.imp || r.grid_import || []); if (u > 0) own = Math.max(0, Math.min(1, 1 - i / u)); } catch (e) { own = null; }
@@ -9132,7 +9133,7 @@ function systemsOutcomes(){
     for (const e of entries.filter((x) => x.group === 'suggested')){
       const d = e.design, deg = state.panel_degradation || 0.005;
       let saved = 0; for (let y = 1; y <= 20; y++) saved += d.benefit * Math.pow(1 - deg, y - 1);
-      v[e.key] = { payback: d.payback, benefit: d.benefit, cost: d.net, life: saved - d.net - (d.batt > 0 ? 400 * d.batt : 0) };
+      v[e.key] = { payback: d.payback, benefit: d.benefit, cost: d.net, life: saved - d.net - batteryReplacement(d.batt) };
     }
     const todo = [['current', null], ...entries.filter((x) => x.group !== 'suggested').map((e) => [e.key, e.changes])];
     _soMemo = { k, v };
@@ -10136,7 +10137,7 @@ const V7 = createV7({
   householdScore: () => householdScore(),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,
-  getPlanById, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, withoutGridCharge, meterYearDays, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, renderConsentBar,
+  getPlanById, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, withoutGridCharge, meterYearDays, batteryReplacement, batterySwapYear, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, renderConsentBar,
   fmtCurrency, fmtCent, fmtVerifiedDate, latestVerifiedLabel, planDataFlag, planCategoryLabel,
   freshnessChip, priceChangeChip, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
   renderSavingsBreakdown, renderAssumptions,
