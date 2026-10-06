@@ -611,8 +611,14 @@ export function simulate(plan, gen, cons, strategy){
   const minSoc = state.battery_min * cap;
   const maxSoc = (state.battery_max || 1.0) * cap;
   const eff = Math.sqrt(state.battery_eff); // applied each way
-  const maxChargeKw = 5.0;                       // typical hybrid inverter limit
-  const maxDischargeKw = 5.0;
+  // How fast the battery moves power: half its size an hour (a 5 kWh unit
+  // does about 2.5 kW, a 10 kWh one 5 kW), between 2.5 and 6 kW, unless the
+  // person set it from the datasheet in My system. Never more than the
+  // inverter. Charging runs at the same rate; the app asks for one figure.
+  const sizedKw = Math.max(2.5, Math.min(6, cap * 0.5));
+  const setKw = state.fine && state.fine.battery && +state.battery_discharge_kw > 0 ? +state.battery_discharge_kw : sizedKw;
+  const maxDischargeKw = Math.min(setKw, +state.inverter_kw || 5.0);
+  const maxChargeKw = maxDischargeKw;
   const isDynamic = plan.type === "dynamic";
 
   // For dynamic tariffs: pre-compute effective rates for the year
