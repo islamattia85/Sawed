@@ -62,10 +62,11 @@ export function createV7(api) {
    * Named by task, not by tab, so a visitor can go straight to what they came for.
    */
   const WEB_LINKS = [
-    { id: 'result', label: 'Your answer', go: "setScreen('result')", screens: ['result', 'analytics'] },
+    { id: 'result', label: 'Your answer', go: "setScreen('result')", screens: ['result'] },
+    { id: 'usage', label: 'Your figures', go: "state._an_from=null;anTab(state._an_tab&&state._an_tab!=='solar'?state._an_tab:'bill')", screens: ['analytics', 'csv-import'] },
     { id: 'plans', label: 'Plans', go: "setScreen('plans')", screens: ['plans', 'plan-detail', 'compare'] },
     { id: 'solar', label: 'Solar', go: "state._an_from=null;anTab('solar')", screens: ['solar'] },
-    { id: 'myhome', label: 'Your home', go: "setScreen('myhome')", screens: ['myhome', 'refine', 'csv-import'] },
+    { id: 'myhome', label: 'Your home', go: "setScreen('myhome')", screens: ['myhome', 'refine'] },
   ];
   function webLinks() {
     const st = S();
@@ -84,6 +85,8 @@ export function createV7(api) {
       <summary aria-label="Menu">${api.ic('menu', 22)}</summary>
       <div class="web-menu-list">${WEB_LINKS.map((l) => `<a href="#${l.id === 'usage' ? 'analytics' : l.id}" class="${l.screens.includes(cur) ? 'on' : ''}" onclick="event.preventDefault();this.closest('details').open=false;${l.go}">${esc(l.label)}${l.id === 'updates' && n ? ` <i class="web-badge">${n}</i>` : ''}</a>`).join('')}
         <a href="#updates" onclick="event.preventDefault();this.closest('details').open=false;setScreen('updates')">Updates${n ? ` <i class="web-badge">${n}</i>` : ''}</a>
+        <a href="#" onclick="event.preventDefault();this.closest('details').open=false;setTheme(state.theme==='dark'?'light':'dark')">${api.ic('contrast', 16)} Light or dark</a>
+        ${document.documentElement.classList.contains('web') ? `<div class="web-menu-acct">${api.renderProfileNavBtn()}</div>` : ''}
         <a href="/app" class="web-menu-app">${api.ic('mobile', 16)} Mobile app</a></div>
     </details>`;
   }

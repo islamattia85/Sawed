@@ -20,7 +20,7 @@ for (const width of [1440, 1024]) {
         scrW: document.querySelector('.screen')?.getBoundingClientRect().width,
         over: document.documentElement.scrollWidth - innerWidth,
       }));
-      expect(m.links, `${s}: top menu`).toBe(4);
+      expect(m.links, `${s}: top menu`).toBe(5);
       expect(m.bar, `${s}: no phone bar`).toBe(false);
       expect(m.over, `${s}: no sideways scroll`).toBeLessThanOrEqual(1);
       expect(m.scrW, `${s}: readable width`).toBeLessThanOrEqual(1280);

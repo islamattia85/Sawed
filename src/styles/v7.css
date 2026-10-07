@@ -2414,3 +2414,8 @@ html.web .fl-guide .sg-top { margin-top: 32px; }
   html.web .fl-reveal > .fl-r-list, html.web .fl-reveal > .fl-go, html.web .fl-reveal > .fl-upgrade { grid-column: 2; }
   html.web .fl-reveal > .fl-r-list { grid-row: 1 / span 3; }
 }
+@media (max-width: 899px) {
+  html.web .v7-top .v7-top-end { display: none; }
+  html.web .v7-top .web-theme:not(.web-bell) { display: none; }
+}
+.web-menu-acct { padding: 4px 12px; } .web-menu-acct:empty { display: none; }
