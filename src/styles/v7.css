@@ -2370,3 +2370,36 @@ html.web .screen.v7.v7-home .ax-doors-wrap { display: none; }
   .wl-show { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .wl-sample { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); }
 }
+
+/* ---------- website: setup with the site's bar and named stages ---------- */
+.fl-top-end { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.fl-exit { border: 1px solid var(--hair-strong); background: transparent; color: var(--ink); border-radius: var(--radius-pill); padding: 8px 16px; font: 650 15px var(--display); cursor: pointer; }
+html.web .fl-top { display: flex; align-items: center; gap: 12px; }
+html.web .fl-word { display: inline-flex; align-items: center; }
+.fl-chap { list-style: none; margin: 16px auto 0; padding: 0 24px; max-width: 1120px; display: flex; flex-wrap: wrap; gap: 6px; }
+.fl-chap li { font: 650 13px var(--display); color: var(--ink-dim); padding: 6px 12px; border-radius: var(--radius-pill); border: 1px solid var(--hair-strong); display: inline-flex; align-items: center; gap: 4px; }
+.fl-chap li.is-done { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.fl-chap li.is-now { color: var(--on-accent, #fff); background: var(--accent); border-color: var(--accent); }
+.fl-step-k { font: 700 13px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: -8px; }
+html.web .fl-prog { margin-top: 12px; height: 3px; }
+@media (max-width: 640px) { .fl-top-end .wl-applink, .fl-top-end .web-theme { display: none; } .fl-chap { padding: 0 16px; } }
+#app-root .fl-bill input, #app-root .fl-bill > span:not(.fl-unit-k) { font: 600 40px/1.1 "Fraunces", Georgia, serif !important; }
+@media (min-width: 900px) { #app-root .fl-bill input, #app-root .fl-bill > span:not(.fl-unit-k) { font-size: 54px !important; } }
+html.web .fl-chap { width: 100%; justify-content: flex-start; align-self: stretch; }
+html.web .fl-prog { align-self: center; }
+html.web .sg { max-width: 1120px; margin: 0 auto; width: 100%; padding-inline: 24px; }
+@media (min-width: 900px) { html.web .sg .sg-opts, html.web .sg .fl-opts { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* ---------- website: Updates and Profile in two columns ---------- */
+@media (min-width: 1000px) {
+  html.web .app[data-chrome="app"] > .screen.me { max-width: 1120px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px 24px; grid-auto-flow: row dense; align-items: start; }
+  html.web .screen.me > * { grid-column: 1 / -1; margin: 0; min-width: 0; }
+  html.web .app[data-chrome="app"] > .screen.me.updates { display: block; max-width: 860px; }
+  html.web .screen.me.updates > * + * { margin-top: 16px; }
+  html.web .screen.profile > .hs { grid-column: 1 / span 7; grid-row: span 6; }
+  html.web .screen.profile > .me-list { grid-column: 8 / span 5; }
+}
+
+/* The setup's answer screen, in the site's type. */
+html.web .fl-reveal { padding: 32px; }
+html.web .fl-r-big { font-family: "Fraunces", Georgia, serif !important; font-weight: 600 !important; }

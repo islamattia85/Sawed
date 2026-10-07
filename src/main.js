@@ -3354,6 +3354,8 @@ function webDecorate(html){
     end = nx([[...toAnswer, 1], toPlans]);
   } else if (scr === 'updates' || scr === 'me' || scr === 'profile'){
     end = nx([[...toAnswer, 1], toPlans]);
+    top = scr === 'profile' ? head('Profile', 'Your home, at a glance.', 'Where your power comes from and goes, and everything you have told us. Tap any part to change it.')
+      : head('Updates', 'What’s new for your home.', 'Price changes, cheaper plans, and the few things worth doing next.');
   }
   // The "Your home" strip, under the menu on every page.
   let strip = '';
@@ -3374,7 +3376,7 @@ function webDecorate(html){
     tabs = (scr === 'solar' || tab === 'solar') ? '' : tabs.replace(/<button class="ax-tab[^"]*"[^>]*anTab\('solar'\)[\s\S]*?<\/button>/, '');
     top += `<div class="web-sub">${tabs}${chip}</div>`;
   }
-  if (top) html = html.replace(/(<div class="screen v7[^>]*>)/, (mm) => mm + top);
+  if (top) html = /<div class="screen v7/.test(html) ? html.replace(/(<div class="screen v7[^>]*>)/, (mm) => mm + top) : html.replace(/(<div class="screen[^>]*>)/, (mm) => mm + top);
   if (end){
     // Inside the page, just before it closes: the phone bar (if any) comes after it.
     const navAt = html.search(/<div class="consent-bar|<nav class="bottom-nav/);
@@ -5999,7 +6001,7 @@ function renderFlow(){
     const branch = ['roof', 'tilt', 'panels', 'battery', 'price', 'grant', 'km', 'car'].includes(s);
     if (s === open){
       h += `<section class="fl-q ${branch ? 'fl-branch' : ''}" aria-label="${label[s][0]}">
-        ${WEB ? `<div class="wl-eyebrow">Step ${steps.filter((k) => k in f && k !== s).length + 1} of ${steps.length}</div>` : ''}<h2>${label[s][0]}</h2>${label[s][1] ? `<p>${label[s][1]}</p>` : ''}${body(s)}</section>`;
+        ${WEB ? `<div class="fl-step-k">Step ${steps.filter((k) => k in f && k !== s).length + 1} of ${steps.length} · ${FLOW_CHAPTER[s] || 'Your home'}</div>` : ''}<h2>${label[s][0]}</h2>${label[s][1] ? `<p>${label[s][1]}</p>` : ''}${body(s)}</section>`;
       break;
     }
   }
@@ -6048,14 +6050,35 @@ function renderFlow(){
         <button class="fl-save-link" onclick="flowFinish('save')">Create a free account ${ic('chevR', 14)}</button></div></section>` : ''}`;
   }
   const done = steps.filter((s) => s in f).length;
+  const leave = state.onboarding_complete ? 'flowLeave()' : 'goLanding()';
   return `<div class="fl">
     <div class="fl-top">
-      <button class="sg-back" onclick="${state.onboarding_complete ? 'flowLeave()' : 'goLanding()'}" aria-label="Back">${ic('chevL', 18)}</button>
-      <span class="fl-word">${wordmarkHtml('pk-word-top')}</span>
+      <button class="sg-back" onclick="${leave}" aria-label="Back">${ic('chevL', 18)}</button>
+      <span class="fl-word">${WEB ? `<span class="v7-brand-mark web-logo-ico">${ic('logo', 22, 'stroke-width:1.6')}</span>` : ''}${wordmarkHtml('pk-word-top')}</span>
+      ${WEB ? `<span class="fl-top-end"><a class="wl-applink" href="${APP_HREF}">${ic('mobile', 16)}<span>Get the app</span></a>
+        <button class="web-theme" onclick="setTheme(state.theme==='dark'?'light':'dark')" aria-label="Switch light or dark">${ic('contrast', 20)}</button>
+        <button class="fl-exit" onclick="${leave}">${state.onboarding_complete ? 'Back to my answer' : 'Leave'}</button></span>` : ''}
     </div>
+    ${WEB ? flowChapters(steps, f, open) : ''}
     <div class="sg-progress fl-prog"><i style="width:${finished ? 100 : Math.round(done / steps.length * 100)}%"></i></div>
     ${WEB ? `<div class="fl-grid"><div class="fl-body">${h}</div>${flowSide(steps, f, open, shown)}</div>` : `<div class="fl-body">${h}</div>`}
   </div>`;
+}
+
+/** The setup's stages, named, with where you are among them. */
+const FLOW_CHAPTER = { bill: 'Your usage', meter: 'Your usage', area: 'Your usage', filewhen: 'Your usage', billwhen: 'Your usage', billmonths: 'Your usage',
+  plan: 'Your plan', disc: 'Your plan', heat: 'Heating', heattime: 'Heating', night: 'Heating', gas: 'Heating', gasbill: 'Heating',
+  where: 'Your home', house: 'Your home', solar: 'Solar', roof: 'Solar', tilt: 'Solar', panels: 'Solar', battery: 'Solar', system: 'Solar',
+  price: 'Solar', grant: 'Solar', gridnow: 'Solar', ev: 'Car', evtime: 'Car', km: 'Car', car: 'Car' };
+function flowChapters(steps, f, open){
+  const names = [];
+  steps.forEach((k) => { const c = FLOW_CHAPTER[k] || 'Your home'; if (!names.includes(c)) names.push(c); });
+  const now = open ? (FLOW_CHAPTER[open] || 'Your home') : null;
+  return `<ol class="fl-chap" aria-label="Stages">${names.map((c) => {
+    const ks = steps.filter((k) => (FLOW_CHAPTER[k] || 'Your home') === c);
+    const st = c === now ? 'is-now' : ks.every((k) => k in f) ? 'is-done' : '';
+    return `<li class="${st}" ${c === now ? 'aria-current="step"' : ''}>${st === 'is-done' ? ic('check', 13) + ' ' : ''}${c}</li>`;
+  }).join('')}${!open ? `<li class="is-now" aria-current="step">Your answer</li>` : `<li>Your answer</li>`}</ol>`;
 }
 
 /** The website's side card beside each question: the answers so far, and what it leads to. */
