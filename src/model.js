@@ -611,14 +611,18 @@ export function buildConsumption(){
     const nightCapacityKwh = chargerKw * 3;
     const nightKwh = Math.min(dailyEvKwh, nightCapacityKwh);
     const overflowKwh = Math.max(0, dailyEvKwh - nightCapacityKwh);
-    const nightPerHour = nightKwh / 3;
     const dayPerHour = overflowKwh / 4;
-    // Charged on a timer in the small hours, or as soon as it is plugged in
-    // after work (asked in setup): the same energy, very different prices.
+    // Charged on a timer from 2am, or as soon as it is plugged in after work
+    // (asked in setup), at the charger's full power until the day's need is
+    // met: 7 kWh on a 7 kW charger is one hour, inside even a two-hour EV
+    // window. Spreading it over three hours put a third of it past the end
+    // of a short window.
     const evening = state.ev_charge_time === 'evening';
+    const first = evening ? 18 : 2;
+    const perHour = [0, 1, 2].map((k) => Math.max(0, Math.min(chargerKw, nightKwh - k * chargerKw)));
     for (let i=0; i<HOURS_IN_YEAR; i++){
       const h = i % 24;
-      if (evening ? (h >= 18 && h < 21) : (h >= 2 && h < 5)) cons[i] += nightPerHour;
+      if (h >= first && h < first + 3) cons[i] += perHour[h - first];
       else if (h >= 6 && h < 10 && overflowKwh > 0) cons[i] += dayPerHour;
     }
   }
@@ -794,6 +798,7 @@ export function simulate(plan, gen, cons, strategy){
   // Top up in the plan's cheapest window only: with an EV window, not in the
   // dearer night hours that come before it.
   const cheapBand = plan.windows && plan.windows.ev && (plan.rates.ev ?? 9) < (plan.rates.night ?? 9) ? 'ev' : 'night';
+  const evEnd = cheapBand === 'ev' && Array.isArray(plan.windows.ev) ? plan.windows.ev[1] : null;
   const exportEff = (state.export_enabled !== false) ? (plan.export_rate || 0) : 0;
   const evRate = plan.windows.ev ? plan.rates.ev : null;
 
@@ -869,8 +874,11 @@ export function simulate(plan, gen, cons, strategy){
       // room; above that level it keeps running the house. When night power
       // after losses is below the export payment, filling up and selling the
       // solar pays better, so it fills.
+      // After a short EV window, the night hours that follow can finish the
+      // top-up when they still beat the day rate.
+      const afterWindow = cheapBand === 'ev' && band === 'night' && evEnd !== null && hour >= evEnd && hour < 12;
       const topUp = !isDynamic && strategy.charge_from_grid && cap > 0
-        && band === cheapBand && rate / roundTrip < dearRate - 0.01;
+        && (band === cheapBand || afterWindow) && rate / roundTrip < dearRate - 0.01;
 
       if (topUp){
         let target = maxSoc;
