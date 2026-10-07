@@ -2468,3 +2468,4 @@ html.web #wh-home .v7-cta-2:has(svg) { display: none; }
   .web-dash:not(.is-open) .wd-more { display: flex; }
   .web-dash .wd-tabs { display: none; }
 }
+@media (min-width: 900px) { .wl-ctrls { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

@@ -3090,7 +3090,7 @@ function sitePlans(){
  * showing what changes the answer; the full engine prices the reader's own home.
  */
 const DEMO_PLANS = ['EN-SMART-24-HOUR', 'EI-SST', 'EI-NB', 'YN-EV-DNP'];
-let _demo = { heat: 'gas', solar: 'none', ev: 'no' };
+let _demo = { heat: 'gas', solar: 'none', batt: '0', ev: 'no' };
 function demoProfile(o){
   const base = [.25,.2,.2,.2,.2,.25,.4,.6,.55,.4,.35,.35,.4,.35,.35,.4,.6,.9,1.0,.9,.75,.6,.45,.3];
   let u = base.map((v) => v * (o.heat === 'hp' ? 1.55 : 1));
@@ -3103,10 +3103,30 @@ function demoProfile(o){
 }
 function demoCost(p, o){
   const { u, sun, ev } = demoProfile(o);
-  let buy = 0, sell = 0;
+  const rate = (h) => p.rates[bandAt(h, p)] ?? p.rates.day;
+  const need = u.map((v, h) => v + ev[h] - sun[h]);
+  const B = +o.batt || 0, EFF = .9;
+  let stored = 0, buyExtra = 0;
+  if (B > 0){
+    // Spare solar first, then the cheapest hours, if that beats the dearest hour.
+    const spare = need.reduce((a, v) => a + Math.max(0, -v), 0);
+    const want = need.reduce((a, v) => a + Math.max(0, v), 0) / EFF;
+    const fromSun = Math.min(B, spare, want);
+    let left = fromSun;
+    for (let h = 0; h < 24 && left > 0; h++) if (need[h] < 0){ const t = Math.min(-need[h], left); need[h] += t; left -= t; }
+    stored = fromSun * EFF;
+    const cheap = Math.min(...Array.from({ length: 24 }, (_, h) => rate(h)));
+    const dear = Math.max(...Array.from({ length: 24 }, (_, h) => rate(h)));
+    // Only what the dearer hours will use: the rest would sit in the battery unused.
+    const dearNeed = Array.from({ length: 24 }, (_, h) => h).filter((h) => rate(h) > cheap / EFF + .01).reduce((a, h) => a + Math.max(0, need[h]), 0);
+    if (cheap / EFF < dear - .01){ const room = Math.max(0, Math.min(B - fromSun, dearNeed / EFF - stored / EFF)); buyExtra = room * cheap; stored += room * EFF; }
+    // Empty it into the dearest hours of need.
+    [...Array(24).keys()].filter((h) => need[h] > 0).sort((a, b) => rate(b) - rate(a)).forEach((h) => {
+      const t = Math.min(need[h], stored); need[h] -= t; stored -= t; });
+  }
+  let buy = buyExtra, sell = 0;
   for (let h = 0; h < 24; h++){
-    const r = p.rates[bandAt(h, p)] ?? p.rates.day, need = u[h] + ev[h] - sun[h];
-    if (need > 0) buy += need * r; else sell += -need * (p.export_rate || .185);
+    if (need[h] > 0) buy += need[h] * rate(h); else sell += -need[h] * (p.export_rate || .185);
   }
   return Math.round((buy - sell) * 365 + (p.standing || 0) + PSO_LEVY);
 }
@@ -3117,7 +3137,7 @@ function demoCard(){
   const seg = (k, opts, lbl) => `<div class="wl-ctrl"><span>${lbl}</span><div class="wl-seg" role="group" aria-label="${lbl}">${opts.map(([v, l]) => `<button class="${_demo[k] === v ? 'on' : ''}" aria-pressed="${_demo[k] === v}" onclick="demoSet('${k}','${v}')">${l}</button>`).join('')}</div></div>`;
   return `<div class="wl-demo" id="wl-demo">
     <div class="wl-demo-h"><b>Try it on a typical Irish home</b><span>4,200 kWh a year</span></div>
-    <div class="wl-ctrls">${seg('heat', [['gas', 'Gas'], ['hp', 'Heat pump']], 'Heating')}${seg('solar', [['none', 'None'], ['6', '6'], ['12', '12 panels']], 'Solar')}${seg('ev', [['no', 'No'], ['yes', 'Yes']], 'Electric car')}</div>
+    <div class="wl-ctrls">${seg('heat', [['gas', 'Gas'], ['hp', 'Heat pump']], 'Heating')}${seg('solar', [['none', 'None'], ['6', '6'], ['12', '12 panels']], 'Solar')}${seg('batt', [['0', 'None'], ['5', '5'], ['10', '10 kWh']], 'Battery')}${seg('ev', [['no', 'No'], ['yes', 'Yes']], 'Electric car')}</div>
     <div class="wl-res">${rows.map((r, i) => `<div class="wl-rrow ${i === 0 ? 'is-best' : ''}"><div class="wl-who">${r.p.supplier}<small>${r.p.plan.replace('Home Electric+ ', '').replace('Home Electric + ', '')}</small></div>
       <div class="wl-track"><i style="width:${Math.max(4, Math.max(0, r.c) / max * 100)}%"></i></div><b>${eur(r.c)}</b></div>`).join('')}</div>
     <div class="wl-demo-f"><p>Cheapest here: <b>${rows[0].p.supplier} ${rows[0].p.plan.replace('Home Electric+ ', '').replace('Home Electric + ', '')}</b>. A simple model on real rates; the app prices your own home hour by hour.</p>
