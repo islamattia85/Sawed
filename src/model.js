@@ -591,8 +591,12 @@ export function buildConsumption(){
   // charging (they own the car today), the bill-implied kWh contains the car —
   // remove its kWh from the base household load before (re)adding it as a
   // shaped night load. Without this the car is counted twice.
+  // A meter file of a home that already has the car shows the car itself, at
+  // the hours it really charged. Carving it out and adding a made-up night
+  // charge moved real daytime use into the cheap window and lowered the bill.
+  const fileHasCar = !!state._csv_imported && !!state.ev_in_bill;
   const evConfKwh = (+state.ev_km_per_year || 0) * (+state.ev_kwh_per_100km || 17) / 100;
-  if (state.ev_in_bill && evConfKwh > 0){
+  if (state.ev_in_bill && evConfKwh > 0 && !fileHasCar){
     let _tot = 0; for (let i=0;i<HOURS_IN_YEAR;i++) _tot += consNoEv[i];
     const _f = _tot > 0 ? Math.max(0.25, (_tot - evConfKwh) / _tot) : 1;
     for (let i=0;i<HOURS_IN_YEAR;i++) consNoEv[i] *= _f;
@@ -602,7 +606,7 @@ export function buildConsumption(){
   const cons = new Float32Array(HOURS_IN_YEAR);
   for (let i=0;i<HOURS_IN_YEAR;i++) cons[i] = consNoEv[i];
 
-  const evKmPerYear = state.ev_active ? (+state.ev_km_per_year || 0) : 0;
+  const evKmPerYear = state.ev_active && !fileHasCar ? (+state.ev_km_per_year || 0) : 0;
   const evKwhPer100 = +state.ev_kwh_per_100km || 17;
   const evAnnual = evKmPerYear * evKwhPer100 / 100;
   if (evAnnual > 0){

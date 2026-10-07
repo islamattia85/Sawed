@@ -97,3 +97,24 @@ test('ESB’s daily files are recognised and the right download is named', async
     await expect(page.locator('body')).toContainText('30-minute readings in kW');
   }
 });
+
+test('a meter file that already has the car is priced as it is: saying "I have an EV" does not move the bill', async ({ page }) => {
+  // A year with the car charging 2am to 5am, as an owner's file shows it.
+  const rows = ['MPRN,Meter Serial Number,Read Value,Read Type,Read Date and End Time'];
+  const start = Date.UTC(2025, 9, 6);
+  for (let d = 0; d < 365; d++) {
+    const date = new Date(start + d * 86400000);
+    const ds = `${String(date.getUTCDate()).padStart(2, '0')}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${date.getUTCFullYear()}`;
+    for (let h = 1; h <= 24; h++) {
+      const hr = h - 1, imp = hr >= 2 && hr < 5 ? 3.3 : hr >= 17 && hr < 22 ? 0.9 : 0.5;
+      rows.push(`1,2,${imp * 2},Active Import Interval (kW),${ds} ${String(h % 24).padStart(2, '0')}:00`);
+      rows.push(`1,2,0,Active Export Interval (kW),${ds} ${String(h % 24).padStart(2, '0')}:00`);
+    }
+  }
+  await fresh(page); await upload(page, { name: 'esb.csv', mimeType: 'text/csv', buffer: Buffer.from(rows.join('\n')) });
+  const cost = () => page.evaluate(() => { invalidate(); rebuildBase(); const p = getPlanById('EI-NB'); return Math.round(annualCost(sim(p.id), p).net); });
+  const without = await cost();
+  await page.evaluate(() => { state.ev_active = true; state.ev_in_bill = true; state.ev_km_per_year = 15000; });
+  const withCar = await cost();
+  expect(Math.abs(withCar - without), `the file already holds the car: ${without} vs ${withCar}`).toBeLessThanOrEqual(2);
+});
