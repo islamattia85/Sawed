@@ -9,7 +9,7 @@ import { npv20 as engineNpv20 } from './engine/npv';
 import { buildReportData, renderReport } from './pdf/index.js';
 import {
   isInWindow, bandAt, rateAt as engineRateAt, isFlatPlan, staticRateAt,
-  simulateBaseline as engineSimulateBaseline, annualCost, sumF, WHOLESALE_CAP,
+  simulateBaseline as engineSimulateBaseline, sumF, WHOLESALE_CAP,
 } from './engine/tariff-rules';
 import { moneyBar, dayProfile, paybackCurve, yearRibbon, bandDonut } from './ui/charts.js';
 import { createV7 } from './ui/v7.js';
@@ -20,7 +20,7 @@ import { GAS_TARIFFS } from './gas-tariffs.js';
 import { BRAND, CONTROLLER, MARK_PATHS, iconDataUri, wordmarkHtml } from './brand';
 import { IC, ic } from './icons';
 import {
-  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileDays, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
+  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileDays, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
   outcomeAgainst, sweepSetup, evaluateDesign, finishSweep,
 } from './model';
 
@@ -1086,7 +1086,7 @@ let _stress = { key: '', b0: null, nb0: null, pts: {}, grid: {}, gridImp: null, 
 function stressKey(){
   return JSON.stringify([state.count_A, state.count_B, state.azimuth_A, state.azimuth_B, state.tilt_A, state.battery_kwh, usageKey(),
     state.heating_type, state.ev_active, state.ev_km_per_year, state.area, state.meter_type, state.region, state.grid_charge_now,
-    state.inverter_kw, state.has_solar, state.solar_planned]);
+    state.inverter_kw, state.has_solar, state.solar_planned, state.bill_names, state.export_tax_rate]);
 }
 function stressF(){
   const m = marketToday(), s = state._st || {};
@@ -11102,6 +11102,21 @@ ${state.has_solar && !state.solar_planned && !state._csv_imported ? `
         ${_syNum('battery_discharge_kw', state.battery_discharge_kw, 1, 15, 0.5, 'kW', 'Most it can supply at once', 'Continuous power on the datasheet.')}
         ${_syNum('inverter_kw', state.inverter_kw, 1, 20, 0.5, 'kW', 'Inverter size', 'Usually 3.6–6 kW for a home.')}`) : ''}
     </section>
+
+    ${totalPanels() > 0 ? (() => {
+      // Tax on export income: what decides how much of a big array's export is kept.
+      let line = '';
+      try { const b = getBestPlan(); const rev = b.export_revenue || 0, tax = b.export_tax || 0;
+        line = rev < 1 ? '' : tax > 0
+          ? `On your best plan you sell ${eur(rev)} a year; about <b>${eur(tax)}</b> of that goes in tax.`
+          : `On your best plan you sell ${eur(rev)} a year, all of it tax-free.`; } catch (e) {}
+      const seg = (k, opts) => `<span class="sy-seg">${opts.map(([v, t]) => `<button class="sy-stop ${String(state[k] ?? opts[0][0]) === String(v) ? 'on' : ''}" onclick="state.${k}=${typeof v === 'number' ? v : `'${v}'`};invalidate();saveState();renderApp()">${t}</button>`).join('')}</span>`;
+      return `<section class="sy-part" aria-label="Selling back">
+      <div class="sy-part-title">${ic('euro', 16)} Selling back${infoTip('tax on export income', `Up to ${eur(EXPORT_TAX_FREE)} a year of export income is tax-free for each person named on the electricity account (Budget 2027). Above that it pays income tax, USC and PRSI: about 27% at the standard rate, 47% at the higher rate. Every plan is ranked after this tax.`)}</div>
+      <div class="sy-row"><span class="sy-row-l"><b>Names on the electricity account</b><small>Each gets ${eur(EXPORT_TAX_FREE)} tax-free</small></span>${seg('bill_names', [[1, '1'], [2, '2']])}</div>
+      <div class="sy-row"><span class="sy-row-l"><b>Your top rate of income tax</b><small>For export income above that</small></span>${seg('export_tax_rate', [['standard', '20%'], ['higher', '40%'], ['none', 'Not taxed']])}</div>
+      ${line ? `<p class="sy-acc-note">${line}</p>` : ''}
+    </section>`; })() : ''}
 
     <section class="sy-part" aria-label="Price">
       <div class="sy-part-title">${ic('euro', 16)} Price</div>

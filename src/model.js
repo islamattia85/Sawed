@@ -10,7 +10,7 @@
 import { SLP_URBAN_HOURLY, SLP_RURAL_HOURLY } from './slp-2026.js';
 import { HOURS_IN_YEAR, DAYS_IN_MONTH, LOCATION_BASE, dayOfYear, PSO_LEVY } from './engine/constants';
 import { buildHourlyGhi, buildPoa, buildPvGeneration } from './engine/solar';
-import { bandAt, rateAt as engineRateAt, staticRateAt, simulateBaseline as engineSimulateBaseline, annualCost, sumF, WHOLESALE_CAP } from './engine/tariff-rules';
+import { bandAt, rateAt as engineRateAt, staticRateAt, simulateBaseline as engineSimulateBaseline, annualCost as engineAnnualCost, sumF, WHOLESALE_CAP } from './engine/tariff-rules';
 import { ic } from './icons';
 
 
@@ -166,6 +166,29 @@ export let state;
  * runs. Pricing it on each plan is exact; adding the panels or the battery on
  * top would count them twice.
  */
+/**
+ * Tax on export income. Budget 2027 (6 Oct 2026) raised the tax-free amount to
+ * EUR 600 a year per person named on the electricity account; above it, the
+ * income pays income tax, USC and PRSI. About 27% at the standard rate, 47% at
+ * the higher rate. A big array that sells a lot is worth less after tax, and a
+ * plan's high export rate counts for less, so this is in every plan's cost.
+ */
+export const EXPORT_TAX_FREE = 600;
+export const EXPORT_TAX_RATE = { none: 0, standard: 0.27, higher: 0.47 };
+export function exportTax(revenue){
+  const rate = EXPORT_TAX_RATE[state.export_tax_rate || 'standard'] ?? 0.27;
+  const free = EXPORT_TAX_FREE * Math.max(1, +state.bill_names || 1);
+  return Math.max(0, (revenue || 0) - free) * rate;
+}
+/** A plan's year: the engine's sums, with tax on export income above the tax-free amount. */
+export function annualCost(sim, plan, asOf){
+  const c = engineAnnualCost(sim, plan, asOf);
+  const tax = exportTax(c.export_revenue);
+  c.export_tax = tax;
+  if (tax > 0) c.net += tax;
+  return c;
+}
+
 export function fileIsNet(){
   const b = fileBasis();
   return !!(b && b.mode === 'net');
@@ -997,7 +1020,8 @@ export function baselineNet(planId){
   const bs = baselineSim(planId);
   if (!bs) return 0;
   const plan = getPlanById(planId);
-  return sumF(bs.cost) - (bs.revenue ? sumF(bs.revenue) : 0) + (plan ? plan.standing + PSO_LEVY + annualCost(bs, plan).outlook_extra : 0);
+  const rev = bs.revenue ? sumF(bs.revenue) : 0;
+  return sumF(bs.cost) - rev + exportTax(rev) + (plan ? plan.standing + PSO_LEVY + annualCost(bs, plan).outlook_extra : 0);
 }
 
 // Coerce critical numeric state to real, in-range numbers. State can arrive
@@ -1162,7 +1186,7 @@ export function effectiveStrategy(){
 export const SIM_FIELDS = [
   'has_solar', 'solar_planned', 'count_A', 'count_B',
   'azimuth_A', 'azimuth_B', 'tilt_A', 'tilt_B', 'panel_w', 'panel_degradation',
-  'battery_kwh', 'strategy_mode', 'charge_from_grid', 'grid_charge_now',
+  'battery_kwh', 'strategy_mode', 'charge_from_grid', 'grid_charge_now', 'bill_names', 'export_tax_rate',
   'install_cost', 'grant_seai', 'inverter_kw',
   'ev_active', 'ev_in_bill', 'ev_km_per_year', 'ev_kwh_per_100km',
   'heating_type', 'hot_water_strategy', 'immersion_night', 'ev_charge_time', 'heat_time', 'region', 'area', 'meter_type',
@@ -1481,7 +1505,7 @@ export const GOAL_BATTS  = [0, 5, 10];
 export function goalSweepCk(){
   return JSON.stringify(['goalsweep', state.region, state.heating_type, state.bimonthly_bill_eur,
     JSON.stringify(state.bills), state.ev_active, state.ev_in_bill, state.ev_km_per_year,
-    state.ev_kwh_per_100km, state.azimuth_A, state.tilt_A, state.panel_w, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.heat_time, state.area, state.house_type, state.grant_eligible !== false,
+    state.ev_kwh_per_100km, state.azimuth_A, state.tilt_A, state.panel_w, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.heat_time, state.area, state.house_type, state.grant_eligible !== false, state.bill_names, state.export_tax_rate,
     // The roof as it is used: one face, or two and how the panels share them.
     state.count_B > 0 ? [state.azimuth_B, state.tilt_B, +(state.count_B / Math.max(1, totalPanels())).toFixed(2)] : 0]);
 }
@@ -1507,11 +1531,13 @@ export function calcSeaiGrant(kwp, batteryKwh){
   if (state.grant_eligible === false) return { panels: 0, battery: 0, total: 0 };
   // SEAI Home Solar Scheme — current structure (2024/2025):
   // First 2 kWp: €900/kWp  →  maximum grant = €1,800
-  // Cap: €1,800 total (no battery bonus, no higher tiers as of 2025)
+  // Cap: €1,800 for the panels; a battery adds €600 (SEAI, from 6 Oct 2026)
   if (kwp <= 0) return { panels: 0, battery: 0, total: 0 };
   const panelGrant = Math.min(kwp, 2) * 900;
-  const total = Math.min(Math.round(panelGrant), 1800);
-  return { panels: total, battery: 0, total };
+  const panels = Math.min(Math.round(panelGrant), 1800);
+  // Budget 2027: EUR 600 for a home battery, on top of the solar grant, from 6 Oct 2026.
+  const battery = batteryKwh > 0 ? 600 : 0;
+  return { panels, battery, total: panels + battery };
 }
 
 // Setters for the values main.js replaces.

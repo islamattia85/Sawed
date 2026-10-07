@@ -13,12 +13,13 @@ test('a terraced house is offered systems that fit its roof, and picking one set
 });
 
 
-test('the "most of your own power" card is a suggestion, not the own-size route', async ({ page }) => {
+test('a suggested system card is a suggestion, not the own-size route', async ({ page }) => {
   await page.goto('/');
   await page.evaluate(() => { startFlow('full'); flowAnswer('bill', 200); flowAnswer('meter', 'smart'); flowAnswer('area', 'urban'); flowAnswer('plan', 'EI-24'); flowAnswer('disc', 0); flowAnswer('heat', 'heatpump'); flowAnswer('heattime', 'day'); flowAnswer('solar', 'thinking'); flowAnswer('where', 'south'); flowAnswer('house', 'semi'); flowAnswer('roof', 'S'); flowAnswer('tilt', 35); });
-  const card = page.locator('.fl-sys', { hasText: 'Most of your own power' });
+  const card = page.locator('.fl-sys').first();
   await card.waitFor({ timeout: 30000 });
+  const n = Number((await card.textContent()).match(/(\d+)\s*panels/)[1]);
   await card.click();
   await expect(page.locator('.fl-q h2')).not.toHaveText('How many panels?');
-  await expect.poll(() => page.evaluate(() => state.battery_kwh)).toBeGreaterThan(0);
+  await expect.poll(() => page.evaluate(() => state.count_A + state.count_B)).toBe(n);
 });
