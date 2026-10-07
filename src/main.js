@@ -5431,7 +5431,7 @@ function renderSolarGuide(){
       <button class="fp-cta sg-next" onclick="sgKeep()">Add to my Home as a plan ${ic('checkC', 18)}</button>
       <button class="sg-link sg-skip" onclick="sgCancel()">Not now</button>`;
   }
-  return `<div class="fp-wrap sg">${body}</div>${V7.sheet()}`;
+  return guideFrame(`<div class="fp-wrap sg">${body}</div>`, 'sgCancel()', 'Your system so far', solarSoFar()) + V7.sheet();
 }
 
 /* ── AN ELECTRIC CAR, STEP BY STEP ────────────────────────────
@@ -5545,7 +5545,35 @@ function renderEvGuide(){
       <button class="fp-cta sg-next" onclick="egDone()">See my EV in full ${ic('chevR', 18)}</button>
       <button class="sg-link" onclick="egGo(1)">Change my answers</button>`;
   }
-  return `<div class="fp-wrap sg">${body}</div>`;
+  return guideFrame(`<div class="fp-wrap sg">${body}</div>`, 'egCancel()', 'Your car so far', carSoFar());
+}
+
+/** On the website, a guide sits in the site's frame: its bar, and the answer so far beside it. */
+function guideFrame(inner, leave, title, rows){
+  if (!WEB) return inner;
+  return `<div class="fl fl-guide">
+    <div class="fl-top">
+      <span class="fl-word"><span class="v7-brand-mark web-logo-ico">${ic('logo', 22, 'stroke-width:1.6')}</span>${wordmarkHtml('pk-word-top')}</span>
+      <span class="fl-top-end"><a class="wl-applink" href="${APP_HREF}">${ic('mobile', 16)}<span>Get the app</span></a>
+        <button class="web-theme" onclick="setTheme(state.theme==='dark'?'light':'dark')" aria-label="Switch light or dark">${ic('contrast', 20)}</button>
+        <button class="fl-exit" onclick="${leave}">Leave without saving</button></span>
+    </div>
+    <div class="fl-grid"><div class="fl-body">${inner}</div>
+      <aside class="fl-side" aria-label="${title}"><div class="fl-card"><b class="fl-card-h">${title}</b><small>Nothing changes on your answer until you keep it.</small>
+        <div class="fl-sofar">${rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div></div>
+        ${rows.live ? `<div class="fl-live"><small>${rows.live[0]}</small><b>${rows.live[1]}</b></div>` : ''}</aside></div>
+  </div>`;
+}
+function solarSoFar(){
+  const face = { 180: 'South', 135: 'South-east', 225: 'South-west', 90: 'East', 270: 'West' }[state.azimuth_A] || `${state.azimuth_A}°`;
+  const rows = [['Roof', state.count_B > 0 ? 'Two faces' : face], ['Pitch', `${state.tilt_A ?? 30}°`],
+    ['Panels', `${totalPanels()}`], ['Battery', state.battery_kwh > 0 ? `${state.battery_kwh} kWh` : 'None']];
+  try { const p = v7SolarData().cur.payback; rows.live = ['Pays back in', p < 50 ? `${p.toFixed(1)} years` : 'Not within 50 years']; } catch (e) {}
+  return rows;
+}
+function carSoFar(){
+  return [['Driving', `${Math.round((state.ev_km_per_year || 0) / 1000)}k km a year`], ['Charging', state.ev_charge_time === 'evening' ? 'When plugged in' : 'Overnight'],
+    ['Charger', `${state.ev_charger_kw || 7.4} kW`]];
 }
 
 /* ── THE FIRST VISIT: ONE PAGE THAT REVEALS ITSELF ─────────────

@@ -2403,3 +2403,14 @@ html.web .sg { max-width: 1120px; margin: 0 auto; width: 100%; padding-inline: 2
 /* The setup's answer screen, in the site's type. */
 html.web .fl-reveal { padding: 32px; }
 html.web .fl-r-big { font-family: "Fraunces", Georgia, serif !important; font-weight: 600 !important; }
+html.web .app:has(> .fl-guide) { max-width: none; width: 100%; margin: 0; }
+html.web .fl-guide .sg { max-width: none; padding: 0; margin: 0; }
+html.web .fl-guide .sg-top { margin-top: 32px; }
+@media (min-width: 900px) {
+  html.web .fl-grid:has(.fl-reveal) { grid-template-columns: 1fr; max-width: 900px; }
+  html.web .fl-grid:has(.fl-reveal) .fl-side { display: none; }
+  html.web .fl-reveal { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); column-gap: 32px; align-items: start; }
+  html.web .fl-reveal > * { grid-column: 1; }
+  html.web .fl-reveal > .fl-r-list, html.web .fl-reveal > .fl-go, html.web .fl-reveal > .fl-upgrade { grid-column: 2; }
+  html.web .fl-reveal > .fl-r-list { grid-row: 1 / span 3; }
+}
