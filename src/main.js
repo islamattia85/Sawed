@@ -3212,6 +3212,18 @@ function showAnalysis(){
   const a = [205, 190, 170, 140, 120, 105, 100, 105, 125, 150, 180, 205];
   return `<svg viewBox="0 0 240 120" width="100%" aria-hidden="true">${a.map((v, i) => `<rect x="${8 + i * 19}" y="${110 - v / 2}" width="7" height="${v / 2}" rx="2" fill="var(--ink-dim)" opacity=".45"/><rect x="${16 + i * 19}" y="${110 - v * .41}" width="7" height="${v * .41}" rx="2" fill="var(--accent)"/>`).join('')}</svg>`;
 }
+function showDay(){
+  const u = [.3,.25,.25,.25,.25,.3,.6,.9,.7,.5,.45,.45,.5,.45,.45,.5,.8,1.4,1.6,1.4,1.1,.8,.6,.4];
+  const C = (h) => h < 8 || h >= 23 ? 'var(--bandink-night)' : h >= 17 && h < 19 ? 'var(--bandink-peak)' : 'var(--bandink-day)';
+  return `<svg viewBox="0 0 240 120" width="100%" aria-hidden="true">${u.map((v, h) => `<rect x="${6 + h * 9.5}" y="${112 - v * 62}" width="7" height="${v * 62}" rx="2" fill="${C(h)}"/>`).join('')}</svg>`;
+}
+function showPlans(){
+  return `<svg viewBox="0 0 240 120" width="100%" aria-hidden="true">${[200, 176, 160, 140].map((w, i) => `<rect x="10" y="${12 + i * 26}" width="${w}" height="12" rx="6" fill="${i === 3 ? 'var(--accent)' : 'var(--ink-dim)'}" opacity="${i === 3 ? 1 : .45}"/>`).join('')}</svg>`;
+}
+function showPayback(){
+  return `<svg viewBox="0 0 240 120" width="100%" aria-hidden="true"><line x1="10" x2="230" y1="70" y2="70" stroke="var(--ink-dim)" stroke-opacity=".4"/>
+    <path d="M10 108 L230 22" fill="none" stroke="var(--accent)" stroke-width="3"/><circle cx="107" cy="70" r="6" fill="var(--panel)" stroke="var(--accent)" stroke-width="3"/></svg>`;
+}
 function showStress(){
   const C = ['var(--bandink-peak)', 'var(--brand-gold)', 'var(--accent)'];
   let r = '';
@@ -3234,12 +3246,21 @@ function renderSite(){
   const go = done ? "setScreen('result')" : "startFlow('quick')";
   const strip = (id) => { const p = getPlanById(id); return p ? rateStrip({ bands: Array.from({ length: 24 }, (_, h) => bandAt(h, p)), rates: p.rates, height: 10 }) : ''; };
   // The worked example: the same simple model, one change at a time.
-  const W1 = { heat: 'hp', solar: 'none', ev: 'no' }, W2 = { heat: 'hp', solar: '12', ev: 'no' };
+  
   const P = (id) => getPlanById(id);
-  const cheapest = (o) => DEMO_PLANS.map(P).filter(Boolean).map((p) => ({ p, c: demoCost(p, o) })).sort((a, b) => a.c - b.c)[0];
-  const today = P('BG-TOU-PLUS') ? demoCost(P('BG-TOU-PLUS'), W1) : null;
-  const s1 = cheapest(W1), s2 = cheapest(W2);
   const nm = (p) => `${p.supplier} ${p.plan.replace('Home Electric+ ', '').replace('Home Electric + ', '')}`;
+  const cheapest = (o) => DEMO_PLANS.map(P).filter(Boolean).map((p) => ({ p, c: demoCost(p, o) })).sort((a, b) => a.c - b.c)[0];
+  const ex = (() => {
+    const now = P('BG-TOU-PLUS'); if (!now) return null;
+    const A = { heat: 'gas', solar: 'none', batt: '0', ev: 'yes' }, Bo = { ...A, solar: '12' }, Co = { ...Bo, batt: '10' };
+    const a = cheapest(A), b = cheapest(Bo), c = cheapest(Co);
+    const dp = demoProfile(A); return { kwh: Math.round(dp.u.concat(dp.ev).reduce((x, y) => x + y, 0) * 365 / 50) * 50, steps: [
+      { t: nm(now), s: 'A standard smart plan, car charged on it', c: demoCost(now, A) },
+      { t: `Switch to ${nm(a.p)}`, s: 'Same home, the car in its cheap hours', c: a.c },
+      { t: `Add 12 panels, on ${nm(b.p)}`, s: 'Solar used at home, the rest sold back', c: b.c },
+      { t: `Add a 10 kWh battery, on ${nm(c.p)}`, s: 'Evenings run on stored, cheap power', c: c.c },
+    ] };
+  })();
   return `<div class="pk-land wl wl-site">
     <header class="wl-bar">
       <a class="wl-logo" href="/" aria-label="Peakless"><span class="pk-land-icon">${ic('logo', 22, 'stroke-width:1.6')}</span>${wordmarkHtml('pk-word-top')}</a>
@@ -3262,20 +3283,22 @@ function renderSite(){
 
     <section class="wl-band wl-tint" id="get"><div class="wl-in">
       <div class="wl-sh"><div class="wl-eyebrow">What you get</div><h2 class="wl-h2">An answer you can check, test and keep.</h2><p>Not just a ranked list. Every figure is backed by your own year, hour by hour.</p></div>
-      <div class="wl-show">
-        <div class="wl-showcard"><div class="wl-showvis">${showAnalysis()}</div><h3>The analysis</h3><p>Your bill month by month, your day hour by hour, and where every euro goes, on your plan and the best one.</p></div>
-        <div class="wl-showcard"><div class="wl-showvis">${showStress()}</div><h3>The stress test</h3><p>What if export pay halves, or cheap nights end? See whether solar still pays back, year by year.</p></div>
-        <div class="wl-showcard"><div class="wl-showvis">${showReport()}</div><h3>The report</h3><p>A PDF to keep, share or hand to an installer: your answer, the plans, the payback and how it was worked out.</p></div>
+      <div class="wl-show" role="list">
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showAnalysis()}</div><h3>Your bill, month by month</h3><p>Your plan and the best one, side by side, every month of the year.</p></div>
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showDay()}</div><h3>Your day, hour by hour</h3><p>When you use power and what each hour costs, on any day of the year.</p></div>
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showPlans()}</div><h3>Every plan, ranked</h3><p>All plans priced on your year, with each one's cheap and dear hours.</p></div>
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showPayback()}</div><h3>Solar payback</h3><p>Years to pay back after the SEAI grant, and money ahead over 20 years.</p></div>
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showStress()}</div><h3>The stress test</h3><p>What if export pay halves, or cheap nights end? See if it still pays.</p></div>
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showReport()}</div><h3>The report</h3><p>A PDF of your answer, the plans and the method, to keep or hand to an installer.</p>
+</div>
       </div>
-      <div class="wl-sample">
-        <div><b>Get a sample report</b><span>The full Peakless PDF for an example home: a heat pump in the South, 12 panels and a battery being planned.</span></div>
-        <form class="wl-sample-f" novalidate onsubmit="event.preventDefault();sampleReport()">
-          <label class="sr-only" for="wl-sample-email">Email address</label>
-          <input id="wl-sample-email" type="email" autocomplete="email" placeholder="you@example.ie" aria-describedby="wl-sample-msg">
-          <button id="wl-sample-go" class="wl-btn wl-btn-p" type="submit">Get the sample PDF</button>
-        </form>
-        <small id="wl-sample-msg" class="wl-sample-msg" role="status">We'll also tell you when a cheaper plan comes along. Unsubscribe any time.</small>
-      </div>
+      <div class="wl-sample"><span><b>Get a sample report.</b> The full PDF for an example home.</span>
+          <form class="wl-sample-f" novalidate onsubmit="event.preventDefault();sampleReport()">
+            <label class="sr-only" for="wl-sample-email">Email address</label>
+            <input id="wl-sample-email" type="email" autocomplete="email" placeholder="Email for a sample PDF" aria-describedby="wl-sample-msg">
+            <button id="wl-sample-go" class="wl-btn wl-btn-p" type="submit">Get it</button>
+          </form>
+          <small id="wl-sample-msg" class="wl-sample-msg" role="status">A real report for an example home.</small></div>
     </div></section>
 
     <section class="wl-band" id="why"><div class="wl-two"><div>
@@ -3297,17 +3320,13 @@ function renderSite(){
         <div class="wl-type"><h3>Changes hourly</h3>${strip(TARIFFS.find((t) => t.type === 'dynamic') ? TARIFFS.find((t) => t.type === 'dynamic').id : 'EN-DYN')}<p>Follows the wholesale market every hour. Can be great or painful.</p><small>Suits: <b>people who shift use by app</b></small></div>
       </div></div></section>
 
-    ${today && s1 && s2 ? `<section class="wl-band" id="example"><div class="wl-in">
-      <div class="wl-sh"><div class="wl-eyebrow">A worked example</div><h2 class="wl-h2">A home with a heat pump, step by step.</h2><p>The same simple model as the demo above, one change at a time. Your own answer comes from the full engine.</p></div>
-      <div class="wl-case">
-        <div class="wl-case-who"><div class="wl-eyebrow">The home</div><h3>Heat pump, about 6,500 kWh a year, on Bord Gáis Smart Standard.</h3>
-          <ul><li>Thinking about 12 solar panels</li><li>Bill dearest in winter evenings</li><li>No timers set up yet</li></ul>
-          <button class="wl-btn wl-btn-gold" onclick="${go}">Do it for my home</button></div>
-        <div class="wl-steps3">
-          <div class="wl-step"><span>Today</span><div><b>Bord Gáis Smart Standard</b><small>What they pay now</small></div><em>${eur(today)}</em></div>
-          <div class="wl-step"><span>Step 1</span><div><b>Switch to ${nm(s1.p)}</b><small>Ten minutes online, nothing else changes</small></div><em>${eur(s1.c)}</em></div>
-          <div class="wl-step is-win"><span>Step 2</span><div><b>Add 12 panels, on ${nm(s2.p)}</b><small>Solar used at home, the rest sold back</small></div><em>${eur(s2.c)}</em></div>
-        </div></div></div></section>` : ''}
+    ${ex ? `<section class="wl-band" id="example"><div class="wl-in">
+      <div class="wl-sh"><div class="wl-eyebrow">A worked example</div><h2 class="wl-h2">A family with an electric car, weighing up solar.</h2>
+        <p>Gas heating, about ${ex.kwh.toLocaleString('en-IE')} kWh a year with the car, charging overnight. One change at a time, on the same simple model as the demo.</p></div>
+      <div class="wl-steps3">
+        ${ex.steps.map((st, i) => `<div class="wl-step ${i === ex.steps.length - 1 ? 'is-win' : ''}"><span>${i ? 'Step ' + i : 'Today'}</span><div><b>${st.t}</b><small>${st.s}</small></div><em>${eur(st.c)}</em></div>`).join('')}
+      </div>
+      <button class="wl-btn wl-btn-p wl-ex-go" onclick="${go}">Do it for my home</button></div></section>` : ''}}
 
     <section class="wl-band wl-tint" id="how"><div class="wl-in">
       <div class="wl-sh"><div class="wl-eyebrow">How it works</div><h2 class="wl-h2">Built to be checked, not trusted blindly.</h2></div>

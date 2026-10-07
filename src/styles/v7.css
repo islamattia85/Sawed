@@ -2469,3 +2469,20 @@ html.web #wh-home .v7-cta-2:has(svg) { display: none; }
   .web-dash .wd-tabs { display: none; }
 }
 @media (min-width: 900px) { .wl-ctrls { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* showcase: swipe on a phone, a grid on a computer */
+.wl-show { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 14px; margin-inline: -16px; padding: 0 16px 6px; scrollbar-width: none; }
+.wl-showcard { flex: 0 0 80%; scroll-snap-align: start; }
+.wl-showcard .wl-sample-f { margin-top: 6px; }
+.wl-showcard .wl-sample-f input { min-width: 0; padding: 10px 14px; }
+.wl-showcard .wl-sample-msg { font-size: 12px; }
+@media (min-width: 900px) {
+  .wl-show { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; margin: 0; padding: 0; }
+}
+#example .wl-steps3 { max-width: 760px; }
+.wl-ex-go { margin-top: 20px; }
+.wl-show { align-items: flex-start; } @media (min-width: 900px) { .wl-show { align-items: start; } }
+.wl-sample { margin-top: 16px; padding: 14px 16px; border-radius: var(--radius-lg); background: var(--panel); border: 1px solid var(--hair); display: grid; gap: 10px; align-items: center; }
+.wl-sample > span { font-size: 15px; color: var(--ink-soft); }
+.wl-sample > span b { color: var(--ink); }
+.wl-sample .wl-sample-f input { min-width: 0; padding: 10px 14px; }
+@media (min-width: 900px) { .wl-sample { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); } }
