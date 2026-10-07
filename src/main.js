@@ -3212,6 +3212,38 @@ function whyChart(){
     ${[0, 6, 12, 18, 24].map((h) => `<text x="${x(h)}" y="${H - 4}" text-anchor="middle">${String(h).padStart(2, '0')}</text>`).join('')}</svg>`;
 }
 
+/** The front page's picture: a home with panels, a battery and a car, and a day of prices under it. */
+function heroArt(){
+  const p = getPlanById('EI-NB') || getPlanById(DEMO_PLANS[1]);
+  const C = { night: 'var(--bandink-night)', day: 'var(--bandink-day)', peak: 'var(--bandink-peak)', ev: 'var(--bandink-ev)' };
+  const ev = p ? Math.min(...Object.values(p.rates)) : .11;
+  const dear = p ? Math.max(...Object.values(p.rates)) : .38;
+  return `<svg class="wl-art" viewBox="0 0 360 300" role="img" aria-label="A home with solar panels, a battery and an electric car, and a day of electricity prices">
+    <circle cx="300" cy="52" r="24" fill="var(--brand-gold)"/>
+    ${[0, 45, 90, 135, 180, 225, 270, 315].map((a) => { const r = a * Math.PI / 180; return `<line x1="${(300 + Math.cos(r) * 32).toFixed(1)}" y1="${(52 + Math.sin(r) * 32).toFixed(1)}" x2="${(300 + Math.cos(r) * 40).toFixed(1)}" y2="${(52 + Math.sin(r) * 40).toFixed(1)}" stroke="var(--brand-gold)" stroke-width="3" stroke-linecap="round"/>`; }).join('')}
+    <path d="M60 128 L150 66 L240 128 Z" fill="var(--brand-ink)"/>
+    ${[0, 1, 2].map((i) => `<path d="M${112 + i * 26} ${118 - i * 18} l22 -15 l12 8 l-22 15 z" fill="#3E6E8E" stroke="#9FC3DA" stroke-width="1.2"/>`).join('')}
+    <rect x="76" y="128" width="148" height="92" rx="4" fill="var(--panel)" stroke="var(--brand-ink)" stroke-width="3"/>
+    <rect x="96" y="148" width="34" height="28" rx="3" fill="var(--brand-gold)" opacity=".75"/><rect x="170" y="166" width="34" height="54" rx="3" fill="var(--brand-ink)"/>
+    <rect x="236" y="168" width="26" height="46" rx="5" fill="var(--panel)" stroke="var(--accent)" stroke-width="3"/><rect x="242" y="190" width="14" height="18" rx="2" fill="var(--accent)"/><rect x="244" y="163" width="10" height="6" rx="2" fill="var(--accent)"/>
+    <path d="M272 214 q4 -18 22 -20 h28 q14 2 18 20 z" fill="var(--accent)"/><rect x="268" y="206" width="76" height="12" rx="6" fill="var(--accent)"/>
+    <circle cx="286" cy="220" r="7" fill="var(--brand-ink)"/><circle cx="328" cy="220" r="7" fill="var(--brand-ink)"/>
+    <line x1="20" x2="340" y1="228" y2="228" stroke="var(--ink-dim)" stroke-opacity=".35" stroke-width="2"/>
+    ${p ? Array.from({ length: 24 }, (_, h) => `<rect x="${(20 + h * 13.4).toFixed(1)}" y="252" width="11.4" height="14" rx="3" fill="${C[bandAt(h, p)] || C.day}"/>`).join('') : ''}
+    <text x="20" y="246" class="wl-art-t g">cheap 2am · ${(ev * 100).toFixed(0)}c</text>
+    <text x="340" y="246" text-anchor="end" class="wl-art-t pk">dear 6pm · ${(dear * 100).toFixed(0)}c</text>
+    <text x="20" y="288" class="wl-art-t">midnight</text><text x="180" y="288" text-anchor="middle" class="wl-art-t">midday</text><text x="340" y="288" text-anchor="end" class="wl-art-t">midnight</text>
+  </svg>`;
+}
+
+/** Three steps, straight under the hero, so the visit starts with what happens. */
+function howStrip(){
+  const st = [['home', 'Tell us about your home', 'Your bill or ESB meter file, heating, panels, battery, car.'],
+    ['clock', 'We price every hour', 'Your year, 8,760 hours, on every plan in Ireland.'],
+    ['checkC', 'You get one answer', 'The cheapest plan for you, and what solar would add.']];
+  return `<section class="wl-how3" aria-label="How it works">${st.map(([i, t, d], k) => `<div><span class="wl-how3-ic">${ic(i, 20)}</span><b><i>${k + 1}</i> ${t}</b><small>${d}</small></div>`).join('')}</section>`;
+}
+
 /**
  * Small previews of what the app shows: real plans and the demo's typical
  * home (gas heating, 12 panels, a car), drawn with labels, so each card
@@ -3323,8 +3355,9 @@ function renderSite(){
         <div class="wl-cta"><button class="wl-btn wl-btn-p wl-btn-lg" onclick="${go}">${done ? 'See my answer' : 'Compare my plans'}</button><button class="wl-btn wl-btn-g wl-btn-lg" onclick="startFlow('full')">Is solar worth it?</button></div>
         <div class="wl-proof"><div><b>${n}</b><span>plans, rates checked this week</span></div><div><b>8,760</b><span>hours priced, not averages</span></div><div><b>€0</b><span>commission from suppliers</span></div></div>
       </div>
-      ${demoCard()}
+      ${heroArt()}
     </section>
+    ${howStrip()}
 
     <section class="wl-band wl-tint" id="get"><div class="wl-in">
       <div class="wl-sh"><div class="wl-eyebrow">What you get</div><h2 class="wl-h2">An answer you can check, test and keep.</h2><p>Not just a ranked list. Every figure is backed by your own year, hour by hour.</p></div>
@@ -3356,6 +3389,8 @@ function renderSite(){
       <div class="wl-card wl-why"><div class="wl-card-h">A home's day, on an EV plan</div><div class="wl-card-sub">kWh each hour, over that plan's price bands</div>${whyChart()}${bandLegend()}</div>
     </div></section>
 
+    <section class="wl-band wl-demo-band" id="try"><div class="wl-in"><div class="wl-sh"><div class="wl-eyebrow">Try it</div><h2 class="wl-h2">See how one home changes the answer.</h2><p>Pick heating, panels, a battery and a car. Four real plans re-rank as you go.</p></div>${demoCard()}</div></section>
+
     <section class="wl-band wl-tint" id="types"><div class="wl-in">
       <div class="wl-sh"><div class="wl-eyebrow">Plan types, explained</div><h2 class="wl-h2">Four kinds of plan. One suits you best.</h2><p>Each bar is a real plan's day, midnight to midnight. The colour shows what an hour costs.</p></div>
       <div class="wl-types">
@@ -3374,12 +3409,7 @@ function renderSite(){
       <button class="wl-btn wl-btn-p wl-ex-go" onclick="${go}">Do it for my home</button></div></section>` : ''}}
 
     <section class="wl-band wl-tint" id="how"><div class="wl-in">
-      <div class="wl-sh"><div class="wl-eyebrow">How it works</div><h2 class="wl-h2">Built to be checked, not trusted blindly.</h2></div>
-      <div class="wl-steps">
-        <div><span class="wl-n">Step 1</span><b>Tell us about your home</b><p>Your bill, your ESB smart-meter file, or a few short questions. Change any answer later.</p></div>
-        <div><span class="wl-n">Step 2</span><b>Every hour, every plan</b><p>Your year simulated on each plan: the battery charging at night, solar sold back, the car on its timer.</p></div>
-        <div><span class="wl-n">Step 3</span><b>Switch on the supplier's site</b><p>We link straight to the plan. No commission, so the order is only about what you'd pay.</p></div>
-      </div>
+      <div class="wl-sh"><div class="wl-eyebrow">Why trust it</div><h2 class="wl-h2">Built to be checked, not trusted blindly.</h2></div>
       <div class="wl-trust4"><div><b>Rates read from suppliers</b><span>Each plan dated and linked to its source.</span></div><div><b>Price rises counted</b><span>Announced increases are in the yearly figure.</span></div><div><b>Your data stays yours</b><span>Saved on your device unless you make an account.</span></div><div><b>Accuracy shown</b><span>Every answer says how sure it is.</span></div></div>
     </div></section>
 

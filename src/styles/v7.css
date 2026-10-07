@@ -2449,7 +2449,7 @@ html.web #wh-home .v7-cta-2:has(svg) { display: none; }
   .wl-plans:not(.is-open) .wl-table-open { display: inline-flex; }
   .wl-types { display: flex !important; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; margin-inline: -16px; padding-inline: 16px; scrollbar-width: none; }
   .wl-type { flex: 0 0 78%; scroll-snap-align: start; }
-  .wl-trust4 { display: none; }
+  .wl-trust4 { grid-template-columns: 1fr 1fr; }
   .wl-band { padding-block: 40px; }
 }
 .web-all-g { margin-top: 28px; }
@@ -2497,3 +2497,17 @@ html.web #wh-home .v7-cta-2:has(svg) { display: none; }
 .wl-mini .acc { fill: var(--accent); }
 .wl-mini .axis { stroke: var(--ink-dim); stroke-opacity: .5; }
 .wl-showvis { padding: 12px 10px; background: var(--well); }
+/* front page: picture first, then how it works, then the demo */
+.wl-art { width: 100%; max-width: 460px; height: auto; justify-self: center; }
+.wl-art-t { font: 600 12px var(--display); fill: var(--ink-soft); }
+.wl-art-t.g { fill: var(--accent); }
+.wl-art-t.pk { fill: var(--bandink-peak); }
+.wl-how3 { display: grid; gap: 12px; padding-bottom: 32px; }
+.wl-how3 > div { display: grid; grid-template-columns: 40px 1fr; gap: 2px 12px; align-items: center; background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius-lg); padding: 14px 16px; }
+.wl-how3-ic { grid-row: span 2; width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
+.wl-how3 b { font: 750 15px var(--display); color: var(--ink); }
+.wl-how3 b i { font-style: normal; color: var(--accent); margin-right: 4px; }
+.wl-how3 small { font-size: 13px; color: var(--ink-soft); }
+.wl-demo-band .wl-demo { max-width: 640px; }
+@media (min-width: 900px) { .wl-how3 { grid-template-columns: repeat(3, minmax(0, 1fr)); padding-bottom: 48px; } }
+@media (max-width: 899px) { .wl-proof { display: none; } .wl-hero { padding-bottom: 16px; } }
