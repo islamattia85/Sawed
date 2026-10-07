@@ -66,7 +66,7 @@ test('a challenge is explained before it starts, and finishing it says what was 
 });
 
 test('a rising score is announced with the points earned', async ({ page }) => {
-  await boot(page, { current_screen: 'updates', baseline: 'EI-24', chosen_plan: null });
+  await boot(page, { current_screen: 'updates', baseline: 'EI-24', chosen_plan: null, grid_charge_now: 'yes' });
   await page.waitForTimeout(900);
   const best = await page.evaluate(() => window.getRecommendation().cheapest.plan.id);
   await page.evaluate((id) => { window.state.baseline = id; window.invalidate(); window.renderApp(); }, best);

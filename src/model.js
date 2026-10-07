@@ -754,9 +754,24 @@ export function simulate(plan, gen, cons, strategy){
     plan_id: plan.id
   };
 
+  // Each day's need from 8am to 11pm that the battery could cover, and its
+  // spare solar, for sizing a night's top-up.
+  const dayNeed = new Float32Array(367), daySpare = new Float32Array(367);
+  for (let i = 0; i < HOURS_IN_YEAR; i++){
+    const h = i % 24; if (h < 8 || h >= 23) continue;
+    const d = Math.floor(i / 24), net = (gen[i] || 0) - (cons[i] || 0);
+    if (net < 0) dayNeed[d] -= net; else daySpare[d] += net;
+  }
+
   let soc = minSoc + 0.3*(cap - minSoc); // start at 30% above min
   const exportRate = plan.export_rate;
   const peakRate = plan.rates.peak;
+  const dearRate = Math.max(plan.rates.day || 0, plan.rates.peak || 0);
+  const roundTrip = state.battery_eff || 0.9;
+  // Top up in the plan's cheapest window only: with an EV window, not in the
+  // dearer night hours that come before it.
+  const cheapBand = plan.windows && plan.windows.ev && (plan.rates.ev ?? 9) < (plan.rates.night ?? 9) ? 'ev' : 'night';
+  const exportEff = (state.export_enabled !== false) ? (plan.export_rate || 0) : 0;
   const evRate = plan.windows.ev ? plan.rates.ev : null;
 
   // Export hardware constraints — if disabled, surplus is curtailed (clipped, not earned)
@@ -824,7 +839,34 @@ export function simulate(plan, gen, cons, strategy){
         ? isExpensiveDynamic
         : (band === "peak" || band === "day");
 
-      if (isExpensiveWindow && !isCheapWindow){
+      // A plan's cheap hours (night or EV window) are worth charging in when
+      // that power, after the battery's losses, still costs less than the
+      // plan's dearest hours. Then the battery tops up only to what the coming
+      // day needs beyond its own spare solar, so the panels' surplus still has
+      // room; above that level it keeps running the house. When night power
+      // after losses is below the export payment, filling up and selling the
+      // solar pays better, so it fills.
+      const topUp = !isDynamic && strategy.charge_from_grid && cap > 0
+        && band === cheapBand && rate / roundTrip < dearRate - 0.01;
+
+      if (topUp){
+        let target = maxSoc;
+        if (rate / roundTrip >= exportEff){
+          const d = Math.min(365, Math.floor(i / 24) + (hour >= 12 ? 1 : 0));
+          target = Math.min(maxSoc, minSoc + Math.max(0, dayNeed[d] / eff - daySpare[d] * eff));
+        }
+        if (soc < target - 1e-6){
+          const chargeAmt = Math.min((target - soc) / eff, maxChargeKw);
+          charge = chargeAmt;
+          soc += chargeAmt * eff;
+          imp = deficit + charge;
+        } else {
+          const dis = Math.min(Math.max(0, soc - target), deficit / eff, maxDischargeKw);
+          soc -= dis;
+          discharge = dis;
+          imp = Math.max(0, deficit - dis * eff);
+        }
+      } else if (isExpensiveWindow && !isCheapWindow){
         // Discharge to meet load
         const usable = Math.max(0, soc - minSoc);
         const dis = Math.min(usable, deficit / eff, maxDischargeKw);
@@ -834,9 +876,8 @@ export function simulate(plan, gen, cons, strategy){
         imp = Math.max(0, deficit - energyOut);
       } else if (isCheapWindow){
         // Cheap — charge battery from grid + meet load from grid
-        if (strategy.charge_from_grid){
+        if (strategy.charge_from_grid && isDynamic){
           const headroom = maxSoc - soc;
-          // For dynamic: only charge if room AND we have hours that are noticeably cheap
           const chargeAmt = Math.min(headroom / eff, maxChargeKw);
           charge = chargeAmt;
           soc += chargeAmt * eff;
