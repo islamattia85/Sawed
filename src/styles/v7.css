@@ -2167,3 +2167,5 @@ html.web .web-page-head .wl-eyebrow, html.web .fl-q .wl-eyebrow { text-transform
 @media (max-width: 899px) { .web-strip-in button { background: var(--bg); box-shadow: -16px 0 12px var(--bg); } }
 html.web .app:has(> .pk-land), html.web .app[data-chrome="bare"]:has(> .pk-land) { max-width: none; width: 100%; margin: 0; }
 .wl .wl-eyebrow { text-transform: uppercase; letter-spacing: .08em; }
+html.web .app:has(> .fl), html.web .app[data-chrome="bare"]:has(> .fl),
+html.web .app:has(> .sg), html.web .app[data-chrome="bare"]:has(> .sg) { max-width: none; width: 100%; margin: 0; background: var(--bg); }

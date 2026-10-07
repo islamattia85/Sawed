@@ -49,3 +49,13 @@ test('front page uses the full width after leaving setup', async ({ page }) => {
   const w = await page.evaluate(() => document.querySelector('.pk-land').getBoundingClientRect().width);
   expect(w).toBeGreaterThan(1400);
 });
+
+test('the setup questions use the full width, in two panes', async ({ page }) => {
+  await isolate(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/'); await page.evaluate(() => localStorage.clear()); await page.reload();
+  await page.getByRole('button', { name: /Am I paying too much/ }).click();
+  await page.waitForFunction(() => window.state.current_screen === 'flow');
+  const g = await page.evaluate(() => document.querySelector('.fl-grid').getBoundingClientRect().width);
+  expect(g).toBeGreaterThan(1000);
+});
