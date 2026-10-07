@@ -14,6 +14,7 @@ for (const width of [390, 1440]) {
     await expect(page.locator('.wl-demo .wl-rrow')).toHaveCount(4);
     await page.locator('.wl-seg button', { hasText: '12 panels' }).click();
     await expect(page.locator('.wl-demo .wl-rrow')).toHaveCount(4);
+    if (width < 640) await page.locator('.wl-table-open').click();
     await expect(page.locator('#plans tbody tr').first()).toBeVisible();
     await expect(page.locator('a[href="/app"]').first()).toBeAttached();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);

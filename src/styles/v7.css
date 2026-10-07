@@ -2430,3 +2430,25 @@ html.web .fl-guide .sg-top { margin-top: 32px; }
 .web-sys-todo.is-ok b { color: var(--accent); }
 .web-sys-todo i { font-style: normal; font-weight: 700; color: var(--ink); }
 @media (min-width: 900px) { .web-sys { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); } .web-sys-facts { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* audit fixes */
+html.web .web-home .web-toc { max-width: 100%; min-width: 0; }
+html.web .screen.v7.web-home > * { min-width: 0; max-width: 100%; }
+html.web #wh-home .v7-cta-2:has(svg) { display: none; }
+.v7-cta-2.is-danger { background: transparent !important; border: 1px solid var(--loss) !important; color: var(--loss) !important; }
+@media (max-width: 899px) {
+  .web-strip-in { position: relative; padding-right: 64px; }
+  .web-strip-in button { position: absolute; right: 0; top: 0; bottom: 0; padding: 0 16px 0 20px; background: linear-gradient(90deg, transparent, var(--bg) 30%); box-shadow: none; }
+  html.web .v7-controls .v7-seg, html.web .v7-controls .v7-sort { flex-wrap: wrap; overflow: visible; }
+  html.web .v7-controls .v7-seg { border-radius: var(--radius-lg); }
+  /* front page on a phone: the essentials open, the rest a tap away */
+  .wl-site #types .wl-types, .wl-site #example .wl-case { display: grid; }
+}
+.wl-table-open { display: none; }
+@media (max-width: 640px) {
+  .wl-plans:not(.is-open) .wl-table, .wl-plans:not(.is-open) .wl-legend, .wl-plans:not(.is-open) .wl-plans-foot { display: none; }
+  .wl-plans:not(.is-open) .wl-table-open { display: inline-flex; }
+  .wl-types { display: flex !important; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; margin-inline: -16px; padding-inline: 16px; scrollbar-width: none; }
+  .wl-type { flex: 0 0 78%; scroll-snap-align: start; }
+  .wl-trust4 { display: none; }
+  .wl-band { padding-block: 40px; }
+}

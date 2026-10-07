@@ -3070,6 +3070,7 @@ function sitePlans(){
   return `<section class="wl-plans" id="plans">
     <h2 class="wl-h2">Every plan we track</h2>
     <p class="wl-sec-sub">${live.length} plans from ${new Set(live.map((p) => p.supplier)).size} suppliers, rates read from each supplier's website, inc VAT. Which is cheapest depends on when you use power, which is what the app works out.</p>
+    <button class="wl-btn wl-btn-g wl-table-open" onclick="this.closest('.wl-plans').classList.add('is-open')">See all ${live.length} plans and their rates</button>
     <div class="wl-table"><table>
       <thead><tr><th>Plan</th><th>Its day</th><th>Day</th><th>Night</th><th>EV / boost</th><th>Standing a year</th></tr></thead>
       <tbody>${sorted.slice(0, 8).map(row).join('')}</tbody>
@@ -3459,9 +3460,9 @@ function webDash(){
     <div class="wd-split">${parts.map((p) => `<div><i style="background:${p.c}"></i><span>${p.l}</span><b>${eur(p.v)}</b></div>`).join('')}
     ${T.credit > 1 ? `<div class="is-credit"><i style="background:var(--accent)"></i><span>Paid for what you sell back</span><b>−${eur(T.credit)}</b></div>` : ''}</div>`;
   // Your day, hour by hour.
-  const hu = T.hourUse, hm = Math.max(.1, ...hu), DH = 190, DB = 28;
+  const hu = T.hourUse, srt = [...hu].sort((a, b) => b - a), cap = srt[0] > srt[1] * 2.5 ? srt[1] * 1.6 : srt[0], hm = Math.max(.1, cap), DH = 190, DB = 28;
   const day = `<svg viewBox="0 0 ${W} ${DH}" width="100%" role="img" aria-label="Your average day, hour by hour">
-    ${hu.map((v, h) => { const b = bandAt(h, plan), hh = (DH - DB - 8) * v / hm; return `<rect x="${(L + h * (W - L - 6) / 24 + 2).toFixed(1)}" y="${(DH - DB - hh).toFixed(1)}" width="${((W - L - 6) / 24 - 4).toFixed(1)}" height="${Math.max(1, hh).toFixed(1)}" rx="3" fill="${COLS[b] || 'var(--bandink-day)'}"/>`; }).join('')}
+    ${hu.map((v, h) => { const b = bandAt(h, plan), hh = (DH - DB - 8) * Math.min(v, hm) / hm; return (v > hm ? `<text x="${(L + h * (W - L - 6) / 24 + (W - L - 6) / 48).toFixed(1)}" y="16" text-anchor="middle" style="font-weight:700">${v.toFixed(1)}</text>` : '') + `<rect x="${(L + h * (W - L - 6) / 24 + 2).toFixed(1)}" y="${(DH - DB - hh).toFixed(1)}" width="${((W - L - 6) / 24 - 4).toFixed(1)}" height="${Math.max(1, hh).toFixed(1)}" rx="3" fill="${COLS[b] || 'var(--bandink-day)'}"/>`; }).join('')}
     ${[0, 6, 12, 18, 23].map((h) => `<text x="${L + h * (W - L - 6) / 24 + (W - L - 6) / 48}" y="${DH - 8}" text-anchor="middle">${String(h).padStart(2, '0')}</text>`).join('')}
     <text x="${L - 8}" y="${DH - DB}" text-anchor="end">0</text><text x="${L - 8}" y="16" text-anchor="end">${hm.toFixed(1)}</text></svg>`;
   const peakK = (T.kwhBand.peak || 0), allK = Object.values(T.kwhBand).reduce((a, v) => a + v, 0);
@@ -3480,7 +3481,7 @@ function webDash(){
       <nav class="wd-tabs" aria-label="More detail">${[['bill','Bill'],['hours','Hours'],['solar','Solar'],['accuracy','Accuracy']].map(([k, l]) => `<button onclick="state._an_from=null;anTab('${k}')">${l}</button>`).join('')}</nav></div>
     <div class="wd-grid">
       ${card('s8', hd('Your bill, month by month', now ? `${esc(base.supplier)} now and ${esc(plan.supplier)}, on this home` : `On ${esc(plan.supplier)} ${esc(plan.plan)}`), month + `<div class="wd-legend">${now ? `<span><i style="background:var(--ink-dim);opacity:.5"></i>${esc(base.supplier)} ${esc(base.plan)}</span>` : ''}<span><i style="background:var(--accent)"></i>${esc(plan.supplier)} ${esc(plan.plan)}</span></div>`)}
-      ${card('s4', hd(`Where ${eur(spend)} goes`, `On ${esc(plan.supplier)}, before what you sell back`), where)}
+      ${card('s4', hd(T.credit > 1 ? `You buy ${eur(spend)}, and are paid ${eur(T.credit)} back` : `Where ${eur(spend)} goes`, `On ${esc(plan.supplier)}: ${eur(T.total)} a year once the export is taken off`), where)}
       ${card('s8', hd('Your day, hour by hour', 'average kWh, coloured by price band', `<button class="wd-link" onclick="state._an_from=null;anTab('hours')">Go through the year ${ic('chevR', 14)}</button>`), day + `<p class="wd-note">${dayLine}</p>`)}
       ${card('s4', hd('Top plans for you', '', `<button class="wd-link" onclick="setScreen('plans')">All ${rec.ranked.length} ${ic('chevR', 14)}</button>`), plans)}
       ${card('s4 wd-acc', hd('How sure we are', ''), `<div class="wd-big">±${acc.pct}%</div><div class="wd-bar"><i style="width:${Math.max(8, 100 - acc.pct * 4)}%"></i></div>${state._csv_imported ? '<p class="wd-note">Measured from your ESB meter file.</p>' : `<button class="wd-link" onclick="setScreen('csv-import')">Add your ESB meter file ${ic('chevR', 14)}</button>`}`)}
@@ -11783,7 +11784,7 @@ function renderMyHome(){
       <section class="web-sec" id="wh-home">${renderHomeSheet()}</section>
       <section class="web-sec" id="wh-system"><h3 class="v7-h">Solar and battery</h3>
         <p class="v7-muted">Your panels, battery and inverter have their own place, next to the payback they decide.</p>
-        <div class="web-actions"><button class="v7-cta-2" onclick="state._an_from=null;anTab('solar')">Go to your system</button><button class="v7-cta-2" onclick="openMySystem()">Edit it here</button></div></section>
+        <div class="web-actions"><button class="v7-cta-2" onclick="state._an_from=null;anTab('solar')">Go to your system</button></div></section>
       <section class="web-sec web-sec-danger" id="wh-reset">
         <h3 class="v7-h">Start over</h3>
         <p class="v7-muted">Clears every answer on this device and takes you back to the first question.</p>
