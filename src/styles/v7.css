@@ -2054,3 +2054,19 @@ html.web .ax-door:hover, html.web .ax-tile:hover { border-color: var(--accent); 
 html.web .ax-door b svg { color: var(--accent); }
 .web-foot { max-width: 1200px; margin: 24px auto 0; padding: 24px 24px 40px; }
 html.app-mode .web-foot { display: none; }
+
+/* ---------- website: the setup questions as a page, not an app card ---------- */
+html.web .fl-top {
+  position: sticky; top: 0; z-index: 10; padding: 12px max(20px, calc((100% - 1160px) / 2));
+  background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--hair);
+}
+html.web .fl-prog { max-width: 720px; margin: 16px auto 0; width: calc(100% - 40px); height: 4px; }
+html.web .fl-body { max-width: 720px; padding-top: var(--space-6); }
+html.web .fl-q { background: transparent; border: 0; box-shadow: none; padding: 0; gap: var(--space-4); }
+html.web .fl-q h2 { font: 600 32px/1.1 "Fraunces", Georgia, serif; letter-spacing: -.02em; text-wrap: balance; }
+html.web .fl-q p { font-size: 17px; margin: -8px 0 0; }
+html.web .sg-h { font-family: "Fraunces", Georgia, serif; font-weight: 600; letter-spacing: -.02em; }
+@media (min-width: 900px) { html.web .fl-q h2 { font-size: 40px; } html.web .fl-body { padding-top: 56px; } }
+html.web .fl-bill span, html.web .fl-bill input { font: 600 40px/1.1 "Fraunces", Georgia, serif; }
+@media (min-width: 900px) { html.web .fl-bill span, html.web .fl-bill input { font-size: 54px; } }
