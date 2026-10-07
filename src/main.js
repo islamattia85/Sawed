@@ -3137,7 +3137,7 @@ function demoCard(){
   const seg = (k, opts, lbl) => `<div class="wl-ctrl"><span>${lbl}</span><div class="wl-seg" role="group" aria-label="${lbl}">${opts.map(([v, l]) => `<button class="${_demo[k] === v ? 'on' : ''}" aria-pressed="${_demo[k] === v}" onclick="demoSet('${k}','${v}')">${l}</button>`).join('')}</div></div>`;
   return `<div class="wl-demo" id="wl-demo">
     <div class="wl-demo-h"><b>Try it on a typical Irish home</b><span>4,200 kWh a year</span></div>
-    <div class="wl-ctrls">${seg('heat', [['gas', 'Gas'], ['hp', 'Heat pump']], 'Heating')}${seg('solar', [['none', 'None'], ['6', '6'], ['12', '12 panels']], 'Solar')}${seg('batt', [['0', 'None'], ['5', '5'], ['10', '10 kWh']], 'Battery')}${seg('ev', [['no', 'No'], ['yes', 'Yes']], 'Electric car')}</div>
+    <div class="wl-ctrls">${seg('heat', [['gas', 'Gas'], ['hp', 'Heat pump']], 'Heating')}${seg('solar', [['none', 'None'], ['6', '6'], ['12', '12']], 'Solar panels')}${seg('batt', [['0', 'None'], ['5', '5'], ['10', '10 kWh']], 'Battery')}${seg('ev', [['no', 'No'], ['yes', 'Yes']], 'Electric car')}</div>
     <div class="wl-res">${rows.map((r, i) => `<div class="wl-rrow ${i === 0 ? 'is-best' : ''}"><div class="wl-who">${r.p.supplier}<small>${r.p.plan.replace('Home Electric+ ', '').replace('Home Electric + ', '')}</small></div>
       <div class="wl-track"><i style="width:${Math.max(4, Math.max(0, r.c) / max * 100)}%"></i></div><b>${eur(r.c)}</b></div>`).join('')}</div>
     <div class="wl-demo-f"><p>Cheapest here: <b>${rows[0].p.supplier} ${rows[0].p.plan.replace('Home Electric+ ', '').replace('Home Electric + ', '')}</b>. A simple model on real rates; the app prices your own home hour by hour.</p>

@@ -12,7 +12,7 @@ for (const width of [390, 1440]) {
     await page.reload();
     await expect(page.locator('.wl-site .wl-h1')).toContainText('priced on your home');
     await expect(page.locator('.wl-demo .wl-rrow')).toHaveCount(4);
-    await page.locator('.wl-seg button', { hasText: '12 panels' }).click();
+    await page.locator('.wl-seg[aria-label="Solar panels"] button', { hasText: '12' }).click();
     await expect(page.locator('.wl-demo .wl-rrow')).toHaveCount(4);
     if (width < 640) await page.locator('.wl-table-open').click();
     await expect(page.locator('#plans tbody tr').first()).toBeVisible();
