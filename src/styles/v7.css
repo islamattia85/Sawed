@@ -1755,3 +1755,26 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .info-pop { display: block; margin: 8px 0 4px; padding: 10px 12px; border-radius: var(--radius-md, 10px); background: var(--well);
   color: var(--ink-soft); font: 400 var(--text-caption)/1.5 var(--display); letter-spacing: 0; text-transform: none; text-align: left; }
 .info-pop[hidden] { display: none; }
+/* Stress test */
+.st-card { display: grid; gap: var(--space-3); }
+.st-ans { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.st-ans > div { display: grid; gap: 2px; padding: var(--space-3); border-radius: var(--radius-md, 12px); background: var(--well); }
+.st-ans small { font-size: var(--text-caption); color: var(--ink-soft); }
+.st-ans b { font: 800 22px/1.1 var(--display); letter-spacing: -.02em; color: var(--ink); }
+.st-ans b.is-gain { color: var(--accent); } .st-ans b.is-loss { color: var(--loss); }
+.st-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.st-presets .v7-chip.on { border-color: var(--accent); background: var(--accent-faint); color: var(--accent); }
+.st-sl { display: grid; gap: 6px; }
+.st-sl > span { display: flex; align-items: baseline; gap: 8px; font-size: var(--text-body); }
+.st-sl > span small { margin-left: auto; color: var(--ink-soft); font-size: var(--text-caption); }
+.st-sl input[type=range] { width: 100%; accent-color: var(--accent); }
+.st-when { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); font-size: var(--text-body); }
+.st-mapwrap { display: grid; grid-template-columns: minmax(0, 220px) 1fr; gap: var(--space-3); align-items: center; }
+.st-map { width: 100%; height: auto; }
+.st-map text { font-family: var(--display); font-weight: 600; fill: var(--ink-soft); }
+.st-key { display: grid; gap: 6px; font-size: var(--text-caption); color: var(--ink-soft); }
+.st-key i { display: inline-block; width: 10px; height: 10px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; }
+@media (max-width: 380px) { .st-mapwrap { grid-template-columns: 1fr; } }
+.fl-risk { display: inline-block; padding: 2px 8px; border-radius: 999px; font: 700 var(--text-caption) var(--display); border: 1.5px solid currentColor; }
+.fl-risk.is-steady { color: var(--accent); } .fl-risk.is-risk { color: var(--amber); } .fl-risk.is-bet { color: var(--loss); }
+.st-home { display: block; margin-top: 4px; font-size: var(--text-caption); }

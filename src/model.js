@@ -1517,6 +1517,76 @@ export function calcSeaiGrant(kwp, batteryKwh){
 // Setters for the values main.js replaces.
 export function setState(v){ state = v; }
 export function setTariffs(v){ TARIFFS = v; }
+
+/* ---- Stress test: the same system under future prices -----------------
+ * A future is where prices end up: what export pays, what the cheapest
+ * window costs, and how other unit rates move. The best plan is re-picked in
+ * it, with and without the system, so the answer never rests on a plan
+ * keeping its name. */
+
+const _med = (a) => { const s = a.filter((x) => x > 0).sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : 0; };
+/** Today's market: the typical export payment and cheapest-window price. */
+export function marketToday(){
+  const P = TARIFFS.filter((p) => isRankablePlan(p) && p.type !== 'dynamic');
+  return {
+    exportRate: _med(P.map((p) => p.export_rate || 0)),
+    cheapRate: _med(P.map((p) => Math.min(p.rates.night ?? 9, p.windows && p.windows.ev ? (p.rates.ev ?? 9) : 9, p.rates.day ?? 9))),
+  };
+}
+/** Every plan re-priced for a future: { exportTo, cheapTo } in EUR/kWh, imports a multiplier on other unit rates. */
+export function plansIn(f){
+  const m = marketToday();
+  const k = f.cheapTo != null && m.cheapRate > 0 ? f.cheapTo / m.cheapRate : 1;
+  const imp = f.imports || 1;
+  return TARIFFS.map((p) => {
+    const r = { ...p.rates };
+    const cheapest = Math.min(r.night ?? 9, p.windows && p.windows.ev ? (r.ev ?? 9) : 9);
+    for (const band of Object.keys(r)){
+      const v = r[band]; if (typeof v !== 'number') continue;
+      // The cheap window follows the night slider; everything else, imports.
+      r[band] = (v <= cheapest + 1e-9 && cheapest < (r.day ?? 9)) ? v * k : v * imp;
+    }
+    return { ...p, rates: r, export_rate: f.exportTo != null ? f.exportTo : (p.export_rate || 0) };
+  });
+}
+/** Run fn with every plan priced for future f, then put today's prices back. */
+export function withPrices(f, fn){
+  const orig = TARIFFS;
+  TARIFFS = plansIn(f);
+  scenarioMemo.clear(); singleScenarioMemo.clear(); CACHE.dirty = true; CACHE.sims = {}; CACHE.baselines = {};
+  try { return fn(); }
+  finally {
+    TARIFFS = orig;
+    scenarioMemo.clear(); singleScenarioMemo.clear(); CACHE.dirty = true; CACHE.sims = {}; CACHE.baselines = {};
+  }
+}
+/** What the system saves a year in future f: the best plan without it, less the best plan with it. */
+export function benefitIn(f, sys = null){
+  return withPrices(f, () => {
+    const no = withSimState({ count_A: 0, count_B: 0, battery_kwh: 0, has_solar: false }, () => getBestPlan({ ignoreChoice: true }).net);
+    const run = () => getBestPlan({ ignoreChoice: true });
+    const best = sys ? withSimState(sys, run) : run();
+    return { benefit: no - best.net, plan: best.plan.id };
+  });
+}
+/**
+ * Twenty years when prices move from today's to a future's in a straight line
+ * over `years` (0: straight away), then hold. b0 and b1 are the yearly saving
+ * at either end; cost is the price after the grant.
+ */
+export function pathValue(b0, b1, years, cost, batteryKwh){
+  const deg = state.panel_degradation || 0.005;
+  let cum = -cost, payback = null, saved = 0;
+  for (let y = 1; y <= 20; y++){
+    const t = years > 0 ? Math.min(1, y / years) : 1;
+    const b = (b0 + (b1 - b0) * t) * Math.pow(1 - deg, y - 1);
+    saved += b;
+    if (payback === null && cum + b >= 0) payback = y - 1 + (b > 0 ? -cum / b : 0);
+    cum += b;
+  }
+  const value = saved - cost - batteryReplacement(batteryKwh);
+  return { value: Math.round(value), saved: Math.round(saved), payback: payback === null ? null : +payback.toFixed(1) };
+}
 export function setSolarExtrasReady(v){ _solarExtrasReady = v; }
 export function setSolarExtrasPending(v){ _solarExtrasPending = v; }
 export function adjScenarioDepth(d){ _scenarioDepth += d; }

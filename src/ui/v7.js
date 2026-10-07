@@ -305,7 +305,7 @@ export function createV7(api) {
     if (pl) {
       let d = null; try { d = api.solarData(); } catch (e) {}
       const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
-      solarRow = `<div class="v7-solar-ctl"><span><b>${api.ic('sun', 16)} Planned solar</b><small>${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}${d ? ` · ${eur(d.sysCost)} after grant` : ''}${pb ? ` · pays back in ${pb.toFixed(1)} yrs` : ''}</small></span>
+      solarRow = `<div class="v7-solar-ctl"><span><b>${api.ic('sun', 16)} Planned solar</b><small>${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}${d ? ` · ${eur(d.sysCost)} after grant` : ''}${pb ? ` · pays back in ${pb.toFixed(1)} yrs` : ''}</small>${(() => { const t = api.stressHomeLine && api.stressHomeLine(); return t ? `<button class="ax-inline st-home" onclick="anTab('solar','result')">${api.ic('trendUp', 13)} ${t}</button>` : ''; })()}</span>
         <button onclick="toggleSolarModel()">Leave out</button></div>`;
     }
     const steps = solarRow || evRow ? `<div class="v7-steps">
@@ -451,6 +451,7 @@ export function createV7(api) {
           <span><b>${eur(d ? d.npv : 0)}</b>over 20 years</span>
         </span>
         <span class="hc-sub">${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}</span>
+        ${(() => { const t = api.stressHomeLine && api.stressHomeLine(); return t ? `<span class="hc-sub st-home">${api.ic('trendUp', 13)} ${t}</span>` : ''; })()}
         <button class="hc-go" onclick="anTab('solar','result')">Solar analysis ${api.ic('chevR', 14)}</button>
       </section>`;
     }
@@ -1219,6 +1220,7 @@ export function createV7(api) {
           </div>
           ${st.solar_is_estimate ? `<p class="ax-note solar-correct">Sized from your usage. Already have panels, or a quote for a specific system? <button class="ax-inline" onclick="openMySystem()">Set the exact system</button></p>` : ''}`,
       })}
+      ${api.renderStressCard ? api.renderStressCard() : ''}
       <section class="ax-card v7-months-card" role="button" tabindex="0" onclick="v7OpenMonth(event)" aria-label="Tap a month">
         <h2 class="ax-t">${monthsTitle}</h2>
         ${monthBars({ a: m.gen, b: m.cons, tokenA: '--ax-made', tokenB: '--bandink-day' })}
