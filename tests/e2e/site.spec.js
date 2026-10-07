@@ -59,3 +59,15 @@ test('the setup questions use the full width, in two panes', async ({ page }) =>
   const g = await page.evaluate(() => document.querySelector('.fl-grid').getBoundingClientRect().width);
   expect(g).toBeGreaterThan(1000);
 });
+
+test('no empty gap before What\'s next on the answer page', async ({ page }) => {
+  const { boot } = await import('./support.js');
+  await page.setViewportSize({ width: 1850, height: 960 });
+  await boot(page, {}, '/');
+  const gap = await page.evaluate(() => {
+    const next = document.querySelector('.web-next').getBoundingClientRect().top;
+    const above = [...document.querySelectorAll('.screen > *:not(.web-next)')].map((e) => e.getBoundingClientRect().bottom);
+    return next - Math.max(...above);
+  });
+  expect(gap).toBeLessThan(120);
+});

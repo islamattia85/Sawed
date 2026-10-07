@@ -2169,3 +2169,11 @@ html.web .app:has(> .pk-land), html.web .app[data-chrome="bare"]:has(> .pk-land)
 .wl .wl-eyebrow { text-transform: uppercase; letter-spacing: .08em; }
 html.web .app:has(> .fl), html.web .app[data-chrome="bare"]:has(> .fl),
 html.web .app:has(> .sg), html.web .app[data-chrome="bare"]:has(> .sg) { max-width: none; width: 100%; margin: 0; background: var(--bg); }
+@media (min-width: 1200px) {
+  html.web .screen.v7:has(> .v7-hero) { row-gap: 0; }
+  html.web .screen.v7:has(> .v7-hero) > * { margin-bottom: var(--space-3); }
+  html.web .screen.v7:has(> .v7-hero) > .web-next { margin-top: 24px; }
+}
+.web-after { max-width: 1120px; margin: 0 auto; padding: 0 24px 24px; }
+.web-after .web-next { margin-top: 8px; }
+@media (max-width: 899px) { .web-after { padding: 0 16px 16px; } }

@@ -3188,7 +3188,7 @@ function webDecorate(html){
     const navAt = html.search(/<div class="consent-bar|<nav class="bottom-nav/);
     const upto = navAt >= 0 ? navAt : html.length;
     const close = html.lastIndexOf('</div>', upto);
-    if (close > 0) html = html.slice(0, close) + end + html.slice(close);
+    if (close > 0) html = html.slice(0, close + 6) + `<div class="web-after">${end}</div>` + html.slice(close + 6);
   }
   const foot = `<footer class="wl-foot web-foot"><span>Peakless · independent, no commissions · your data stays on your device</span>
     <nav><a href="/" onclick="event.preventDefault();${front}">Peakless home</a><a href="/app">Mobile app</a></nav></footer>`;
