@@ -2177,3 +2177,6 @@ html.web .app:has(> .sg), html.web .app[data-chrome="bare"]:has(> .sg) { max-wid
 .web-after { max-width: 1120px; margin: 0 auto; padding: 0 24px 24px; }
 .web-after .web-next { margin-top: 8px; }
 @media (max-width: 899px) { .web-after { padding: 0 16px 16px; } }
+html.web .v7-top > .v7-brand, html.web .v7-top > .v7-brand-static { display: none; }
+.web-logo-ico { width: 36px; height: 36px; border-radius: var(--radius-lg); background: var(--brand-ink); color: var(--brand-mist); margin-right: 10px; }
+html.web .web-logo { gap: 0; }

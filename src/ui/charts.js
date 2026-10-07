@@ -24,7 +24,8 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /** Money to the euro, the way the app talks about money. */
-export const eur = (v) => `€${Math.round(v || 0).toLocaleString('en-IE')}`;
+/** Euros, rounded. A negative amount (money coming in) reads −€230, never €-230. */
+export const eur = (v) => { const n = Math.round(v || 0); return `${n < 0 ? '−' : ''}€${Math.abs(n).toLocaleString('en-IE')}`; };
 
 /**
  * Where a year's money goes, as one stacked bar.

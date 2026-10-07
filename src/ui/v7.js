@@ -71,7 +71,7 @@ export function createV7(api) {
     const st = S();
     const cur = st.current_screen === 'analytics' && st._an_tab === 'solar' ? 'solar' : st.current_screen;
     const n = api.alertCount();
-    return `<a class="web-logo" href="/" onclick="event.preventDefault();state._sheet=null;state.current_screen='welcome';renderApp();scrollTo(0,0)" aria-label="Peakless front page">${api.wordmark('pk-word-top')}</a>
+    return `<a class="web-logo" href="/" onclick="event.preventDefault();state._sheet=null;state.current_screen='welcome';renderApp();scrollTo(0,0)" aria-label="Peakless front page"><span class="v7-brand-mark web-logo-ico">${api.ic('logo', 22, 'stroke-width:1.6')}</span>${api.wordmark('pk-word-top')}</a>
     <nav class="web-links" aria-label="Main">${WEB_LINKS.map((l) => {
       const on = l.screens.includes(cur);
       return `<a href="#${l.id === 'usage' ? 'analytics' : l.id}" class="${on ? 'on' : ''}" aria-current="${on ? 'page' : 'false'}"
@@ -910,9 +910,13 @@ export function createV7(api) {
     }
     const covered = out.filter((m) => m.c > 0 && m.used > 0.5);
     const peak = out.reduce((a, m) => (m.after > a.after ? m : a), out[0]);
-    const free = covered.filter((m) => m.pay < 0.5);
+    // Counted from the month after the credit peaks, so a run that crosses
+    // New Year reads October to March, not January to December.
+    const free = covered.filter((m) => m.pay < 0.5).sort((a, b) => ((a.i - peak.i + 12) % 12) - ((b.i - peak.i + 12) % 12));
+    const billed = out.filter((m) => m.c > 0);
     const title = !covered.length ? fallbackTitle
-      : free.length ? `The credit built by ${MONTH[peak.i]} pays your bills ${free.length > 1 ? `in ${MONTH[free[0].i]} to ${MONTH[free[free.length - 1].i]}` : `in ${MONTH[free[0].i]}`}`
+      : free.length && free.length === billed.length ? `The summer credit pays every bill, all year`
+      : free.length ? `The credit built by ${MONTH[peak.i]} pays your bills ${free.length > 1 ? `from ${MONTH[free[0].i]} to ${MONTH[free[free.length - 1].i]}` : `in ${MONTH[free[0].i]}`}`
         : `Summer credit takes ${eur(covered.reduce((a, m) => a + m.used, 0))} off autumn’s bills`;
     const pos = Math.max(1, ...charge), neg = Math.max(0, ...charge.map((c) => -c));
     const H = 150, hp = Math.round(H * pos / (pos + neg)), hn = H - hp;
@@ -1013,9 +1017,11 @@ export function createV7(api) {
     try { const rec = api.getRecommendation(); health = api.computeEnergyScore(rec.best, rec.baseCost); } catch (e) { health = null; }
     return `${anHead('bill')}
       ${anAnswer({
-        k: `This home${homeWith() ? `, with ${homeWith()},` : ''} pays`,
-        big: eur(T.total), unit: 'a year',
-        line: `On ${esc(plan.supplier)} ${esc(plan.plan)}. ${api.fmtCent(T.total / Math.max(1, T.kwh))} a kWh, all in.`,
+        // Export can pay more than the bill: then the home is paid, not paying.
+        k: T.total < 0 ? `This home${homeWith() ? `, with ${homeWith()},` : ''} is paid` : `This home${homeWith() ? `, with ${homeWith()},` : ''} pays`,
+        big: eur(Math.abs(T.total)), unit: T.total < 0 ? 'a year, net' : 'a year',
+        line: T.total < 0 ? `On ${esc(plan.supplier)} ${esc(plan.plan)}. What you sell back is more than the whole bill.`
+          : `On ${esc(plan.supplier)} ${esc(plan.plan)}. ${api.fmtCent(T.total / Math.max(1, T.kwh))} a kWh, all in.`,
       })}
       ${anCard(partsTitle, `${stack(parts, parts.map((p) => `${p.label} ${p.val}`).join(', '))}${rows(parts)}${credit}`)}
       ${anCard(bill.title, bill.html)}
