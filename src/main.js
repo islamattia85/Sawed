@@ -3410,7 +3410,7 @@ function webDecorate(html){
     if (close > 0) html = html.slice(0, close + 6) + `<div class="web-after">${end}</div>` + html.slice(close + 6);
   }
   const foot = `<footer class="wl-foot web-foot"><span>Peakless · independent, no commissions · your data stays on your device</span>
-    <nav><a href="/" onclick="event.preventDefault();${front}">Peakless home</a><a href="/app">Mobile app</a></nav></footer>`;
+    <nav><a href="/" onclick="event.preventDefault();${front}">Peakless home</a><a href="#everything" onclick="event.preventDefault();setScreen('everything')">Everything in Peakless</a><a href="/app">Mobile app</a></nav></footer>`;
   return html + foot;
 }
 
@@ -3482,14 +3482,15 @@ function webDash(){
     <div class="wd-grid">
       ${card('s8', hd('Your bill, month by month', now ? `${esc(base.supplier)} now and ${esc(plan.supplier)}, on this home` : `On ${esc(plan.supplier)} ${esc(plan.plan)}`), month + `<div class="wd-legend">${now ? `<span><i style="background:var(--ink-dim);opacity:.5"></i>${esc(base.supplier)} ${esc(base.plan)}</span>` : ''}<span><i style="background:var(--accent)"></i>${esc(plan.supplier)} ${esc(plan.plan)}</span></div>`)}
       ${card('s4', hd(T.credit > 1 ? `You buy ${eur(spend)}, and are paid ${eur(T.credit)} back` : `Where ${eur(spend)} goes`, `On ${esc(plan.supplier)}: ${eur(T.total)} a year once the export is taken off`), where)}
-      ${card('s8', hd('Your day, hour by hour', 'average kWh, coloured by price band', `<button class="wd-link" onclick="state._an_from=null;anTab('hours')">Go through the year ${ic('chevR', 14)}</button>`), day + `<p class="wd-note">${dayLine}</p>`)}
-      ${card('s4', hd('Top plans for you', '', `<button class="wd-link" onclick="setScreen('plans')">All ${rec.ranked.length} ${ic('chevR', 14)}</button>`), plans)}
-      ${card('s4 wd-acc', hd('How sure we are', ''), `<div class="wd-big">±${acc.pct}%</div><div class="wd-bar"><i style="width:${Math.max(8, 100 - acc.pct * 4)}%"></i></div>${state._csv_imported ? '<p class="wd-note">Measured from your ESB meter file.</p>' : `<button class="wd-link" onclick="setScreen('csv-import')">Add your ESB meter file ${ic('chevR', 14)}</button>`}`)}
-      ${card('s8 wd-if', hd('What if…', 'see your answer with it'), `<div class="wd-ifs">
+      ${card('s8 wd-x', hd('Your day, hour by hour', 'average kWh, coloured by price band', `<button class="wd-link" onclick="state._an_from=null;anTab('hours')">Go through the year ${ic('chevR', 14)}</button>`), day + `<p class="wd-note">${dayLine}</p>`)}
+      ${card('s4 wd-x', hd('Top plans for you', '', `<button class="wd-link" onclick="setScreen('plans')">All ${rec.ranked.length} ${ic('chevR', 14)}</button>`), plans)}
+      ${card('s4 wd-acc wd-x', hd('How sure we are', ''), `<div class="wd-big">±${acc.pct}%</div><div class="wd-bar"><i style="width:${Math.max(8, 100 - acc.pct * 4)}%"></i></div>${state._csv_imported ? '<p class="wd-note">Measured from your ESB meter file.</p>' : `<button class="wd-link" onclick="setScreen('csv-import')">Add your ESB meter file ${ic('chevR', 14)}</button>`}`)}
+      ${card('s8 wd-if wd-x', hd('What if…', 'see your answer with it'), `<div class="wd-ifs">
         <button onclick="state._an_from=null;anTab('solar')"><b>${state.has_solar && totalPanels() > 0 ? 'Change your solar' : 'Add solar panels'}</b><span>Payback after the SEAI grant</span></button>
         <button onclick="setScreen('myhome')"><b>${state.battery_kwh > 0 ? 'Change the battery' : 'Add a battery'}</b><span>Fills on cheap hours, empties at peak</span></button>
         <button onclick="setScreen('myhome')"><b>${state.ev_active ? 'Change the car' : 'Get an electric car'}</b><span>What it costs to charge here</span></button></div>`)}
-    </div></div>`;
+    </div>
+    <button class="wl-btn wl-btn-g wd-more" onclick="this.closest('.web-dash').classList.add('is-open')">Show more: your day, top plans, accuracy</button></div>`;
 }
 
 /** The app's start, at "/app" before any setup: the three ways in. */
@@ -11798,6 +11799,51 @@ function renderMyHome(){
   ${V7.nav()}`;
 }
 
+/** Everything Peakless does, in one place, each with what it is for and a way straight in. */
+function renderEverything(){
+  const G = [
+    ['Your answer', [
+      ['euro', 'Your best plan and saving', 'The plan that costs least for your home, and how much it saves.', "setScreen('result')"],
+      ['doc', 'Download your report', 'A PDF of your answer, the plans, payback and method, to keep or give an installer.', 'openPdfReportModal()'],
+      ['link', 'Share your result', 'A link to your figures, without your personal details.', 'shareSavingsCard()'],
+    ]],
+    ['Your figures', [
+      ['euro', 'Bill, month by month', 'What you pay each month, where the money goes, and what you are paid back.', "state._an_from=null;anTab('bill')"],
+      ['clock', 'Your day, hour by hour', 'When you use power and what each hour costs, any day of the year.', "state._an_from=null;anTab('hours')"],
+      ['shield', 'How sure we are', 'What is measured and what is assumed, and how to tighten it.', "state._an_from=null;anTab('accuracy')"],
+      ['car', 'Electric car', 'What the car costs to charge here, and against petrol.', "state._an_from=null;anTab('car')"],
+    ]],
+    ['Plans', [
+      ['plans', 'Every plan, ranked on your home', 'All plans with their rates and each one’s day, priced on your year.', "setScreen('plans')"],
+      ['swap', 'Compare plans side by side', 'Tick Compare on two or more plans in the list.', "setScreen('plans')"],
+      ['external', 'Switch plan', 'A direct link to the plan on the supplier’s own site.', "setScreen('plans')"],
+    ]],
+    ['Solar and battery', [
+      ['sun', 'Would solar pay off?', 'Payback after the SEAI grant, and money ahead over 20 years.', "state._an_from=null;anTab('solar')"],
+      ['tune', 'Your system: panels, battery, inverter', 'Roof faces, panel count and rating, battery size and settings.', 'openMySystem()'],
+      ['trendUp', 'If prices change', 'A stress test: export pay halving, cheap nights ending, and when.', "state._an_from=null;anTab('solar')"],
+      ['clip', 'Check an installer’s quote', 'Is the price fair for the system, and does it pay back?', "setScreen('solar');v7Sheet('quote')"],
+    ]],
+    ['Your home', [
+      ['home', 'Usage, heating and current plan', 'Every answer the figures rest on. Change any of them.', "setScreen('myhome')"],
+      ['csv', 'ESB smart-meter file', 'Your real half-hour readings: the most exact figures.', "setScreen('csv-import')"],
+      ['rotate', 'Answer the questions again', 'Go through setup from the start, with your answers kept.', "startFlow('full')"],
+    ]],
+    ['Staying on top of it', [
+      ['bell', 'Updates and price watch', 'Price rises, cheaper plans, and your contract end date.', "setScreen('updates')"],
+      ['user', 'Account and sign in', 'Keep your home on every device.', "setScreen('account')"],
+      ['flask', 'How we work it out', 'The method, the sources and the assumptions.', "setScreen('methodology')"],
+    ]],
+  ];
+  return `${V7.topbar('Everything')}
+  <div class="screen v7 web-all">
+    <div class="web-page-head"><div class="wl-eyebrow">Everything in Peakless</div><h2 class="web-title">Find any part of it.</h2>
+      <p class="web-lede">New here? Start with <a href="#" onclick="event.preventDefault();setScreen('result')">your answer</a>, then look at your figures. Everything else is below.</p></div>
+    ${G.map(([g, items]) => `<section class="web-all-g"><h3>${g}</h3><div class="web-all-items">${items.map(([i, t, d, go]) => `<button class="web-all-it" onclick="${go}"><span class="web-all-ic">${ic(i, 20)}</span><span><b>${t}</b><small>${d}</small></span>${ic('chevR', 16)}</button>`).join('')}</div></section>`).join('')}
+  </div>
+  ${V7.nav()}`;
+}
+
 function v7OpenMonth(ev){
   const g = ev && ev.target && ev.target.closest ? ev.target.closest('[data-month]') : null;
   v7Sheet('months', g ? g.getAttribute('data-month') : '0');
@@ -11827,7 +11873,7 @@ function v7Choose(planId){
    ============================================================ */
 const APP_SCREENS = ['result','plans','plan-detail','solar','analytics','monitor','privacy','installer','me','updates','profile','account',
                      'compare','more','independence','quotes','auditor','refine',
-                     'how-to-switch','methodology','csv-import','myhome'];
+                     'how-to-switch','methodology','csv-import','myhome','everything'];
 
 // Set while we are reacting to a popstate, so restoring a screen doesn't
 // push a fresh entry and trap the user in a loop.
@@ -12337,6 +12383,7 @@ function renderApp(){
     case 'methodology':  html = renderMethodology(); break;
     case 'csv-import':   html = renderCsvImport(); break;
     case 'myhome':       html = renderMyHome(); break;
+    case 'everything':   html = renderEverything(); break;
     default:
       // Falling through to the home screen made every broken link look like a
       // working one that went somewhere odd — a dead button shipped and

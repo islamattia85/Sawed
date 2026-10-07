@@ -85,6 +85,7 @@ export function createV7(api) {
       <summary aria-label="Menu">${api.ic('menu', 22)}</summary>
       <div class="web-menu-list">${WEB_LINKS.map((l) => `<a href="#${l.id === 'usage' ? 'analytics' : l.id}" class="${l.screens.includes(cur) ? 'on' : ''}" onclick="event.preventDefault();this.closest('details').open=false;${l.go}">${esc(l.label)}${l.id === 'updates' && n ? ` <i class="web-badge">${n}</i>` : ''}</a>`).join('')}
         <a href="#updates" onclick="event.preventDefault();this.closest('details').open=false;setScreen('updates')">Updates${n ? ` <i class="web-badge">${n}</i>` : ''}</a>
+        <a href="#everything" onclick="event.preventDefault();this.closest('details').open=false;setScreen('everything')">${api.ic('grid', 16)} Everything in Peakless</a>
         <a href="#" onclick="event.preventDefault();this.closest('details').open=false;setTheme(state.theme==='dark'?'light':'dark')">${api.ic('contrast', 16)} Light or dark</a>
         ${document.documentElement.classList.contains('web') ? `<div class="web-menu-acct">${api.renderProfileNavBtn()}</div>` : ''}
         <a href="/app" class="web-menu-app">${api.ic('mobile', 16)} Mobile app</a></div>

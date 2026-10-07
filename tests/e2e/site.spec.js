@@ -93,3 +93,14 @@ test('the front page gives a real sample report for an email, and leaves your ow
   expect(after).toBe(before);
   expect(await page.evaluate(() => window.state.lead_queue.some((l) => l.source === 'sample_report'))).toBe(true);
 });
+
+test('Everything in Peakless lists every part, and each link goes somewhere', async ({ page }) => {
+  const { boot } = await import('./support.js');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await boot(page, {}, '/');
+  await page.locator('.web-menu summary').click();
+  await page.locator('.web-menu-list a', { hasText: 'Everything' }).click();
+  await expect(page.locator('.web-all-it')).toHaveCount(20);
+  await page.locator('.web-all-it', { hasText: 'Check an installer' }).click();
+  expect(await page.evaluate(() => window.state._sheet && window.state._sheet.kind)).toBe('quote');
+});
