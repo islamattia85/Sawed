@@ -3129,6 +3129,22 @@ function renderSite(){
   </div>`;
 }
 
+/** The website's own heading and footer around a page from the app. */
+function webDecorate(html){
+  const front = "state._sheet=null;state.current_screen='welcome';renderApp();scrollTo(0,0)";
+  if (state.current_screen === 'result'){
+    let b = null; try { b = getRecommendation().best; } catch (e) {}
+    if (b && b.plan){
+      const head = `<div class="web-page-head"><div class="wl-eyebrow">Your answer</div>
+        <h2 class="web-title">Every plan, priced on <em>your</em> home.</h2></div>`;
+      html = html.replace(/(<div class="screen v7[^>]*>)/, (m) => m + head);
+    }
+  }
+  const foot = `<footer class="wl-foot web-foot"><span>Peakless · independent, no commissions · your data stays on your device</span>
+    <nav><a href="/" onclick="event.preventDefault();${front}">Peakless home</a><a href="/#plans" onclick="event.preventDefault();${front}">Every plan we track</a><a href="/app">Mobile app</a></nav></footer>`;
+  return html + foot;
+}
+
 /** The app's start, at "/app" before any setup: the three ways in. */
 function renderWelcome(){
   const done = state.onboarding_complete;
@@ -8235,7 +8251,10 @@ function submitModalEmail(source){
    TOP BAR + BOTTOM NAV + RENDER ROUTER
    ============================================================ */
 function applyTheme(){
-  const t = (state && state.theme) === 'dark' ? 'dark' : 'light';
+  // The website follows the device's light or dark setting until the reader
+  // picks one; the mobile app keeps its own choice.
+  let sys = false; try { sys = WEB && !(state && state.theme_chosen) && matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+  const t = sys || (state && state.theme) === 'dark' && (!WEB || state.theme_chosen) ? 'dark' : 'light';
   // Literal palette applied three independent ways. The final line of defence
   // is a fixed underlay DIV painted behind all content — no body/canvas/
   // color-scheme quirk in any WebView can make the page background wrong.
@@ -8296,6 +8315,7 @@ function enhanceA11y(){
 
 function setTheme(t){
   state.theme = t === 'dark' ? 'dark' : 'light';
+  state.theme_chosen = true;
   applyTheme();
   saveState();
   renderApp();
@@ -11934,6 +11954,7 @@ function renderApp(){
 
   const held = holdPlace(root);
   root.setAttribute('data-chrome','app');
+  if (WEB) html = webDecorate(html);
   root.innerHTML = html;
   // A change tried on the system stays undoable from any screen until kept or undone.
   // Over an open sheet it goes in the sheet, where it can be reached.

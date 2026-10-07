@@ -2029,3 +2029,28 @@ html.web .v7-plan:hover { border-color: var(--ink-dim); }
   html.web .v7-top, html.web .v7-top.v7-top-sub { grid-template-columns: 1fr auto auto auto auto; gap: 4px; }
   html.web .v7-top .v7-home-back, html.web .v7-top .v7-brand-static { display: none; }
 }
+
+/* ---------- website: answer page in the front page's style ---------- */
+.web-page-head { display: grid; gap: 8px; }
+.web-title { font: 600 32px/1.08 "Fraunces", Georgia, serif; letter-spacing: -.02em; margin: 0; color: var(--ink); text-wrap: balance; }
+.web-title em { font-style: italic; color: var(--accent); }
+@media (min-width: 900px) { .web-title { font-size: 40px; } }
+html.web .screen.v7:has(> .v7-hero) > .web-page-head { grid-column: 1 / -1; grid-row: 1; margin-bottom: var(--space-3); }
+@media (min-width: 1200px) { html.web .screen.v7:has(> .web-page-head) > .v7-hero { grid-row: 2 / span 20; } }
+html.web .v7-figure > span:first-child { font-family: "Fraunces", Georgia, serif; font-weight: 600; letter-spacing: -.02em; }
+html.web .ct { display: grid; gap: 12px; }
+html.web .ct-btn, html.web .ct-btn.is-second {
+  background: var(--panel); color: var(--ink); border: 1px solid var(--hair); border-radius: var(--radius-xl);
+  padding: 20px; box-shadow: none; text-align: left;
+}
+html.web .ct-btn b { font: 750 20px/1.2 var(--display); color: var(--ink); }
+html.web .ct-btn small { color: var(--ink-soft); font-size: 15px; }
+html.web .ct-btn:not(.is-second) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+html.web .ct-btn:not(.is-second) b { color: var(--accent); }
+html.web .ct-btn:hover { transform: translateY(-2px); border-color: var(--accent); }
+html.web .ax-doors-h b { font: 600 25px/1.15 "Fraunces", Georgia, serif; }
+html.web .ax-door, html.web .ax-tile { background: var(--panel); border: 1px solid var(--hair); box-shadow: none; border-radius: var(--radius-xl); }
+html.web .ax-door:hover, html.web .ax-tile:hover { border-color: var(--accent); }
+html.web .ax-door b svg { color: var(--accent); }
+.web-foot { max-width: 1200px; margin: 24px auto 0; padding: 24px 24px 40px; }
+html.app-mode .web-foot { display: none; }
