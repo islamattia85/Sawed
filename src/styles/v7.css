@@ -2002,3 +2002,30 @@ html.web .v7-top, html.web .v7-top.v7-top-sub { grid-template-columns: auto auto
 @media (max-width: 620px) { .wl-applink span { display: none; } }
 /* The mobile app on a computer: the phone layout, centred. */
 html.app-mode body { background: var(--bg); }
+
+/* ---------- website pages in the front page's style ----------
+   Same serif headings, green eyebrows, white cards with a thin edge and no
+   lift, and the same top bar: logo, menu, light/dark, "Check my plans". */
+.web-theme, .web-cta { display: none; }
+html.web .v7-top, html.web .v7-top.v7-top-sub { grid-template-columns: auto auto 1fr auto auto auto auto; }
+html.web .web-theme { display: grid; place-items: center; width: 40px; height: 40px; border: 0; background: none; color: var(--ink-soft); border-radius: var(--radius-pill); cursor: pointer; }
+html.web .web-theme:hover { background: var(--well); color: var(--ink); }
+html.web .web-cta { display: inline-flex; border: 0; border-radius: var(--radius-pill); padding: 10px 18px; background: var(--accent); color: var(--on-accent, #fff); font: 700 15px var(--display); white-space: nowrap; cursor: pointer; }
+@media (min-width: 900px) and (max-width: 1199px) { html.web .web-cta { display: none; } }
+@media (max-width: 420px) { html.web .web-cta { padding: 9px 14px; font-size: 13px; } html.web .v7-top-end .profile-nav-btn span { display: none; } }
+html.web .v7-page-head .v7-h, html.web .web-home-head .v7-h {
+  font: 600 32px/1.08 "Fraunces", Georgia, serif; letter-spacing: -.02em; text-wrap: balance;
+}
+html.web .v7-page-head::before, html.web .web-home-head::before {
+  font: 700 13px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--accent);
+}
+html.web .v7-plans .v7-page-head::before { content: "Compare plans"; }
+html.web .web-home-head::before { content: "My home"; }
+@media (min-width: 900px) { html.web .v7-page-head .v7-h, html.web .web-home-head .v7-h { font-size: 40px; } }
+html.web .v7-hero, html.web .web-sec, html.web .web-detail, html.web .ax-card { box-shadow: none; border: 1px solid var(--hair); }
+html.web .v7-plan { background: var(--panel); border: 1px solid var(--hair); box-shadow: none; border-radius: var(--radius-xl); }
+html.web .v7-plan:hover { border-color: var(--ink-dim); }
+@media (max-width: 899px) {
+  html.web .v7-top, html.web .v7-top.v7-top-sub { grid-template-columns: 1fr auto auto auto auto; gap: 4px; }
+  html.web .v7-top .v7-home-back, html.web .v7-top .v7-brand-static { display: none; }
+}

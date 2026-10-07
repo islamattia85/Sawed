@@ -79,6 +79,8 @@ export function createV7(api) {
       return `<a href="#${l.id === 'usage' ? 'analytics' : l.id}" class="${on ? 'on' : ''}" aria-current="${on ? 'page' : 'false'}"
         onclick="event.preventDefault();${l.go}">${esc(l.label)}${l.id === 'updates' && n ? ` <i class="web-badge">${n}</i>` : ''}</a>`;
     }).join('')}</nav>
+    <button class="web-theme" onclick="setTheme(state.theme==='dark'?'light':'dark')" aria-label="Switch light or dark">${api.ic('contrast', 20)}</button>
+    <button class="web-cta" onclick="setScreen('plans')">Check my plans</button>
     <details class="web-menu">
       <summary aria-label="Menu">${api.ic('menu', 22)}</summary>
       <div class="web-menu-list">${WEB_LINKS.map((l) => `<a href="#${l.id === 'usage' ? 'analytics' : l.id}" class="${l.screens.includes(cur) ? 'on' : ''}" onclick="event.preventDefault();this.closest('details').open=false;${l.go}">${esc(l.label)}${l.id === 'updates' && n ? ` <i class="web-badge">${n}</i>` : ''}</a>`).join('')}
