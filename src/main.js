@@ -105,7 +105,7 @@ async function sbInit(){
  * the person to choose. Saved quotes from both are always kept. */
 
 // What describes this screen rather than the household is never synced.
-const NO_SYNC = ['_flow', '_flow_edit', '_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_solar_more', '_an_tab', '_an_from', '_an_pick', '_an_note', '_an_day_open', '_an_mon', '_sheet', '_sys_saving', '_sys_name', '_fine_open', '_settings_open', '_return_to', '_lead_form',
+const NO_SYNC = ['_flow', '_flow_edit', '_flow_intent', '_flow_given', '_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_solar_more', '_an_tab', '_an_from', '_an_pick', '_an_note', '_an_day_open', '_an_mon', '_sheet', '_sys_saving', '_sys_name', '_fine_open', '_settings_open', '_return_to', '_lead_form',
   '_tariff_refreshing', '_expert_open', '_account_id', '_saved_at'];
 let _sync = { status: 'idle', at: null };
 let _syncTimer = null;
@@ -2256,17 +2256,20 @@ function generateAdvice(best){
    13. QUOTE AUDITOR — evaluates an installer quote against
    2026 Irish market benchmarks.
    ============================================================ */
+/**
+ * The usual price range for a system: the app's own guide price, give or take
+ * 15%. Every quote check uses it, so a quote at the guide price that setup
+ * offers is never called over the odds by another screen. (The checks once had
+ * their own, older per-kWp figures, which called the guide price "Premium".)
+ */
+function fairRange(kwp, battKwh){
+  const mid = estimateInstallCost(kwp, battKwh || 0);
+  return { mid, lo: Math.round(mid * 0.85 / 100) * 100, hi: Math.round(mid * 1.15 / 100) * 100 };
+}
 function auditQuote(quotedPrice, numPanels, batteryKwh){
   // Assume 440W panels (mid-market reference)
   const kwp = numPanels * 440 / 1000;
-  // Market benchmarks (€ per kWp installed for panels+inverter)
-  const PANEL_LO = 950, PANEL_HI = 1200;
-  // Battery (€ per kWh capacity, installed)
-  const BATT_LO = 350, BATT_HI = 480;
-  // Fixed overhead: SEAI cert, scaffolding, basic wiring
-  const FIXED_LO = 1100, FIXED_HI = 1300;
-  const expLo = kwp * PANEL_LO + batteryKwh * BATT_LO + FIXED_LO;
-  const expHi = kwp * PANEL_HI + batteryKwh * BATT_HI + FIXED_HI;
+  const { lo: expLo, hi: expHi } = fairRange(kwp, batteryKwh);
   const expMid = (expLo + expHi) / 2;
   // Verdict
   let verdict, color, headline, advice;
@@ -3061,7 +3064,7 @@ function doorsHtml(site){
   return `<section class="wl-doors pk-land-actions" aria-label="Start here">
     ${door('quick', "startFlow('quick')", 'is-main', 'Am I paying too much?', 'Your bill and your plan, and we rank every plan for your home.', ic('euro', 22), 'About a minute')}
     ${door('full', "startFlow('full')", '', 'Planning solar, a battery or an EV', 'Roof, panels, battery and car, one question at a time. Payback after the SEAI grant.', ic('sun', 20) + ic('battery', 20) + ic('car', 20), 'A few minutes')}
-    ${door('meter', "startFlow('quick')", '', 'Start from my ESB meter file', 'Your real half-hour readings from esbnetworks.ie. The most exact answer there is.', ic('csv', 22), 'About a minute')}
+    ${door('meter', "startFlow('quick', 'meter')", '', 'Start from my ESB meter file', 'Your real half-hour readings from esbnetworks.ie. The most exact answer there is.', ic('csv', 22), 'About a minute')}
   </section>`;
 }
 /** Every plan Peakless tracks, with its rates: public, no home needed. */
@@ -3084,7 +3087,7 @@ function sitePlans(){
     ${bandLegend()}
     <div class="wl-plans-foot">
       <button class="wl-btn wl-btn-g" onclick="this.closest('.wl-plans').querySelector('.wl-more').hidden=false;this.remove()">Show all ${live.length} plans</button>
-      <button class="wl-btn wl-btn-p" onclick="startFlow('quick')">Price them on my home</button>
+      <button class="wl-btn wl-btn-p" onclick="siteGo('plans')">Price them on my home</button>
     </div>
   </section>`;
 }
@@ -3146,7 +3149,7 @@ function demoCard(){
     <div class="wl-res">${rows.map((r, i) => `<div class="wl-rrow ${i === 0 ? 'is-best' : ''}"><div class="wl-who">${r.p.supplier}<small>${r.p.plan.replace('Home Electric+ ', '').replace('Home Electric + ', '')}</small></div>
       <div class="wl-track"><i style="width:${Math.max(4, Math.max(0, r.c) / max * 100)}%"></i></div><b>${eur(r.c)}</b></div>`).join('')}</div>
     <div class="wl-demo-f"><p>Cheapest here: <b>${rows[0].p.supplier} ${rows[0].p.plan.replace('Home Electric+ ', '').replace('Home Electric + ', '')}</b>. A simple model on real rates; the app prices your own home hour by hour.</p>
-      <button class="wl-btn wl-btn-p" onclick="startFlow('quick')">Do it for my home</button></div>
+      <button class="wl-btn wl-btn-p" onclick="siteGo('home')">Do it for my home</button></div>
   </div>`;
 }
 /**
@@ -3213,41 +3216,56 @@ function whyChart(){
 }
 
 /**
+ * The front page's example home, worked out on the demo's model with the
+ * app's own guide price and SEAI grant, so the hero card, the payback preview
+ * and the quote line agree with each other and with what setup would say.
+ */
+function exampleSolar(){
+  const home = { heat: 'gas', solar: 'none', batt: '0', ev: 'no' };
+  const best = (o) => Math.min(...DEMO_PLANS.map(getPlanById).filter(Boolean).map((p) => demoCost(p, o)));
+  const before = best(home), after = best({ ...home, solar: '12' }), withBatt = best({ ...home, solar: '12', batt: '10' });
+  const kwp = 12 * 460 / 1000, gross = estimateInstallCost(kwp, 0), grant = Math.min(1800, Math.round(Math.min(kwp, 2) * 900));
+  const net = gross - grant, save = Math.max(1, before - after);
+  // A 10 kWh battery: what it adds, against what it costs after its €600 grant.
+  const battCost = estimateInstallCost(kwp, 10) - gross - 600, battPb = battCost / Math.max(1, after - withBatt);
+  const dp = demoProfile(home), kwh = Math.round(dp.u.reduce((a, b) => a + b, 0) * 365 / 100) * 100;
+  const quote = Math.round(gross * 1.3 / 100) * 100, over = Math.round((quote / fairRange(kwp, 0).mid - 1) * 100);
+  return { kwh, save, gross, grant, net, pb: net / save, battPb, quote, over };
+}
+/**
  * The front page's picture is the product itself: a solar answer for an
  * example home, drawn like the real screen, so the visit starts with what
  * someone actually gets.
  */
 function heroArt(){
-  const cost = 10200, save = 1350, Y = 25, pb = cost / save;
+  const E = exampleSolar(), cost = E.net, save = E.save, Y = 25, pb = E.pb;
   const x = (t) => 8 + t * 11.4, y = (v) => 52 - v / 500;
   let d = `M${x(0)},${y(-cost)}`; for (let t = 1; t <= Y; t++) d += ` L${x(t)},${y(save * t - cost)}`;
   return `<figure class="wl-shot" aria-label="An example solar answer from Peakless">
-    <div class="wl-shot-k">${ic('home', 14)} Example home · 4,600 kWh a year · south roof · EV</div>
-    <div class="wl-shot-v"><span class="wl-shot-ok">${ic('checkC', 18)}</span><div><b>Yes, solar pays here.</b><small>12 panels. Hold off on a battery for now.</small></div></div>
-    <div class="wl-shot-n"><div><b>${pb.toFixed(1)} yrs</b><span>to pay back</span></div><div><b>+${eur(save * Y - cost)}</b><span>over ${Y} years</span></div><div><b>${eur(cost)}</b><span>after the grant</span></div></div>
+    <div class="wl-shot-k">${ic('home', 14)} Example home · ${E.kwh.toLocaleString('en-IE')} kWh a year · gas heating · south roof</div>
+    <div class="wl-shot-v"><span class="wl-shot-ok">${ic('checkC', 18)}</span><div><b>Yes, solar pays here.</b><small>12 panels. ${E.battPb > 12 ? 'Hold off on a battery for now.' : 'A battery pays too.'}</small></div></div>
+    <div class="wl-shot-n"><div><b>${pb.toFixed(1)} yrs</b><span>to pay back</span></div><div><b>${eur(save)}</b><span>saved a year</span></div><div><b>${eur(cost)}</b><span>after the grant</span></div></div>
     <svg viewBox="0 0 300 96" width="100%" aria-hidden="true" class="wl-mini">
       <line x1="8" x2="294" y1="${y(0)}" y2="${y(0)}" class="axis"/>
       <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
       <circle cx="${x(pb)}" cy="${y(0)}" r="4.5" fill="var(--panel)" stroke="var(--accent)" stroke-width="2.5"/>
       ${T(x(pb) + 6, y(0) + 16, 'break-even', 'class="g"')}${T(8, 92, 'today', '')}${T(294, 92, `year ${Y}`, 'text-anchor="end"')}</svg>
-    <div class="wl-shot-q">${ic('clip', 14)}<span>Installer quote <b>€11,900</b> for 12 panels</span><em>€900 above fair</em></div>
+    <div class="wl-shot-q">${ic('clip', 14)}<span>Installer quote <b>${eur(E.quote)}</b> for 12 panels</span><em>${E.over}% high</em></div>
   </figure>`;
 }
 
 /** The four people who come here, each with the question they arrive with. */
 function whoStrip(){
-  const done = state.onboarding_complete;
-  const quote = done ? "setScreen('solar');v7Sheet('quote')" : 'navigateAuditor()';
   const W = [
-    ['sun', 'Thinking about solar', 'Is it worth it on my roof? How many panels? Do I need a battery?', "startFlow('full')", 'Check my roof'],
-    ['clip', 'I have a quote', 'Is the price fair? Is the system the right size for my home?', quote, 'Check my quote'],
-    ['battery', 'I already have panels', 'Am I on the right plan to sell my spare power? Would a battery pay?', "startFlow('full')", 'Check my setup'],
-    ['car', 'Getting an EV', 'What will it add to my bill? Does solar make more sense with a car?', "startFlow('full')", 'Check with a car'],
+    ['sun', 'Thinking about solar', 'Is it worth it on my roof? How many panels? Do I need a battery?', "siteGo('solar')", 'Check my roof'],
+    ['clip', 'I have a quote', 'Is the price fair? Is the system the right size for my home?', "siteGo('quote')", 'Check my quote'],
+    ['battery', 'I already have panels', 'Am I on the right plan to sell my spare power? Would a battery pay?', "siteGo('have')", 'Check my panels'],
+    ['car', 'Getting an EV', 'What will it add to my bill? Does solar make more sense with a car?', "siteGo('ev')", 'Check with a car'],
   ];
   return `<section class="wl-band wl-who" id="who"><div class="wl-in">
     <div class="wl-sh"><div class="wl-eyebrow">Start where you are</div><h2 class="wl-h2">Which one sounds like you?</h2></div>
     <div class="wl-who4">${W.map(([i, t, q, go, b]) => `<button class="wl-whocard" onclick="${go}"><span class="wl-how3-ic">${ic(i, 20)}</span><b>${t}</b><small>${q}</small><span class="wl-who-go">${b} ${ic('chevR', 14)}</span></button>`).join('')}</div>
-    <p class="wl-who-alt">Just want a cheaper plan? <button class="pk-link" onclick="startFlow('quick')">Compare every plan on my home</button></p>
+    <p class="wl-who-alt">Just want a cheaper plan? <button class="pk-link" onclick="siteGo('plans')">Compare every plan on my home</button></p>
   </div></section>`;
 }
 
@@ -3256,7 +3274,7 @@ function howStrip(){
   const st = [['home', 'Tell us about your home', 'Your bill or ESB meter file, heating, panels, battery, car.'],
     ['clock', 'We price every hour', 'Your year, 8,760 hours, on every plan in Ireland.'],
     ['checkC', 'You get a clear answer', 'Whether solar pays, what size, and the right plan to go with it.']];
-  return `<section class="wl-how3" aria-label="How it works">${st.map(([i, t, d], k) => `<div><span class="wl-how3-ic">${ic(i, 20)}</span><b><i>${k + 1}</i> ${t}</b><small>${d}</small></div>`).join('')}</section>`;
+  return `<section class="wl-how3" id="how" aria-label="How it works">${st.map(([i, t, d], k) => `<div><span class="wl-how3-ic">${ic(i, 20)}</span><b><i>${k + 1}</i> ${t}</b><small>${d}</small></div>`).join('')}</section>`;
 }
 
 /**
@@ -3297,7 +3315,7 @@ function showPlans(){
     ${T(4, 130, `${TARIFFS.filter((t) => !t.discontinued).length} plans, rates checked this week`, 'class="mute-t"')}</svg>`;
 }
 function showPayback(){
-  const cost = 10200, save = 1350, Y = 20, x = (t) => 22 + t * 11.4, y = (v) => 70 - v / 300;
+  const E = exampleSolar(), cost = E.net, save = E.save, Y = 20, x = (t) => 22 + t * 11.4, y = (v) => 70 - v / 300;
   let d = `M${x(0)},${y(-cost)}`; for (let t = 1; t <= Y; t++) d += ` L${x(t)},${y(save * t - cost)}`;
   const pb = cost / save;
   return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
@@ -3335,7 +3353,9 @@ function showReport(){
 function renderSite(){
   const done = state.onboarding_complete;
   const n = TARIFFS.filter((t) => !t.discontinued).length;
-  const go = done ? "setScreen('result')" : "startFlow('quick')";
+  const go = done ? "setScreen('result')" : "siteGo('home')";
+  // Someone with an answer opens the app on it, not on its start page.
+  const app = done ? APP_HREF + '#result' : APP_HREF;
   const strip = (id) => { const p = getPlanById(id); return p ? rateStrip({ bands: Array.from({ length: 24 }, (_, h) => bandAt(h, p)), rates: p.rates, height: 10 }) : ''; };
   // The worked example: the same simple model, one change at a time.
   
@@ -3357,9 +3377,9 @@ function renderSite(){
     <header class="wl-bar">
       <a class="wl-logo" href="/" onclick="event.preventDefault();scrollTo({ top: 0, behavior: 'smooth' })" aria-label="Peakless, back to the top"><span class="pk-land-icon">${ic('logo', 22, 'stroke-width:1.6')}</span>${wordmarkHtml('pk-word-top')}</a>
       <nav class="wl-nav" aria-label="Site"><a href="#who">Start here</a><a href="#how">How it works</a><a href="#types">Plan types</a><a href="#plans">Every plan</a><a href="#faq">Questions</a></nav>
-      <div class="wl-bar-end"><a class="wl-applink" href="${APP_HREF}">${ic('mobile', 16)}<span>Get the app</span></a>
+      <div class="wl-bar-end"><a class="wl-applink" href="${app}">${ic('mobile', 16)}<span>Get the app</span></a>
         ${done ? '' : renderProfileNavBtn()}
-        <button class="wl-btn wl-btn-p" onclick="${go}">${done ? 'My answer' : 'Check my plans'}</button></div>
+        <button class="wl-btn wl-btn-p" onclick="${go}">${done ? 'My answer' : 'Check my home'}</button></div>
     </header>
 
     <section class="wl-hero">
@@ -3367,7 +3387,7 @@ function renderSite(){
         <div class="wl-eyebrow">Solar, batteries and EVs in Ireland</div>
         <h1 class="wl-h1">Should you get solar? We'll work it out on <em>your</em> home.</h1>
         <p class="wl-lede">How many panels, whether a battery pays, if a quote is fair, and which plan to be on after. Worked out hour by hour on your own year, against all ${n} plans in Ireland.</p>
-        <div class="wl-cta"><button class="wl-btn wl-btn-p wl-btn-lg" onclick="${done ? "setScreen('solar')" : "startFlow('full')"}">${done ? 'See my solar answer' : 'Check if solar pays for me'}</button><button class="wl-btn wl-btn-g wl-btn-lg" onclick="${go}">${done ? 'My plans' : 'Just compare plans'}</button></div>
+        <div class="wl-cta"><button class="wl-btn wl-btn-p wl-btn-lg" onclick="siteGo('solar')">${done ? 'See my solar answer' : 'Check if solar pays for me'}</button><button class="wl-btn wl-btn-g wl-btn-lg" onclick="siteGo('plans')">${done ? 'My plans' : 'Just compare plans'}</button></div>
         <div class="wl-proof"><div><b>${n}</b><span>plans, rates checked this week</span></div><div><b>8,760</b><span>hours priced, not averages</span></div><div><b>€0</b><span>commission from suppliers</span></div></div>
       </div>
       ${heroArt()}
@@ -3422,14 +3442,13 @@ function renderSite(){
       <div class="wl-steps3">
         ${ex.steps.map((st, i) => `<div class="wl-step ${i === ex.steps.length - 1 ? 'is-win' : ''}"><span>${i ? 'Step ' + i : 'Today'}</span><div><b>${st.t}</b><small>${st.s}</small></div><em>${eur(st.c)}</em></div>`).join('')}
       </div>
-      <button class="wl-btn wl-btn-p wl-ex-go" onclick="${go}">Do it for my home</button></div></section>` : ''}}
+      <button class="wl-btn wl-btn-p wl-ex-go" onclick="${go}">Do it for my home</button></div></section>` : ''}
 
-    <section class="wl-band wl-tint" id="how"><div class="wl-in">
+    <section class="wl-band wl-tint" id="trust"><div class="wl-in">
       <div class="wl-sh"><div class="wl-eyebrow">Why trust it</div><h2 class="wl-h2">Built to be checked, not trusted blindly.</h2></div>
       <div class="wl-trust4"><div><b>Rates read from suppliers</b><span>Each plan dated and linked to its source.</span></div><div><b>Price rises counted</b><span>Announced increases are in the yearly figure.</span></div><div><b>Your data stays yours</b><span>Saved on your device unless you make an account.</span></div><div><b>Accuracy shown</b><span>Every answer says how sure it is.</span></div></div>
     </div></section>
 
-    ${doorsHtml(true)}
     ${sitePlans()}
 
     <section class="wl-band" id="faq"><div class="wl-in">
@@ -3442,9 +3461,9 @@ function renderSite(){
         <details><summary>Does it work for solar I already have?</summary><p>Yes. We count what the panels make, what you sell back and what the battery shifts, and rank the plans with all of that in.</p></details>
       </div></div></section>
 
-    <section class="wl-in wl-endwrap"><div class="wl-endcta"><div><h2 class="wl-h2">Find your cheapest plan in about a minute.</h2><p>Free, no account needed. Prefer an app? <a href="${APP_HREF}">The Peakless mobile app</a> gives the same answers.</p></div><button class="wl-btn wl-btn-gold wl-btn-lg" onclick="${go}">${done ? 'See my answer' : 'Check my plans'}</button></div></section>
+    <section class="wl-in wl-endwrap"><div class="wl-endcta"><div><h2 class="wl-h2">${done ? 'Your answer is saved on this device.' : 'Find out if solar pays on your home.'}</h2><p>Free, no account needed. Prefer an app? <a href="${app}">The Peakless mobile app</a> gives the same answers on your phone’s home screen.</p></div><button class="wl-btn wl-btn-gold wl-btn-lg" onclick="${done ? go : "siteGo('solar')"}">${done ? 'See my answer' : 'Check if solar pays for me'}</button></div></section>
     <footer class="wl-foot"><span>Peakless · independent, no commissions · your data stays on your device</span>
-      <nav><a href="#how">How it works</a><a href="#plans">Every plan</a><a href="${APP_HREF}">Mobile app</a></nav></footer>
+      <nav><a href="#how">How it works</a><a href="#plans">Every plan</a><a href="${app}">Mobile app</a></nav></footer>
   </div>`;
 }
 
@@ -3639,7 +3658,7 @@ function renderWelcome(){
     </section>
     ${doorsHtml(false)}
     <section class="wl-app-foot">
-      <button class="pk-link wl-quote" onclick="${done ? "setScreen('solar');v7Sheet('quote')" : 'navigateAuditor()'}">${ic('clip', 14)} Already have a solar quote? Check it</button>
+      <button class="pk-link wl-quote" onclick="${done ? "setScreen('solar');v7Sheet('quote')" : "startFlow('full', 'quote')"}">${ic('clip', 14)} Already have a solar quote? Check it</button>
     </section>
   </div>`;
 }
@@ -5393,28 +5412,43 @@ let _sgBefore = null;
  */
 function startSolarFlow(){
   if (!state.onboarding_complete) return startSolarGuide();
-  _flowBefore = structuredClone(state); _flowFrom = state.current_screen || 'result';
-  const f = { bill: state.bimonthly_bill_eur || 250,
+  startTopicFlow('solar');
+}
+/** The home's answers as setup answers, with solar left open. */
+function flowFromState(){
+  const f = { bill: state._csv_imported ? 'meter' : state.usage_input_mode === 'kwh' && state.annual_kwh ? 'kwh:' + state.annual_kwh : (state.bimonthly_bill_eur || 250),
     plan: state.baseline_known ? state.baseline : 'unsure', heat: state.heating_type || 'gas',
     ev: state.ev_active ? (state.ev_in_bill ? 'have' : 'thinking') : 'no',
     meter: state.meter_type || 'smart', area: state.area || 'urban' };
   if (state.region_asked) f.where = state.region;
-  if (f.heat === 'gas') f.night = state.immersion_night ? 'immersion' : 'no';
+  if (f.heat === 'gas' && f.bill !== 'meter') f.night = state.immersion_night ? 'immersion' : 'no';
+  if ((f.heat === 'heatpump' || f.heat === 'storage') && f.bill !== 'meter') f.heattime = state.heat_time === 'night' ? 'night' : 'day';
   if (state.baseline_known) f.disc = state.baseline_discount_pct || 0;
   // Only the solar questions are open: gas not answered yet stays as it is (not asked here).
   if (f.heat === 'gas'){ f.gas = state.gas_same_supplier || 'no'; if (f.gas === 'yes') f.gasbill = state.gas_bill_eur || 0; }
-  if (state.ev_active){ f.km = state.ev_km_per_year || 16000; f.car = state.ev_kwh_per_100km || 17; }
+  if (state.ev_active){ f.km = state.ev_km_per_year || 16000; f.car = state.ev_kwh_per_100km || 17; if (f.ev === 'have') f.evtime = state.ev_charge_time === 'evening' ? 'evening' : 'night'; }
+  return f;
+}
+/**
+ * One topic opened from an answer ("Thinking about solar?", "I have panels"):
+ * the home's other answers are filled in, so only that topic's questions are
+ * open. Leaving early puts the home back as it was.
+ */
+function startTopicFlow(topic){
+  _flowBefore = structuredClone(state); _flowFrom = state.current_screen === 'welcome' ? 'result' : state.current_screen || 'result';
   guidePush('flow', 0);
-  state._flow = f; state._flow_edit = null; state._flow_mode = 'full';
+  state._flow = flowFromState(); state._flow_edit = null; state._flow_mode = 'full'; state._flow_intent = topic;
+  state._flow_given = Object.keys(state._flow).concat('solar');
   state.current_screen = 'flow';
-  flowAnswer('solar', 'thinking');
+  flowAnswer('solar', topic === 'have' ? 'have' : 'thinking');
+  requestAnimationFrame(() => window.scrollTo(0, 0));
 }
 let _flowBefore = null, _flowFrom = 'result';
 /** Back out of a topic opened from Home: nothing it changed is kept. */
 function flowLeave(){
   const to = _flowBefore ? _flowFrom : 'result';
   if (_flowBefore){ const b = _flowBefore; _flowBefore = null; Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, b); invalidate(); }
-  state._flow = null; setScreen(to);
+  state._flow = null; state._flow_intent = null; setScreen(to);
 }
 function startSolarGuide(){
   // Nothing the guide changes counts until its answer is accepted: leaving
@@ -5819,29 +5853,81 @@ function flowSteps(){
       out.push('price', 'grant');
     }
     if (q === 'solar' && f.solar === 'thinking'){
-      out.push('house', 'roof', 'tilt', 'system');
+      // A quote already says the size, so the house type (how many panels fit) isn't asked.
+      out.push(...(state._flow_intent === 'quote' ? [] : ['house']), 'roof', 'tilt', 'system');
       if (f.system === 'custom') out.push('panels', 'battery');
       out.push('price', 'grant');
     }
     if (q === 'ev' && (f.ev === 'have' || f.ev === 'thinking')) out.push('km', 'car');
     if (q === 'ev' && f.ev === 'have') out.push('evtime');
   }
+  const first = (FLOW_INTENT[state._flow_intent] || {}).first;
+  if (first){ const head = first.filter((k) => out.includes(k)); return head.concat(out.filter((k) => !head.includes(k))); }
   return out;
 }
 /* Guides keep their own history entries, so the phone's Back gesture steps
    back through them instead of leaving the app or skipping two screens. */
 function guidePush(kind, step){ try { history.pushState({ guide: kind, step }, '', '#' + kind); } catch (e) {} }
 
-function startFlow(mode){
+function startFlow(mode, intent){
   guidePush('flow', 0);
-  state._flow = {}; state._flow_edit = null;
+  state._flow = {}; state._flow_edit = null; state._flow_given = [];
   state._flow_mode = mode === 'quick' ? 'quick' : 'full';
+  state._flow_intent = FLOW_INTENT[intent] ? intent : null;
   if (!state.region) state.region = 'east';
   state.usage_input_mode = 'bill';
   if (!state.baseline){ state.baseline = 'EI-24'; state.baseline_known = false; }
   state.current_screen = 'flow';
-  saveState(); renderApp();
+  saveState();
+  // What the way in already said is answered, so the first question is the one it promised.
+  const pre = (FLOW_INTENT[intent] || {}).pre || [];
+  state._flow_given = pre.map(([q]) => q);
+  if (pre.length) pre.forEach(([q, v]) => flowAnswer(q, v)); else renderApp();
+  // Every way in starts at the top of setup, wherever the page was scrolled.
+  requestAnimationFrame(() => window.scrollTo(0, 0));
 }
+/**
+ * The ways into setup from the website, each with what it already tells us,
+ * which questions come first, and how setup names itself. A route that says
+ * "Check my roof" opens on the roof, not on the bill.
+ */
+const FLOW_INTENT = {
+  solar: { t: 'Does solar pay on your home?', s: 'Your roof first, then your bill and heating, so the panels are sized for you. About 3 minutes.',
+    pre: [['solar', 'thinking']], first: ['solar', 'where', 'house', 'roof', 'tilt'],
+    chap: { solar: 'Your roof', where: 'Your roof', house: 'Your roof', roof: 'Your roof', tilt: 'Your roof', system: 'Your system', panels: 'Your system', battery: 'Your system', price: 'Your system', grant: 'Your system' } },
+  have: { t: 'Getting the most from your panels', s: 'Your panels first, then your bill. We work out what they make and which plan pays best for the power you sell. About 3 minutes.',
+    pre: [['solar', 'have']], first: ['solar', 'where', 'roof', 'tilt', 'panels', 'battery', 'gridnow', 'price', 'grant'],
+    chap: { solar: 'Your panels', where: 'Your panels', roof: 'Your panels', tilt: 'Your panels', panels: 'Your panels', battery: 'Your panels', gridnow: 'Your panels', price: 'Your panels', grant: 'Your panels' } },
+  quote: { t: 'Checking your quote', s: 'What the quote offers first, then your roof and bill, so it is judged on your own home. About 3 minutes.',
+    pre: [['solar', 'thinking'], ['system', 'custom']], first: ['solar', 'system', 'panels', 'battery', 'price', 'grant', 'where', 'house', 'roof', 'tilt'],
+    chap: { solar: 'Your quote', system: 'Your quote', panels: 'Your quote', battery: 'Your quote', price: 'Your quote', grant: 'Your quote', where: 'Your roof', house: 'Your roof', roof: 'Your roof', tilt: 'Your roof' } },
+  ev: { t: 'What a car means for your bill', s: 'The car first, then your bill and heating. About 2 minutes.',
+    pre: [['ev', 'thinking']], first: ['ev', 'km', 'car'], chap: {} },
+  plans: { t: 'Comparing every plan on your home', s: 'Your bill, meter, plan and heating. About a minute.' },
+  meter: { t: 'Starting from your meter file', s: 'Add the file from esbnetworks.ie, then a few short questions. About 2 minutes.' },
+  home: { t: 'Checking your home', s: 'Your bill and heating, then panels and a car if you have or want them. About 3 minutes.' },
+};
+const flowChap = (k) => ((FLOW_INTENT[state._flow_intent] || {}).chap || {})[k] || FLOW_CHAPTER[k] || 'Your home';
+/**
+ * Where each way in on the website leads. A new visitor starts setup on the
+ * question the button promised. Someone with an answer already goes to the
+ * matching part of it, never back to the first question.
+ */
+function siteGo(intent){
+  if (state.onboarding_complete){
+    if (intent === 'quote'){ setScreen('solar'); v7Sheet('quote'); }
+    else if (intent === 'solar') setScreen('solar');
+    else if (intent === 'have'){ if (state.has_solar && !state.solar_planned && totalPanels() > 0) setScreen('solar'); else startTopicFlow('have'); }
+    else if (intent === 'ev'){ if (state.ev_active) anTab('car', 'result'); else startEvGuide(); }
+    else if (intent === 'plans') setScreen('plans');
+    else if (intent === 'meter'){ setScreen('result'); v7Sheet('meter'); }
+    else setScreen('result');
+    window.scrollTo(0, 0);
+    return;
+  }
+  startFlow(intent === 'plans' || intent === 'meter' ? 'quick' : 'full', intent || 'home');
+}
+window.siteGo = siteGo;
 const _flowSuggest = () => Math.max(6, Math.min(16, Math.round(v7AnnualKwh() / 450)));
 // A tap shows itself first: the choice lights up with a tick, then the next question.
 let _flowPicking = false;
@@ -5875,7 +5961,8 @@ function flowAnswer(q, v){
   } else if (q === 'plan'){ if (v === 'unsure'){ state.baseline = 'EI-24'; state.baseline_known = false; } else { state.baseline = v; state.baseline_known = true; } }
   if (q === 'gas') state.gas_same_supplier = v;
   if (q === 'meter') state.meter_type = v;
-  if (q === 'house'){ state.house_type = v; delete f.system; }
+  // A new house type re-sizes the suggested systems; a quote's own system stays.
+  if (q === 'house'){ state.house_type = v; if (state._flow_intent !== 'quote') delete f.system; }
   if (q === 'system' && v !== 'custom'){
     const g = designGoals().find((x) => x.keys.includes(v));
     if (g){ const c = designToConfig(g.d); state.count_A = c.count_A; state.count_B = c.count_B || 0; state.battery_kwh = c.battery_kwh || 0; state.inverter_kw = c.inverter_kw; if (state.battery_kwh > 0) state.charge_from_grid = true; }
@@ -5991,9 +6078,11 @@ function flowUpgrade(){
 function flowFinish(then){
   state.onboarding_complete = true;
   state.seen_intro = true;
-  state._flow = null; state._flow_edit = null; _flowBefore = null;
+  const intent = state._flow_intent;
+  state._flow = null; state._flow_edit = null; state._flow_intent = null; state._flow_given = null; _flowBefore = null;
   if (state.has_solar && totalPanels() > 0) snapshotMySystem();
-  state.current_screen = 'result';
+  // A solar question gets its answer on the Solar page; everything else on Home.
+  state.current_screen = (intent === 'solar' || intent === 'quote') && state.has_solar && totalPanels() > 0 ? 'solar' : 'result';
   saveState();
   fireEvent('flow_complete', { bill: state.bimonthly_bill_eur, solar: !!state.has_solar, ev: !!state.ev_active });
   if (then === 'save') meOpenAuth('signup'); else renderApp();
@@ -6028,6 +6117,12 @@ function renderFlow(){
     roof: ['Which way does the roof face?', 'The side that gets the sun.'],
     panels: ['How many panels?', `For your usage we suggest ${_flowSuggest()}.`],
     battery: ['A battery?', 'It stores the day’s solar for the evening.'],
+    ...(state._flow_intent === 'meter' ? { bill: ['Add your ESB meter file', 'Your real half-hour readings. The most exact answer there is.'] } : {}),
+    ...(state._flow_intent === 'quote' ? {
+      panels: ['How many panels are on the quote?', 'It’s usually near the top, with the panel model.'],
+      battery: ['Is there a battery on the quote?', 'Its size is in kWh.'],
+      price: ['What’s the price on the quote?', 'The total including VAT, before the SEAI grant.'],
+    } : {}),
     filewhen: (() => { const fb = fileBasis(); return fb && fb.ask === 'drop'
       ? [`Did the panels go up around ${fmtDay(fb.dropFrom)}?`, 'Your meter file shows daytime buying dropping from then, with nothing sent to the grid.']
       : ['Is your meter file from before the panels went up?', 'It shows no solar going to the grid, which panels usually do.']; })(),
@@ -6044,7 +6139,7 @@ function renderFlow(){
     disc: (v) => (+v > 0 ? `${v}% discount` : 'No discount'),
     where: (v) => (IRISH_REGIONS[v] || {}).name || v,
     house: (v) => ({ apartment: 'Apartment', terraced: 'Terraced', semi: 'Semi-detached', detached: 'Detached', bungalow: 'Bungalow' })[v] || v,
-    system: (v) => v === 'custom' ? 'My own size' : `${totalPanels()} panels${state.battery_kwh > 0 ? ` + ${state.battery_kwh} kWh battery` : ''}`,
+    system: (v) => v === 'custom' ? (state._flow_intent === 'quote' ? 'From the quote' : 'My own size') : `${totalPanels()} panels${state.battery_kwh > 0 ? ` + ${state.battery_kwh} kWh battery` : ''}`,
     meter: (v) => ({ smart: 'Smart meter', '24hr': 'Standard meter', nightsaver: 'Day and night meter' })[v],
     area: (v) => (v === 'rural' ? 'Rural' : 'Urban'),
     night: (v) => (v === 'immersion' ? 'Immersion at night' : 'Nothing at night'),
@@ -6093,13 +6188,16 @@ function renderFlow(){
       <div class="fl-row">${[2500, 4200, 6000].map((v) => `<button class="sy-stop" onclick="document.getElementById('flow-bill').value=${v}">${v.toLocaleString('en-IE')}</button>`).join('')}</div>
       <button class="fl-next" onclick="flowAnswer('bill', 'kwh:' + document.getElementById('flow-bill').value.replace(/[^0-9]/g, ''))">Next</button>`;
       }
-      return `${tabs}<div class="fl-bill"><span>€</span><input id="flow-bill" inputmode="numeric" value="${String(f.bill || '').startsWith('kwh:') ? state.bimonthly_bill_eur || 250 : f.bill || state.bimonthly_bill_eur || 250}" aria-label="Two-month bill in euro"></div>
+      const typed = `${tabs}<div class="fl-bill"><span>€</span><input id="flow-bill" inputmode="numeric" value="${String(f.bill || '').startsWith('kwh:') ? state.bimonthly_bill_eur || 250 : f.bill || state.bimonthly_bill_eur || 250}" aria-label="Two-month bill in euro"></div>
       <div class="fl-row">${[150, 250, 420].map((v) => `<button class="sy-stop" onclick="document.getElementById('flow-bill').value=${v}">€${v}</button>`).join('')}</div>
-      <button class="fl-next" onclick="flowAnswer('bill', document.getElementById('flow-bill').value)">Next</button>
-      <div class="fl-or"><span>or, most accurate</span></div>
-      <label class="fl-upload">${ic('csv', 20)}<span><b>Upload your ESB smart-meter file</b><small>Every half hour of your real year. Free at esbnetworks.ie: My Meter → Downloads → “30-minute readings in kW”.</small></span>
+      <button class="fl-next" onclick="flowAnswer('bill', document.getElementById('flow-bill').value)">Next</button>`;
+      const file = `<label class="fl-upload">${ic('csv', 20)}<span><b>Upload your ESB smart-meter file</b><small>Every half hour of your real year. Free at esbnetworks.ie: My Meter → Downloads → “30-minute readings in kW”.</small></span>
         <input type="file" accept=".csv,.CSV" onchange="handleCsvFile(event)" hidden></label>
       <div id="csv-parse-result"></div>`;
+      // Someone who came for the meter file gets it first; everyone else types the bill.
+      return state._flow_intent === 'meter'
+        ? `${file}<div class="fl-or"><span>or, without the file</span></div>${typed}`
+        : `${typed}<div class="fl-or"><span>or, most accurate</span></div>${file}`;
     }
     if (q === 'plan'){
       const plans = activeTariffsSorted();
@@ -6157,6 +6255,7 @@ function renderFlow(){
       <button class="sg-link" onclick="flowAnswer('roof', 'unsure')">Not sure (assume south)</button>`;
     if (q === 'disc') return `<div class="fl-opts fl-three">${opt('disc', 0, 'None')}${opt('disc', 15, '15%')}${opt('disc', 30, '30%')}</div>${own('disc', '%', 60, 'e.g. 22')}
       <button class="sg-link" onclick="flowAnswer('disc', 0)">Not sure</button>`;
+    if (q === 'panels' && state._flow_intent === 'quote') return `<div class="fl-opts fl-three">${[8, 10, 12, 14, 16, 20].map((n) => opt('panels', n, `${n}`)).join('')}</div>${own('panels', 'panels', 60, 'e.g. 13')}`;
     if (q === 'panels'){ const s = _flowSuggest(); return `<div class="fl-opts fl-three">${[Math.max(4, s - 4), s, s + 4].filter((n, i, a) => a.indexOf(n) === i).map((n) => opt('panels', n, `${n}`, n === s ? 'suggested' : '')).join('')}</div>${own('panels', 'panels', 60, 'e.g. 12')}`; }
     if (q === 'filewhen'){ const fb = fileBasis();
       return fb && fb.ask === 'drop'
@@ -6170,6 +6269,9 @@ function renderFlow(){
       <button class="sg-link" onclick="flowAnswer('tilt', 35)">Not sure (assume 35°)</button>`;
     if (q === 'price'){
       const kwp = (totalPanels() * (+state.panel_w || 460)) / 1000, guide = Math.round(estimateInstallCost(kwp, +state.battery_kwh || 0) / 100) * 100;
+      if (state._flow_intent === 'quote') return `${own('price', '€', 60000, 'e.g. 11500', 'Price on the quote, incl. VAT')}
+        <div class="fl-opts">${opt('price', 0, 'I don’t have it to hand', `We’ll use a guide price, about ${eur(guide)} for this size`)}</div>
+        <p class="fl-note">You can upload the quote itself later, and we’ll read the details for you.</p>`;
       return `<div class="fl-opts">${opt('price', 0, 'Not yet: use a guide price', `About ${eur(guide)} for this size in Ireland, before any grant`)}</div>
         ${own('price', '€', 60000, 'e.g. 11500', 'I have a quote, incl. VAT')}
         <p class="fl-note">You can upload the quote itself later in My system.</p>`;
@@ -6180,15 +6282,21 @@ function renderFlow(){
     if (q === 'car') return `<div class="fl-opts fl-three">${opt('car', 14, 'Small')}${opt('car', 17, 'Family')}${opt('car', 20, 'SUV')}</div>`;
     return '';
   };
+  // The questions this visit asks: not the ones the way in, or the saved home, already answered.
+  const given = state._flow_given || [];
+  const asked = steps.filter((k) => !given.includes(k) || k === open);
   let h = '';
   for (const s of steps){
     const branch = ['roof', 'tilt', 'panels', 'battery', 'price', 'grant', 'km', 'car'].includes(s);
     if (s === open){
       h += `<section class="fl-q ${branch ? 'fl-branch' : ''}" aria-label="${label[s][0]}">
-        ${WEB ? `<div class="fl-step-k">Step ${steps.filter((k) => k in f && k !== s).length + 1} of ${steps.length} · ${FLOW_CHAPTER[s] || 'Your home'}</div>` : ''}<h2>${label[s][0]}</h2>${label[s][1] ? `<p>${label[s][1]}</p>` : ''}${body(s)}</section>`;
+        ${WEB ? `<div class="fl-step-k">Step ${asked.filter((k) => k in f && k !== s).length + 1} of ${asked.length} · ${flowChap(s)}</div>` : ''}<h2>${label[s][0]}</h2>${label[s][1] ? `<p>${label[s][1]}</p>` : ''}${body(s)}</section>`;
       break;
     }
   }
+  // Setup says what it is for and what comes first, so no way in feels like a wrong turn.
+  const R = FLOW_INTENT[state._flow_intent] || (!state.onboarding_complete ? FLOW_INTENT[state._flow_mode === 'quick' ? 'plans' : 'home'] : null);
+  if (R && open) h = `<div class="fl-route"><b>${R.t}</b><span>${state.onboarding_complete ? 'Only the questions about this. Leave at any time and your answer stays as it was.' : R.s}</span></div>` + h;
   // What's answered so far, as one row of chips: tap one to change it.
   const answered = steps.filter((s) => s in f && s !== open);
   if (answered.length) h = `<div class="fl-chips" aria-label="Your answers, tap to change">${answered.map((s) => `<button class="fl-chip" onclick="flowEdit('${s}')" aria-label="Change ${esc(label[s][0])}">${esc(shown[s](f[s]))}</button>`).join('')}</div>` + h;
@@ -6214,7 +6322,12 @@ function renderFlow(){
         <div><span>On ${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}${pl ? ', with the solar' : ''}</span><b>${eur(rec.best.net)}</b><i class="is-best" style="width:${Math.max(8, Math.round(rec.best.net / mine * 100))}%"></i></div>
       </div>` : '';
     const acc = modelAccuracy().pct;
+    let qv = null;
+    try { if (state._flow_intent === 'quote' && state.cost_is_manual && state.install_cost > 0) qv = assessQuote({ kwp: totalKwp(), battery: state.battery_kwh || 0, price: state.install_cost }); } catch (e) {}
+    const solarEnd = (state._flow_intent === 'solar' || state._flow_intent === 'quote') && sd;
     h += `<section class="fl-reveal">
+      ${qv ? `<div class="fl-r-quote is-${qv.cls}"><span>${ic('clip', 16)} The quote, ${eur(state.install_cost)} for ${totalPanels()} panels${state.battery_kwh > 0 ? ` and a ${state.battery_kwh} kWh battery` : ''}</span><b>${qv.verdict}</b><small>${qv.take}</small>
+        ${Math.abs(totalPanels() - _flowSuggest()) >= 3 ? `<small>For your usage we’d suggest about ${_flowSuggest()} panels.</small>` : ''}</div>` : ''}
       <div class="fl-r-k">Your answer</div>
       ${save > 10 ? `<div class="fl-r-big is-saving">${eur(save)}<span> less a year</span></div>
         <div class="fl-r-line">${pl ? `switching plan and adding the solar: <b>${eur(Math.max(0, pl.today - pl.noSolar.net))}</b> from switching now, <b>${eur(Math.max(0, pl.noSolar.net - pl.best.net))}</b> more once the panels are in` : `by switching to <b>${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}</b>`}</div>${bars}`
@@ -6224,7 +6337,7 @@ function renderFlow(){
         ${ev ? `<span>Your car costs <b>${eur(ev.evElectricityCost)} a year</b> to charge, <b>${eur(ev.evVsPetrolNet)}</b> less than petrol</span>` : ''}
         <span>Built on 8,760 hours of your year · ±${acc}%</span>
       </div>
-      <button class="fl-go" onclick="flowFinish()">See my home</button>
+      <button class="fl-go" onclick="flowFinish()">${solarEnd ? 'See my solar answer' : 'See my home'}</button>
       ${state._flow_mode === 'quick' ? `<button class="fl-upgrade" onclick="flowUpgrade()">${ic('sun', 16)} Thinking about solar or an EV? Get the full picture ${ic('chevR', 14)}</button>` : ''}
     </section>
     ${sbInitialized() && !_sbUser ? `<section class="fl-save">
@@ -6233,7 +6346,7 @@ function renderFlow(){
         <span>Your home is only saved on this phone. With an account it’s backed up, works on any device, and we’ll tell you when a cheaper plan comes along.</span>
         <button class="fl-save-link" onclick="flowFinish('save')">Create a free account ${ic('chevR', 14)}</button></div></section>` : ''}`;
   }
-  const done = steps.filter((s) => s in f).length;
+  const done = asked.filter((s) => s in f).length;
   const leave = state.onboarding_complete ? 'flowLeave()' : 'goLanding()';
   return `<div class="fl">
     <div class="fl-top">
@@ -6244,7 +6357,7 @@ function renderFlow(){
         <button class="fl-exit" onclick="${leave}">${state.onboarding_complete ? 'Back to my answer' : 'Leave'}</button></span>` : ''}
     </div>
     ${WEB ? flowChapters(steps, f, open) : ''}
-    <div class="sg-progress fl-prog"><i style="width:${finished ? 100 : Math.round(done / steps.length * 100)}%"></i></div>
+    <div class="sg-progress fl-prog"><i style="width:${finished ? 100 : Math.round(done / Math.max(1, asked.length) * 100)}%"></i></div>
     ${WEB ? `<div class="fl-grid"><div class="fl-body">${h}</div>${flowSide(steps, f, open, shown)}</div>` : `<div class="fl-body">${h}</div>`}
   </div>`;
 }
@@ -6256,10 +6369,10 @@ const FLOW_CHAPTER = { bill: 'Your usage', meter: 'Your usage', area: 'Your usag
   price: 'Solar', grant: 'Solar', gridnow: 'Solar', ev: 'Car', evtime: 'Car', km: 'Car', car: 'Car' };
 function flowChapters(steps, f, open){
   const names = [];
-  steps.forEach((k) => { const c = FLOW_CHAPTER[k] || 'Your home'; if (!names.includes(c)) names.push(c); });
-  const now = open ? (FLOW_CHAPTER[open] || 'Your home') : null;
+  steps.forEach((k) => { const c = flowChap(k); if (!names.includes(c)) names.push(c); });
+  const now = open ? flowChap(open) : null;
   return `<ol class="fl-chap" aria-label="Stages">${names.map((c) => {
-    const ks = steps.filter((k) => (FLOW_CHAPTER[k] || 'Your home') === c);
+    const ks = steps.filter((k) => flowChap(k) === c);
     const st = c === now ? 'is-now' : ks.every((k) => k in f) ? 'is-done' : '';
     return `<li class="${st}" ${c === now ? 'aria-current="step"' : ''}>${st === 'is-done' ? ic('check', 13) + ' ' : ''}${c}</li>`;
   }).join('')}${!open ? `<li class="is-now" aria-current="step">Your answer</li>` : `<li>Your answer</li>`}</ol>`;
@@ -6275,7 +6388,7 @@ function flowSide(steps, f, open, shown){
   const got = steps.filter((k) => k in f && k !== open);
   const n = TARIFFS.filter((t) => !t.discontinued).length;
   const val = (k) => { try { return esc(shown[k] ? shown[k](f[k]) : String(f[k])); } catch (e) { return esc(String(f[k])); } };
-  return `<aside class="fl-side" aria-label="Your home so far">
+  return `<aside class="fl-side ${got.length ? '' : 'is-empty'}" aria-label="Your home so far">
     <div class="fl-card"><b class="fl-card-h">Your home so far</b><small>Change any answer at any time.</small>
       <div class="fl-sofar">${got.length ? got.map((k) => `<div><span>${FLOW_SHORT[k] || k}</span><b>${val(k)} <button onclick="flowEdit('${k}')" aria-label="Change ${FLOW_SHORT[k] || k}">${ic('edit', 14)}</button></b></div>`).join('') : '<div><span>Nothing yet</span><b>—</b></div>'}</div></div>
     <div class="fl-live"><small>${open ? `${steps.length - got.length} question${steps.length - got.length === 1 ? '' : 's'} to go` : 'All done'}</small><b>${n} plans to compare</b></div>
@@ -9134,9 +9247,7 @@ function assessQuote(q){
   // Irish installed-price benchmark (gross, pre-grant), rough 2026 figures
   const kwp = Math.max(0.5, +q.kwp || 0);
   const batt = Math.max(0, +q.battery || 0);
-  const fairLow  = kwp*950 + batt*350 + 1100;
-  const fairHigh = kwp*1200 + batt*480 + 1300;
-  const mid = (fairLow + fairHigh)/2;
+  const { lo: fairLow, hi: fairHigh, mid } = fairRange(kwp, batt);
   const price = +q.price || 0;
   const recKwp = Math.max(2, state.has_solar || state.considering_solar ? totalKwp() : 4.5);
   const pct = mid > 0 ? (price - mid)/mid : 0;
@@ -12659,7 +12770,8 @@ document.addEventListener('DOMContentLoaded', () => {
       try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
       setTimeout(() => {
         if (_go[1] === 'full') startFlow('full');
-        else if (_go[1] === 'quote') { if (state.onboarding_complete){ setScreen('solar'); v7Sheet('quote'); } else navigateAuditor(); }
+        else if (_go[1] === 'quote') { if (state.onboarding_complete){ setScreen('solar'); v7Sheet('quote'); } else startFlow('full', 'quote'); }
+        else if (_go[1] === 'meter') startFlow('quick', 'meter');
         else startFlow('quick');
       }, 0);
     }

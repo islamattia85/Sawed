@@ -1934,7 +1934,7 @@ html.web .plan-card.is-sel { border-color: var(--accent); box-shadow: 0 0 0 1px 
   .wl-rib, .wl-axis { grid-template-columns: 120px minmax(0, 1fr) 56px; }
 }
 .wl-bar .profile-nav-btn, .wl-btn { white-space: nowrap; }
-@media (max-width: 420px) { .wl-bar .profile-nav-btn span { display: none; } .wl-btn { padding: 10px 14px; } }
+@media (max-width: 420px) { .wl-bar .profile-nav-btn svg { display: none; } .wl-bar .profile-nav-btn { padding: 6px 8px !important; } .wl-btn { padding: 10px 14px; } }
 
 /* website extras */
 .wl-nav { display: none; gap: 4px; flex: 1; margin-left: 24px; }
@@ -1999,7 +1999,7 @@ html.web .v7-top, html.web .v7-top.v7-top-sub { grid-template-columns: auto auto
 .wl-applink:hover { background: var(--well); color: var(--ink); }
 .wl-appnote { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; color: var(--ink-soft); font-size: 15px; }
 .wl-appnote a { color: var(--accent); font-weight: 700; }
-@media (max-width: 620px) { .wl-applink span { display: none; } }
+@media (max-width: 620px) { .wl-applink span { display: none; } .wl-bar .wl-applink { display: none; } }
 /* The mobile app on a computer: the phone layout, centred. */
 html.app-mode body { background: var(--bg); }
 
@@ -2142,7 +2142,8 @@ html.web .fl-chips { display: none; }
 html.web .fl-q .wl-eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: 13px; margin-bottom: -8px; }
 @media (max-width: 899px) {
   .fl-grid { grid-template-columns: 1fr; gap: 16px; padding: 0 16px; }
-  .fl-side { position: static; padding-top: 0; order: -1; }
+  .fl-side { position: static; padding-top: 0; }
+  .fl-side.is-empty { display: none; }
   .fl-side .fl-live { display: none; }
   .fl-card { padding: 14px 16px; }
 }
@@ -2382,7 +2383,8 @@ html.web .fl-word { display: inline-flex; align-items: center; }
 .fl-chap li.is-now { color: var(--on-accent, #fff); background: var(--accent); border-color: var(--accent); }
 .fl-step-k { font: 700 13px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: -8px; }
 html.web .fl-prog { margin-top: 12px; height: 3px; }
-@media (max-width: 640px) { .fl-top-end .wl-applink, .fl-top-end .web-theme { display: none; } .fl-chap { padding: 0 16px; } }
+@media (max-width: 640px) { html.web .fl-top-end .wl-applink, html.web .fl-top-end .web-theme { display: none; } .fl-chap { padding: 0 16px; } }
+.fl-exit { white-space: nowrap; }
 #app-root .fl-bill input, #app-root .fl-bill > span:not(.fl-unit-k) { font: 600 40px/1.1 "Fraunces", Georgia, serif !important; }
 @media (min-width: 900px) { #app-root .fl-bill input, #app-root .fl-bill > span:not(.fl-unit-k) { font-size: 54px !important; } }
 html.web .fl-chap { width: 100%; justify-content: flex-start; align-self: stretch; }
@@ -2530,3 +2532,15 @@ html.web #wh-home .v7-cta-2:has(svg) { display: none; }
 .wl-demo-band .wl-demo { max-width: 640px; }
 @media (min-width: 900px) { .wl-how3 { grid-template-columns: repeat(3, minmax(0, 1fr)); padding-bottom: 48px; } }
 @media (max-width: 899px) { .wl-proof { display: none; } .wl-hero { padding-bottom: 16px; } }
+
+/* Setup names what it is for, so every way in lands somewhere that makes sense. */
+.fl-route { display: grid; gap: 4px; padding: 14px 16px; margin-bottom: 4px; border-radius: var(--radius-lg); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent); }
+.fl-route b { font: 700 17px var(--display); color: var(--ink); }
+.fl-route span { font-size: 15px; color: var(--ink-soft); line-height: 1.45; }
+/* The quote route's answer: is the price fair. */
+.fl-r-quote { display: grid; gap: 4px; padding: 14px 16px; border-radius: var(--radius-lg); border: 1px solid var(--hair-strong); background: var(--panel); margin-bottom: 12px; }
+.fl-r-quote span { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); }
+.fl-r-quote b { font: 700 20px var(--display); color: var(--accent); }
+.fl-r-quote.is-high b { color: var(--bandink-peak); }
+.fl-r-quote.is-under b { color: var(--ink); }
+.fl-r-quote small { font-size: 15px; color: var(--ink-soft); line-height: 1.45; }
