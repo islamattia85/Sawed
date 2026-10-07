@@ -3082,50 +3082,157 @@ function sitePlans(){
     </div>
   </section>`;
 }
-function howHtml(){
-  return `<section class="wl-how" id="how">
-    <h2 class="wl-h2">How Peakless gets to one answer</h2>
-    <div class="wl-steps">
-      <div><span class="wl-n">Step 1</span><b>Tell us about your home</b><p>A bill, a meter file or a few questions. Change any answer later in My home.</p></div>
-      <div><span class="wl-n">Step 2</span><b>Every hour, every plan</b><p>We simulate your year on each plan, with the battery charging at night and solar sold back.</p></div>
-      <div><span class="wl-n">Step 3</span><b>Switch on the supplier's site</b><p>We link you straight to the plan. No commission, so the order is only about cost.</p></div>
-    </div>
-  </section>`;
+
+/**
+ * The front page's live demo: a typical Irish home (4,200 kWh), priced on four
+ * real plans with their real rates. A deliberately simple day-shape model, for
+ * showing what changes the answer; the full engine prices the reader's own home.
+ */
+const DEMO_PLANS = ['EN-SMART-24-HOUR', 'EI-SST', 'EI-NB', 'YN-EV-DNP'];
+let _demo = { heat: 'gas', solar: 'none', ev: 'no' };
+function demoProfile(o){
+  const base = [.25,.2,.2,.2,.2,.25,.4,.6,.55,.4,.35,.35,.4,.35,.35,.4,.6,.9,1.0,.9,.75,.6,.45,.3];
+  let u = base.map((v) => v * (o.heat === 'hp' ? 1.55 : 1));
+  if (o.heat === 'hp') u = u.map((v, h) => v + ([6, 7, 8, 17, 18, 19, 20].includes(h) ? .6 : 0));
+  const k = o.solar === '12' ? 1.9 : o.solar === '6' ? .95 : 0;
+  const sun = [0,0,0,0,0,0,.05,.2,.45,.75,1,1.15,1.2,1.15,1,.75,.45,.2,.05,0,0,0,0,0].map((v) => v * k);
+  const ev = new Array(24).fill(0);
+  if (o.ev === 'yes') { ev[2] = 3.5; ev[3] = 3.5; }
+  return { u, sun, ev };
+}
+function demoCost(p, o){
+  const { u, sun, ev } = demoProfile(o);
+  let buy = 0, sell = 0;
+  for (let h = 0; h < 24; h++){
+    const r = p.rates[bandAt(h, p)] ?? p.rates.day, need = u[h] + ev[h] - sun[h];
+    if (need > 0) buy += need * r; else sell += -need * (p.export_rate || .185);
+  }
+  return Math.round((buy - sell) * 365 + (p.standing || 0) + PSO_LEVY);
+}
+function demoCard(){
+  const plans = DEMO_PLANS.map(getPlanById).filter(Boolean);
+  const rows = plans.map((p) => ({ p, c: demoCost(p, _demo) })).sort((a, b) => a.c - b.c);
+  const max = Math.max(1, ...rows.map((r) => r.c));
+  const seg = (k, opts, lbl) => `<div class="wl-ctrl"><span>${lbl}</span><div class="wl-seg" role="group" aria-label="${lbl}">${opts.map(([v, l]) => `<button class="${_demo[k] === v ? 'on' : ''}" aria-pressed="${_demo[k] === v}" onclick="demoSet('${k}','${v}')">${l}</button>`).join('')}</div></div>`;
+  return `<div class="wl-demo" id="wl-demo">
+    <div class="wl-demo-h"><b>Try it on a typical Irish home</b><span>4,200 kWh a year</span></div>
+    <div class="wl-ctrls">${seg('heat', [['gas', 'Gas'], ['hp', 'Heat pump']], 'Heating')}${seg('solar', [['none', 'None'], ['6', '6'], ['12', '12 panels']], 'Solar')}${seg('ev', [['no', 'No'], ['yes', 'Yes']], 'Electric car')}</div>
+    <div class="wl-res">${rows.map((r, i) => `<div class="wl-rrow ${i === 0 ? 'is-best' : ''}"><div class="wl-who">${r.p.supplier}<small>${r.p.plan.replace('Home Electric+ ', '').replace('Home Electric + ', '')}</small></div>
+      <div class="wl-track"><i style="width:${Math.max(4, Math.max(0, r.c) / max * 100)}%"></i></div><b>${eur(r.c)}</b></div>`).join('')}</div>
+    <div class="wl-demo-f"><p>Cheapest here: <b>${rows[0].p.supplier} ${rows[0].p.plan.replace('Home Electric+ ', '').replace('Home Electric + ', '')}</b>. A simple model on real rates; the app prices your own home hour by hour.</p>
+      <button class="wl-btn wl-btn-p" onclick="startFlow('quick')">Do it for my home</button></div>
+  </div>`;
+}
+function demoSet(k, v){ _demo[k] = v; const el = document.getElementById('wl-demo'); if (el) el.outerHTML = demoCard(); }
+window.demoSet = demoSet;
+
+/** A home's day drawn over an EV plan's price bands: why the hour matters. */
+function whyChart(){
+  const p = getPlanById('YN-EV-DNP') || getPlanById(DEMO_PLANS[1]);
+  const u = demoProfile({ heat: 'gas', solar: 'none', ev: 'no' }).u;
+  const W = 560, H = 230, L = 30, B = 32, x = (h) => L + (W - L - 8) * h / 24, y = (v) => H - B - (H - B - 30) * v / 1.1;
+  let d = `M${x(0)},${y(u[0])}`; u.forEach((v, h) => { d += ` L${x(h + .5)},${y(v)}`; }); d += ` L${x(24)},${y(u[23])}`;
+  const COLS = { night: 'var(--bandink-night)', day: 'var(--bandink-day)', peak: 'var(--bandink-peak)', ev: 'var(--bandink-ev)' };
+  const win = (b) => { const hs = [...Array(24).keys()].filter((h) => bandAt(h, p) === b); return hs.length ? [hs[0], hs[hs.length - 1] + 1] : null; };
+  const pk = win('peak'), ev = win('ev'), c = (v) => `${(v * 100).toFixed(1)}c`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="A home's day over an EV plan's price bands">
+    ${pk ? `<rect x="${x(pk[0])}" y="8" width="${x(pk[1]) - x(pk[0])}" height="${H - B - 8}" rx="6" fill="var(--bandink-peak)" opacity=".14"/><text x="${(x(pk[0]) + x(pk[1])) / 2}" y="24" text-anchor="middle" style="fill:var(--bandink-peak);font-weight:700">peak ${c(p.rates.peak)}</text>` : ''}
+    ${ev ? `<rect x="${x(ev[0])}" y="8" width="${x(ev[1]) - x(ev[0])}" height="${H - B - 8}" rx="6" fill="var(--bandink-ev)" opacity=".14"/><text x="${(x(ev[0]) + x(ev[1])) / 2}" y="24" text-anchor="middle" style="fill:var(--accent);font-weight:700">EV ${c(p.rates.ev)}</text>` : ''}
+    <path d="${d} L${x(24)},${H - B} L${x(0)},${H - B}Z" fill="var(--ink)" opacity=".07"/><path d="${d}" fill="none" stroke="var(--ink)" stroke-width="2"/>
+    ${[...Array(24).keys()].map((h) => `<rect x="${x(h)}" y="${H - B + 6}" width="${x(1) - x(0) - 1}" height="8" rx="2" fill="${COLS[bandAt(h, p)] || COLS.day}"/>`).join('')}
+    ${[0, 6, 12, 18, 24].map((h) => `<text x="${x(h)}" y="${H - 4}" text-anchor="middle">${String(h).padStart(2, '0')}</text>`).join('')}</svg>`;
 }
 
-/** The website at "/". */
+/** The website at "/": what Peakless is, shown and taught, then a way in. */
 function renderSite(){
   const done = state.onboarding_complete;
   const n = TARIFFS.filter((t) => !t.discontinued).length;
+  const go = done ? "setScreen('result')" : "startFlow('quick')";
+  const strip = (id) => { const p = getPlanById(id); return p ? rateStrip({ bands: Array.from({ length: 24 }, (_, h) => bandAt(h, p)), rates: p.rates, height: 10 }) : ''; };
+  // The worked example: the same simple model, one change at a time.
+  const W1 = { heat: 'hp', solar: 'none', ev: 'no' }, W2 = { heat: 'hp', solar: '12', ev: 'no' };
+  const P = (id) => getPlanById(id);
+  const cheapest = (o) => DEMO_PLANS.map(P).filter(Boolean).map((p) => ({ p, c: demoCost(p, o) })).sort((a, b) => a.c - b.c)[0];
+  const today = P('BG-TOU-PLUS') ? demoCost(P('BG-TOU-PLUS'), W1) : null;
+  const s1 = cheapest(W1), s2 = cheapest(W2);
+  const nm = (p) => `${p.supplier} ${p.plan.replace('Home Electric+ ', '').replace('Home Electric + ', '')}`;
   return `<div class="pk-land wl wl-site">
     <header class="wl-bar">
       <a class="wl-logo" href="/" aria-label="Peakless"><span class="pk-land-icon">${ic('logo', 22, 'stroke-width:1.6')}</span>${wordmarkHtml('pk-word-top')}</a>
-      <nav class="wl-nav" aria-label="Site"><a href="#how">How it works</a><a href="#plans">Plans</a></nav>
+      <nav class="wl-nav" aria-label="Site"><a href="#how">How it works</a><a href="#types">Plan types</a><a href="#plans">Every plan</a><a href="#faq">Questions</a></nav>
       <div class="wl-bar-end"><a class="wl-applink" href="${APP_HREF}">${ic('mobile', 16)}<span>Get the app</span></a>
         ${done ? '' : renderProfileNavBtn()}
-        <button class="wl-btn wl-btn-p" onclick="${done ? "setScreen('result')" : "startFlow('quick')"}">${done ? 'My answer' : 'Check my plans'}</button></div>
+        <button class="wl-btn wl-btn-p" onclick="${go}">${done ? 'My answer' : 'Check my plans'}</button></div>
     </header>
+
     <section class="wl-hero">
       <div class="wl-copy">
         <div class="wl-eyebrow">Irish electricity, priced properly</div>
         <h1 class="wl-h1">Every plan in Ireland, priced on <em>your</em> home, hour by hour.</h1>
-        <p class="wl-lede">Peakless runs all ${n} plans through the 8,760 hours of your year, with your solar, battery and car. Then it tells you which one to pick and why.</p>
-        <div class="wl-cta"><button class="wl-btn wl-btn-p wl-btn-lg" onclick="${done ? "setScreen('result')" : "startFlow('quick')"}">${done ? 'See my answer' : 'Compare my plans'}</button><button class="wl-btn wl-btn-g wl-btn-lg" onclick="startFlow('full')">Is solar worth it?</button></div>
-        <div class="wl-trust"><span><b>${n}</b> plans, rates checked this week</span><span><b>No</b> supplier commissions</span><span><b>Free</b>, no account needed</span></div>
+        <p class="wl-lede">The cheapest plan depends on <b>when</b> you use power, not just how much. Peakless runs all ${n} plans through the 8,760 hours of your year, with your solar, battery and car, and tells you which to pick.</p>
+        <div class="wl-cta"><button class="wl-btn wl-btn-p wl-btn-lg" onclick="${go}">${done ? 'See my answer' : 'Compare my plans'}</button><button class="wl-btn wl-btn-g wl-btn-lg" onclick="startFlow('full')">Is solar worth it?</button></div>
+        <div class="wl-proof"><div><b>${n}</b><span>plans, rates checked this week</span></div><div><b>8,760</b><span>hours priced, not averages</span></div><div><b>€0</b><span>commission from suppliers</span></div></div>
       </div>
-      ${dayCard()}
+      ${demoCard()}
     </section>
+
+    <section class="wl-band" id="why"><div class="wl-two"><div>
+      <div class="wl-sh"><div class="wl-eyebrow">Why the hour matters</div><h2 class="wl-h2">The same kilowatt-hour can cost ${(Math.min(...Object.values((getPlanById('YN-EV-DNP') || {}).rates || { a: .086 })) * 100).toFixed(0)}c or ${((((getPlanById('YN-EV-DNP') || {}).rates || {}).peak || .45) * 100).toFixed(0)}c.</h2><p>Smart plans split the day into price bands. Run the dishwasher at 6pm and you can pay five times what a car pays at 3am.</p></div>
+      <div class="wl-points">
+        <div><span>1</span><div><b>Your evening is the expensive part</b><p>Most homes use the most power between 5 and 8pm, when peak rates apply.</p></div></div>
+        <div><span>2</span><div><b>Cheap windows only help if you use them</b><p>An EV plan's early-morning rate is a bargain with a car on a timer, and a trap without one.</p></div></div>
+        <div><span>3</span><div><b>Bill averages hide all of this</b><p>Comparison sites price a typical home. We price yours, hour by hour.</p></div></div>
+      </div></div>
+      <div class="wl-card wl-why"><div class="wl-card-h">A home's day, on an EV plan</div><div class="wl-card-sub">kWh each hour, over that plan's price bands</div>${whyChart()}${bandLegend()}</div>
+    </div></section>
+
+    <section class="wl-band wl-tint" id="types"><div class="wl-in">
+      <div class="wl-sh"><div class="wl-eyebrow">Plan types, explained</div><h2 class="wl-h2">Four kinds of plan. One suits you best.</h2><p>Each bar is a real plan's day, midnight to midnight. The colour shows what an hour costs.</p></div>
+      <div class="wl-types">
+        <div class="wl-type"><h3>One price</h3>${strip('EN-SMART-24-HOUR')}<p>The same rate every hour. Simple, but no cheap hours to use.</p><small>Suits: <b>steady use, no timers</b></small></div>
+        <div class="wl-type"><h3>Night saver</h3>${strip('EI-SST')}<p>Cheaper overnight, dearer from 5 to 7pm on weekdays.</p><small>Suits: <b>storage heaters, timers, batteries</b></small></div>
+        <div class="wl-type"><h3>EV plans</h3>${strip('YN-EV-DNP')}<p>A very cheap window of a few hours in the early morning.</p><small>Suits: <b>electric cars and home batteries</b></small></div>
+        <div class="wl-type"><h3>Changes hourly</h3>${strip(TARIFFS.find((t) => t.type === 'dynamic') ? TARIFFS.find((t) => t.type === 'dynamic').id : 'EN-DYN')}<p>Follows the wholesale market every hour. Can be great or painful.</p><small>Suits: <b>people who shift use by app</b></small></div>
+      </div></div></section>
+
+    ${today && s1 && s2 ? `<section class="wl-band" id="example"><div class="wl-in">
+      <div class="wl-sh"><div class="wl-eyebrow">A worked example</div><h2 class="wl-h2">A home with a heat pump, step by step.</h2><p>The same simple model as the demo above, one change at a time. Your own answer comes from the full engine.</p></div>
+      <div class="wl-case">
+        <div class="wl-case-who"><div class="wl-eyebrow">The home</div><h3>Heat pump, about 6,500 kWh a year, on Bord Gáis Smart Standard.</h3>
+          <ul><li>Thinking about 12 solar panels</li><li>Bill dearest in winter evenings</li><li>No timers set up yet</li></ul>
+          <button class="wl-btn wl-btn-gold" onclick="${go}">Do it for my home</button></div>
+        <div class="wl-steps3">
+          <div class="wl-step"><span>Today</span><div><b>Bord Gáis Smart Standard</b><small>What they pay now</small></div><em>${eur(today)}</em></div>
+          <div class="wl-step"><span>Step 1</span><div><b>Switch to ${nm(s1.p)}</b><small>Ten minutes online, nothing else changes</small></div><em>${eur(s1.c)}</em></div>
+          <div class="wl-step is-win"><span>Step 2</span><div><b>Add 12 panels, on ${nm(s2.p)}</b><small>Solar used at home, the rest sold back</small></div><em>${eur(s2.c)}</em></div>
+        </div></div></div></section>` : ''}
+
+    <section class="wl-band wl-tint" id="how"><div class="wl-in">
+      <div class="wl-sh"><div class="wl-eyebrow">How it works</div><h2 class="wl-h2">Built to be checked, not trusted blindly.</h2></div>
+      <div class="wl-steps">
+        <div><span class="wl-n">Step 1</span><b>Tell us about your home</b><p>Your bill, your ESB smart-meter file, or a few short questions. Change any answer later.</p></div>
+        <div><span class="wl-n">Step 2</span><b>Every hour, every plan</b><p>Your year simulated on each plan: the battery charging at night, solar sold back, the car on its timer.</p></div>
+        <div><span class="wl-n">Step 3</span><b>Switch on the supplier's site</b><p>We link straight to the plan. No commission, so the order is only about what you'd pay.</p></div>
+      </div>
+      <div class="wl-trust4"><div><b>Rates read from suppliers</b><span>Each plan dated and linked to its source.</span></div><div><b>Price rises counted</b><span>Announced increases are in the yearly figure.</span></div><div><b>Your data stays yours</b><span>Saved on your device unless you make an account.</span></div><div><b>Accuracy shown</b><span>Every answer says how sure it is.</span></div></div>
+    </div></section>
+
     ${doorsHtml(true)}
-    ${howHtml()}
     ${sitePlans()}
-    <section class="wl-end">
-      <h2 class="wl-h2">Find your cheapest plan in a minute.</h2>
-      <button class="wl-btn wl-btn-p wl-btn-lg" onclick="${done ? "setScreen('result')" : "startFlow('quick')"}">${done ? 'See my answer' : 'Check my plans'}</button>
-      <div class="wl-appnote">${ic('mobile', 16)} Prefer an app? <a href="${APP_HREF}">Open the Peakless mobile app</a>, same answers, made for your phone.</div>
-      <button class="pk-link wl-quote" onclick="${done ? "setScreen('solar');v7Sheet('quote')" : 'navigateAuditor()'}">${ic('clip', 14)} Already have a solar quote? Check it</button>
-    </section>
+
+    <section class="wl-band" id="faq"><div class="wl-in">
+      <div class="wl-sh"><div class="wl-eyebrow">Questions</div><h2 class="wl-h2">Good to know.</h2></div>
+      <div class="wl-faq">
+        <details><summary>Do I need a smart meter?</summary><p>For time-of-day and EV plans, yes. Most Irish homes have one now. Without one, we compare only the plans you can move to.</p></details>
+        <details><summary>Is switching safe? Will my power go off?</summary><p>No. Your supply never stops. The new supplier handles the switch with ESB Networks.</p></details>
+        <details><summary>How does Peakless make money?</summary><p>Not from suppliers. The ranking is only about what you'd pay.</p></details>
+        <details><summary>What is the ESB meter file and why is it better?</summary><p>Your real half-hourly readings, free from esbnetworks.ie: My Meter, Downloads, “30-minute readings in kW”. With it we price your actual year instead of an estimate.</p></details>
+        <details><summary>Does it work for solar I already have?</summary><p>Yes. We count what the panels make, what you sell back and what the battery shifts, and rank the plans with all of that in.</p></details>
+      </div></div></section>
+
+    <section class="wl-in wl-endwrap"><div class="wl-endcta"><div><h2 class="wl-h2">Find your cheapest plan in about a minute.</h2><p>Free, no account needed. Prefer an app? <a href="${APP_HREF}">The Peakless mobile app</a> gives the same answers.</p></div><button class="wl-btn wl-btn-gold wl-btn-lg" onclick="${go}">${done ? 'See my answer' : 'Check my plans'}</button></div></section>
     <footer class="wl-foot"><span>Peakless · independent, no commissions · your data stays on your device</span>
-      <nav><a href="#how">How it works</a><a href="#plans">Plans</a><a href="${APP_HREF}">Mobile app</a></nav></footer>
+      <nav><a href="#how">How it works</a><a href="#plans">Every plan</a><a href="${APP_HREF}">Mobile app</a></nav></footer>
   </div>`;
 }
 
@@ -3151,6 +3258,9 @@ function webDecorate(html){
         planned ? 'Switching plan now, then adding the panels you are planning.' : b && b.plan ? `${b.plan.plan}, priced on every hour of your year.` : '')
       : head('Your answer', 'Your plan is already the best value.', 'Nothing on sale costs less for your home.');
     end = nx([[...toPlans, 1], toSolar]);
+    const dash = webDash();
+    if (dash) html = html.replace(/<section class="ax-doors-wrap"[\s\S]*?<\/section>/, '');
+    end = dash + end;
   } else if (scr === 'plans'){
     end = nx([[...toAnswer, 1], toSolar]);
   } else if (scr === 'analytics' || scr === 'solar'){
@@ -3193,6 +3303,84 @@ function webDecorate(html){
   const foot = `<footer class="wl-foot web-foot"><span>Peakless · independent, no commissions · your data stays on your device</span>
     <nav><a href="/" onclick="event.preventDefault();${front}">Peakless home</a><a href="/app">Mobile app</a></nav></footer>`;
   return html + foot;
+}
+
+/** A plan's year on this home, month by month, net of what is sold back. */
+function monthNet(planId){
+  const p = getPlanById(planId); if (!p) return null;
+  const s = sim(p.id), out = new Array(12).fill(0);
+  let i = 0;
+  for (let m = 0; m < 12; m++) for (let d = 0; d < DAYS_IN_MONTH[m]; d++) for (let h = 0; h < 24; h++, i++){
+    if (i >= HOURS_IN_YEAR) break;
+    out[m] += (s.cost[i] || 0) - (s.revenue ? (s.revenue[i] || 0) : 0);
+  }
+  const ac = annualCost(s, p), fixed = (ac.standing + ac.pso + (ac.outlook_extra || 0)) / 12;
+  return out.map((v) => v + fixed);
+}
+
+/**
+ * The website's answer as a dashboard: the analysis on the page, not behind
+ * tiles. Bill by month on your plan and the best one, where the money goes,
+ * your day hour by hour, the top plans, and what to look at next.
+ */
+function webDash(){
+  let d, rec;
+  try { d = analyticsData(); rec = getRecommendation(); } catch (e) { return ''; }
+  const T = d.today, plan = d.plan, base = getPlanById(state.baseline);
+  const MON = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+  const fixedM = (T.standing + T.pso + (T.outlook || 0)) / 12;
+  const best = T.month.map((v) => v + fixedM);
+  const now = base && base.id !== plan.id ? monthNet(base.id) : null;
+  const all = [...best, ...(now || [])], max = Math.max(1, ...all), min = Math.min(0, ...all);
+  const W = 700, H = 230, L = 46, B = 26, bw = (W - L - 10) / 12;
+  const y = (v) => 10 + (H - B - 10) * (max - v) / (max - min);
+  const bars = (vals, off, w, fill, op) => vals.map((v, i) => { const a = y(Math.max(0, v)), b2 = y(Math.min(0, v));
+    return `<rect x="${(L + i * bw + off).toFixed(1)}" y="${a.toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(1, b2 - a).toFixed(1)}" rx="3" fill="${fill}" opacity="${op}"/>`; }).join('');
+  const ticks = [min < 0 ? min : null, 0, max].filter((v) => v != null).map((v) => Math.round(v / 50) * 50);
+  const month = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Your bill, month by month">
+    ${[...new Set(ticks)].map((v) => `<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--hair)"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${eur(v)}</text>`).join('')}
+    ${now ? bars(now, 5, bw / 2 - 6, 'var(--ink-dim)', .5) : ''}${bars(best, now ? bw / 2 + 1 : bw * .2, now ? bw / 2 - 6 : bw * .6, 'var(--accent)', 1)}
+    ${MON.map((m, i) => `<text x="${L + i * bw + bw / 2}" y="${H - 6}" text-anchor="middle">${m}</text>`).join('')}</svg>`;
+  // Where the money goes, on this plan.
+  const NAMES = { night: 'Night', day: 'Day', peak: 'Peak', ev: 'Cheap window' };
+  const COLS = { night: 'var(--bandink-night)', day: 'var(--bandink-day)', peak: 'var(--bandink-peak)', ev: 'var(--bandink-ev)' };
+  const parts = Object.entries(T.byBand).filter(([, v]) => v > 1).map(([k, v]) => ({ l: NAMES[k] || k, v, c: COLS[k] || 'var(--ink-dim)' }));
+  parts.push({ l: 'Standing charge and levy', v: T.standing + T.pso, c: 'var(--ink-dim)' });
+  const spend = parts.reduce((a, p) => a + p.v, 0);
+  const where = `<div class="wd-stack">${parts.map((p) => `<span style="flex:${p.v.toFixed(1)};background:${p.c}"></span>`).join('')}</div>
+    <div class="wd-split">${parts.map((p) => `<div><i style="background:${p.c}"></i><span>${p.l}</span><b>${eur(p.v)}</b></div>`).join('')}
+    ${T.credit > 1 ? `<div class="is-credit"><i style="background:var(--accent)"></i><span>Paid for what you sell back</span><b>−${eur(T.credit)}</b></div>` : ''}</div>`;
+  // Your day, hour by hour.
+  const hu = T.hourUse, hm = Math.max(.1, ...hu), DH = 190, DB = 28;
+  const day = `<svg viewBox="0 0 ${W} ${DH}" width="100%" role="img" aria-label="Your average day, hour by hour">
+    ${hu.map((v, h) => { const b = bandAt(h, plan), hh = (DH - DB - 8) * v / hm; return `<rect x="${(L + h * (W - L - 6) / 24 + 2).toFixed(1)}" y="${(DH - DB - hh).toFixed(1)}" width="${((W - L - 6) / 24 - 4).toFixed(1)}" height="${Math.max(1, hh).toFixed(1)}" rx="3" fill="${COLS[b] || 'var(--bandink-day)'}"/>`; }).join('')}
+    ${[0, 6, 12, 18, 23].map((h) => `<text x="${L + h * (W - L - 6) / 24 + (W - L - 6) / 48}" y="${DH - 8}" text-anchor="middle">${String(h).padStart(2, '0')}</text>`).join('')}
+    <text x="${L - 8}" y="${DH - DB}" text-anchor="end">0</text><text x="${L - 8}" y="16" text-anchor="end">${hm.toFixed(1)}</text></svg>`;
+  const peakK = (T.kwhBand.peak || 0), allK = Object.values(T.kwhBand).reduce((a, v) => a + v, 0);
+  const dayLine = peakK > 0 ? `<b>${Math.round(peakK / Math.max(1, allK) * 100)}%</b> of what you buy falls in the peak, costing <b>${eur(T.byBand.peak || 0)}</b> a year.`
+    : `<b>${Math.round(((T.kwhBand.night || 0) + (T.kwhBand.ev || 0)) / Math.max(1, allK) * 100)}%</b> of what you buy is at the cheaper night rates.`;
+  // Top plans on this home.
+  const mine = state.baseline;
+  const top = rec.ranked.filter((r) => !r.onHold).slice(0, 5);
+  const mineRow = top.some((r) => r.plan.id === mine) ? '' : (() => { try { const p = getPlanById(mine); return `<tr class="is-me"><td>${esc(p.supplier)} (yours)<small>${esc(p.plan)}</small></td><td>${eur(annualCost(sim(p.id), p).net)}</td></tr>`; } catch (e) { return ''; } })();
+  const plans = `<table class="wd-plans">${top.map((r, i) => `<tr class="${i === 0 ? 'is-top' : ''} ${r.plan.id === mine ? 'is-me' : ''}" onclick="setScreen('plans');v7Sheet('plan','${r.plan.id}')"><td>${esc(r.plan.supplier)}${r.plan.id === mine ? ' (yours)' : ''}<small>${esc(r.plan.plan)}</small></td><td>${eur(r.net ?? r.cost)}</td></tr>`).join('')}${mineRow}</table>`;
+  const acc = modelAccuracy();
+  const card = (cls, head, body) => `<section class="wd-card ${cls}">${head}${body}</section>`;
+  const hd = (t, sub, link) => `<div class="wd-h"><h3>${t}</h3>${sub ? `<small>${sub}</small>` : ''}${link || ''}</div>`;
+  return `<div class="web-dash" aria-label="Your figures">
+    <div class="wd-head"><h2 class="web-title wd-t">Why these figures</h2>
+      <nav class="wd-tabs" aria-label="More detail">${[['bill','Bill'],['hours','Hours'],['solar','Solar'],['accuracy','Accuracy']].map(([k, l]) => `<button onclick="state._an_from=null;anTab('${k}')">${l}</button>`).join('')}</nav></div>
+    <div class="wd-grid">
+      ${card('s8', hd('Your bill, month by month', now ? `${esc(base.supplier)} now and ${esc(plan.supplier)}, on this home` : `On ${esc(plan.supplier)} ${esc(plan.plan)}`), month + `<div class="wd-legend">${now ? `<span><i style="background:var(--ink-dim);opacity:.5"></i>${esc(base.supplier)} ${esc(base.plan)}</span>` : ''}<span><i style="background:var(--accent)"></i>${esc(plan.supplier)} ${esc(plan.plan)}</span></div>`)}
+      ${card('s4', hd(`Where ${eur(spend)} goes`, `On ${esc(plan.supplier)}, before what you sell back`), where)}
+      ${card('s8', hd('Your day, hour by hour', 'average kWh, coloured by price band', `<button class="wd-link" onclick="state._an_from=null;anTab('hours')">Go through the year ${ic('chevR', 14)}</button>`), day + `<p class="wd-note">${dayLine}</p>`)}
+      ${card('s4', hd('Top plans for you', '', `<button class="wd-link" onclick="setScreen('plans')">All ${rec.ranked.length} ${ic('chevR', 14)}</button>`), plans)}
+      ${card('s4 wd-acc', hd('How sure we are', ''), `<div class="wd-big">±${acc.pct}%</div><div class="wd-bar"><i style="width:${Math.max(8, 100 - acc.pct * 4)}%"></i></div>${state._csv_imported ? '<p class="wd-note">Measured from your ESB meter file.</p>' : `<button class="wd-link" onclick="setScreen('csv-import')">Add your ESB meter file ${ic('chevR', 14)}</button>`}`)}
+      ${card('s8 wd-if', hd('What if…', 'see your answer with it'), `<div class="wd-ifs">
+        <button onclick="state._an_from=null;anTab('solar')"><b>${state.has_solar && totalPanels() > 0 ? 'Change your solar' : 'Add solar panels'}</b><span>Payback after the SEAI grant</span></button>
+        <button onclick="setScreen('myhome')"><b>${state.battery_kwh > 0 ? 'Change the battery' : 'Add a battery'}</b><span>Fills on cheap hours, empties at peak</span></button>
+        <button onclick="setScreen('myhome')"><b>${state.ev_active ? 'Change the car' : 'Get an electric car'}</b><span>What it costs to charge here</span></button></div>`)}
+    </div></div>`;
 }
 
 /** The app's start, at "/app" before any setup: the three ways in. */
@@ -10968,7 +11156,7 @@ function renderInstallerPortal(){
 
 /** Battery sizes actually sold in Ireland, offered as one-tap stops. */
 const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const eur = (n) => '€' + Math.round(n || 0).toLocaleString('en-IE');
+const eur = (n) => { const v = Math.round(n || 0); return (v < 0 ? '−' : '') + '€' + Math.abs(v).toLocaleString('en-IE'); };
 const BATTERY_SIZES = [5, 7, 9.5, 10, 13.5, 15, 20];
 const SYS_MAX_PANELS = 40;
 const SYS_MAX_BATTERY = 30;

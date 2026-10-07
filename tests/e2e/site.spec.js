@@ -11,7 +11,9 @@ for (const width of [390, 1440]) {
     await page.evaluate(() => localStorage.clear());
     await page.reload();
     await expect(page.locator('.wl-site .wl-h1')).toContainText('priced on your home');
-    await expect(page.locator('.wl-card .wl-rib')).toHaveCount(4);
+    await expect(page.locator('.wl-demo .wl-rrow')).toHaveCount(4);
+    await page.locator('.wl-seg button', { hasText: '12 panels' }).click();
+    await expect(page.locator('.wl-demo .wl-rrow')).toHaveCount(4);
     await expect(page.locator('#plans tbody tr').first()).toBeVisible();
     await expect(page.locator('a[href="/app"]').first()).toBeAttached();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
@@ -60,13 +62,13 @@ test('the setup questions use the full width, in two panes', async ({ page }) =>
   expect(g).toBeGreaterThan(1000);
 });
 
-test('no empty gap before What\'s next on the answer page', async ({ page }) => {
+test('no empty gap between the answer and what follows it', async ({ page }) => {
   const { boot } = await import('./support.js');
   await page.setViewportSize({ width: 1850, height: 960 });
   await boot(page, {}, '/');
   const gap = await page.evaluate(() => {
-    const next = document.querySelector('.web-next').getBoundingClientRect().top;
-    const above = [...document.querySelectorAll('.screen > *:not(.web-next)')].map((e) => e.getBoundingClientRect().bottom);
+    const next = document.querySelector('.web-after').firstElementChild.getBoundingClientRect().top;
+    const above = [...document.querySelectorAll('.screen > *')].map((e) => e.getBoundingClientRect().bottom);
     return next - Math.max(...above);
   });
   expect(gap).toBeLessThan(120);
