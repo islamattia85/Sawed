@@ -48,7 +48,7 @@ test('website: My home is a page with the answers and Start over', async ({ page
   await page.evaluate(() => window.v7Sheet('home'));
   await expect(page.locator('#v7-sheet')).toHaveCount(0);
   await expect(page.locator('#wh-home')).toBeVisible();
-  await expect(page.locator('#wh-system')).toBeVisible();
+  await expect(page.locator('#wh-system')).toContainText('Go to your system');
   await expect(page.locator('#wh-reset')).toContainText('Start over');
   expect(page.url()).toContain('#myhome');
 });

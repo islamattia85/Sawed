@@ -3317,6 +3317,30 @@ function renderSite(){
   </div>`;
 }
 
+/** On the website's Solar page: the system the figures rest on, and how to change it. */
+function webSystemCard(){
+  if (!(state.has_solar && totalPanels() > 0)) return '';
+  const fine = state.fine || {};
+  const face = { 180: 'south', 135: 'south-east', 225: 'south-west', 90: 'east', 270: 'west' }[state.azimuth_A] || `${state.azimuth_A}°`;
+  const kwp = (totalPanels() * (state.panel_w || 440) / 1000).toFixed(1);
+  const todo = [
+    !fine.panels && ['Panel rating', 'From your quote: changes how much the roof makes'],
+    state.battery_kwh > 0 && !fine.battery && ['Battery and inverter', 'From your quote: changes how much evening power it covers'],
+  ].filter(Boolean);
+  return `<section class="web-sys" aria-label="Your system">
+    <div class="web-sys-main"><div class="wd-h"><h3>Your system</h3><small>${state.solar_planned || state.solar_is_estimate ? 'Planned' : 'Installed'}</small></div>
+      <div class="web-sys-facts">
+        <div><b>${totalPanels()}</b><span>panels, ${kwp} kWp</span></div>
+        <div><b>${state.count_B > 0 ? 'Two faces' : face}</b><span>roof, ${state.tilt_A ?? 30}° pitch</span></div>
+        <div><b>${state.battery_kwh > 0 ? state.battery_kwh + ' kWh' : 'None'}</b><span>battery</span></div>
+        <div><b>${state.inverter_kw || 5} kW</b><span>inverter</span></div>
+      </div></div>
+    <div class="web-sys-side">
+      <button class="wl-btn wl-btn-p" onclick="openMySystem()">Edit your system</button>
+      ${todo.length ? `<div class="web-sys-todo"><b>Still on typical values</b>${todo.map(([k, v]) => `<span><i>${k}</i> ${v}</span>`).join('')}</div>` : '<div class="web-sys-todo is-ok"><b>Your own figures</b><span>Panels and battery are from what you entered.</span></div>'}
+    </div></section>`;
+}
+
 /** The website's own frame around a page from the app: the "Your home"
  *  strip, one page heading, a "What's next" ending and the footer. */
 function webDecorate(html){
@@ -3374,7 +3398,7 @@ function webDecorate(html){
     let tabs = grab(/<nav class="ax-tabs"[\s\S]*?<\/nav>/);
     const chip = grab(/<button class="ax-plan"[\s\S]*?<\/button>/);
     tabs = (scr === 'solar' || tab === 'solar') ? '' : tabs.replace(/<button class="ax-tab[^"]*"[^>]*anTab\('solar'\)[\s\S]*?<\/button>/, '');
-    top += `<div class="web-sub">${tabs}${chip}</div>`;
+    top += `<div class="web-sub">${tabs}${chip}</div>${(scr === 'solar' || tab === 'solar') ? webSystemCard() : ''}`;
   }
   if (top) html = /<div class="screen v7/.test(html) ? html.replace(/(<div class="screen v7[^>]*>)/, (mm) => mm + top) : html.replace(/(<div class="screen[^>]*>)/, (mm) => mm + top);
   if (end){
@@ -11538,7 +11562,7 @@ const _syFine = (part, title, body) => {
   const open = !!(state._fine_open || {})[part];
   return `<div class="sy-fine ${open ? 'open' : ''}" id="sy-fine-${part}">
     <button class="sy-fine-btn" onclick="sysFine('${part}')" aria-expanded="${open}">${ic('tune', 14)} Fine-tune ${title}
-      ${(state.fine || {})[part] ? '<span class="sy-ok">confirmed</span>' : '<span class="sy-def">typical values</span>'}${ic(open ? 'chevU' : 'chevD', 14)}</button>
+      ${(state.fine || {})[part] ? '<span class="sy-ok">confirmed</span>' : '<span class="sy-def">typical values: enter yours from the quote</span>'}${ic(open ? 'chevU' : 'chevD', 14)}</button>
     ${open ? `<div class="sy-fine-body">${body}</div>` : ''}
   </div>`;
 };
@@ -11757,7 +11781,9 @@ function renderMyHome(){
     </nav>
     <div class="web-home-body">
       <section class="web-sec" id="wh-home">${renderHomeSheet()}</section>
-      <section class="web-sec" id="wh-system">${renderSystemSheet()}</section>
+      <section class="web-sec" id="wh-system"><h3 class="v7-h">Solar and battery</h3>
+        <p class="v7-muted">Your panels, battery and inverter have their own place, next to the payback they decide.</p>
+        <div class="web-actions"><button class="v7-cta-2" onclick="state._an_from=null;anTab('solar')">Go to your system</button><button class="v7-cta-2" onclick="openMySystem()">Edit it here</button></div></section>
       <section class="web-sec web-sec-danger" id="wh-reset">
         <h3 class="v7-h">Start over</h3>
         <p class="v7-muted">Clears every answer on this device and takes you back to the first question.</p>

@@ -2419,3 +2419,14 @@ html.web .fl-guide .sg-top { margin-top: 32px; }
   html.web .v7-top .web-theme:not(.web-bell) { display: none; }
 }
 .web-menu-acct { padding: 4px 12px; } .web-menu-acct:empty { display: none; }
+.web-sys { background: var(--panel); border: 1px solid var(--accent); border-radius: var(--radius-xl); padding: 22px; display: grid; gap: 20px; margin-bottom: 20px; grid-column: 1 / -1; }
+.web-sys-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.web-sys-facts div { background: var(--well); border-radius: var(--radius-lg); padding: 12px 14px; display: grid; }
+.web-sys-facts b { font: 600 25px "Fraunces", Georgia, serif; color: var(--ink); text-transform: capitalize; }
+.web-sys-facts span { font-size: 13px; color: var(--ink-soft); }
+.web-sys-side { display: grid; gap: 12px; align-content: start; }
+.web-sys-todo { display: grid; gap: 6px; font-size: 13px; color: var(--ink-soft); }
+.web-sys-todo b { font: 750 15px var(--display); color: var(--brand-gold); }
+.web-sys-todo.is-ok b { color: var(--accent); }
+.web-sys-todo i { font-style: normal; font-weight: 700; color: var(--ink); }
+@media (min-width: 900px) { .web-sys { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); } .web-sys-facts { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
