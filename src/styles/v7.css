@@ -2165,3 +2165,5 @@ html.web .web-sub .ax-tab { flex: none; }
 html.web .v7-page-head .v7-home-chips { display: none; }
 html.web .web-page-head .wl-eyebrow, html.web .fl-q .wl-eyebrow { text-transform: uppercase !important; letter-spacing: .08em; }
 @media (max-width: 899px) { .web-strip-in button { background: var(--bg); box-shadow: -16px 0 12px var(--bg); } }
+html.web .app:has(> .pk-land), html.web .app[data-chrome="bare"]:has(> .pk-land) { max-width: none; width: 100%; margin: 0; }
+.wl .wl-eyebrow { text-transform: uppercase; letter-spacing: .08em; }

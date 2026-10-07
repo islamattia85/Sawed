@@ -40,3 +40,12 @@ test('the website logo opens the front page, even once set up', async ({ page })
   await page.locator('.wl-bar .wl-btn-p').click();
   expect(await page.evaluate(() => window.state.current_screen)).toBe('result');
 });
+test('front page uses the full width after leaving setup', async ({ page }) => {
+  await isolate(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/'); await page.evaluate(() => localStorage.clear()); await page.reload(); await page.waitForTimeout(600);
+  await page.getByRole('button', { name: /Am I paying too much/ }).click(); await page.waitForTimeout(400);
+  await page.goBack(); await page.waitForTimeout(600);
+  const w = await page.evaluate(() => document.querySelector('.pk-land').getBoundingClientRect().width);
+  expect(w).toBeGreaterThan(1400);
+});
