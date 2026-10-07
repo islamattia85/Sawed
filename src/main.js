@@ -3212,35 +3212,50 @@ function whyChart(){
     ${[0, 6, 12, 18, 24].map((h) => `<text x="${x(h)}" y="${H - 4}" text-anchor="middle">${String(h).padStart(2, '0')}</text>`).join('')}</svg>`;
 }
 
-/** The front page's picture: a home with panels, a battery and a car, and a day of prices under it. */
+/**
+ * The front page's picture is the product itself: a solar answer for an
+ * example home, drawn like the real screen, so the visit starts with what
+ * someone actually gets.
+ */
 function heroArt(){
-  const p = getPlanById('EI-NB') || getPlanById(DEMO_PLANS[1]);
-  const C = { night: 'var(--bandink-night)', day: 'var(--bandink-day)', peak: 'var(--bandink-peak)', ev: 'var(--bandink-ev)' };
-  const ev = p ? Math.min(...Object.values(p.rates)) : .11;
-  const dear = p ? Math.max(...Object.values(p.rates)) : .38;
-  return `<svg class="wl-art" viewBox="0 0 360 300" role="img" aria-label="A home with solar panels, a battery and an electric car, and a day of electricity prices">
-    <circle cx="300" cy="52" r="24" fill="var(--brand-gold)"/>
-    ${[0, 45, 90, 135, 180, 225, 270, 315].map((a) => { const r = a * Math.PI / 180; return `<line x1="${(300 + Math.cos(r) * 32).toFixed(1)}" y1="${(52 + Math.sin(r) * 32).toFixed(1)}" x2="${(300 + Math.cos(r) * 40).toFixed(1)}" y2="${(52 + Math.sin(r) * 40).toFixed(1)}" stroke="var(--brand-gold)" stroke-width="3" stroke-linecap="round"/>`; }).join('')}
-    <path d="M60 128 L150 66 L240 128 Z" fill="var(--brand-ink)"/>
-    ${[0, 1, 2].map((i) => `<path d="M${112 + i * 26} ${118 - i * 18} l22 -15 l12 8 l-22 15 z" fill="#3E6E8E" stroke="#9FC3DA" stroke-width="1.2"/>`).join('')}
-    <rect x="76" y="128" width="148" height="92" rx="4" fill="var(--panel)" stroke="var(--brand-ink)" stroke-width="3"/>
-    <rect x="96" y="148" width="34" height="28" rx="3" fill="var(--brand-gold)" opacity=".75"/><rect x="170" y="166" width="34" height="54" rx="3" fill="var(--brand-ink)"/>
-    <rect x="236" y="168" width="26" height="46" rx="5" fill="var(--panel)" stroke="var(--accent)" stroke-width="3"/><rect x="242" y="190" width="14" height="18" rx="2" fill="var(--accent)"/><rect x="244" y="163" width="10" height="6" rx="2" fill="var(--accent)"/>
-    <path d="M272 214 q4 -18 22 -20 h28 q14 2 18 20 z" fill="var(--accent)"/><rect x="268" y="206" width="76" height="12" rx="6" fill="var(--accent)"/>
-    <circle cx="286" cy="220" r="7" fill="var(--brand-ink)"/><circle cx="328" cy="220" r="7" fill="var(--brand-ink)"/>
-    <line x1="20" x2="340" y1="228" y2="228" stroke="var(--ink-dim)" stroke-opacity=".35" stroke-width="2"/>
-    ${p ? Array.from({ length: 24 }, (_, h) => `<rect x="${(20 + h * 13.4).toFixed(1)}" y="252" width="11.4" height="14" rx="3" fill="${C[bandAt(h, p)] || C.day}"/>`).join('') : ''}
-    <text x="20" y="246" class="wl-art-t g">cheap 2am · ${(ev * 100).toFixed(0)}c</text>
-    <text x="340" y="246" text-anchor="end" class="wl-art-t pk">dear 6pm · ${(dear * 100).toFixed(0)}c</text>
-    <text x="20" y="288" class="wl-art-t">midnight</text><text x="180" y="288" text-anchor="middle" class="wl-art-t">midday</text><text x="340" y="288" text-anchor="end" class="wl-art-t">midnight</text>
-  </svg>`;
+  const cost = 10200, save = 1350, Y = 25, pb = cost / save;
+  const x = (t) => 8 + t * 11.4, y = (v) => 52 - v / 500;
+  let d = `M${x(0)},${y(-cost)}`; for (let t = 1; t <= Y; t++) d += ` L${x(t)},${y(save * t - cost)}`;
+  return `<figure class="wl-shot" aria-label="An example solar answer from Peakless">
+    <div class="wl-shot-k">${ic('home', 14)} Example home · 4,600 kWh a year · south roof · EV</div>
+    <div class="wl-shot-v"><span class="wl-shot-ok">${ic('checkC', 18)}</span><div><b>Yes, solar pays here.</b><small>12 panels. Hold off on a battery for now.</small></div></div>
+    <div class="wl-shot-n"><div><b>${pb.toFixed(1)} yrs</b><span>to pay back</span></div><div><b>+${eur(save * Y - cost)}</b><span>over ${Y} years</span></div><div><b>${eur(cost)}</b><span>after the grant</span></div></div>
+    <svg viewBox="0 0 300 96" width="100%" aria-hidden="true" class="wl-mini">
+      <line x1="8" x2="294" y1="${y(0)}" y2="${y(0)}" class="axis"/>
+      <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+      <circle cx="${x(pb)}" cy="${y(0)}" r="4.5" fill="var(--panel)" stroke="var(--accent)" stroke-width="2.5"/>
+      ${T(x(pb) + 6, y(0) + 16, 'break-even', 'class="g"')}${T(8, 92, 'today', '')}${T(294, 92, `year ${Y}`, 'text-anchor="end"')}</svg>
+    <div class="wl-shot-q">${ic('clip', 14)}<span>Installer quote <b>€11,900</b> for 12 panels</span><em>€900 above fair</em></div>
+  </figure>`;
+}
+
+/** The four people who come here, each with the question they arrive with. */
+function whoStrip(){
+  const done = state.onboarding_complete;
+  const quote = done ? "setScreen('solar');v7Sheet('quote')" : 'navigateAuditor()';
+  const W = [
+    ['sun', 'Thinking about solar', 'Is it worth it on my roof? How many panels? Do I need a battery?', "startFlow('full')", 'Check my roof'],
+    ['clip', 'I have a quote', 'Is the price fair? Is the system the right size for my home?', quote, 'Check my quote'],
+    ['battery', 'I already have panels', 'Am I on the right plan to sell my spare power? Would a battery pay?', "startFlow('full')", 'Check my setup'],
+    ['car', 'Getting an EV', 'What will it add to my bill? Does solar make more sense with a car?', "startFlow('full')", 'Check with a car'],
+  ];
+  return `<section class="wl-band wl-who" id="who"><div class="wl-in">
+    <div class="wl-sh"><div class="wl-eyebrow">Start where you are</div><h2 class="wl-h2">Which one sounds like you?</h2></div>
+    <div class="wl-who4">${W.map(([i, t, q, go, b]) => `<button class="wl-whocard" onclick="${go}"><span class="wl-how3-ic">${ic(i, 20)}</span><b>${t}</b><small>${q}</small><span class="wl-who-go">${b} ${ic('chevR', 14)}</span></button>`).join('')}</div>
+    <p class="wl-who-alt">Just want a cheaper plan? <button class="pk-link" onclick="startFlow('quick')">Compare every plan on my home</button></p>
+  </div></section>`;
 }
 
 /** Three steps, straight under the hero, so the visit starts with what happens. */
 function howStrip(){
   const st = [['home', 'Tell us about your home', 'Your bill or ESB meter file, heating, panels, battery, car.'],
     ['clock', 'We price every hour', 'Your year, 8,760 hours, on every plan in Ireland.'],
-    ['checkC', 'You get one answer', 'The cheapest plan for you, and what solar would add.']];
+    ['checkC', 'You get a clear answer', 'Whether solar pays, what size, and the right plan to go with it.']];
   return `<section class="wl-how3" aria-label="How it works">${st.map(([i, t, d], k) => `<div><span class="wl-how3-ic">${ic(i, 20)}</span><b><i>${k + 1}</i> ${t}</b><small>${d}</small></div>`).join('')}</section>`;
 }
 
@@ -3341,7 +3356,7 @@ function renderSite(){
   return `<div class="pk-land wl wl-site">
     <header class="wl-bar">
       <a class="wl-logo" href="/" onclick="event.preventDefault();scrollTo({ top: 0, behavior: 'smooth' })" aria-label="Peakless, back to the top"><span class="pk-land-icon">${ic('logo', 22, 'stroke-width:1.6')}</span>${wordmarkHtml('pk-word-top')}</a>
-      <nav class="wl-nav" aria-label="Site"><a href="#how">How it works</a><a href="#types">Plan types</a><a href="#plans">Every plan</a><a href="#faq">Questions</a></nav>
+      <nav class="wl-nav" aria-label="Site"><a href="#who">Start here</a><a href="#how">How it works</a><a href="#types">Plan types</a><a href="#plans">Every plan</a><a href="#faq">Questions</a></nav>
       <div class="wl-bar-end"><a class="wl-applink" href="${APP_HREF}">${ic('mobile', 16)}<span>Get the app</span></a>
         ${done ? '' : renderProfileNavBtn()}
         <button class="wl-btn wl-btn-p" onclick="${go}">${done ? 'My answer' : 'Check my plans'}</button></div>
@@ -3349,14 +3364,15 @@ function renderSite(){
 
     <section class="wl-hero">
       <div class="wl-copy">
-        <div class="wl-eyebrow">Irish electricity, priced properly</div>
-        <h1 class="wl-h1">Every plan in Ireland, priced on <em>your</em> home, hour by hour.</h1>
-        <p class="wl-lede">The cheapest plan depends on <b>when</b> you use power, not just how much. Peakless runs all ${n} plans through the 8,760 hours of your year, with your solar, battery and car, and tells you which to pick.</p>
-        <div class="wl-cta"><button class="wl-btn wl-btn-p wl-btn-lg" onclick="${go}">${done ? 'See my answer' : 'Compare my plans'}</button><button class="wl-btn wl-btn-g wl-btn-lg" onclick="startFlow('full')">Is solar worth it?</button></div>
+        <div class="wl-eyebrow">Solar, batteries and EVs in Ireland</div>
+        <h1 class="wl-h1">Should you get solar? We'll work it out on <em>your</em> home.</h1>
+        <p class="wl-lede">How many panels, whether a battery pays, if a quote is fair, and which plan to be on after. Worked out hour by hour on your own year, against all ${n} plans in Ireland.</p>
+        <div class="wl-cta"><button class="wl-btn wl-btn-p wl-btn-lg" onclick="${done ? "setScreen('solar')" : "startFlow('full')"}">${done ? 'See my solar answer' : 'Check if solar pays for me'}</button><button class="wl-btn wl-btn-g wl-btn-lg" onclick="${go}">${done ? 'My plans' : 'Just compare plans'}</button></div>
         <div class="wl-proof"><div><b>${n}</b><span>plans, rates checked this week</span></div><div><b>8,760</b><span>hours priced, not averages</span></div><div><b>€0</b><span>commission from suppliers</span></div></div>
       </div>
       ${heroArt()}
     </section>
+    ${whoStrip()}
     ${howStrip()}
 
     <section class="wl-band wl-tint" id="get"><div class="wl-in">

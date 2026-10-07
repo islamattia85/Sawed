@@ -10,7 +10,7 @@ for (const width of [390, 1440]) {
     await page.goto('/');
     await page.evaluate(() => localStorage.clear());
     await page.reload();
-    await expect(page.locator('.wl-site .wl-h1')).toContainText('priced on your home');
+    await expect(page.locator('.wl-site .wl-h1')).toContainText('Should you get solar');
     await expect(page.locator('.wl-demo .wl-rrow')).toHaveCount(4);
     await page.locator('.wl-seg[aria-label="Solar panels"] button', { hasText: '12' }).click();
     await expect(page.locator('.wl-demo .wl-rrow')).toHaveCount(4);

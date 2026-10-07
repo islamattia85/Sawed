@@ -2498,10 +2498,29 @@ html.web #wh-home .v7-cta-2:has(svg) { display: none; }
 .wl-mini .axis { stroke: var(--ink-dim); stroke-opacity: .5; }
 .wl-showvis { padding: 12px 10px; background: var(--well); }
 /* front page: picture first, then how it works, then the demo */
-.wl-art { width: 100%; max-width: 460px; height: auto; justify-self: center; }
-.wl-art-t { font: 600 12px var(--display); fill: var(--ink-soft); }
-.wl-art-t.g { fill: var(--accent); }
-.wl-art-t.pk { fill: var(--bandink-peak); }
+.wl-shot { margin: 0; width: 100%; max-width: 440px; justify-self: center; background: var(--panel); border: 1px solid var(--hair-strong); border-radius: 16px; padding: 20px; box-shadow: 0 24px 48px -24px rgba(20,40,40,.28); display: grid; gap: 15px; }
+.wl-shot-k { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); }
+.wl-shot-v { display: flex; gap: 12px; align-items: center; }
+.wl-shot-v b { display: block; font: 600 25px/1.15 var(--display); }
+.wl-shot-v small { font-size: 15px; color: var(--ink-soft); }
+.wl-shot-ok { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 12px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+.wl-shot-n { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.wl-shot-n div { background: var(--bg); border-radius: 12px; padding: 10px; }
+.wl-shot-n b { display: block; font-size: 17px; color: var(--accent); white-space: nowrap; }
+.wl-shot-n span { font-size: 12px; color: var(--ink-soft); }
+.wl-shot-q { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 10px 12px; border-radius: 12px; border: 1px dashed var(--hair-strong); }
+.wl-shot-q span { flex: 1; }
+.wl-shot-q em { font-style: normal; font-weight: 700; color: var(--bandink-peak); }
+.wl-who4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.wl-whocard { text-align: left; font: inherit; color: inherit; cursor: pointer; background: var(--panel); border: 1px solid var(--hair-strong); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 8px; transition: border-color .15s, transform .15s; }
+.wl-whocard:hover { border-color: var(--accent); transform: translateY(-2px); }
+.wl-whocard b { font-size: 17px; }
+.wl-whocard small { font-size: 15px; color: var(--ink-soft); flex: 1; }
+.wl-who-go { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: var(--accent); font-size: 15px; }
+.wl-who-alt { margin-top: 18px; color: var(--ink-soft); font-size: 15px; }
+.wl-who-alt .pk-link { color: var(--accent); font-weight: 700; background: none; border: 0; padding: 0; font-size: 15px; text-decoration: underline; cursor: pointer; }
+@media (max-width: 900px) { .wl-who4 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .wl-who4 { grid-template-columns: 1fr; } .wl-shot { padding: 16px; } .wl-shot-n b { font-size: 15px; } .wl-shot-n div { padding: 8px; } }
 .wl-how3 { display: grid; gap: 12px; padding-bottom: 32px; }
 .wl-how3 > div { display: grid; grid-template-columns: 40px 1fr; gap: 2px 12px; align-items: center; background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius-lg); padding: 14px 16px; }
 .wl-how3-ic { grid-row: span 2; width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
