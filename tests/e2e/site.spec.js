@@ -104,3 +104,14 @@ test('Everything in Peakless lists every part, and each link goes somewhere', as
   await page.locator('.web-all-it', { hasText: 'Check an installer' }).click();
   expect(await page.evaluate(() => window.state._sheet && window.state._sheet.kind)).toBe('quote');
 });
+
+test('the logo on the front page stays on the front page', async ({ page }) => {
+  const { boot } = await import('./support.js');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await boot(page, {}, '/');
+  await page.locator('.web-logo').click();
+  await expect(page.locator('.wl-site')).toBeVisible();
+  await page.locator('.wl-logo').click();
+  await page.waitForTimeout(500);
+  await expect(page.locator('.wl-site')).toBeVisible();
+});

@@ -3303,7 +3303,7 @@ function renderSite(){
   })();
   return `<div class="pk-land wl wl-site">
     <header class="wl-bar">
-      <a class="wl-logo" href="/" aria-label="Peakless"><span class="pk-land-icon">${ic('logo', 22, 'stroke-width:1.6')}</span>${wordmarkHtml('pk-word-top')}</a>
+      <a class="wl-logo" href="/" onclick="event.preventDefault();scrollTo({ top: 0, behavior: 'smooth' })" aria-label="Peakless, back to the top"><span class="pk-land-icon">${ic('logo', 22, 'stroke-width:1.6')}</span>${wordmarkHtml('pk-word-top')}</a>
       <nav class="wl-nav" aria-label="Site"><a href="#how">How it works</a><a href="#types">Plan types</a><a href="#plans">Every plan</a><a href="#faq">Questions</a></nav>
       <div class="wl-bar-end"><a class="wl-applink" href="${APP_HREF}">${ic('mobile', 16)}<span>Get the app</span></a>
         ${done ? '' : renderProfileNavBtn()}
