@@ -3038,6 +3038,7 @@ function renderWelcome(){
     <div class="pk-land-actions">
       <button class="pk-btn-gold pk-route" onclick="startFlow('quick')"><span><b>Am I paying too much?</b><small>About a minute: your bill and your plan</small></span><i class="pk-route-ico" aria-hidden="true">${ic('euro', 26)}</i></button>
       <button class="pk-btn-route" onclick="startFlow('full')"><span><b>Planning solar, a battery or an EV</b><small>A few minutes, one question at a time</small></span><i class="pk-route-ico" aria-hidden="true">${ic('sun', 18)}${ic('battery', 18)}${ic('car', 18)}</i></button>
+      <button class="pk-btn-route web-only" onclick="startFlow('quick')"><span><b>Start from my ESB meter file</b><small>The most exact answer: your real half-hours</small></span><i class="pk-route-ico" aria-hidden="true">${ic('csv', 22)}</i></button>
       <button class="pk-link" onclick="${state.onboarding_complete ? "setScreen('solar');v7Sheet('quote')" : 'navigateAuditor()'}">${ic('clip', 14)} Already have a solar quote? Check it</button>
       ${state.onboarding_complete ? `<button class="pk-land-link" onclick="setScreen('result')">${ic('chevL', 14)} Back to my results</button>` : ''}
       <div class="pk-land-trust">${TARIFFS.length} plans · prices checked daily · your data stays on this phone</div>
@@ -11206,6 +11207,12 @@ function renderHomeSheet(){
 }
 
 function v7Sheet(kind, id){
+  // On a wide screen a plan opens in the side panel on Plans, not over it.
+  if (kind === 'plan' && state.current_screen === 'plans' && webWide()){
+    state._web_plan = id; state._sheet = null; renderApp(); return;
+  }
+  // The home's answers are a page of their own on the website.
+  if (kind === 'home' && webWide(900)){ state._sheet = null; setScreen('myhome'); return; }
   const was = !!state._sheet;
   state._sheet = kind ? { kind, id: id || null } : null;
   // An open sheet is a step Back can undo. Without its own history entry, Back
@@ -11217,6 +11224,41 @@ function v7Sheet(kind, id){
   renderApp();
 }
 /** Open the month-by-month sheet at the bar that was tapped (or January). */
+/**
+ * My home: every answer the figures rest on, on one page you can always come
+ * back to, with starting over at the end of it. On a phone the same answers
+ * open as sheets; a website reader expects a page with an address.
+ */
+function renderMyHome(){
+  return `${V7.topbar('My home')}
+  <div class="screen v7 web-home">
+    <div class="web-home-head">
+      <h2 class="v7-h">Your home and your answers</h2>
+      <div class="v7-muted">Change anything here and every figure on the site updates.</div>
+    </div>
+    <nav class="web-toc" aria-label="On this page">
+      <a href="#myhome" onclick="event.preventDefault();document.getElementById('wh-home').scrollIntoView({behavior:'smooth'})">Home and usage</a>
+      <a href="#myhome" onclick="event.preventDefault();document.getElementById('wh-system').scrollIntoView({behavior:'smooth'})">Solar and battery</a>
+      <a href="#myhome" onclick="event.preventDefault();setScreen('refine')">Battery, plan options, usage pattern</a>
+      <a href="#myhome" onclick="event.preventDefault();setScreen('csv-import')">ESB meter file</a>
+      <a href="#myhome" class="is-danger" onclick="event.preventDefault();document.getElementById('wh-reset').scrollIntoView({behavior:'smooth'})">Start over</a>
+    </nav>
+    <div class="web-home-body">
+      <section class="web-sec" id="wh-home">${renderHomeSheet()}</section>
+      <section class="web-sec" id="wh-system">${renderSystemSheet()}</section>
+      <section class="web-sec web-sec-danger" id="wh-reset">
+        <h3 class="v7-h">Start over</h3>
+        <p class="v7-muted">Clears every answer on this device and takes you back to the first question.</p>
+        <div class="web-actions">
+          <button class="v7-cta-2" onclick="startFlow('full')">Answer the questions again</button>
+          <button class="v7-cta-2 is-danger" onclick="confirmResetAll()">Clear everything</button>
+        </div>
+      </section>
+    </div>
+  </div>
+  ${V7.nav()}`;
+}
+
 function v7OpenMonth(ev){
   const g = ev && ev.target && ev.target.closest ? ev.target.closest('[data-month]') : null;
   v7Sheet('months', g ? g.getAttribute('data-month') : '0');
@@ -11246,7 +11288,7 @@ function v7Choose(planId){
    ============================================================ */
 const APP_SCREENS = ['result','plans','plan-detail','solar','analytics','monitor','privacy','installer','me','updates','profile','account',
                      'compare','more','independence','quotes','auditor','refine',
-                     'how-to-switch','methodology','csv-import'];
+                     'how-to-switch','methodology','csv-import','myhome'];
 
 // Set while we are reacting to a popstate, so restoring a screen doesn't
 // push a fresh entry and trap the user in a loop.
@@ -11254,6 +11296,13 @@ let _suppressHistoryPush = false;
 // The top history entry was added for a sheet (open, or since closed by its own button).
 let _sheetEntry = false;
 
+/** At least this wide: the website layout rather than the phone's. */
+try {
+  ['(min-width: 900px)', '(min-width: 1200px)'].forEach((q) => matchMedia(q).addEventListener('change', () => { try { renderApp(); } catch (e) {} }));
+} catch (e) {}
+function webWide(px = 1200){
+  try { return matchMedia(`(min-width: ${px}px)`).matches; } catch (e) { return false; }
+}
 function _histDepth(){ return (history.state && +history.state.depth) || 0; }
 function _hashScreen(){
   const h = (location.hash || '').replace(/^#/, '');
@@ -11746,6 +11795,7 @@ function renderApp(){
     case 'how-to-switch':html = renderHowToSwitch(); break;
     case 'methodology':  html = renderMethodology(); break;
     case 'csv-import':   html = renderCsvImport(); break;
+    case 'myhome':       html = renderMyHome(); break;
     default:
       // Falling through to the home screen made every broken link look like a
       // working one that went somewhere odd — a dead button shipped and

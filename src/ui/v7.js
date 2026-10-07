@@ -52,8 +52,33 @@ export function createV7(api) {
             <span class="v7-brand-mark">${api.ic('logo', 22, 'stroke-width:1.6')}</span>
           </button>`}
       ${title ? `<div class="v7-top-title">${esc(title)}</div>` : `<div class="v7-top-title">${api.wordmark('pk-word-top')}</div>`}
+      ${webLinks()}
       <div class="v7-top-end">${api.renderProfileNavBtn()}</div>
     </header>`;
+  }
+
+  /**
+   * The website's top menu, shown from 900px wide in place of the bottom bar.
+   * Named by task, not by tab, so a visitor can go straight to what they came for.
+   */
+  const WEB_LINKS = [
+    { id: 'result', label: 'My answer', go: "setScreen('result')", screens: ['result'] },
+    { id: 'plans', label: 'Compare plans', go: "setScreen('plans')", screens: ['plans', 'plan-detail', 'compare'] },
+    { id: 'solar', label: 'Solar & battery', go: "state._an_from=null;anTab('solar')", screens: ['solar'] },
+    { id: 'usage', label: 'My usage', go: "state._an_from=null;anTab(state._an_tab&&state._an_tab!=='solar'?state._an_tab:'bill')", screens: ['analytics', 'csv-import'] },
+    { id: 'myhome', label: 'My home', go: "setScreen('myhome')", screens: ['myhome', 'refine'] },
+    { id: 'updates', label: 'Updates', go: "setScreen('updates')", screens: ['updates', 'me', 'monitor'] },
+  ];
+  function webLinks() {
+    const st = S();
+    const cur = st.current_screen === 'analytics' && st._an_tab === 'solar' ? 'solar' : st.current_screen;
+    const n = api.alertCount();
+    return `<a class="web-logo" href="#result" onclick="event.preventDefault();setScreen('result')" aria-label="Peakless, my answer">${api.wordmark('pk-word-top')}</a>
+    <nav class="web-links" aria-label="Main">${WEB_LINKS.map((l) => {
+      const on = l.screens.includes(cur);
+      return `<a href="#${l.id === 'usage' ? 'analytics' : l.id}" class="${on ? 'on' : ''}" aria-current="${on ? 'page' : 'false'}"
+        onclick="event.preventDefault();${l.go}">${esc(l.label)}${l.id === 'updates' && n ? ` <i class="web-badge">${n}</i>` : ''}</a>`;
+    }).join('')}</nav>`;
   }
 
   /** What a bottom-bar tap does: scroll up on the page you're on, else go there. */
@@ -550,6 +575,9 @@ export function createV7(api) {
     // filtered by: sorted for selling solar, the top row was called best while
     // costing more than staying put.
     const cheapest = ranked.filter((r) => !r.onHold).reduce((m, r) => (!m || r.cost < m.cost ? r : m), null);
+    // On a wide screen the chosen plan's details sit beside the list, not over it.
+    const panel = webWide();
+    const selId = panel ? webPlanId(cheapest) : null;
 
     const rows = filtered.length === 0
       ? `<div class="v7-empty">No plans in this category. Try another filter.</div>`
@@ -571,7 +599,7 @@ export function createV7(api) {
           r.plan.price_change ? `<span class="v7-flag is-rise">${api.ic('trendUp', 12)} rising ${fmtDate(r.plan.price_change.effective_date)}</span>` : '',
           r.onHold ? `<span class="v7-flag">wholesale-linked, not ranked</span>` : '',
         ].filter(Boolean).join('');
-        return `<div class="plan-card v7-plan ${isChosen ? 'chosen' : isBest ? 'best' : isCurrent ? 'current' : ''}"
+        return `<div class="plan-card v7-plan ${isChosen ? 'chosen' : isBest ? 'best' : isCurrent ? 'current' : ''}${r.plan.id === selId ? ' is-sel' : ''}"
             onclick="v7Sheet('plan','${r.plan.id}')" data-a11y="1">
           <div class="v7-plan-head">
             <span class="v7-rank">${r.onHold ? '—' : isChosen ? '✓' : rank}</span>
@@ -627,6 +655,7 @@ export function createV7(api) {
       </div>
 
       <div class="v7-plan-list">${rows}</div>
+      ${selId ? `<aside class="web-detail" aria-label="Plan details">${planSheet(selId)}</aside>` : ''}
 
       ${hidden > 0 ? `<button class="plans-more v7-more" onclick="state._plans_all=true;renderApp()">
         Show the other ${hidden} plan${hidden > 1 ? 's' : ''}</button>` : ''}
@@ -714,6 +743,7 @@ export function createV7(api) {
         ? `<button class="v7-home-back" onclick="state._an_from=null;setScreen('result')" aria-label="Back to Home">${api.ic('chevL', 18)} Home</button>`
         : `<span class="v7-brand v7-brand-static" aria-hidden="true">${api.ic('chart', 18)}</span>`}
       <div class="v7-top-title">Analytics</div>
+      ${webLinks()}
       <div class="v7-top-end">${api.renderProfileNavBtn()}</div>
       ${anPlanChip()}
       <nav class="ax-tabs" aria-label="Analytics">
@@ -1339,6 +1369,19 @@ export function createV7(api) {
   }
 
 
+  /** Wide enough for list and details side by side. */
+  function webWide() {
+    try { return matchMedia('(min-width: 1200px)').matches; } catch (e) { return false; }
+  }
+  /** The plan in the side panel: the one picked, else the cheapest. */
+  function webPlanId(cheapest) {
+    const st = S();
+    const id = st._sheet && st._sheet.kind === 'plan' ? st._sheet.id : st._web_plan;
+    const pick = id && api.getPlanById(id) ? id : (cheapest ? cheapest.plan.id : null);
+    st._web_plan = pick;
+    return pick;
+  }
+
   /* ------------------------------------------------------------ SHEETS */
 
   /**
@@ -1349,6 +1392,8 @@ export function createV7(api) {
   function sheet() {
     const sh = S()._sheet;
     if (!sh) return '';
+    // Shown in the side panel on Plans instead.
+    if (sh.kind === 'plan' && S().current_screen === 'plans' && webWide()) return '';
     let body = '';
     if (sh.kind === 'plan') body = planSheet(sh.id);
     else if (sh.kind === 'assume') body = assumeSheet();

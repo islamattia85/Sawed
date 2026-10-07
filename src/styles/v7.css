@@ -1777,53 +1777,104 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 380px) { .st-mapwrap { grid-template-columns: 1fr; } }
 .st-home { display: block; margin-top: 4px; font-size: var(--text-caption); }
 
-/* ---------- desktop ----------
-   From 900px wide the app becomes a site: the bottom bar turns into a fixed
-   left sidebar with full labels, sheets open as centred windows, and content
-   keeps a readable width instead of stretching across the screen. Below
-   900px nothing here applies, so the phone layout is untouched. */
+/* ---------- website ----------
+   From 900px wide Peakless is laid out as a website: a full-width top menu
+   named by task, pages with their own addresses, and content at a readable
+   width. Below 900px none of this applies and the phone layout is untouched. */
+.web-links, .web-logo, .web-only, .web-toc { display: none; }
 @media (min-width: 900px) {
-  .app[data-chrome="app"] { overflow: visible; align-items: start; }
-  .v7-nav {
-    position: sticky; top: 0; left: auto; bottom: auto; transform: none; will-change: auto;
-    width: auto; max-width: none; height: calc(100vh - 48px); align-self: start;
-    border: 0; border-right: 1px solid var(--hair); border-radius: 0; box-shadow: none;
-    padding: var(--space-4) var(--space-3);
+  .app[data-chrome="app"] {
+    display: block; max-width: none; width: auto; margin: 0; min-height: 100vh;
+    border: 0; border-radius: 0; box-shadow: none; background: transparent; overflow: visible;
   }
-  .v7-nav::before { content: none; }
-  .v7-nav-item .nav-ico { width: 26px; }
-  .v7-nav-item { cursor: pointer; }
-  .v7-top { position: sticky; top: 0; z-index: 30; padding: 0 var(--space-5); }
+  html[data-theme] body, html[data-theme] { background: var(--bg); }
+  .v7-nav, .cmp-tray ~ .v7-nav { display: none !important; }
+  .v7-top {
+    position: sticky; top: 0; z-index: 30; min-height: 68px;
+    grid-template-columns: auto auto 1fr auto; gap: var(--space-4);
+    padding: 0 max(24px, calc((100% - 1240px) / 2));
+    border-bottom: 1px solid var(--hair);
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  }
+  .v7-top.v7-top-sub { grid-template-columns: auto auto 1fr auto; }
+  .v7-top .v7-top-title { display: none; }
+  .web-logo { display: flex; align-items: center; text-decoration: none; color: var(--ink); }
+  .web-links { display: flex; gap: 2px; align-items: center; min-width: 0; }
+  .web-links a {
+    text-decoration: none; font: 650 15px var(--display); color: var(--ink-soft);
+    padding: 8px 12px; border-radius: var(--radius-pill); white-space: nowrap;
+  }
+  .web-links a:hover { color: var(--ink); background: var(--well); }
+  .web-links a.on { color: var(--ink); background: var(--panel); box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 0 0 1px var(--hair); }
+  .web-badge { font-style: normal; font-size: 12px; font-weight: 800; background: var(--loss, #c0392b); color: #fff; border-radius: var(--radius-pill); padding: 0 6px; margin-left: 2px; }
+  .web-only { display: grid; }
+
+  .app[data-chrome="app"] > .screen { width: 100%; max-width: 860px; margin: 0 auto; overflow: visible; padding: var(--space-6) 24px 64px; }
   .screen.v7 {
-    width: 100%; max-width: 820px; margin: 0 auto; overflow: visible;
-    padding: var(--space-4) var(--space-5) var(--space-6);
+    width: 100%; max-width: 1080px; margin: 0 auto; overflow: visible;
+    padding: var(--space-6) 24px 64px;
   }
   /* Sheets: a centred window, not a panel rising from the bottom edge. */
   .v7-sheet-root { align-items: center; padding: var(--space-5); }
-  .v7-sheet { max-width: 620px; max-height: 86vh; border-radius: var(--radius-xl); padding-bottom: var(--space-5); }
+  .v7-sheet { max-width: 640px; max-height: 86vh; border-radius: var(--radius-xl); padding-bottom: var(--space-5); }
   .v7-grip { display: none; }
-  /* Hover states a mouse expects. */
-  .v7-card[onclick]:hover, button.v7-card:hover { border-color: var(--accent); }
+  .plan-card:hover, .v7-plan:hover { border-color: var(--ink-dim); }
+  .cmp-tray { bottom: 24px; }
+
+  /* Start page: the hero and the three ways in, side by side. */
+  .app:has(> .pk-land) { max-width: none; width: 100%; margin: 0; }
+  .pk-land {
+    display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 64px;
+    align-items: center; justify-content: center; padding: 64px max(32px, calc((100% - 1160px) / 2));
+  }
+  .pk-land-hero, .pk-land-actions { max-width: none; margin: 0; }
+  .pk-land-curve { max-width: 440px; }
+  .pk-land-title { font-size: clamp(44px, 5vw, 68px); }
+  .pk-land-sub { font-size: 20px; }
+  .pk-land-actions { padding-top: 0; }
+  .pk-route, .pk-btn-route { transition: transform .15s; }
+  .pk-route:hover, .pk-btn-route:hover { transform: translateY(-2px); }
+
+  /* My home: contents on the left, the answers as sections on the right. */
+  .screen.v7.web-home { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-4) 40px; align-items: start; }
+  .web-home-head { grid-column: 1 / -1; display: grid; gap: 4px; }
+  .web-toc { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 92px; }
+  .web-toc a { text-decoration: none; color: var(--ink-soft); font-weight: 650; padding: 8px 12px; border-radius: var(--radius-md); font-size: 15px; }
+  .web-toc a:hover { background: var(--well); color: var(--ink); }
+  .web-toc a.is-danger { color: var(--loss, #b4432f); margin-top: var(--space-3); }
 }
-/* Wide screens: the answer on the left, what to do about it on the right. */
+.web-home-body { display: grid; gap: var(--space-4); min-width: 0; }
+.web-sec { background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius-xl); padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); scroll-margin-top: 92px; }
+.web-sec .v7-sheet-x { display: none; }
+.web-sec-danger p { margin: 0; }
+.web-actions { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+.v7-cta-2.is-danger { color: var(--loss, #b4432f); }
+
+/* Wide screens: two columns where the content has two parts. */
 @media (min-width: 1200px) {
-  body { --desk-sidebar: 208px; }
-  .screen.v7 { max-width: 1080px; }
   .screen.v7:has(> .v7-hero) {
     display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
     align-content: start; align-items: start;
   }
   .screen.v7:has(> .v7-hero) > * { grid-column: 2; }
   .screen.v7:has(> .v7-hero) > .v7-hero { grid-column: 1; grid-row: 1 / span 20; }
-  .screen.v7:has(> .v7-plan-list) {
-    display: grid; grid-template-columns: 300px minmax(0, 1fr); align-content: start; align-items: start;
-  }
-  .screen.v7:has(> .v7-plan-list) > * { grid-column: 1 / -1; }
-  .screen.v7:has(> .v7-plan-list) > .v7-controls { grid-column: 1; position: sticky; top: 72px; }
-  /* In the side column the filters stack instead of scrolling sideways. */
+
+  /* Plans: filters | list | the chosen plan's details. */
+  .screen.v7.v7-plans { max-width: 1280px; display: grid; grid-template-columns: 220px minmax(0, 1fr) 400px; gap: var(--space-4) 24px; align-content: start; align-items: start; }
+  .v7-plans > * { grid-column: 1 / -1; }
+  .v7-plans > .v7-controls { grid-column: 1; grid-row: span 3; position: sticky; top: 92px; }
+  .v7-plans > .v7-plan-list, .v7-plans > .v7-more { grid-column: 2; }
+  .v7-plans > .web-detail { grid-column: 3; grid-row: span 3; }
+  .v7-plans .v7-plan-list ~ .v7-more { grid-column: 2; }
   .v7-controls .v7-seg { flex-direction: column; border-radius: var(--radius-lg); overflow: visible; }
-  .v7-controls .v7-seg-btn { justify-content: space-between; border-radius: var(--radius-md, 8px); }
+  .v7-controls .v7-seg-btn { justify-content: space-between; border-radius: var(--radius-md); }
   .v7-controls .v7-sort, .v7-controls .v7-sort * { flex-wrap: wrap; overflow: visible; }
-  .screen.v7:has(> .v7-plan-list) > .v7-plan-list,
-  .screen.v7:has(> .v7-plan-list) > .v7-more { grid-column: 2; }
+  .web-detail {
+    position: sticky; top: 92px; max-height: calc(100vh - 110px); overflow-y: auto;
+    background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius-xl);
+    padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-3);
+  }
+  .web-detail > * { flex-shrink: 0; }
+  .plan-card.is-sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 }
