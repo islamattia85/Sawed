@@ -250,7 +250,7 @@ export function createV7(api) {
 
     // When nothing on the market beats the plan this home is on, the answer
     // is "stay" — not a €0 saving with a button to switch to something dearer.
-    let stay = saving <= 10 && !chosen;
+    let stay = saving < 20 && !chosen;
     let hero = stay ? `
         <div class="v7-eyebrow">Your plan is already the best value</div>
         <div class="qr-value v7-figure"><span>${api.fmtCurrency(mineNow)}</span><span class="v7-figure-unit">a year where you are</span></div>
@@ -1544,7 +1544,7 @@ export function createV7(api) {
     let d = null; if (!pl) { try { d = api.dualFuel(); } catch (e) {} }
     if (pl) {
       const nowSave = pl.today - pl.noSolar.net;
-      if (pl.noSolar.plan.id !== st.baseline && nowSave > 10)
+      if (pl.noSolar.plan.id !== st.baseline && nowSave >= 20)
         opts.push({ plan: pl.noSolar.plan, top: `Now: switch to ${esc(pl.noSolar.plan.supplier)}`, sub: `${eur(nowSave)} less a year, before the panels` });
       if (pl.best.plan.id !== pl.noSolar.plan.id && pl.best.plan.id !== st.baseline)
         opts.push({ plan: pl.best.plan, top: `With the panels: ${esc(pl.best.plan.supplier)}`, sub: `${eur(pl.mine - pl.best.net)} less a year once they’re in` });

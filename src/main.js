@@ -1644,6 +1644,8 @@ function modelKey(){
 }
 
 let _plMemo = { k: null, v: null };
+/** The least a switch must save in a year before it is offered. */
+const SWITCH_MIN = 20;
 function plannedLadder(){
   if (!state.has_solar || !(totalPanels() > 0)) return null;
   // The no-solar run re-simulates the year; do it once per household, not per render.
@@ -1660,7 +1662,10 @@ function _plannedLadder(){
   const today = (state.ev_active && !state.ev_in_bill)
     ? withSimState({ count_A: 0, count_B: 0, battery_kwh: 0, has_solar: false }, () => annualCost(sim(basePlan.id), basePlan).net)
     : baselineNet(state.baseline);
-  const noSolar = noSolarBest();
+  let noSolar = noSolarBest();
+  // A switch worth under €20 a year is not worth the paperwork, or a step of
+  // its own: the plan the home is on counts as the best one before the panels.
+  if (noSolar && noSolar.plan.id !== basePlan.id && today - noSolar.net < SWITCH_MIN) noSolar = { ...noSolar, plan: basePlan, net: today };
   const withS = getBestPlan();
   const mine = annualCost(sim(basePlan.id), basePlan).net;
   return { today, noSolar, mine, best: { net: withS.net, plan: withS.plan } };
