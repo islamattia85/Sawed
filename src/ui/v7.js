@@ -73,7 +73,7 @@ export function createV7(api) {
     const st = S();
     const cur = st.current_screen === 'analytics' && st._an_tab === 'solar' ? 'solar' : st.current_screen;
     const n = api.alertCount();
-    return `<a class="web-logo" href="#result" onclick="event.preventDefault();setScreen('result')" aria-label="Peakless, my answer">${api.wordmark('pk-word-top')}</a>
+    return `<a class="web-logo" href="/" onclick="event.preventDefault();state._sheet=null;state.current_screen='welcome';renderApp();scrollTo(0,0)" aria-label="Peakless front page">${api.wordmark('pk-word-top')}</a>
     <nav class="web-links" aria-label="Main">${WEB_LINKS.map((l) => {
       const on = l.screens.includes(cur);
       return `<a href="#${l.id === 'usage' ? 'analytics' : l.id}" class="${on ? 'on' : ''}" aria-current="${on ? 'page' : 'false'}"

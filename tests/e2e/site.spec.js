@@ -30,3 +30,13 @@ test('the mobile app opens at /app with its own start', async ({ page }) => {
   await expect(page.locator('.wl-site')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Planning solar, a battery or an EV/ })).toBeVisible();
 });
+
+test('the website logo opens the front page, even once set up', async ({ page }) => {
+  const { boot } = await import('./support.js');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await boot(page, {}, '/');
+  await page.locator('.web-logo').click();
+  await expect(page.locator('.wl-site')).toBeVisible();
+  await page.locator('.wl-bar .wl-btn-p').click();
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('result');
+});
