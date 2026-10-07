@@ -1776,3 +1776,54 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .st-key i { display: inline-block; width: 10px; height: 10px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; }
 @media (max-width: 380px) { .st-mapwrap { grid-template-columns: 1fr; } }
 .st-home { display: block; margin-top: 4px; font-size: var(--text-caption); }
+
+/* ---------- desktop ----------
+   From 900px wide the app becomes a site: the bottom bar turns into a fixed
+   left sidebar with full labels, sheets open as centred windows, and content
+   keeps a readable width instead of stretching across the screen. Below
+   900px nothing here applies, so the phone layout is untouched. */
+@media (min-width: 900px) {
+  .app[data-chrome="app"] { overflow: visible; align-items: start; }
+  .v7-nav {
+    position: sticky; top: 0; left: auto; bottom: auto; transform: none; will-change: auto;
+    width: auto; max-width: none; height: calc(100vh - 48px); align-self: start;
+    border: 0; border-right: 1px solid var(--hair); border-radius: 0; box-shadow: none;
+    padding: var(--space-4) var(--space-3);
+  }
+  .v7-nav::before { content: none; }
+  .v7-nav-item .nav-ico { width: 26px; }
+  .v7-nav-item { cursor: pointer; }
+  .v7-top { position: sticky; top: 0; z-index: 30; padding: 0 var(--space-5); }
+  .screen.v7 {
+    width: 100%; max-width: 820px; margin: 0 auto; overflow: visible;
+    padding: var(--space-4) var(--space-5) var(--space-6);
+  }
+  /* Sheets: a centred window, not a panel rising from the bottom edge. */
+  .v7-sheet-root { align-items: center; padding: var(--space-5); }
+  .v7-sheet { max-width: 620px; max-height: 86vh; border-radius: var(--radius-xl); padding-bottom: var(--space-5); }
+  .v7-grip { display: none; }
+  /* Hover states a mouse expects. */
+  .v7-card[onclick]:hover, button.v7-card:hover { border-color: var(--accent); }
+}
+/* Wide screens: the answer on the left, what to do about it on the right. */
+@media (min-width: 1200px) {
+  body { --desk-sidebar: 208px; }
+  .screen.v7 { max-width: 1080px; }
+  .screen.v7:has(> .v7-hero) {
+    display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    align-content: start; align-items: start;
+  }
+  .screen.v7:has(> .v7-hero) > * { grid-column: 2; }
+  .screen.v7:has(> .v7-hero) > .v7-hero { grid-column: 1; grid-row: 1 / span 20; }
+  .screen.v7:has(> .v7-plan-list) {
+    display: grid; grid-template-columns: 300px minmax(0, 1fr); align-content: start; align-items: start;
+  }
+  .screen.v7:has(> .v7-plan-list) > * { grid-column: 1 / -1; }
+  .screen.v7:has(> .v7-plan-list) > .v7-controls { grid-column: 1; position: sticky; top: 72px; }
+  /* In the side column the filters stack instead of scrolling sideways. */
+  .v7-controls .v7-seg { flex-direction: column; border-radius: var(--radius-lg); overflow: visible; }
+  .v7-controls .v7-seg-btn { justify-content: space-between; border-radius: var(--radius-md, 8px); }
+  .v7-controls .v7-sort, .v7-controls .v7-sort * { flex-wrap: wrap; overflow: visible; }
+  .screen.v7:has(> .v7-plan-list) > .v7-plan-list,
+  .screen.v7:has(> .v7-plan-list) > .v7-more { grid-column: 2; }
+}
