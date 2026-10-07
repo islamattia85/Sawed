@@ -7,7 +7,7 @@ import { isolate } from './support.js';
  * hourly rows, to cover a file from before the panels, one with them all year,
  * one where they start partway, and a system that never exports.
  */
-const fresh = async (page) => { await isolate(page); await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true); };
+const fresh = async (page) => { await isolate(page); await page.goto('/app?fresh'); await page.waitForFunction(() => window.__bootSettled === true); };
 function esbFile({ exportFrom = null, dropFrom = null } = {}) {
   const rows = ['MPRN,Meter Serial Number,Read Value,Read Type,Read Date and End Time'];
   const start = Date.UTC(2025, 9, 6);

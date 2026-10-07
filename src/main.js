@@ -3011,12 +3011,22 @@ function renderIntro(){
   return `<div class="intro-screen">${backBtn}${progressBar}${heroHTML}${footerHTML}</div>`;
 }
 
-function renderWelcome(){
-  // The front page reads as a website at every width: a top bar, a headline,
-  // a picture of what Peakless does, and three ways in, each a full setup.
-  const done = state.onboarding_complete;
+/**
+ * Two places, one bundle. The website lives at "/" and is the same on a phone
+ * and a computer: what Peakless is, how it works, every plan it tracks, and a
+ * way in. The app lives at "/app": on a phone the mobile app, on a computer the
+ * website layout. A sign-in or share link that lands on "/" is passed through.
+ */
+const WEB = (() => {
+  try { return !/^\/app(\/|$)/.test(location.pathname); } catch (e) { return false; }
+})();
+try { document.documentElement.classList.toggle('web', WEB); document.documentElement.classList.toggle('app-mode', !WEB); } catch (e) {}
+const APP_HREF = '/app';
+
+/** A day of real prices on four plans: the picture of what Peakless compares. */
+function dayCard(){
   const ids = ['EI-NB', 'YN-EV-DNP', 'EN-SMART-24-HOUR', 'BG-TOU-PLUS'];
-  const day = ids.map(getPlanById).filter(Boolean).map((p) => {
+  const rows = ids.map(getPlanById).filter(Boolean).map((p) => {
     const bands = Array.from({ length: 24 }, (_, h) => bandAt(h, p));
     const cheap = Math.min(...Object.values(p.rates).filter((v) => v > 0));
     return `<div class="wl-rib">
@@ -3025,50 +3035,118 @@ function renderWelcome(){
       <div class="wl-cost">${(cheap * 100).toFixed(1)}c</div>
     </div>`;
   }).join('');
-  const go = (fn, cls, title, sub, icons, time) => `<button class="wl-door ${cls}" onclick="${fn}">
+  return `<div class="wl-card" aria-label="A day on four plans">
+    <div class="wl-card-h">A day on four plans</div>
+    <div class="wl-card-sub">Each plan's prices hour by hour, and its cheapest rate</div>
+    ${rows}
+    <div class="wl-axis"><span></span><div><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div><span></span></div>
+    ${bandLegend()}
+  </div>`;
+}
+function bandLegend(){
+  return `<div class="wl-legend"><span><i style="background:var(--bandink-night)"></i>night</span><span><i style="background:var(--bandink-day)"></i>day</span><span><i style="background:var(--bandink-peak)"></i>peak</span><span><i style="background:var(--bandink-ev)"></i>EV / boost</span></div>`;
+}
+/** The three ways in. On the website each opens the app at that setup. */
+function doorsHtml(site){
+  const door = (k, fn, cls, title, sub, icons, time) => `<button class="wl-door ${cls}" onclick="${fn}">
       <span class="wl-door-ico" aria-hidden="true">${icons}</span>
       <span class="wl-door-time">${time}</span>
       <b>${title}</b><small>${sub}</small>
     </button>`;
-  return `<div class="pk-land wl">
+  return `<section class="wl-doors pk-land-actions" aria-label="Start here">
+    ${door('quick', "startFlow('quick')", 'is-main', 'Am I paying too much?', 'Your bill and your plan, and we rank every plan for your home.', ic('euro', 22), 'About a minute')}
+    ${door('full', "startFlow('full')", '', 'Planning solar, a battery or an EV', 'Roof, panels, battery and car, one question at a time. Payback after the SEAI grant.', ic('sun', 20) + ic('battery', 20) + ic('car', 20), 'A few minutes')}
+    ${door('meter', "startFlow('quick')", '', 'Start from my ESB meter file', 'Your real half-hour readings from esbnetworks.ie. The most exact answer there is.', ic('csv', 22), 'About a minute')}
+  </section>`;
+}
+/** Every plan Peakless tracks, with its rates: public, no home needed. */
+function sitePlans(){
+  const live = TARIFFS.filter((t) => !t.discontinued && !t.on_hold);
+  const c = (v) => v > 0 ? (v * 100).toFixed(1) + 'c' : '—';
+  const row = (p) => `<tr><td><b>${p.supplier}</b><small>${p.plan}</small></td>
+    <td class="wl-strip">${rateStrip({ bands: Array.from({ length: 24 }, (_, h) => bandAt(h, p)), rates: p.rates, height: 6 })}</td>
+    <td>${c(p.rates.day)}</td><td>${c(p.rates.night)}</td><td>${c(p.rates.ev)}</td><td>€${Math.round(p.standing)}</td></tr>`;
+  const sorted = live.slice().sort((a, b) => a.supplier.localeCompare(b.supplier) || a.plan.localeCompare(b.plan));
+  return `<section class="wl-plans" id="plans">
+    <h2 class="wl-h2">Every plan we track</h2>
+    <p class="wl-sec-sub">${live.length} plans from ${new Set(live.map((p) => p.supplier)).size} suppliers, rates read from each supplier's website, inc VAT. Which is cheapest depends on when you use power, which is what the app works out.</p>
+    <div class="wl-table"><table>
+      <thead><tr><th>Plan</th><th>Its day</th><th>Day</th><th>Night</th><th>EV / boost</th><th>Standing a year</th></tr></thead>
+      <tbody>${sorted.slice(0, 8).map(row).join('')}</tbody>
+      <tbody class="wl-more" hidden>${sorted.slice(8).map(row).join('')}</tbody>
+    </table></div>
+    ${bandLegend()}
+    <div class="wl-plans-foot">
+      <button class="wl-btn wl-btn-g" onclick="this.closest('.wl-plans').querySelector('.wl-more').hidden=false;this.remove()">Show all ${live.length} plans</button>
+      <button class="wl-btn wl-btn-p" onclick="startFlow('quick')">Price them on my home</button>
+    </div>
+  </section>`;
+}
+function howHtml(){
+  return `<section class="wl-how" id="how">
+    <h2 class="wl-h2">How Peakless gets to one answer</h2>
+    <div class="wl-steps">
+      <div><span class="wl-n">Step 1</span><b>Tell us about your home</b><p>A bill, a meter file or a few questions. Change any answer later in My home.</p></div>
+      <div><span class="wl-n">Step 2</span><b>Every hour, every plan</b><p>We simulate your year on each plan, with the battery charging at night and solar sold back.</p></div>
+      <div><span class="wl-n">Step 3</span><b>Switch on the supplier's site</b><p>We link you straight to the plan. No commission, so the order is only about cost.</p></div>
+    </div>
+  </section>`;
+}
+
+/** The website at "/". */
+function renderSite(){
+  const done = state.onboarding_complete;
+  const n = TARIFFS.filter((t) => !t.discontinued).length;
+  return `<div class="pk-land wl wl-site">
     <header class="wl-bar">
-      <a class="wl-logo" href="#" onclick="event.preventDefault()" aria-label="Peakless"><span class="pk-land-icon">${ic('logo', 22, 'stroke-width:1.6')}</span>${wordmarkHtml('pk-word-top')}</a>
-      <div class="wl-bar-end">
+      <a class="wl-logo" href="/" aria-label="Peakless"><span class="pk-land-icon">${ic('logo', 22, 'stroke-width:1.6')}</span>${wordmarkHtml('pk-word-top')}</a>
+      <nav class="wl-nav" aria-label="Site"><a href="#how">How it works</a><a href="#plans">Plans</a></nav>
+      <div class="wl-bar-end"><a class="wl-applink" href="${APP_HREF}">${ic('mobile', 16)}<span>Get the app</span></a>
         ${done ? '' : renderProfileNavBtn()}
-        <button class="wl-btn wl-btn-p" onclick="${done ? "setScreen('result')" : "startFlow('quick')"}">${done ? 'My answer' : 'Check my plans'}</button>
-      </div>
+        <button class="wl-btn wl-btn-p" onclick="${done ? "setScreen('result')" : "startFlow('quick')"}">${done ? 'My answer' : 'Check my plans'}</button></div>
     </header>
     <section class="wl-hero">
       <div class="wl-copy">
         <div class="wl-eyebrow">Irish electricity, priced properly</div>
         <h1 class="wl-h1">Every plan in Ireland, priced on <em>your</em> home, hour by hour.</h1>
-        <p class="wl-lede">Peakless runs all ${TARIFFS.filter((t) => !t.discontinued).length} plans through the 8,760 hours of your year, with your solar, battery and car. Then it tells you which one to pick and why.</p>
-        <div class="wl-trust"><span><b>${TARIFFS.filter((t) => !t.discontinued).length}</b> plans, rates checked this week</span><span><b>No</b> supplier commissions</span><span><b>Free</b>, no account needed</span></div>
+        <p class="wl-lede">Peakless runs all ${n} plans through the 8,760 hours of your year, with your solar, battery and car. Then it tells you which one to pick and why.</p>
+        <div class="wl-cta"><button class="wl-btn wl-btn-p wl-btn-lg" onclick="${done ? "setScreen('result')" : "startFlow('quick')"}">${done ? 'See my answer' : 'Compare my plans'}</button><button class="wl-btn wl-btn-g wl-btn-lg" onclick="startFlow('full')">Is solar worth it?</button></div>
+        <div class="wl-trust"><span><b>${n}</b> plans, rates checked this week</span><span><b>No</b> supplier commissions</span><span><b>Free</b>, no account needed</span></div>
       </div>
-      <div class="wl-card" aria-label="A day on four plans">
-        <div class="wl-card-h">A day on four plans</div>
-        <div class="wl-card-sub">Each plan's prices hour by hour, and its cheapest rate</div>
-        ${day}
-        <div class="wl-axis"><span></span><div><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div><span></span></div>
-        <div class="wl-legend"><span><i style="background:var(--bandink-night)"></i>night</span><span><i style="background:var(--bandink-day)"></i>day</span><span><i style="background:var(--bandink-peak)"></i>peak</span><span><i style="background:var(--bandink-ev)"></i>EV / boost</span></div>
-      </div>
+      ${dayCard()}
     </section>
-    <section class="wl-doors pk-land-actions" aria-label="Start here">
-      ${go("startFlow('quick')", 'is-main', 'Am I paying too much?', 'Your bill and your plan, and we rank every plan for your home.', ic('euro', 22), 'About a minute')}
-      ${go("startFlow('full')", '', 'Planning solar, a battery or an EV', 'Roof, panels, battery and car, one question at a time. Payback after the SEAI grant.', ic('sun', 20) + ic('battery', 20) + ic('car', 20), 'A few minutes')}
-      ${go("startFlow('quick')", '', 'Start from my ESB meter file', 'Your real half-hour readings from esbnetworks.ie. The most exact answer there is.', ic('csv', 22), 'About a minute')}
-    </section>
-    <section class="wl-how">
-      <h2 class="wl-h2">How Peakless gets to one answer</h2>
-      <div class="wl-steps">
-        <div><span class="wl-n">Step 1</span><b>Tell us about your home</b><p>A bill, a meter file or a few questions. Change any answer later in My home.</p></div>
-        <div><span class="wl-n">Step 2</span><b>Every hour, every plan</b><p>We simulate your year on each plan, with the battery charging at night and solar sold back.</p></div>
-        <div><span class="wl-n">Step 3</span><b>Switch on the supplier's site</b><p>We link you straight to the plan. No commission, so the order is only about cost.</p></div>
-      </div>
+    ${doorsHtml(true)}
+    ${howHtml()}
+    ${sitePlans()}
+    <section class="wl-end">
+      <h2 class="wl-h2">Find your cheapest plan in a minute.</h2>
+      <button class="wl-btn wl-btn-p wl-btn-lg" onclick="${done ? "setScreen('result')" : "startFlow('quick')"}">${done ? 'See my answer' : 'Check my plans'}</button>
+      <div class="wl-appnote">${ic('mobile', 16)} Prefer an app? <a href="${APP_HREF}">Open the Peakless mobile app</a>, same answers, made for your phone.</div>
       <button class="pk-link wl-quote" onclick="${done ? "setScreen('solar');v7Sheet('quote')" : 'navigateAuditor()'}">${ic('clip', 14)} Already have a solar quote? Check it</button>
     </section>
     <footer class="wl-foot"><span>Peakless · independent, no commissions · your data stays on your device</span>
-      ${done ? `<nav><a href="#" onclick="event.preventDefault();setScreen('methodology')">How we calculate</a><a href="#" onclick="event.preventDefault();setScreen('privacy')">Privacy</a></nav>` : ''}</footer>
+      <nav><a href="#how">How it works</a><a href="#plans">Plans</a><a href="${APP_HREF}">Mobile app</a></nav></footer>
+  </div>`;
+}
+
+/** The app's start, at "/app" before any setup: the three ways in. */
+function renderWelcome(){
+  const done = state.onboarding_complete;
+  return `<div class="pk-land wl wl-app">
+    <header class="wl-bar">
+      <a class="wl-logo" href="/" aria-label="Peakless website"><span class="pk-land-icon">${ic('logo', 22, 'stroke-width:1.6')}</span>${wordmarkHtml('pk-word-top')}</a>
+      <div class="wl-bar-end">
+        ${done ? `<button class="wl-btn wl-btn-p" onclick="setScreen('result')">My answer</button>` : renderProfileNavBtn()}
+      </div>
+    </header>
+    <section class="wl-app-head">
+      <h1 class="wl-h1">Let's find your cheapest plan.</h1>
+      <p class="wl-lede">Pick where to start. You can add solar, a battery or a car at any time.</p>
+    </section>
+    ${doorsHtml(false)}
+    <section class="wl-app-foot">
+      <button class="pk-link wl-quote" onclick="${done ? "setScreen('solar');v7Sheet('quote')" : 'navigateAuditor()'}">${ic('clip', 14)} Already have a solar quote? Check it</button>
+    </section>
   </div>`;
 }
 
@@ -11238,7 +11316,7 @@ function v7Sheet(kind, id){
     state._web_plan = id; state._sheet = null; renderApp(); return;
   }
   // The home's answers are a page of their own on the website.
-  if (kind === 'home' && webWide(900)){ state._sheet = null; setScreen('myhome'); return; }
+  if (kind === 'home' && WEB){ state._sheet = null; setScreen('myhome'); return; }
   const was = !!state._sheet;
   state._sheet = kind ? { kind, id: id || null } : null;
   // An open sheet is a step Back can undo. Without its own history entry, Back
@@ -11327,6 +11405,7 @@ try {
   ['(min-width: 900px)', '(min-width: 1200px)'].forEach((q) => matchMedia(q).addEventListener('change', () => { try { renderApp(); } catch (e) {} }));
 } catch (e) {}
 function webWide(px = 1200){
+  if (!WEB) return false;
   try { return matchMedia(`(min-width: ${px}px)`).matches; } catch (e) { return false; }
 }
 function _histDepth(){ return (history.state && +history.state.depth) || 0; }
@@ -11747,7 +11826,8 @@ function renderApp(){
   }
   // Landing page — first thing new users see; also reachable via the logo
   if (state.current_screen === 'welcome'){
-    root.innerHTML = renderWelcome();
+    root.setAttribute('data-chrome','bare');
+    root.innerHTML = WEB ? renderSite() : renderWelcome();
     paintAuthModal();
     return;
   }
@@ -11959,6 +12039,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (state.onboarding_complete){
       const _h = _hashScreen();
       if (_h) state.current_screen = _h;
+    }
+    // A way in chosen on the website: open the app at that setup.
+    const _go = (location.hash || '').match(/^#go-(quick|full|meter|quote)$/);
+    if (_go){
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+      setTimeout(() => {
+        if (_go[1] === 'full') startFlow('full');
+        else if (_go[1] === 'quote') { if (state.onboarding_complete){ setScreen('solar'); v7Sheet('quote'); } else navigateAuditor(); }
+        else startFlow('quick');
+      }, 0);
     }
     // Apply saved region (or default east) so engine has the right GHI from boot
     applyRegion(state.region || 'east');
@@ -13306,8 +13396,8 @@ window.toggleCompareSelect = toggleCompareSelect;
       name: BRAND.name + " — Irish Energy Advisor",
       short_name: BRAND.name,
       description: "Find the cheapest electricity plan for your home, with or without solar, a battery or an EV.",
-      start_url: ".",
-      scope: ".",
+      start_url: "/app",
+      scope: "/",
       display: "standalone",
       orientation: "portrait",
       background_color: BRAND.ink,

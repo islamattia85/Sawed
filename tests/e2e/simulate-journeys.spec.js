@@ -20,7 +20,7 @@ for (const seed of SEEDS) {
     const errors = collectErrors(page);
     const reported = [];
     page.on('request', (q) => { if (q.url().includes('/api/error')) reported.push(q.postData()); });
-    await page.goto('/');
+    await page.goto('/app');
     await page.evaluate(() => { localStorage.clear(); localStorage.setItem('sawed_analytics', 'no'); });
     await page.reload();
     await page.waitForFunction(() => !document.getElementById('loader'));

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('the first question takes usage in kWh as well as a bill in euro', async ({ page }) => {
-  await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
+  await page.goto('/app?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
   await page.evaluate(() => window.startFlow('quick'));
   await page.getByRole('button', { name: 'My usage in kWh' }).click();
   await page.locator('#flow-bill').fill('5300');

@@ -148,7 +148,7 @@ test('opening solar from Home and backing out leaves Home exactly as it was', as
 });
 
 test('the first visit asks for the supplier, then that supplier\'s plan', async ({ page }) => {
-  await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
+  await page.goto('/app?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
   await page.getByRole('button', { name: /Planning solar, a battery or an EV/ }).click();
   await page.getByRole('button', { name: 'Next' }).click();
   await page.locator('.fl-opt', { hasText: 'Smart meter' }).click();
@@ -227,7 +227,7 @@ test('a door on Home opens its question and says where it came from', async ({ p
 });
 
 test('"not sure which plan" assumes a standard plan, never an EV or dynamic one', async ({ page }) => {
-  await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
+  await page.goto('/app?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
   await page.getByRole('button', { name: /Planning solar, a battery or an EV/ }).click();
   await page.getByRole('button', { name: 'Next' }).click();
   await page.locator('.fl-opt', { hasText: 'Smart meter' }).click();
@@ -248,7 +248,7 @@ test('planned solar never offers a switch to the plan you are already on', async
 });
 
 test('"not sure which plan" is kept as a guess, not as a known plan', async ({ page }) => {
-  await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
+  await page.goto('/app?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
   await page.getByRole('button', { name: /Planning solar, a battery or an EV/ }).click();
   await page.getByRole('button', { name: 'Next' }).click();
   await page.locator('.fl-opt', { hasText: 'Smart meter' }).click();

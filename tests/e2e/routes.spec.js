@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { isolate } from './support.js';
 
-const fresh = async (page) => { await isolate(page); await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true); };
+const fresh = async (page) => { await isolate(page); await page.goto('/app?fresh'); await page.waitForFunction(() => window.__bootSettled === true); };
 const steps = (page) => page.evaluate(() => { const f = state._flow || {}; return (window.__flowSteps ? window.__flowSteps() : null); });
 
 test('start offers two routes: a quick switch check, and the guided solar or EV setup', async ({ page }) => {

@@ -78,7 +78,12 @@ export function createV7(api) {
       const on = l.screens.includes(cur);
       return `<a href="#${l.id === 'usage' ? 'analytics' : l.id}" class="${on ? 'on' : ''}" aria-current="${on ? 'page' : 'false'}"
         onclick="event.preventDefault();${l.go}">${esc(l.label)}${l.id === 'updates' && n ? ` <i class="web-badge">${n}</i>` : ''}</a>`;
-    }).join('')}</nav>`;
+    }).join('')}</nav>
+    <details class="web-menu">
+      <summary aria-label="Menu">${api.ic('menu', 22)}</summary>
+      <div class="web-menu-list">${WEB_LINKS.map((l) => `<a href="#${l.id === 'usage' ? 'analytics' : l.id}" class="${l.screens.includes(cur) ? 'on' : ''}" onclick="event.preventDefault();this.closest('details').open=false;${l.go}">${esc(l.label)}${l.id === 'updates' && n ? ` <i class="web-badge">${n}</i>` : ''}</a>`).join('')}
+        <a href="/app" class="web-menu-app">${api.ic('mobile', 16)} Mobile app</a></div>
+    </details>`;
   }
 
   /** What a bottom-bar tap does: scroll up on the page you're on, else go there. */
@@ -1371,7 +1376,7 @@ export function createV7(api) {
 
   /** Wide enough for list and details side by side. */
   function webWide() {
-    try { return matchMedia('(min-width: 1200px)').matches; } catch (e) { return false; }
+    try { return document.documentElement.classList.contains('web') && matchMedia('(min-width: 1200px)').matches; } catch (e) { return false; }
   }
   /** The plan in the side panel: the one picked, else the cheapest. */
   function webPlanId(cheapest) {

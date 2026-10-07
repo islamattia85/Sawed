@@ -57,10 +57,10 @@ export const SETUP = {
 };
 
 /** Boot the app with a known state and wait until the shell is interactive. */
-export async function boot(page, overrides = {}) {
+export async function boot(page, overrides = {}, path = '/app') {
   await isolate(page);
   const errors = collectErrors(page);
-  await page.goto('/');
+  await page.goto(path);
   // The usage-measurement question is answered "no" unless a test is about
   // that question (askConsent: true); its bar would otherwise sit over the
   // buttons other tests tap.
@@ -92,7 +92,7 @@ export async function boot(page, overrides = {}) {
 export async function bootFresh(page) {
   await isolate(page);
   const errors = collectErrors(page);
-  await page.goto('/');
+  await page.goto('/app');
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.waitForFunction(() => !document.getElementById('loader'));

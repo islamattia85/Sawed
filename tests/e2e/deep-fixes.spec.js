@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { isolate } from './support.js';
 
-const fresh = async (page) => { await isolate(page); await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true); };
+const fresh = async (page) => { await isolate(page); await page.goto('/app?fresh'); await page.waitForFunction(() => window.__bootSettled === true); };
 const setup = (page, extra) => page.evaluate((x) => {
   startFlow('full'); flowAnswer('bill', x.bill); flowAnswer('meter', 'smart'); flowAnswer('area', 'urban'); flowAnswer('plan', 'EI-24'); flowAnswer('disc', 0);
   flowAnswer('heat', 'gas'); flowAnswer('night', 'no');

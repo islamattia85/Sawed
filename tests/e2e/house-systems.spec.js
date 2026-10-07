@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('a terraced house is offered systems that fit its roof, and picking one sets it', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/app');
   await page.evaluate(() => { startFlow('full'); flowAnswer('bill', 150); flowAnswer('meter', 'smart'); flowAnswer('area', 'urban'); flowAnswer('plan', 'EI-24'); flowAnswer('disc', 0); flowAnswer('heat', 'heatpump'); flowAnswer('heattime', 'day'); flowAnswer('solar', 'thinking'); flowAnswer('where', 'east'); flowAnswer('house', 'terraced'); flowAnswer('roof', 'S'); flowAnswer('tilt', 35); });
   await expect(page.locator('.fl-q h2')).toHaveText('Pick a system', { timeout: 30000 });
   const cards = page.locator('.fl-sys');
@@ -14,7 +14,7 @@ test('a terraced house is offered systems that fit its roof, and picking one set
 
 
 test('a suggested system card is a suggestion, not the own-size route', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/app');
   await page.evaluate(() => { startFlow('full'); flowAnswer('bill', 200); flowAnswer('meter', 'smart'); flowAnswer('area', 'urban'); flowAnswer('plan', 'EI-24'); flowAnswer('disc', 0); flowAnswer('heat', 'heatpump'); flowAnswer('heattime', 'day'); flowAnswer('solar', 'thinking'); flowAnswer('where', 'south'); flowAnswer('house', 'semi'); flowAnswer('roof', 'S'); flowAnswer('tilt', 35); });
   const card = page.locator('.fl-sys').first();
   await card.waitFor({ timeout: 30000 });

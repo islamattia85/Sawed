@@ -1778,18 +1778,17 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .st-home { display: block; margin-top: 4px; font-size: var(--text-caption); }
 
 /* ---------- website ----------
-   From 900px wide Peakless is laid out as a website: a full-width top menu
-   named by task, pages with their own addresses, and content at a readable
-   width. Below 900px none of this applies and the phone layout is untouched. */
+   Everywhere except /app, Peakless is a website at every width: a top menu
+   named by task (a menu button on a phone), pages with their own addresses,
+   content at a readable width. /app is the mobile app and none of this applies. */
 .web-links, .web-logo, .web-only, .web-toc { display: none; }
-@media (min-width: 900px) {
-  .app[data-chrome="app"] {
+html.web .app[data-chrome="app"] {
     display: block; max-width: none; width: auto; margin: 0; min-height: 100vh;
     border: 0; border-radius: 0; box-shadow: none; background: transparent; overflow: visible;
   }
-  html[data-theme] body, html[data-theme] { background: var(--bg); }
-  .v7-nav, .cmp-tray ~ .v7-nav { display: none !important; }
-  .v7-top {
+html.web[data-theme] body, html.web[data-theme] { background: var(--bg); }
+html.web .v7-nav, html.web .cmp-tray ~ .v7-nav { display: none !important; }
+html.web .v7-top {
     position: sticky; top: 0; z-index: 30; min-height: 68px;
     grid-template-columns: auto auto 1fr auto; gap: var(--space-4);
     padding: 0 max(24px, calc((100% - 1240px) / 2));
@@ -1797,39 +1796,36 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
     background: color-mix(in srgb, var(--bg) 88%, transparent);
     backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   }
-  .v7-top.v7-top-sub { grid-template-columns: auto auto 1fr auto; }
-  .v7-top .v7-top-title { display: none; }
-  .web-logo { display: flex; align-items: center; text-decoration: none; color: var(--ink); }
-  .web-links { display: flex; gap: 2px; align-items: center; min-width: 0; }
-  .web-links a {
+html.web .v7-top.v7-top-sub { grid-template-columns: auto auto 1fr auto; }
+html.web .v7-top .v7-top-title { display: none; }
+html.web .web-logo { display: flex; align-items: center; text-decoration: none; color: var(--ink); }
+html.web .web-links { display: flex; gap: 2px; align-items: center; min-width: 0; }
+html.web .web-links a {
     text-decoration: none; font: 650 15px var(--display); color: var(--ink-soft);
     padding: 8px 12px; border-radius: var(--radius-pill); white-space: nowrap;
   }
-  .web-links a:hover { color: var(--ink); background: var(--well); }
-  .web-links a.on { color: var(--ink); background: var(--panel); box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 0 0 1px var(--hair); }
-  .web-badge { font-style: normal; font-size: 12px; font-weight: 800; background: var(--loss, #c0392b); color: #fff; border-radius: var(--radius-pill); padding: 0 6px; margin-left: 2px; }
-  .web-only { display: grid; }
-
-  .app[data-chrome="app"] > .screen { width: 100%; max-width: 860px; margin: 0 auto; overflow: visible; padding: var(--space-6) 24px 64px; }
-  .screen.v7 {
+html.web .web-links a:hover { color: var(--ink); background: var(--well); }
+html.web .web-links a.on { color: var(--ink); background: var(--panel); box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 0 0 1px var(--hair); }
+html.web .web-badge { font-style: normal; font-size: 12px; font-weight: 800; background: var(--loss, #c0392b); color: #fff; border-radius: var(--radius-pill); padding: 0 6px; margin-left: 2px; }
+html.web .web-only { display: grid; }
+html.web .app[data-chrome="app"] > .screen { width: 100%; max-width: 860px; margin: 0 auto; overflow: visible; padding: var(--space-6) 24px 64px; }
+html.web .screen.v7 {
     width: 100%; max-width: 1080px; margin: 0 auto; overflow: visible;
     padding: var(--space-6) 24px 64px;
   }
-  /* Sheets: a centred window, not a panel rising from the bottom edge. */
+html.web /* Sheets: a centred window, html.web not a panel rising from the bottom edge. */
   .v7-sheet-root { align-items: center; padding: var(--space-5); }
-  .v7-sheet { max-width: 640px; max-height: 86vh; border-radius: var(--radius-xl); padding-bottom: var(--space-5); }
-  .v7-grip { display: none; }
-  .plan-card:hover, .v7-plan:hover { border-color: var(--ink-dim); }
-  .cmp-tray { bottom: 24px; }
-
-  /* My home: contents on the left, the answers as sections on the right. */
+html.web .v7-sheet { max-width: 640px; max-height: 86vh; border-radius: var(--radius-xl); padding-bottom: var(--space-5); }
+html.web .v7-grip { display: none; }
+html.web .plan-card:hover, html.web .v7-plan:hover { border-color: var(--ink-dim); }
+html.web .cmp-tray { bottom: 24px; }
+html.web /* My home: contents on the left, html.web the answers as sections on the right. */
   .screen.v7.web-home { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-4) 40px; align-items: start; }
-  .web-home-head { grid-column: 1 / -1; display: grid; gap: 4px; }
-  .web-toc { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 92px; }
-  .web-toc a { text-decoration: none; color: var(--ink-soft); font-weight: 650; padding: 8px 12px; border-radius: var(--radius-md); font-size: 15px; }
-  .web-toc a:hover { background: var(--well); color: var(--ink); }
-  .web-toc a.is-danger { color: var(--loss, #b4432f); margin-top: var(--space-3); }
-}
+html.web .web-home-head { grid-column: 1 / -1; display: grid; gap: 4px; }
+html.web .web-toc { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 92px; }
+html.web .web-toc a { text-decoration: none; color: var(--ink-soft); font-weight: 650; padding: 8px 12px; border-radius: var(--radius-md); font-size: 15px; }
+html.web .web-toc a:hover { background: var(--well); color: var(--ink); }
+html.web .web-toc a.is-danger { color: var(--loss, #b4432f); margin-top: var(--space-3); }
 .web-home-body { display: grid; gap: var(--space-4); min-width: 0; }
 .web-sec { background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius-xl); padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-3); scroll-margin-top: 92px; }
 .web-sec .v7-sheet-x { display: none; }
@@ -1839,30 +1835,29 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 
 /* Wide screens: two columns where the content has two parts. */
 @media (min-width: 1200px) {
-  .screen.v7:has(> .v7-hero) {
+html.web .screen.v7:has(> .v7-hero) {
     display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
     align-content: start; align-items: start;
   }
-  .screen.v7:has(> .v7-hero) > * { grid-column: 2; }
-  .screen.v7:has(> .v7-hero) > .v7-hero { grid-column: 1; grid-row: 1 / span 20; }
-
-  /* Plans: filters | list | the chosen plan's details. */
+html.web .screen.v7:has(> .v7-hero) > * { grid-column: 2; }
+html.web .screen.v7:has(> .v7-hero) > .v7-hero { grid-column: 1; grid-row: 1 / span 20; }
+html.web /* Plans: filters | list | the chosen plan's details. */
   .screen.v7.v7-plans { max-width: 1280px; display: grid; grid-template-columns: 220px minmax(0, 1fr) 400px; gap: var(--space-4) 24px; align-content: start; align-items: start; }
-  .v7-plans > * { grid-column: 1 / -1; }
-  .v7-plans > .v7-controls { grid-column: 1; grid-row: span 3; position: sticky; top: 92px; }
-  .v7-plans > .v7-plan-list, .v7-plans > .v7-more { grid-column: 2; }
-  .v7-plans > .web-detail { grid-column: 3; grid-row: span 3; }
-  .v7-plans .v7-plan-list ~ .v7-more { grid-column: 2; }
-  .v7-controls .v7-seg { flex-direction: column; border-radius: var(--radius-lg); overflow: visible; }
-  .v7-controls .v7-seg-btn { justify-content: space-between; border-radius: var(--radius-md); }
-  .v7-controls .v7-sort, .v7-controls .v7-sort * { flex-wrap: wrap; overflow: visible; }
-  .web-detail {
+html.web .v7-plans > * { grid-column: 1 / -1; }
+html.web .v7-plans > .v7-controls { grid-column: 1; grid-row: span 3; position: sticky; top: 92px; }
+html.web .v7-plans > .v7-plan-list, html.web .v7-plans > .v7-more { grid-column: 2; }
+html.web .v7-plans > .web-detail { grid-column: 3; grid-row: span 3; }
+html.web .v7-plans .v7-plan-list ~ .v7-more { grid-column: 2; }
+html.web .v7-controls .v7-seg { flex-direction: column; border-radius: var(--radius-lg); overflow: visible; }
+html.web .v7-controls .v7-seg-btn { justify-content: space-between; border-radius: var(--radius-md); }
+html.web .v7-controls .v7-sort, html.web .v7-controls .v7-sort * { flex-wrap: wrap; overflow: visible; }
+html.web .web-detail {
     position: sticky; top: 92px; max-height: calc(100vh - 110px); overflow-y: auto;
     background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius-xl);
     padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-3);
   }
-  .web-detail > * { flex-shrink: 0; }
-  .plan-card.is-sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+html.web .web-detail > * { flex-shrink: 0; }
+html.web .plan-card.is-sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 }
 
 /* ---------- front page ----------
@@ -1940,3 +1935,70 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 }
 .wl-bar .profile-nav-btn, .wl-btn { white-space: nowrap; }
 @media (max-width: 420px) { .wl-bar .profile-nav-btn span { display: none; } .wl-btn { padding: 10px 14px; } }
+
+/* website extras */
+.wl-nav { display: none; gap: 4px; flex: 1; margin-left: 24px; }
+.wl-nav a { text-decoration: none; color: var(--ink-soft); font: 650 15px var(--display); padding: 8px 12px; border-radius: var(--radius-pill); }
+.wl-nav a:hover { color: var(--ink); background: var(--well); }
+a.wl-btn { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+.wl-btn-g { background: transparent; color: var(--ink); border: 1px solid var(--hair-strong); }
+.wl-btn-lg { padding: 14px 22px; font-size: 17px; }
+.wl-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+.wl-sec-sub { color: var(--ink-soft); font-size: 15px; margin: -8px 0 20px; max-width: 46em; }
+.wl-plans { padding-top: 32px; padding-bottom: 32px; border-top: 1px solid var(--hair); }
+.wl-table { overflow-x: auto; background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius-xl); }
+.wl-table table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 15px; }
+.wl-table th { text-align: left; font: 700 12px var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-dim); padding: 12px 16px; border-bottom: 1px solid var(--hair); }
+.wl-table td { padding: 12px 16px; border-bottom: 1px solid var(--hair); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wl-table td:first-child { white-space: normal; min-width: 180px; }
+.wl-table td small { display: block; color: var(--ink-soft); font-size: 13px; }
+.wl-table .wl-strip { width: 28%; min-width: 140px; }
+.wl-plans-foot { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+.wl-end { padding-top: 40px; padding-bottom: 40px; border-top: 1px solid var(--hair); display: grid; justify-items: start; gap: 16px; }
+.wl-end .wl-h2 { margin: 0; }
+.wl-app-head { padding-top: 32px; padding-bottom: 16px; }
+.wl-app-head .wl-h1 { font-size: 32px; }
+.wl-app-foot { padding-bottom: 32px; }
+@media (min-width: 900px) {
+  .wl-nav { display: flex; }
+  .wl-end { justify-items: center; text-align: center; padding-block: 64px; }
+  .wl-app-head { padding-top: 56px; }
+  .wl-app-head .wl-h1 { font-size: 40px; }
+}
+
+/* Website on a narrow screen: the same pages, a menu button, one column. */
+.web-menu { display: none; }
+html.web .v7-top, html.web .v7-top.v7-top-sub { grid-template-columns: auto auto 1fr auto auto; }
+.web-menu summary { list-style: none; cursor: pointer; width: 40px; height: 40px; border-radius: var(--radius-pill); display: grid; place-items: center; color: var(--ink); }
+.web-menu summary::-webkit-details-marker { display: none; }
+.web-menu[open] summary { background: var(--well); }
+.web-menu-list {
+  position: absolute; right: 12px; top: 56px; z-index: 40; min-width: 220px; display: grid; gap: 2px; padding: 8px;
+  background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius-lg); box-shadow: 0 16px 40px -16px rgba(0,0,0,.4);
+}
+.web-menu-list a { text-decoration: none; color: var(--ink); font: 650 17px var(--display); padding: 12px; border-radius: var(--radius-md); display: flex; align-items: center; gap: 8px; }
+.web-menu-list a.on { background: var(--accent-soft); color: var(--accent); }
+.web-menu-app { color: var(--ink-soft) !important; border-top: 1px solid var(--hair); border-radius: 0 !important; margin-top: 4px; }
+@media (max-width: 899px) {
+  html.web .web-links { display: none; }
+  html.web .web-menu { display: block; }
+  html.web .v7-top { padding: 0 12px; min-height: 60px; gap: var(--space-2); }
+  html.web .v7-top .v7-brand { display: none; }
+  html.web .web-logo .pk-word { font-size: var(--text-lead); }
+  html.web .app[data-chrome="app"] > .screen, html.web .screen.v7 { padding: var(--space-4) 16px 48px; }
+  html.web .screen.v7.web-home { display: flex; flex-direction: column; }
+  html.web .web-toc { position: static; flex-direction: row; overflow-x: auto; gap: 6px; scrollbar-width: none; }
+  html.web .web-toc a { white-space: nowrap; border: 1px solid var(--hair); border-radius: var(--radius-pill); padding: 6px 12px; font-size: 13px; }
+  html.web .web-toc a.is-danger { margin-top: 0; }
+  html.web .web-sec { padding: var(--space-4); }
+  html.web .v7-sheet-root { align-items: flex-end; padding: 0; }
+  html.web .v7-sheet { border-radius: var(--radius-xl) var(--radius-xl) 0 0; max-height: 90vh; }
+}
+/* The site's link to the mobile app. */
+.wl-applink { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: var(--ink-soft); font: 650 15px var(--display); padding: 8px 10px; border-radius: var(--radius-pill); white-space: nowrap; }
+.wl-applink:hover { background: var(--well); color: var(--ink); }
+.wl-appnote { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; color: var(--ink-soft); font-size: 15px; }
+.wl-appnote a { color: var(--accent); font-weight: 700; }
+@media (max-width: 620px) { .wl-applink span { display: none; } }
+/* The mobile app on a computer: the phone layout, centred. */
+html.app-mode body { background: var(--bg); }

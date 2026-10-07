@@ -10,7 +10,7 @@ const SCREENS = ['result', 'plans', 'analytics', 'myhome', 'updates', 'profile']
 for (const width of [1440, 1024]) {
   test(`website ${width}: top menu, no sideways scroll, readable width`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await boot(page, { has_solar: true, solar_planned: true, battery_kwh: 9 });
+    await boot(page, { has_solar: true, solar_planned: true, battery_kwh: 9 }, '/');
     for (const s of SCREENS) {
       await page.evaluate((id) => window.setScreen(id), s);
       await page.waitForTimeout(250);
@@ -31,7 +31,7 @@ for (const width of [1440, 1024]) {
 
 test('website: a plan opens beside the list, not over it', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await boot(page, { has_solar: true, solar_planned: true, battery_kwh: 9 });
+  await boot(page, { has_solar: true, solar_planned: true, battery_kwh: 9 }, '/');
   await page.evaluate(() => window.setScreen('plans'));
   await expect(page.locator('.web-detail')).toBeVisible();
   const second = page.locator('.v7-plan').nth(1);
@@ -44,7 +44,7 @@ test('website: a plan opens beside the list, not over it', async ({ page }) => {
 
 test('website: My home is a page with the answers and Start over', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await boot(page);
+  await boot(page, {}, '/');
   await page.evaluate(() => window.v7Sheet('home'));
   await expect(page.locator('#v7-sheet')).toHaveCount(0);
   await expect(page.locator('#wh-home')).toBeVisible();
@@ -53,11 +53,28 @@ test('website: My home is a page with the answers and Start over', async ({ page
   expect(page.url()).toContain('#myhome');
 });
 
-test('phone keeps the bottom bar and no top menu', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test('the mobile app at /app keeps the bottom bar and no top menu, even on a computer', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   await boot(page);
+  const w = await page.evaluate(() => document.querySelector('.screen').getBoundingClientRect().width);
+  expect(w).toBeLessThanOrEqual(560);
+  await page.setViewportSize({ width: 390, height: 844 });
   const r = await page.evaluate(() => document.querySelector('.v7-nav').getBoundingClientRect());
   expect(r.bottom).toBeGreaterThan(780);
+  await expect(page.locator('.web-menu')).toBeHidden();
   expect(r.height).toBeLessThan(100);
   await expect(page.locator('.web-links')).toBeHidden();
+});
+
+test('website on a phone: menu button, no bottom bar, every page reachable', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await boot(page, { has_solar: true, solar_planned: true, battery_kwh: 9 }, '/');
+  await expect(page.locator('.v7-nav')).toBeHidden();
+  await page.locator('.web-menu summary').click();
+  await page.locator('.web-menu-list a', { hasText: 'Compare plans' }).click();
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('plans');
+  await page.locator('.web-menu summary').click();
+  await page.locator('.web-menu-list a', { hasText: 'My home' }).click();
+  await expect(page.locator('#wh-reset')).toBeAttached();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
 });

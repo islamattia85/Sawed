@@ -185,7 +185,7 @@ for (const [label, url, friendly, detail] of OAUTH_FAILURES) {
     // Land somewhere with a different query first. Going straight from "/" to
     // "/#error=..." is a same-document change: the app never re-boots, so
     // nothing would read the hash and the test would pass on a technicality.
-    await page.goto('/?nav=1');
+    await page.goto('/app?nav=1');
     await page.goto(url);
     await page.waitForFunction(() => window.__bootSettled === true);
 
@@ -332,7 +332,7 @@ test('a Google return with ?code= is exchanged for a session', async ({ page }) 
     sessionStorage.setItem('oauth_pending', String(Date.now()));
   }, [ref]);
 
-  await page.goto('/?code=returned-auth-code');
+  await page.goto('/app?code=returned-auth-code');
   await page.waitForFunction(() => window.__bootSettled === true, null, { timeout: 20_000 });
   await page.waitForTimeout(500);
 
