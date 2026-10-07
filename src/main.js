@@ -1081,7 +1081,7 @@ function currentGridGain(){
    map of end prices shows where the system still pays back. The work runs a
    step per tick so the screen stays responsive. */
 const STRESS_EXP = [0, 0.05, 0.10, 0.15, 0.20, 0.25];
-const STRESS_CHEAP = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30];
+const STRESS_CHEAP = [0.05, 0.12, 0.19, 0.26, 0.33, 0.40];
 let _stress = { key: '', b0: null, nb0: null, pts: {}, grid: {}, gridImp: null, queued: false };
 function stressKey(){
   return JSON.stringify([state.count_A, state.count_B, state.azimuth_A, state.azimuth_B, state.tilt_A, state.battery_kwh, usageKey(),
@@ -1145,6 +1145,11 @@ function stressSlide(el, k){
 }
 
 /** Where the line falls on the map: the lowest export (cents) that still pays back in 10 years at this night price. */
+/** The payback the sentences hold a future to: today's, plus a year. */
+function stressLimit(){
+  const pb = pathValue(_stress.b0, _stress.b0, 0, stressCost(), state.battery_kwh || 0).payback;
+  return pb === null ? 20 : Math.ceil(pb + 1);
+}
 function stressNeeds(years){
   const f = stressF(), cost = stressCost(), batt = state.battery_kwh || 0;
   const c = STRESS_CHEAP.reduce((a, x) => Math.abs(x - f.cheapTo) < Math.abs(a - f.cheapTo) ? x : a, STRESS_CHEAP[0]);
@@ -1152,7 +1157,7 @@ function stressNeeds(years){
   for (const e of STRESS_EXP){
     const b1 = _stress.grid[`${e},${c}`]; if (b1 === undefined) return null;
     const pb = pathValue(_stress.b0, b1, years, cost, batt).payback;
-    if (pb !== null && pb <= 10) return { exp: prev === null ? 0 : e, cheap: c };
+    if (pb !== null && pb <= stressLimit()) return { exp: prev === null ? 0 : e, cheap: c };
     prev = e;
   }
   return { exp: null, cheap: c };
@@ -1180,15 +1185,19 @@ function renderStressCard(){
         return `<p class="ax-note">Without the battery, in this future: ${signed(nb.value)} after 20 years, paying back in ${pbTxt(nb.payback)}.</p>`; })() : ''}`;
   // The map: end prices, coloured by payback with the chosen pace.
   const cell = 24, gx = 26, gy = 6, W = gx + cell * STRESS_EXP.length + 4, H = gy + cell * STRESS_CHEAP.length + 30;
-  const tone = (pb) => pb === null || pb > 15 ? 'var(--loss)' : pb > 10 ? 'var(--amber)' : 'var(--accent)';
+  // Coloured against today's payback, so every home sees where its own
+  // system starts to suffer, however quickly it pays back.
+  const pb0 = now.payback ?? 25;
+  const tier = (pb) => pb === null || pb > pb0 + 4 ? 2 : pb > pb0 + 1 ? 1 : 0;
+  const tone = (pb) => ['var(--accent)', 'var(--amber)', 'var(--loss)'][tier(pb)];
   let cells = '';
   STRESS_CHEAP.slice().reverse().forEach((cv, r) => STRESS_EXP.forEach((ev, i) => {
     const b1 = _stress.grid[`${ev},${cv}`];
     const pb = b1 === undefined ? undefined : pathValue(_stress.b0, b1, years, cost, batt).payback;
-    cells += `<rect x="${gx + i * cell + 1}" y="${gy + r * cell + 1}" width="${cell - 2}" height="${cell - 2}" rx="4" fill="${pb === undefined ? 'var(--line)' : tone(pb)}" opacity="${pb === undefined ? .5 : pb === null || pb > 15 ? .55 : pb > 10 ? .6 : .75}"><title>Export ${c(ev)}, night ${c(cv)}: ${pb === undefined ? 'working…' : `pays back in ${pbTxt(pb)}`}</title></rect>`;
+    cells += `<rect x="${gx + i * cell + 1}" y="${gy + r * cell + 1}" width="${cell - 2}" height="${cell - 2}" rx="4" fill="${pb === undefined ? 'var(--line)' : tone(pb)}" opacity="${pb === undefined ? .5 : .78}"><title>Export ${c(ev)}, night ${c(cv)}: ${pb === undefined ? 'working…' : `pays back in ${pbTxt(pb)}`}</title></rect>`;
   }));
   const px = (e) => gx + Math.max(0, Math.min(1, e / 0.25)) * cell * (STRESS_EXP.length - 1) + cell / 2;
-  const py = (ch) => gy + (1 - Math.max(0, Math.min(1, (ch - 0.05) / 0.25))) * cell * (STRESS_CHEAP.length - 1) + cell / 2;
+  const py = (ch) => gy + (1 - Math.max(0, Math.min(1, (ch - 0.05) / 0.35))) * cell * (STRESS_CHEAP.length - 1) + cell / 2;
   const axes = STRESS_EXP.map((e, i) => `<text x="${gx + i * cell + cell / 2}" y="${H - 12}" font-size="10" text-anchor="middle">${Math.round(e * 100)}</text>`).join('')
     + STRESS_CHEAP.slice().reverse().map((cv, r) => `<text x="${gx - 6}" y="${gy + r * cell + cell / 2 + 3}" font-size="10" text-anchor="end">${Math.round(cv * 100)}</text>`).join('');
   const map = `<svg class="st-map" viewBox="0 0 ${W} ${H}" role="img" aria-label="Where the system still pays back: export payment across, night price up">
@@ -1199,9 +1208,9 @@ function renderStressCard(){
     </svg>`;
   const need = stressNeeds(years);
   const needLine = need === null ? '' : need.exp === null
-    ? `At ${c(need.cheap)} night power, this system doesn’t pay back within 10 years at any export rate on the map.`
-    : need.exp === 0 ? `At ${c(need.cheap)} night power, it pays back within 10 years even if export pays nothing.`
-    : `At ${c(need.cheap)} night power, it pays back within 10 years while export pays at least about ${Math.round(need.exp * 100)}c.`;
+    ? `At ${c(need.cheap)} night power, no export rate on the map keeps the payback within ${stressLimit()} years.`
+    : need.exp === 0 ? `At ${c(need.cheap)} night power, it pays back within ${stressLimit()} years even if export pays nothing.`
+    : `At ${c(need.cheap)} night power, it pays back within ${stressLimit()} years while export pays at least about ${Math.round(need.exp * 100)}c.`;
   const preset = (k, t) => `<button class="v7-chip ${s.preset === k ? 'on' : ''}" onclick="stressSet('preset','${k}')">${t}</button>`;
   const when = [[0, 'Now'], [3, '3 yrs'], [6, '6 yrs'], [10, '10 yrs']].map(([y, t]) => `<button class="sy-stop ${years === y ? 'on' : ''}" onclick="stressSet('years',${y})">${t}</button>`).join('');
   return `<section class="ax-card st-card" id="stress-card">
@@ -1214,43 +1223,12 @@ function renderStressCard(){
       <input type="range" min="3" max="40" step="0.5" value="${(f.cheapTo * 100).toFixed(1)}" oninput="stressSlide(this,'cheap')" onchange="stressSet('cheap',this.value/100)" aria-label="What night or EV-window power costs, cents a kWh"></label>
     <div class="st-when"><span>Gets there</span><span class="sy-seg">${when}</span></div>
     <div class="st-mapwrap">${map}
-      <div class="st-key"><span><i style="background:var(--accent)"></i>Pays back in 10 years</span><span><i style="background:var(--amber)"></i>10–15</span><span><i style="background:var(--loss)"></i>Longer, or never</span><span>○ today · ◌ this future</span><span class="st-axy">Night power (c) up the side</span></div>
+      <div class="st-key"><span><i style="background:var(--accent)"></i>Within a year of today’s payback</span><span><i style="background:var(--amber)"></i>1–4 years longer</span><span><i style="background:var(--loss)"></i>More, or never</span><span>○ today · ◌ this future</span><span class="st-axy">Night power (c) up the side</span></div>
     </div>
     ${needLine ? `<p class="ax-note">${needLine}</p>` : ''}
   </section>`;
 }
 window.stressSet = stressSet; window.stressSlide = stressSlide;
-
-/**
- * How a suggested system holds up in one tough future: export at 5c and night
- * power at 30c, reached over 6 years. 'steady' still pays back within 12
- * years, 'risk' within the 20, 'bet' not at all. Worked out a card at a time after
- * the cards show, then they are redrawn.
- */
-const RISK_FUTURE = { exportTo: 0.05, cheapTo: 0.30 };
-const _risk = { ck: '', v: {}, queued: false, todo: [] };
-function designRisk(d){
-  const ck = goalSweepCk();
-  if (_risk.ck !== ck){ _risk.ck = ck; _risk.v = {}; _risk.todo = []; }
-  const k = `${d.a ?? d.panels},${d.b || 0},${d.batt}`;
-  if (_risk.v[k] !== undefined) return _risk.v[k];
-  if (!_risk.todo.some((x) => x.k === k)) _risk.todo.push({ k, d });
-  if (!_risk.queued){ _risk.queued = true; setTimeout(riskStep, 60); }
-  return null;
-}
-function riskStep(){
-  _risk.queued = false;
-  const job = _risk.todo.shift(); if (!job) return;
-  const d = job.d, c = designToConfig(d);
-  try {
-    const b1 = benefitIn(RISK_FUTURE, { has_solar: true, count_A: c.count_A, count_B: c.count_B, battery_kwh: c.battery_kwh, inverter_kw: c.inverter_kw }).benefit;
-    const fut = pathValue(d.benefit, b1, 6, d.net, d.batt);
-    _risk.v[job.k] = fut.payback !== null && fut.payback <= 12 ? 'steady' : fut.value > 0 ? 'risk' : 'bet';
-  } catch (e) { _risk.v[job.k] = 'unknown'; }
-  if (_risk.todo.length){ _risk.queued = true; setTimeout(riskStep, 30); }
-  else if (document.querySelector('.fl-sys')) renderApp();
-}
-const RISK_LABEL = { steady: 'Steady', risk: 'Some risk', bet: 'A bet' };
 
 /** One line for Home, once the Solar tab's map is worked out: what the system needs to stay true. */
 function stressHomeLine(){
@@ -1261,11 +1239,12 @@ function stressHomeLine(){
   for (const e of STRESS_EXP){
     const b1 = _stress.grid[`${e},${cv}`]; if (b1 === undefined) return '';
     const pb = pathValue(_stress.b0, b1, 6, cost, batt).payback;
-    if (pb !== null && pb <= 10){ need = e; break; }
+    if (pb !== null && pb <= stressLimit()){ need = e; break; }
   }
-  if (need === 0) return 'Pays back within 10 years even if export pays nothing';
-  if (need === null) return 'Needs export near today’s rate to pay back within 10 years';
-  return `Pays back within 10 years while export pays at least about ${Math.round(need * 100)}c`;
+  const L = stressLimit();
+  if (need === 0) return `Pays back within ${L} years even if export pays nothing`;
+  if (need === null) return `Needs export near today’s rate to pay back within ${L} years`;
+  return `Pays back within ${L} years while export pays at least about ${Math.round(need * 100)}c`;
 }
 
 /** True when grid-charging arbitrage is genuinely running. */
@@ -5360,7 +5339,7 @@ function flowSystemStep(opt){
   const card = (g) => { const d = g.d;
     const pay = d.payback < 50 ? `${d.payback < 10 ? d.payback.toFixed(1) : Math.round(d.payback)} yrs` : '25+ yrs';
     return `<button class="fl-opt fl-sys ${String((state._flow || {}).system) === String(g.keys[0]) ? 'on' : ''}" data-q="system" data-v="${g.keys[0]}" onclick="flowPick(this, 'system', '${g.keys[0]}')">
-      <span class="sys-tags">${g.labels.map((l) => `<span class="fl-tag">${l}</span>`).join('')}${(() => { const r = designRisk(d); return r && RISK_LABEL[r] ? `<span class="fl-risk is-${r}">${RISK_LABEL[r]}</span>` : ''; })()}</span>
+      <span class="sys-tags">${g.labels.map((l) => `<span class="fl-tag">${l}</span>`).join('')}</span>
       <span class="sys-kit">
         <span class="sys-part">${roof(d.panels)}<span><b>${d.panels}</b><small>panels · ${d.kwp} kWp</small></span></span>
         <span class="sys-part">${batt(d.batt)}<span><b>${d.batt ? d.batt + ' kWh' : 'No'}</b><small>battery</small></span></span>
@@ -5368,7 +5347,7 @@ function flowSystemStep(opt){
       <span class="sys-foot"><span class="sys-price"><b>${eur(d.net)}</b><small>guide price</small></span><span class="sys-stats"><span><b>${pay}</b> payback</span><span><b>${eur(d.benefit)}</b> saved a year</span></span></span>
     </button>`; };
   return `<div class="fl-opts">${opt('system', 'custom', 'Model your own system', 'Your panel count and battery, or a quote you have')}</div>
-    <div class="fl-group"><h3>Suggested by Peakless${infoTip('the suggested systems', 'Sized for your usage, roof and region, and priced on the cheapest plan for each. Prices are typical Irish installer prices for that size, after the SEAI grant. A quote for your roof can differ. Steady, Some risk and A bet: if export falls to 5c and night power rises to 30c over 6 years, Steady still pays back within 12 years, Some risk within 20, A bet not at all.')}</h3></div>
+    <div class="fl-group"><h3>Suggested by Peakless${infoTip('the suggested systems', 'Sized for your usage, roof and region, and priced on the cheapest plan for each. Prices are typical Irish installer prices for that size, after the SEAI grant. A quote for your roof can differ.')}</h3></div>
     <div class="fl-opts">${goals.map(card).join('')}</div>`;
 }
 function flowSupplier(i){

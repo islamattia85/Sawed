@@ -1775,6 +1775,4 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .st-key { display: grid; gap: 6px; font-size: var(--text-caption); color: var(--ink-soft); }
 .st-key i { display: inline-block; width: 10px; height: 10px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; }
 @media (max-width: 380px) { .st-mapwrap { grid-template-columns: 1fr; } }
-.fl-risk { display: inline-block; padding: 2px 8px; border-radius: 999px; font: 700 var(--text-caption) var(--display); border: 1.5px solid currentColor; }
-.fl-risk.is-steady { color: var(--accent); } .fl-risk.is-risk { color: var(--amber); } .fl-risk.is-bet { color: var(--loss); }
 .st-home { display: block; margin-top: 4px; font-size: var(--text-caption); }
