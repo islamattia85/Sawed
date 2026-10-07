@@ -20,7 +20,7 @@ for (const width of [1440, 1024]) {
         scrW: document.querySelector('.screen')?.getBoundingClientRect().width,
         over: document.documentElement.scrollWidth - innerWidth,
       }));
-      expect(m.links, `${s}: top menu`).toBe(6);
+      expect(m.links, `${s}: top menu`).toBe(4);
       expect(m.bar, `${s}: no phone bar`).toBe(false);
       expect(m.over, `${s}: no sideways scroll`).toBeLessThanOrEqual(1);
       expect(m.scrW, `${s}: readable width`).toBeLessThanOrEqual(1280);
@@ -71,10 +71,10 @@ test('website on a phone: menu button, no bottom bar, every page reachable', asy
   await boot(page, { has_solar: true, solar_planned: true, battery_kwh: 9 }, '/');
   await expect(page.locator('.v7-nav')).toBeHidden();
   await page.locator('.web-menu summary').click();
-  await page.locator('.web-menu-list a', { hasText: 'Compare plans' }).click();
+  await page.locator('.web-menu-list a', { hasText: 'Plans' }).click();
   expect(await page.evaluate(() => window.state.current_screen)).toBe('plans');
   await page.locator('.web-menu summary').click();
-  await page.locator('.web-menu-list a', { hasText: 'My home' }).click();
+  await page.locator('.web-menu-list a', { hasText: 'Your home' }).click();
   await expect(page.locator('#wh-reset')).toBeAttached();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
 });

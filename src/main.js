@@ -3129,19 +3129,69 @@ function renderSite(){
   </div>`;
 }
 
-/** The website's own heading and footer around a page from the app. */
+/** The website's own frame around a page from the app: the "Your home"
+ *  strip, one page heading, a "What's next" ending and the footer. */
 function webDecorate(html){
   const front = "state._sheet=null;state.current_screen='welcome';renderApp();scrollTo(0,0)";
-  if (state.current_screen === 'result'){
+  const scr = state.current_screen, tab = state._an_tab;
+  const head = (eye, title, lede) => `<div class="web-page-head"><div class="wl-eyebrow">${eye}</div><h2 class="web-title">${title}</h2>${lede ? `<p class="web-lede">${lede}</p>` : ''}</div>`;
+  const nx = (items) => `<section class="web-next" aria-label="What's next"><div class="web-next-h">What's next</div>${items.map(([go, b, sm, main]) => `<button class="web-nx ${main ? 'is-main' : ''}" onclick="${go}"><span><b>${b}</b><small>${sm}</small></span>${ic('chevR', 18)}</button>`).join('')}</section>`;
+  const toPlans = ["setScreen('plans')", 'Compare every plan', 'Ranked on your home'];
+  const toSolar = ["state._an_from=null;anTab('solar')", 'Would solar pay off here?', 'Payback after the SEAI grant'];
+  const toAnswer = ["setScreen('result')", 'Back to your answer', 'Every figure in one place'];
+  const toHome = ["setScreen('myhome')", 'Your home', 'Change any answer'];
+  let top = '', end = '';
+  if (scr === 'result'){
+    const m = html.match(/data-countup="(\d+)"/);
+    const n = m ? +m[1] : 0;
     let b = null; try { b = getRecommendation().best; } catch (e) {}
-    if (b && b.plan){
-      const head = `<div class="web-page-head"><div class="wl-eyebrow">Your answer</div>
-        <h2 class="web-title">Every plan, priced on <em>your</em> home.</h2></div>`;
-      html = html.replace(/(<div class="screen v7[^>]*>)/, (m) => m + head);
-    }
+    const planned = !!(state.has_solar && state.solar_planned && totalPanels() > 0);
+    top = n > 10
+      ? head('Your answer', planned ? `Your home could pay <em>${eur(n)} less</em> a year.` : `Switch${b && b.plan ? ` to <em>${b.plan.supplier}</em>` : ''} and pay ${eur(n)} less a year.`,
+        planned ? 'Switching plan now, then adding the panels you are planning.' : b && b.plan ? `${b.plan.plan}, priced on every hour of your year.` : '')
+      : head('Your answer', 'Your plan is already the best value.', 'Nothing on sale costs less for your home.');
+    end = nx([[...toPlans, 1], toSolar]);
+  } else if (scr === 'plans'){
+    end = nx([[...toAnswer, 1], toSolar]);
+  } else if (scr === 'analytics' || scr === 'solar'){
+    const t = scr === 'solar' ? 'solar' : tab;
+    top = t === 'solar' ? head('Solar', 'Would solar pay off <em>here</em>?', 'Sized for your roof, with the SEAI grant counted.')
+      : head('Your figures', { bill: 'Where your bill goes.', hours: 'Your day, hour by hour.', accuracy: 'How sure we are.', car: 'What the car costs to charge.' }[t] || 'Why these figures.', 'Every hour of your year, on every plan you can switch to.');
+    end = nx([[...toAnswer, 1], t === 'solar' ? toHome : toSolar]);
+  } else if (scr === 'myhome'){
+    end = nx([[...toAnswer, 1], toPlans]);
+  } else if (scr === 'updates' || scr === 'me' || scr === 'profile'){
+    end = nx([[...toAnswer, 1], toPlans]);
+  }
+  // The "Your home" strip, under the menu on every page.
+  let strip = '';
+  try {
+    const R = IRISH_REGIONS[state.region || 'east'];
+    const heat = { gas: 'Gas or oil heating', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heating' }[state.heating_type || 'gas'];
+    const items = [`${Math.round(v7AnnualKwh()).toLocaleString('en-IE')} kWh a year`, heat, R && R.name,
+      state.has_solar && totalPanels() > 0 ? `${totalPanels()} panels${state.solar_planned ? ' (planned)' : ''}` : 'No solar',
+      state.battery_kwh > 0 ? `${state.battery_kwh} kWh battery` : '', state.ev_active ? 'EV' : 'No EV'].filter(Boolean);
+    strip = `<div class="web-strip"><div class="web-strip-in"><span class="web-strip-k">${ic('home', 15)} Your home</span>${items.map((x) => `<span class="web-strip-i">${esc(x)}</span>`).join('')}<button onclick="setScreen('myhome')">Edit</button></div></div>`;
+  } catch (e) {}
+  if (scr !== 'myhome') html = html.replace(/(<\/header>)/, `$1${strip}`);
+  if (scr === 'analytics' || scr === 'solar'){
+    // The figures' own tabs and plan picker sit under the page heading, not in the top bar.
+    const grab = (re) => { const m = html.match(re); if (m) html = html.replace(m[0], ''); return m ? m[0] : ''; };
+    let tabs = grab(/<nav class="ax-tabs"[\s\S]*?<\/nav>/);
+    const chip = grab(/<button class="ax-plan"[\s\S]*?<\/button>/);
+    tabs = (scr === 'solar' || tab === 'solar') ? '' : tabs.replace(/<button class="ax-tab[^"]*"[^>]*anTab\('solar'\)[\s\S]*?<\/button>/, '');
+    top += `<div class="web-sub">${tabs}${chip}</div>`;
+  }
+  if (top) html = html.replace(/(<div class="screen v7[^>]*>)/, (mm) => mm + top);
+  if (end){
+    // Inside the page, just before it closes: the phone bar (if any) comes after it.
+    const navAt = html.search(/<div class="consent-bar|<nav class="bottom-nav/);
+    const upto = navAt >= 0 ? navAt : html.length;
+    const close = html.lastIndexOf('</div>', upto);
+    if (close > 0) html = html.slice(0, close) + end + html.slice(close);
   }
   const foot = `<footer class="wl-foot web-foot"><span>Peakless · independent, no commissions · your data stays on your device</span>
-    <nav><a href="/" onclick="event.preventDefault();${front}">Peakless home</a><a href="/#plans" onclick="event.preventDefault();${front}">Every plan we track</a><a href="/app">Mobile app</a></nav></footer>`;
+    <nav><a href="/" onclick="event.preventDefault();${front}">Peakless home</a><a href="/app">Mobile app</a></nav></footer>`;
   return html + foot;
 }
 
@@ -5679,7 +5729,7 @@ function renderFlow(){
     const branch = ['roof', 'tilt', 'panels', 'battery', 'price', 'grant', 'km', 'car'].includes(s);
     if (s === open){
       h += `<section class="fl-q ${branch ? 'fl-branch' : ''}" aria-label="${label[s][0]}">
-        <h2>${label[s][0]}</h2>${label[s][1] ? `<p>${label[s][1]}</p>` : ''}${body(s)}</section>`;
+        ${WEB ? `<div class="wl-eyebrow">Step ${steps.filter((k) => k in f && k !== s).length + 1} of ${steps.length}</div>` : ''}<h2>${label[s][0]}</h2>${label[s][1] ? `<p>${label[s][1]}</p>` : ''}${body(s)}</section>`;
       break;
     }
   }
@@ -5734,8 +5784,25 @@ function renderFlow(){
       <span class="fl-word">${wordmarkHtml('pk-word-top')}</span>
     </div>
     <div class="sg-progress fl-prog"><i style="width:${finished ? 100 : Math.round(done / steps.length * 100)}%"></i></div>
-    <div class="fl-body">${h}</div>
+    ${WEB ? `<div class="fl-grid"><div class="fl-body">${h}</div>${flowSide(steps, f, open, shown)}</div>` : `<div class="fl-body">${h}</div>`}
   </div>`;
+}
+
+/** The website's side card beside each question: the answers so far, and what it leads to. */
+const FLOW_SHORT = { bill: 'Usage', plan: 'Plan now', disc: 'Discount', house: 'House', system: 'System', where: 'Region',
+  meter: 'Meter', area: 'Area', heat: 'Heating', evtime: 'Car charging', heattime: 'Heating hours', night: 'Water at night',
+  gas: 'Gas', gasbill: 'Gas bill', solar: 'Solar', tilt: 'Roof pitch', price: 'Price', grant: 'SEAI grant', roof: 'Roof faces',
+  panels: 'Panels', battery: 'Battery', filewhen: 'Meter file date', billwhen: 'Bill date', billmonths: 'Bill months',
+  gridnow: 'Battery charging', km: 'Driving', car: 'Car' };
+function flowSide(steps, f, open, shown){
+  const got = steps.filter((k) => k in f && k !== open);
+  const n = TARIFFS.filter((t) => !t.discontinued).length;
+  const val = (k) => { try { return esc(shown[k] ? shown[k](f[k]) : String(f[k])); } catch (e) { return esc(String(f[k])); } };
+  return `<aside class="fl-side" aria-label="Your home so far">
+    <div class="fl-card"><b class="fl-card-h">Your home so far</b><small>Change any answer at any time.</small>
+      <div class="fl-sofar">${got.length ? got.map((k) => `<div><span>${FLOW_SHORT[k] || k}</span><b>${val(k)} <button onclick="flowEdit('${k}')" aria-label="Change ${FLOW_SHORT[k] || k}">${ic('edit', 14)}</button></b></div>`).join('') : '<div><span>Nothing yet</span><b>—</b></div>'}</div></div>
+    <div class="fl-live"><small>${open ? `${steps.length - got.length} question${steps.length - got.length === 1 ? '' : 's'} to go` : 'All done'}</small><b>${n} plans to compare</b></div>
+  </aside>`;
 }
 
 function exploreSolar(){

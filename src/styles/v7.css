@@ -2070,3 +2070,98 @@ html.web .sg-h { font-family: "Fraunces", Georgia, serif; font-weight: 600; lett
 @media (min-width: 900px) { html.web .fl-q h2 { font-size: 40px; } html.web .fl-body { padding-top: 56px; } }
 html.web .fl-bill span, html.web .fl-bill input { font: 600 40px/1.1 "Fraunces", Georgia, serif; }
 @media (min-width: 900px) { html.web .fl-bill span, html.web .fl-bill input { font-size: 54px; } }
+
+/* ---------- website: one home, one story ----------
+   One width for every page, the Your home strip, one heading, a "What's next"
+   ending, setup in two panes, and a warmer dark with cards that lift off the page. */
+html.web[data-theme="dark"] {
+  --bg: #121816; --panel: #1B2420; --well: #26312C; --hair: rgba(255,255,255,.07); --hair-strong: rgba(255,255,255,.12);
+  --line: #2C3832; --track: #2C3832; --track-soft: #222C27;
+  --ink: #ECEFEA; --ink-soft: #A9B3AC; --ink-dim: #7C877F;
+  --accent: #5BCF96; --accent-soft: rgba(91,207,150,.14); --on-accent: #082015;
+}
+html.web[data-theme="dark"] body, html.web[data-theme="dark"] .fl, html.web[data-theme="dark"] .pk-land { background: #121816 !important; }
+html.web .app[data-chrome="app"] > .screen, html.web .screen.v7, html.web .screen.v7.v7-plans { max-width: 1120px; }
+html.web .v7-top { padding: 0 max(24px, calc((100% - 1072px) / 2)); }
+
+.web-strip { display: none; }
+html.web .web-strip { display: block; border-bottom: 1px solid var(--hair); background: color-mix(in srgb, var(--panel) 60%, var(--bg)); }
+.web-strip-in { max-width: 1120px; margin: 0 auto; padding: 8px 24px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; color: var(--ink-soft); min-height: 44px; }
+.web-strip-k { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--ink); margin-right: 4px; }
+.web-strip-i + .web-strip-i::before { content: "·"; margin-right: 10px; color: var(--ink-dim); }
+.web-strip-in button { margin-left: auto; border: 0; background: none; color: var(--accent); font: 700 13px var(--display); cursor: pointer; padding: 4px 0; }
+
+.web-lede { margin: 4px 0 0; font-size: 17px; color: var(--ink-soft); max-width: 40em; }
+html.web .web-page-head { margin-bottom: var(--space-5); }
+html.web .web-page-head .wl-eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: 13px; }
+html.web .v7-page-head::before, html.web .web-home-head::before { content: none; }
+
+.web-next { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--hair); grid-column: 1 / -1; }
+.web-next-h { grid-column: 1 / -1; font: 700 13px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); }
+.web-nx { display: flex; align-items: center; justify-content: space-between; gap: 16px; text-align: left; cursor: pointer; background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius-xl); padding: 20px 22px; color: var(--ink); font: inherit; transition: border-color .15s, transform .15s; }
+.web-nx:hover { border-color: var(--accent); transform: translateY(-2px); }
+.web-nx b { display: block; font: 750 17px var(--display); }
+.web-nx small { color: var(--ink-soft); font-size: 15px; }
+.web-nx svg { color: var(--accent); flex: none; }
+.web-nx.is-main { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.web-nx.is-main b { color: var(--accent); }
+@media (max-width: 700px) { .web-next { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .web-nx { transition: none; } }
+
+/* The figures' tabs under the heading, as slim underline tabs. */
+.web-sub { display: grid; gap: 12px; margin-bottom: var(--space-4); }
+html.web .web-sub .ax-tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--hair); overflow-x: auto; scrollbar-width: none; }
+html.web .web-sub .ax-tab { display: inline-flex; flex-direction: row; gap: 6px; align-items: center; background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 10px 0; margin-bottom: -1px; color: var(--ink-dim); font: 700 15px var(--display); box-shadow: none; white-space: nowrap; min-height: 0; }
+html.web .web-sub .ax-tab.on { color: var(--ink); border-color: var(--accent); background: none; }
+html.web .web-sub .ax-tab svg { width: 16px; height: 16px; }
+html.web .ax-top { row-gap: 0; padding-bottom: 0; }
+html.web .ax-top > .v7-home-back, html.web .ax-top > .v7-brand-static { display: none; }
+
+/* Updates as a bell beside the theme switch. */
+.web-bell { position: relative; }
+.web-bell .web-badge { position: absolute; top: 2px; right: 0; font-size: 12px; line-height: 16px; padding: 0 5px; margin: 0; }
+html.web .web-bell.on { background: var(--well); color: var(--ink); }
+
+/* Setup in two panes: the question, and your home so far. */
+.fl-grid { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 40px; align-items: start; padding: 0 24px; }
+html.web .fl-grid .fl-body { max-width: none; padding-left: 0; padding-right: 0; margin: 0; }
+html.web .fl-prog { max-width: 1072px; }
+html.web .fl-chips { display: none; }
+.fl-side { position: sticky; top: 96px; display: grid; gap: 16px; padding-top: 56px; }
+.fl-card { background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius-xl); padding: 20px; display: grid; gap: 4px; }
+.fl-card-h { font: 750 17px var(--display); }
+.fl-card > small { color: var(--ink-soft); font-size: 13px; margin-bottom: 8px; }
+.fl-sofar > div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--hair); font-size: 15px; }
+.fl-sofar > div:first-child { border-top: 0; }
+.fl-sofar span { color: var(--ink-soft); }
+.fl-sofar b { text-align: right; display: inline-flex; gap: 6px; align-items: center; }
+.fl-sofar button { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 2px; display: inline-grid; }
+.fl-live { background: var(--accent-soft); border-radius: var(--radius-xl); padding: 16px 20px; display: grid; gap: 2px; }
+.fl-live small { color: var(--ink-soft); font-size: 13px; }
+.fl-live b { font: 600 25px/1.15 "Fraunces", Georgia, serif; color: var(--ink); }
+html.web .fl-q .wl-eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: 13px; margin-bottom: -8px; }
+@media (max-width: 899px) {
+  .fl-grid { grid-template-columns: 1fr; gap: 16px; padding: 0 16px; }
+  .fl-side { position: static; padding-top: 0; order: -1; }
+  .fl-side .fl-live { display: none; }
+  .fl-card { padding: 14px 16px; }
+}
+@media (min-width: 1200px) {
+  html.web .screen.v7.v7-plans { grid-template-columns: 200px minmax(0, 1fr) 340px; }
+}
+html.web .screen.v7:has(> .v7-hero) > .web-next, html.web .screen.v7.v7-plans > .web-next { grid-column: 1 / -1; }
+html.web .fl { max-width: none; width: 100%; background: var(--bg); }
+html.web .fl-top { max-width: none; }
+html.web .wl-eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: 13px; }
+html.web .v7-top, html.web .v7-top.v7-top-sub { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+html.web .v7-top .web-links { flex: 1; margin-left: 12px; }
+html.web .web-sub .ax-tab { flex: none; }
+@media (max-width: 899px) {
+  html.web .v7-top .web-logo { margin-right: auto; }
+  html.web .v7-top .v7-top-end .profile-nav-btn span { display: none; }
+  .web-strip-in { flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; scrollbar-width: none; padding: 8px 16px; }
+  .web-strip-in button { position: sticky; right: 0; padding-left: 12px; background: color-mix(in srgb, var(--panel) 60%, var(--bg)); }
+}
+html.web .v7-page-head .v7-home-chips { display: none; }
+html.web .web-page-head .wl-eyebrow, html.web .fl-q .wl-eyebrow { text-transform: uppercase !important; letter-spacing: .08em; }
+@media (max-width: 899px) { .web-strip-in button { background: var(--bg); box-shadow: -16px 0 12px var(--bg); } }

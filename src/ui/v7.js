@@ -62,12 +62,10 @@ export function createV7(api) {
    * Named by task, not by tab, so a visitor can go straight to what they came for.
    */
   const WEB_LINKS = [
-    { id: 'result', label: 'My answer', go: "setScreen('result')", screens: ['result'] },
-    { id: 'plans', label: 'Compare plans', go: "setScreen('plans')", screens: ['plans', 'plan-detail', 'compare'] },
-    { id: 'solar', label: 'Solar & battery', go: "state._an_from=null;anTab('solar')", screens: ['solar'] },
-    { id: 'usage', label: 'My usage', go: "state._an_from=null;anTab(state._an_tab&&state._an_tab!=='solar'?state._an_tab:'bill')", screens: ['analytics', 'csv-import'] },
-    { id: 'myhome', label: 'My home', go: "setScreen('myhome')", screens: ['myhome', 'refine'] },
-    { id: 'updates', label: 'Updates', go: "setScreen('updates')", screens: ['updates', 'me', 'monitor'] },
+    { id: 'result', label: 'Your answer', go: "setScreen('result')", screens: ['result', 'analytics'] },
+    { id: 'plans', label: 'Plans', go: "setScreen('plans')", screens: ['plans', 'plan-detail', 'compare'] },
+    { id: 'solar', label: 'Solar', go: "state._an_from=null;anTab('solar')", screens: ['solar'] },
+    { id: 'myhome', label: 'Your home', go: "setScreen('myhome')", screens: ['myhome', 'refine', 'csv-import'] },
   ];
   function webLinks() {
     const st = S();
@@ -79,11 +77,13 @@ export function createV7(api) {
       return `<a href="#${l.id === 'usage' ? 'analytics' : l.id}" class="${on ? 'on' : ''}" aria-current="${on ? 'page' : 'false'}"
         onclick="event.preventDefault();${l.go}">${esc(l.label)}${l.id === 'updates' && n ? ` <i class="web-badge">${n}</i>` : ''}</a>`;
     }).join('')}</nav>
+    <button class="web-theme web-bell ${['updates', 'me', 'monitor'].includes(cur) ? 'on' : ''}" onclick="setScreen('updates')" aria-label="Updates${n ? `, ${n} new` : ''}">${api.ic('bell', 20)}${n ? `<i class="web-badge">${n}</i>` : ''}</button>
     <button class="web-theme" onclick="setTheme(state.theme==='dark'?'light':'dark')" aria-label="Switch light or dark">${api.ic('contrast', 20)}</button>
     <button class="web-cta" onclick="setScreen('plans')">Check my plans</button>
     <details class="web-menu">
       <summary aria-label="Menu">${api.ic('menu', 22)}</summary>
       <div class="web-menu-list">${WEB_LINKS.map((l) => `<a href="#${l.id === 'usage' ? 'analytics' : l.id}" class="${l.screens.includes(cur) ? 'on' : ''}" onclick="event.preventDefault();this.closest('details').open=false;${l.go}">${esc(l.label)}${l.id === 'updates' && n ? ` <i class="web-badge">${n}</i>` : ''}</a>`).join('')}
+        <a href="#updates" onclick="event.preventDefault();this.closest('details').open=false;setScreen('updates')">Updates${n ? ` <i class="web-badge">${n}</i>` : ''}</a>
         <a href="/app" class="web-menu-app">${api.ic('mobile', 16)} Mobile app</a></div>
     </details>`;
   }
