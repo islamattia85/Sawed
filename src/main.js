@@ -3207,36 +3207,76 @@ function whyChart(){
     ${[0, 6, 12, 18, 24].map((h) => `<text x="${x(h)}" y="${H - 4}" text-anchor="middle">${String(h).padStart(2, '0')}</text>`).join('')}</svg>`;
 }
 
-/** Small pictures of what the app shows, drawn from shapes, not screenshots. */
+/**
+ * Small previews of what the app shows: real plans and the demo's typical
+ * home (gas heating, 12 panels, a car), drawn with labels, so each card
+ * shows what the feature finds, not just a shape.
+ */
+const SHOW_HOME = { heat: 'gas', solar: '12', batt: '0', ev: 'yes' };
+const T = (x, y, t, o = '') => `<text x="${x}" y="${y}" ${o}>${t}</text>`;
 function showAnalysis(){
-  const a = [205, 190, 170, 140, 120, 105, 100, 105, 125, 150, 180, 205];
-  return `<svg viewBox="0 0 240 120" width="100%" aria-hidden="true">${a.map((v, i) => `<rect x="${8 + i * 19}" y="${110 - v / 2}" width="7" height="${v / 2}" rx="2" fill="var(--ink-dim)" opacity=".45"/><rect x="${16 + i * 19}" y="${110 - v * .41}" width="7" height="${v * .41}" rx="2" fill="var(--accent)"/>`).join('')}</svg>`;
+  const now = [212, 190, 168, 136, 112, 96, 92, 98, 120, 150, 184, 210], best = [150, 128, 96, 52, 22, 6, 4, 12, 44, 86, 124, 148];
+  const y = (v) => 104 - v * .42, M = 'JFMAMJJASOND';
+  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
+    ${T(4, 12, 'A year, month by month', 'class="h"')}${T(256, 12, '−€1,210', 'class="g" text-anchor="end"')}
+    ${now.map((v, i) => `<rect x="${10 + i * 20.5}" y="${y(v)}" width="7" height="${104 - y(v)}" rx="2" class="mute"/><rect x="${18 + i * 20.5}" y="${y(best[i])}" width="7" height="${104 - y(best[i])}" rx="2" class="acc"/>${T(17 + i * 20.5, 118, M[i], 'text-anchor="middle"')}`).join('')}
+    ${T(4, 130, '■ your plan now   ', 'class="mute-t"')}${T(96, 130, '■ best plan, with panels', 'class="acc-t"')}</svg>`;
 }
 function showDay(){
-  const u = [.3,.25,.25,.25,.25,.3,.6,.9,.7,.5,.45,.45,.5,.45,.45,.5,.8,1.4,1.6,1.4,1.1,.8,.6,.4];
-  const C = (h) => h < 8 || h >= 23 ? 'var(--bandink-night)' : h >= 17 && h < 19 ? 'var(--bandink-peak)' : 'var(--bandink-day)';
-  return `<svg viewBox="0 0 240 120" width="100%" aria-hidden="true">${u.map((v, h) => `<rect x="${6 + h * 9.5}" y="${112 - v * 62}" width="7" height="${v * 62}" rx="2" fill="${C(h)}"/>`).join('')}</svg>`;
+  const p = getPlanById('YN-EV-DNP') || getPlanById(DEMO_PLANS[0]);
+  const u = demoProfile({ heat: 'gas', solar: 'none', ev: 'yes' });
+  const v = u.u.map((x, h) => x + u.ev[h]), mx = Math.max(...v);
+  const C = { night: 'var(--bandink-night)', day: 'var(--bandink-day)', peak: 'var(--bandink-peak)', ev: 'var(--bandink-ev)' };
+  const r = (b) => `${((p.rates[b] ?? p.rates.day) * 100).toFixed(0)}c`;
+  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
+    ${T(4, 12, `A day on ${p.supplier}`, 'class="h"')}
+    ${v.map((x, h) => { const hh = Math.max(2, x / mx * 78); return `<rect x="${8 + h * 10.3}" y="${104 - hh}" width="8" height="${hh}" rx="2" fill="${C[bandAt(h, p)] || C.day}"/>`; }).join('')}
+    ${T(56, 58, `← car ${r('ev')}`, 'class="g"')}${T(190, 46, `peak ${r('peak')}`, 'class="pk"')}
+    ${['00', '06', '12', '18', '24'].map((t, i) => T(8 + i * 61.8, 118, t, 'text-anchor="middle"')).join('')}
+    ${T(4, 130, 'kWh each hour, coloured by price', 'class="mute-t"')}</svg>`;
 }
 function showPlans(){
-  return `<svg viewBox="0 0 240 120" width="100%" aria-hidden="true">${[200, 176, 160, 140].map((w, i) => `<rect x="10" y="${12 + i * 26}" width="${w}" height="12" rx="6" fill="${i === 3 ? 'var(--accent)' : 'var(--ink-dim)'}" opacity="${i === 3 ? 1 : .45}"/>`).join('')}</svg>`;
+  const rows = DEMO_PLANS.map(getPlanById).filter(Boolean).map((p) => ({ p, c: demoCost(p, SHOW_HOME) })).sort((a, b) => a.c - b.c);
+  const mx = Math.max(...rows.map((r) => r.c));
+  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
+    ${T(4, 12, 'A year on this home', 'class="h"')}
+    ${rows.map((r, i) => { const y = 24 + i * 26, w = Math.max(6, r.c / mx * 110); return `${T(4, y + 8, ({ 'EN-SMART-24-HOUR': 'Energia 24hr', 'EI-SST': 'EI SST Saver', 'EI-NB': 'EI Night Boost', 'YN-EV-DNP': 'Yuno EV' })[r.p.id] || r.p.supplier, i ? '' : 'class="g"')}
+      <rect x="108" y="${y}" width="${w}" height="9" rx="4.5" class="${i ? 'mute' : 'acc'}"/>${T(256, y + 8, eur(r.c), `text-anchor="end" ${i ? '' : 'class="g"'}`)}`; }).join('')}
+    ${T(4, 130, `${TARIFFS.filter((t) => !t.discontinued).length} plans, rates checked this week`, 'class="mute-t"')}</svg>`;
 }
 function showPayback(){
-  return `<svg viewBox="0 0 240 120" width="100%" aria-hidden="true"><line x1="10" x2="230" y1="70" y2="70" stroke="var(--ink-dim)" stroke-opacity=".4"/>
-    <path d="M10 108 L230 22" fill="none" stroke="var(--accent)" stroke-width="3"/><circle cx="107" cy="70" r="6" fill="var(--panel)" stroke="var(--accent)" stroke-width="3"/></svg>`;
+  const cost = 10200, save = 1350, Y = 20, x = (t) => 22 + t * 11.4, y = (v) => 70 - v / 300;
+  let d = `M${x(0)},${y(-cost)}`; for (let t = 1; t <= Y; t++) d += ` L${x(t)},${y(save * t - cost)}`;
+  const pb = cost / save;
+  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
+    ${T(4, 12, '12 panels, after the €1,800 grant', 'class="h"')}
+    <line x1="22" x2="250" y1="${y(0)}" y2="${y(0)}" class="axis"/>${T(18, y(0) + 3, '€0', 'text-anchor="end"')}
+    <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+    <circle cx="${x(pb)}" cy="${y(0)}" r="4.5" fill="var(--panel)" stroke="var(--accent)" stroke-width="2.5"/>
+    ${T(x(pb) + 4, y(0) + 18, `pays back · ${pb.toFixed(1)} yrs`, 'class="g"')}${T(x(Y), y(save * Y - cost) + 22, `+${eur(save * Y - cost)} in 20 yrs`, 'class="g" text-anchor="end"')}
+    ${[0, 5, 10, 15, 20].map((t) => T(x(t), 118, t, 'text-anchor="middle"')).join('')}${T(4, 130, 'years from install', 'class="mute-t"')}</svg>`;
 }
 function showStress(){
   const C = ['var(--bandink-peak)', 'var(--brand-gold)', 'var(--accent)'];
   let r = '';
-  for (let y = 0; y < 5; y++) for (let x = 0; x < 7; x++){ const g = x + (4 - y) * .5 > 5 ? 2 : x + (4 - y) * .5 > 2.5 ? 1 : 0; r += `<rect x="${12 + x * 31}" y="${6 + y * 22}" width="27" height="18" rx="4" fill="${C[g]}" opacity=".85"/>`; }
-  return `<svg viewBox="0 0 240 120" width="100%" aria-hidden="true">${r}<circle cx="${12 + 4 * 31 + 13}" cy="${6 + 2 * 22 + 9}" r="7" fill="none" stroke="var(--ink)" stroke-width="2.5"/></svg>`;
+  for (let yy = 0; yy < 5; yy++) for (let xx = 0; xx < 6; xx++){ const g = xx + (4 - yy) * .5 > 4.5 ? 2 : xx + (4 - yy) * .5 > 2.2 ? 1 : 0; r += `<rect x="${40 + xx * 26}" y="${20 + yy * 18}" width="22" height="14" rx="3" fill="${C[g]}" opacity=".85"/>`; }
+  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
+    ${T(4, 12, 'If prices change', 'class="h"')}${r}
+    <circle cx="${40 + 4 * 26 + 11}" cy="${20 + 1 * 18 + 7}" r="6" fill="none" stroke="var(--ink)" stroke-width="2"/>
+    ${['40c', '30c', '20c', '10c', '5c'].map((t, i) => T(34, 30 + i * 18, t, 'text-anchor="end"')).join('')}
+    ${['0', '5', '10', '15', '20', '25'].map((t, i) => T(51 + i * 26, 118, t, 'text-anchor="middle"')).join('')}
+    ${T(206, 34, '■ same', 'class="acc-t"')}${T(206, 50, '■ +1–4 yrs', 'class="au-t"')}${T(206, 66, '■ longer', 'class="pk"')}
+    ${T(4, 130, 'export pay (c) → · night price ↑', 'class="mute-t"')}</svg>`;
 }
 function showReport(){
-  return `<svg viewBox="0 0 240 120" width="100%" aria-hidden="true">
-    <rect x="62" y="8" width="88" height="108" rx="6" fill="var(--panel)" stroke="var(--hair-strong)" transform="rotate(-6 106 62)"/>
-    <rect x="84" y="4" width="88" height="110" rx="6" fill="var(--panel)" stroke="var(--hair-strong)"/>
-    <rect x="94" y="16" width="44" height="6" rx="3" fill="var(--accent)"/><rect x="94" y="28" width="66" height="14" rx="3" fill="var(--ink)" opacity=".8"/>
-    ${[0, 1, 2, 3].map((i) => `<rect x="94" y="${52 + i * 12}" width="${66 - i * 10}" height="6" rx="3" fill="var(--accent)" opacity="${.9 - i * .18}"/>`).join('')}
-    <rect x="94" y="100" width="40" height="4" rx="2" fill="var(--ink-dim)" opacity=".5"/></svg>`;
+  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
+    <rect x="58" y="4" width="92" height="124" rx="6" fill="var(--brand-ink)"/>
+    ${T(66, 22, 'peakless', 'style="fill:#E8EFEB;font-weight:700"')}${T(66, 44, 'Your home', 'style="fill:#fff;font-weight:800"')}${T(66, 57, 'energy report', 'style="fill:#fff;font-weight:800"')}
+    ${T(66, 78, 'Could save', 'style="fill:var(--brand-gold)"')}${T(66, 100, '€1,822', 'style="fill:#6EE7A8;font-weight:800;font-size:20px"')}
+    <rect x="156" y="14" width="96" height="110" rx="6" fill="var(--panel)" stroke="var(--hair-strong)"/>
+    ${T(164, 30, 'At a glance', 'class="h"')}
+    ${[[100, 'mute'], [86, 'mute'], [28, 'acc'], [14, 'acc']].map(([w, c], i) => `<rect x="164" y="${42 + i * 16}" width="${w * .78}" height="7" rx="3.5" class="${c}"/>`).join('')}
+    ${T(164, 116, '13 pages', 'class="mute-t"')}</svg>`;
 }
 
 /** The website at "/": what Peakless is, shown and taught, then a way in. */
@@ -3284,12 +3324,12 @@ function renderSite(){
     <section class="wl-band wl-tint" id="get"><div class="wl-in">
       <div class="wl-sh"><div class="wl-eyebrow">What you get</div><h2 class="wl-h2">An answer you can check, test and keep.</h2><p>Not just a ranked list. Every figure is backed by your own year, hour by hour.</p></div>
       <div class="wl-show" role="list">
-        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showAnalysis()}</div><h3>Your bill, month by month</h3><p>Your plan and the best one, side by side, every month of the year.</p></div>
-        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showDay()}</div><h3>Your day, hour by hour</h3><p>When you use power and what each hour costs, on any day of the year.</p></div>
-        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showPlans()}</div><h3>Every plan, ranked</h3><p>All plans priced on your year, with each one's cheap and dear hours.</p></div>
-        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showPayback()}</div><h3>Solar payback</h3><p>Years to pay back after the SEAI grant, and money ahead over 20 years.</p></div>
-        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showStress()}</div><h3>The stress test</h3><p>What if export pay halves, or cheap nights end? See if it still pays.</p></div>
-        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showReport()}</div><h3>The report</h3><p>A PDF of your answer, the plans and the method, to keep or hand to an installer.</p>
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showAnalysis()}</div><h3>Your bill, month by month</h3><p>Your plan and the best one, every month. Shows when summer solar credit pays winter bills.</p></div>
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showDay()}</div><h3>Your day, hour by hour</h3><p>Every hour of your year against each plan's price bands, so you see the car in the cheap window and the evening at peak.</p></div>
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showPlans()}</div><h3>Every plan, ranked</h3><p>Every plan priced on your own year, with standing charges, price rises already announced and export pay counted.</p></div>
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showPayback()}</div><h3>Solar payback</h3><p>Sized for your roof's faces and tilt, battery wear included, on the best plan once the panels are in.</p></div>
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showStress()}</div><h3>The stress test</h3><p>Move export pay and night prices, and how fast they change: see which futures still pay back.</p></div>
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showReport()}</div><h3>The report</h3><p>A PDF with your answer, every plan, the payback, month-by-month figures and the method, for you or an installer.</p>
 </div>
       </div>
       <div class="wl-sample"><span><b>Get a sample report.</b> The full PDF for an example home.</span>

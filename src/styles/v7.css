@@ -2486,3 +2486,14 @@ html.web #wh-home .v7-cta-2:has(svg) { display: none; }
 .wl-sample > span b { color: var(--ink); }
 .wl-sample .wl-sample-f input { min-width: 0; padding: 10px 14px; }
 @media (min-width: 900px) { .wl-sample { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); } }
+.wl-mini text { font: 500 12px var(--display); fill: var(--ink-soft); }
+.wl-mini text.h { font-weight: 750; font-size: 13px; fill: var(--ink); }
+.wl-mini text.g { fill: var(--accent); font-weight: 750; }
+.wl-mini text.pk { fill: var(--bandink-peak); font-weight: 750; }
+.wl-mini text.mute-t { fill: var(--ink-dim); }
+.wl-mini text.acc-t { fill: var(--accent); }
+.wl-mini text.au-t { fill: var(--brand-gold); }
+.wl-mini .mute { fill: var(--ink-dim); opacity: .45; }
+.wl-mini .acc { fill: var(--accent); }
+.wl-mini .axis { stroke: var(--ink-dim); stroke-opacity: .5; }
+.wl-showvis { padding: 12px 10px; background: var(--well); }
