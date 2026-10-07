@@ -273,7 +273,7 @@ test('the landing page is reachable from More, and leads back', async ({ page })
   await page.locator('.more-fold summary').click();
   await page.getByText('Start page').click();
   await expect(page.locator('.pk-land')).toBeVisible();
-  await page.getByText('Back to my results').click();
+  await page.getByRole('button', { name: 'My answer' }).click();
   expect(await page.evaluate(() => window.state.current_screen)).toBe('result');
 });
 

@@ -16,6 +16,16 @@
     font-weight:100 900; font-style:normal; font-display:swap;
   }
   @font-face{
+    font-family:'Fraunces';
+    src:url('/fonts/Fraunces.woff2') format('woff2');
+    font-weight:600; font-style:normal; font-display:swap;
+  }
+  @font-face{
+    font-family:'Fraunces';
+    src:url('/fonts/Fraunces-Italic.woff2') format('woff2');
+    font-weight:600; font-style:italic; font-display:swap;
+  }
+  @font-face{
     font-family:'JetBrains Mono';
     src:url('/fonts/JetBrainsMono.woff2') format('woff2-variations'),
         url('/fonts/JetBrainsMono.woff2') format('woff2');

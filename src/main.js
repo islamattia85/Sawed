@@ -11,7 +11,7 @@ import {
   isInWindow, bandAt, rateAt as engineRateAt, isFlatPlan, staticRateAt,
   simulateBaseline as engineSimulateBaseline, sumF, WHOLESALE_CAP,
 } from './engine/tariff-rules';
-import { moneyBar, dayProfile, paybackCurve, yearRibbon, bandDonut } from './ui/charts.js';
+import { moneyBar, dayProfile, paybackCurve, yearRibbon, bandDonut, rateStrip } from './ui/charts.js';
 import { createV7 } from './ui/v7.js';
 import { checkSwitch, timingFit } from './engine/meter';
 import { installErrorReporting } from './errors';
@@ -3012,37 +3012,63 @@ function renderIntro(){
 }
 
 function renderWelcome(){
-  // A day of prices: the evening peak, drawn dotted, levels into the gold line.
-  const peak = 'M0 92 C60 92 120 86 160 78 C190 72 200 14 225 14 C250 14 255 80 280 86 C300 90 310 92 320 92';
-  const flat = 'M0 84 C60 84 120 84 160 84 C190 84 200 84 225 84 C250 84 255 84 280 84 C300 84 310 84 320 84';
-  return `<div class="pk-land">
-    <div class="pk-land-hero">
-      <div class="pk-land-brand">
-        <span class="pk-land-icon">${ic('logo', 26, 'stroke-width:1.6')}</span>
-        ${wordmarkHtml('pk-word-xl pk-word-inv')}
+  // The front page reads as a website at every width: a top bar, a headline,
+  // a picture of what Peakless does, and three ways in, each a full setup.
+  const done = state.onboarding_complete;
+  const ids = ['EI-NB', 'YN-EV-DNP', 'EN-SMART-24-HOUR', 'BG-TOU-PLUS'];
+  const day = ids.map(getPlanById).filter(Boolean).map((p) => {
+    const bands = Array.from({ length: 24 }, (_, h) => bandAt(h, p));
+    const cheap = Math.min(...Object.values(p.rates).filter((v) => v > 0));
+    return `<div class="wl-rib">
+      <div class="wl-who">${p.supplier}<small>${p.plan.replace('Home Electric+ ', '').replace(' Electricity Discount', '')}</small></div>
+      ${rateStrip({ bands, rates: p.rates, height: 10 })}
+      <div class="wl-cost">${(cheap * 100).toFixed(1)}c</div>
+    </div>`;
+  }).join('');
+  const go = (fn, cls, title, sub, icons, time) => `<button class="wl-door ${cls}" onclick="${fn}">
+      <span class="wl-door-ico" aria-hidden="true">${icons}</span>
+      <span class="wl-door-time">${time}</span>
+      <b>${title}</b><small>${sub}</small>
+    </button>`;
+  return `<div class="pk-land wl">
+    <header class="wl-bar">
+      <a class="wl-logo" href="#" onclick="event.preventDefault()" aria-label="Peakless"><span class="pk-land-icon">${ic('logo', 22, 'stroke-width:1.6')}</span>${wordmarkHtml('pk-word-top')}</a>
+      <div class="wl-bar-end">
+        ${done ? '' : renderProfileNavBtn()}
+        <button class="wl-btn wl-btn-p" onclick="${done ? "setScreen('result')" : "startFlow('quick')"}">${done ? 'My answer' : 'Check my plans'}</button>
       </div>
-      <svg class="pk-land-curve" viewBox="0 0 320 120" aria-hidden="true">
-        <path class="pk-curve-ghost" d="${peak}"/>
-        <path class="pk-curve-live" d="${peak}">
-          <animate attributeName="d" from="${peak}" to="${flat}" begin="0.5s" dur="1.4s" fill="freeze"
-            calcMode="spline" keySplines=".5 0 .2 1" keyTimes="0;1"/>
-        </path>
-        <text x="225" y="8" text-anchor="middle" class="pk-curve-tag">6pm peak</text>
-        <text x="0" y="116" class="pk-curve-axis">midnight</text>
-        <text x="225" y="116" text-anchor="middle" class="pk-curve-axis">6pm</text>
-        <text x="320" y="116" text-anchor="end" class="pk-curve-axis">midnight</text>
-      </svg>
-      <h1 class="pk-land-title">Take the peak<br>out of your bill.</h1>
-      <p class="pk-land-sub">We price every Irish electricity plan on how your home uses power, with or without solar, a battery or an EV. Free.</p>
-    </div>
-    <div class="pk-land-actions">
-      <button class="pk-btn-gold pk-route" onclick="startFlow('quick')"><span><b>Am I paying too much?</b><small>About a minute: your bill and your plan</small></span><i class="pk-route-ico" aria-hidden="true">${ic('euro', 26)}</i></button>
-      <button class="pk-btn-route" onclick="startFlow('full')"><span><b>Planning solar, a battery or an EV</b><small>A few minutes, one question at a time</small></span><i class="pk-route-ico" aria-hidden="true">${ic('sun', 18)}${ic('battery', 18)}${ic('car', 18)}</i></button>
-      <button class="pk-btn-route web-only" onclick="startFlow('quick')"><span><b>Start from my ESB meter file</b><small>The most exact answer: your real half-hours</small></span><i class="pk-route-ico" aria-hidden="true">${ic('csv', 22)}</i></button>
-      <button class="pk-link" onclick="${state.onboarding_complete ? "setScreen('solar');v7Sheet('quote')" : 'navigateAuditor()'}">${ic('clip', 14)} Already have a solar quote? Check it</button>
-      ${state.onboarding_complete ? `<button class="pk-land-link" onclick="setScreen('result')">${ic('chevL', 14)} Back to my results</button>` : ''}
-      <div class="pk-land-trust">${TARIFFS.length} plans · prices checked daily · your data stays on this phone</div>
-    </div>
+    </header>
+    <section class="wl-hero">
+      <div class="wl-copy">
+        <div class="wl-eyebrow">Irish electricity, priced properly</div>
+        <h1 class="wl-h1">Every plan in Ireland, priced on <em>your</em> home, hour by hour.</h1>
+        <p class="wl-lede">Peakless runs all ${TARIFFS.filter((t) => !t.discontinued).length} plans through the 8,760 hours of your year, with your solar, battery and car. Then it tells you which one to pick and why.</p>
+        <div class="wl-trust"><span><b>${TARIFFS.filter((t) => !t.discontinued).length}</b> plans, rates checked this week</span><span><b>No</b> supplier commissions</span><span><b>Free</b>, no account needed</span></div>
+      </div>
+      <div class="wl-card" aria-label="A day on four plans">
+        <div class="wl-card-h">A day on four plans</div>
+        <div class="wl-card-sub">Each plan's prices hour by hour, and its cheapest rate</div>
+        ${day}
+        <div class="wl-axis"><span></span><div><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div><span></span></div>
+        <div class="wl-legend"><span><i style="background:var(--bandink-night)"></i>night</span><span><i style="background:var(--bandink-day)"></i>day</span><span><i style="background:var(--bandink-peak)"></i>peak</span><span><i style="background:var(--bandink-ev)"></i>EV / boost</span></div>
+      </div>
+    </section>
+    <section class="wl-doors pk-land-actions" aria-label="Start here">
+      ${go("startFlow('quick')", 'is-main', 'Am I paying too much?', 'Your bill and your plan, and we rank every plan for your home.', ic('euro', 22), 'About a minute')}
+      ${go("startFlow('full')", '', 'Planning solar, a battery or an EV', 'Roof, panels, battery and car, one question at a time. Payback after the SEAI grant.', ic('sun', 20) + ic('battery', 20) + ic('car', 20), 'A few minutes')}
+      ${go("startFlow('quick')", '', 'Start from my ESB meter file', 'Your real half-hour readings from esbnetworks.ie. The most exact answer there is.', ic('csv', 22), 'About a minute')}
+    </section>
+    <section class="wl-how">
+      <h2 class="wl-h2">How Peakless gets to one answer</h2>
+      <div class="wl-steps">
+        <div><span class="wl-n">Step 1</span><b>Tell us about your home</b><p>A bill, a meter file or a few questions. Change any answer later in My home.</p></div>
+        <div><span class="wl-n">Step 2</span><b>Every hour, every plan</b><p>We simulate your year on each plan, with the battery charging at night and solar sold back.</p></div>
+        <div><span class="wl-n">Step 3</span><b>Switch on the supplier's site</b><p>We link you straight to the plan. No commission, so the order is only about cost.</p></div>
+      </div>
+      <button class="pk-link wl-quote" onclick="${done ? "setScreen('solar');v7Sheet('quote')" : 'navigateAuditor()'}">${ic('clip', 14)} Already have a solar quote? Check it</button>
+    </section>
+    <footer class="wl-foot"><span>Peakless · independent, no commissions · your data stays on your device</span>
+      ${done ? `<nav><a href="#" onclick="event.preventDefault();setScreen('methodology')">How we calculate</a><a href="#" onclick="event.preventDefault();setScreen('privacy')">Privacy</a></nav>` : ''}</footer>
   </div>`;
 }
 
