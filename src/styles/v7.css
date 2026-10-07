@@ -2318,3 +2318,55 @@ html.web .screen.v7.v7-home .ax-doors-wrap { display: none; }
 @media (min-width: 600px) and (max-width: 899px) { .wl-types, .wl-trust4 { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 480px) { .wl-rrow { grid-template-columns: 104px minmax(0, 1fr) 60px; } .wl-step { grid-template-columns: 1fr auto; } .wl-step > span { display: none; } }
 @media (prefers-reduced-motion: reduce) { .wl-track i { transition: none; } }
+
+/* ---------- website: Plans as a table of rows ---------- */
+.web-plan-cols { display: none; }
+@media (min-width: 900px) {
+  html.web .web-plan-cols { display: grid; grid-template-columns: 36px minmax(0, 1.3fr) minmax(0, 1fr) 120px 108px; gap: 16px; padding: 0 20px 8px; font: 700 12px var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-dim); border-bottom: 1px solid var(--hair); }
+  html.web .web-plan-cols span:nth-child(4) { text-align: right; }
+  html.web .v7-plan-list { gap: 8px; }
+  html.web .v7-plan { display: grid; grid-template-columns: 36px minmax(0, 1.3fr) minmax(0, 1fr) 120px 108px; grid-template-areas: "rank names strip cost cmp" "rank meta meta cost cmp"; gap: 4px 16px; align-items: center; padding: 14px 20px; border-radius: var(--radius-lg); }
+  html.web .v7-plan .v7-plan-head, html.web .v7-plan .v7-plan-foot { display: contents; }
+  html.web .v7-plan .v7-rank { grid-area: rank; }
+  html.web .v7-plan .v7-plan-names { grid-area: names; min-width: 0; }
+  html.web .v7-plan .v7-plan-cost { grid-area: cost; text-align: right; }
+  html.web .v7-plan .v7-meta { grid-area: meta; margin: 0; }
+  html.web .v7-plan .v7-plan-strip { grid-area: strip; }
+  html.web .v7-plan .v7-cmp { grid-area: cmp; justify-self: end; }
+}
+
+/* ---------- website: the figures pages on a grid ---------- */
+@media (min-width: 1000px) {
+  html.web .screen.v7.ax { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 20px; align-items: start; }
+  html.web .screen.v7.ax > * { grid-column: span 12; margin: 0; min-width: 0; }
+  html.web .screen.v7.ax > .ax-q { display: none; }
+  html.web .screen.v7.ax > .ax-ans { grid-column: span 4; }
+  html.web .screen.v7.ax > .ax-ans + .ax-card { grid-column: span 8; }
+  html.web .screen.v7.ax-accuracy > section.ax-card:nth-of-type(3), html.web .screen.v7.ax-accuracy > section.ax-card:nth-of-type(4) { grid-column: span 6; }
+  html.web .screen.v7.ax-solar > .ax-ans { grid-column: span 5; }
+  html.web .screen.v7.ax-solar > .ax-ans + .ax-card { grid-column: span 7; }
+  html.web .screen.v7.ax-solar > .v7-months-card, html.web .screen.v7.ax-solar > .v7-months-card + .ax-card { grid-column: span 6; }
+  html.web .screen.v7.ax > button { grid-column: span 6; }
+  html.web .screen.v7.ax > .ax-ans, html.web .screen.v7.ax > .ax-card { background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius-xl); }
+}
+@media (min-width: 900px) {
+  html.web .v7-plan, html.web .web-plan-cols { grid-template-columns: 32px minmax(0, 2fr) minmax(64px, .8fr) 96px 92px; gap: 4px 14px; }
+  html.web .v7-plan .plan-name, html.web .v7-plan .plan-supplier { white-space: normal; overflow: visible; text-overflow: clip; }
+  html.web .v7-plan .v7-cmp { padding: 6px 12px; }
+}
+.wl-show { display: grid; gap: 16px; }
+.wl-showcard { background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius-xl); padding: 22px; display: grid; gap: 10px; align-content: start; }
+.wl-showvis { background: var(--well); border-radius: var(--radius-lg); padding: 14px; }
+.wl-showcard h3 { margin: 6px 0 0; font: 750 20px var(--display); }
+.wl-showcard p { margin: 0; color: var(--ink-soft); font-size: 15px; }
+.wl-sample { margin-top: 20px; background: var(--panel); border: 1px solid var(--accent); border-radius: var(--radius-xl); padding: 22px; display: grid; gap: 14px; align-items: center; }
+.wl-sample > div b { display: block; font: 750 20px var(--display); }
+.wl-sample > div span { color: var(--ink-soft); font-size: 15px; }
+.wl-sample-f { display: flex; gap: 10px; flex-wrap: wrap; }
+.wl-sample-f input { flex: 1; min-width: 200px; border: 1px solid var(--hair-strong); background: var(--bg); color: var(--ink); border-radius: var(--radius-pill); padding: 12px 18px; font: 500 15px var(--display); }
+.wl-sample-f input[aria-invalid="true"] { border-color: var(--loss); }
+.wl-sample-msg { grid-column: 1 / -1; color: var(--ink-dim); font-size: 13px; }
+@media (min-width: 900px) {
+  .wl-show { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .wl-sample { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); }
+}

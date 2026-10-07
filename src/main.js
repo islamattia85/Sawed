@@ -3123,6 +3123,49 @@ function demoCard(){
       <button class="wl-btn wl-btn-p" onclick="startFlow('quick')">Do it for my home</button></div>
   </div>`;
 }
+/**
+ * The worked example as a real Peakless report: a sample home is priced by the
+ * full engine and its PDF made by the same code as everyone's own report. The
+ * reader's answers are set aside while it runs and put back after.
+ */
+const SAMPLE_HOME = { onboarding_complete: true, usage_input_mode: 'kwh', annual_kwh: 5300, heating_type: 'heatpump',
+  region: 'south', baseline: 'BG-TOU-PLUS', baseline_known: true, baseline_discount_pct: 0, has_solar: true, solar_planned: true,
+  considering_solar: true, solar_is_estimate: false, count_A: 12, count_B: 0, azimuth_A: 180, tilt_A: 35, battery_kwh: 9,
+  ev_active: false, _csv_imported: false, bills: null, grant_eligible: true, grant_seai: 2400, charge_from_grid: true, strategy_mode: 'auto' };
+async function sampleReport(){
+  const box = document.getElementById('wl-sample-email');
+  const email = box ? box.value.trim() : '';
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){
+    if (box){ box.focus(); box.setAttribute('aria-invalid', 'true'); }
+    const msg = document.getElementById('wl-sample-msg'); if (msg) msg.textContent = 'Enter an email address to get the sample report.';
+    return;
+  }
+  const saved = structuredClone(state);
+  const btn = document.getElementById('wl-sample-go'); if (btn){ btn.disabled = true; btn.textContent = 'Making the report…'; }
+  try {
+    captureEmail(email, 'sample_report');
+    const keep = structuredClone(state);
+    // The PDF library loads on first use; have it ready before the sample home
+    // goes in, or the report would run after the reader's answers are back.
+    if (typeof window.jspdf === 'undefined' && typeof window.jsPDF === 'undefined' && !(await ensureJsPdf())) throw new Error('PDF library unavailable');
+    setState(Object.assign(structuredClone(DEFAULT_STATE), SAMPLE_HOME, { email_captured: true, user_email: email }));
+    applyRegion(state.region);
+    applyUsageInput();
+    if (typeof CACHE === 'object') CACHE.dirty = true;
+    invalidate();
+    await doGeneratePdf(null);
+    saved.lead_queue = keep.lead_queue; saved.email_captured = keep.email_captured; saved.user_email = keep.user_email;
+  } catch (e) {
+    console.error('Sample report failed', e);
+  } finally {
+    setState(saved);
+    applyRegion(state.region || 'east');
+    if (typeof CACHE === 'object') CACHE.dirty = true;
+    invalidate(); saveState(); renderApp();
+  }
+}
+window.sampleReport = sampleReport;
+
 function demoSet(k, v){ _demo[k] = v; const el = document.getElementById('wl-demo'); if (el) el.outerHTML = demoCard(); }
 window.demoSet = demoSet;
 
@@ -3141,6 +3184,26 @@ function whyChart(){
     <path d="${d} L${x(24)},${H - B} L${x(0)},${H - B}Z" fill="var(--ink)" opacity=".07"/><path d="${d}" fill="none" stroke="var(--ink)" stroke-width="2"/>
     ${[...Array(24).keys()].map((h) => `<rect x="${x(h)}" y="${H - B + 6}" width="${x(1) - x(0) - 1}" height="8" rx="2" fill="${COLS[bandAt(h, p)] || COLS.day}"/>`).join('')}
     ${[0, 6, 12, 18, 24].map((h) => `<text x="${x(h)}" y="${H - 4}" text-anchor="middle">${String(h).padStart(2, '0')}</text>`).join('')}</svg>`;
+}
+
+/** Small pictures of what the app shows, drawn from shapes, not screenshots. */
+function showAnalysis(){
+  const a = [205, 190, 170, 140, 120, 105, 100, 105, 125, 150, 180, 205];
+  return `<svg viewBox="0 0 240 120" width="100%" aria-hidden="true">${a.map((v, i) => `<rect x="${8 + i * 19}" y="${110 - v / 2}" width="7" height="${v / 2}" rx="2" fill="var(--ink-dim)" opacity=".45"/><rect x="${16 + i * 19}" y="${110 - v * .41}" width="7" height="${v * .41}" rx="2" fill="var(--accent)"/>`).join('')}</svg>`;
+}
+function showStress(){
+  const C = ['var(--bandink-peak)', 'var(--brand-gold)', 'var(--accent)'];
+  let r = '';
+  for (let y = 0; y < 5; y++) for (let x = 0; x < 7; x++){ const g = x + (4 - y) * .5 > 5 ? 2 : x + (4 - y) * .5 > 2.5 ? 1 : 0; r += `<rect x="${12 + x * 31}" y="${6 + y * 22}" width="27" height="18" rx="4" fill="${C[g]}" opacity=".85"/>`; }
+  return `<svg viewBox="0 0 240 120" width="100%" aria-hidden="true">${r}<circle cx="${12 + 4 * 31 + 13}" cy="${6 + 2 * 22 + 9}" r="7" fill="none" stroke="var(--ink)" stroke-width="2.5"/></svg>`;
+}
+function showReport(){
+  return `<svg viewBox="0 0 240 120" width="100%" aria-hidden="true">
+    <rect x="62" y="8" width="88" height="108" rx="6" fill="var(--panel)" stroke="var(--hair-strong)" transform="rotate(-6 106 62)"/>
+    <rect x="84" y="4" width="88" height="110" rx="6" fill="var(--panel)" stroke="var(--hair-strong)"/>
+    <rect x="94" y="16" width="44" height="6" rx="3" fill="var(--accent)"/><rect x="94" y="28" width="66" height="14" rx="3" fill="var(--ink)" opacity=".8"/>
+    ${[0, 1, 2, 3].map((i) => `<rect x="94" y="${52 + i * 12}" width="${66 - i * 10}" height="6" rx="3" fill="var(--accent)" opacity="${.9 - i * .18}"/>`).join('')}
+    <rect x="94" y="100" width="40" height="4" rx="2" fill="var(--ink-dim)" opacity=".5"/></svg>`;
 }
 
 /** The website at "/": what Peakless is, shown and taught, then a way in. */
@@ -3175,6 +3238,24 @@ function renderSite(){
       </div>
       ${demoCard()}
     </section>
+
+    <section class="wl-band wl-tint" id="get"><div class="wl-in">
+      <div class="wl-sh"><div class="wl-eyebrow">What you get</div><h2 class="wl-h2">An answer you can check, test and keep.</h2><p>Not just a ranked list. Every figure is backed by your own year, hour by hour.</p></div>
+      <div class="wl-show">
+        <div class="wl-showcard"><div class="wl-showvis">${showAnalysis()}</div><h3>The analysis</h3><p>Your bill month by month, your day hour by hour, and where every euro goes, on your plan and the best one.</p></div>
+        <div class="wl-showcard"><div class="wl-showvis">${showStress()}</div><h3>The stress test</h3><p>What if export pay halves, or cheap nights end? See whether solar still pays back, year by year.</p></div>
+        <div class="wl-showcard"><div class="wl-showvis">${showReport()}</div><h3>The report</h3><p>A PDF to keep, share or hand to an installer: your answer, the plans, the payback and how it was worked out.</p></div>
+      </div>
+      <div class="wl-sample">
+        <div><b>Get a sample report</b><span>The full Peakless PDF for an example home: a heat pump in the South, 12 panels and a battery being planned.</span></div>
+        <form class="wl-sample-f" novalidate onsubmit="event.preventDefault();sampleReport()">
+          <label class="sr-only" for="wl-sample-email">Email address</label>
+          <input id="wl-sample-email" type="email" autocomplete="email" placeholder="you@example.ie" aria-describedby="wl-sample-msg">
+          <button id="wl-sample-go" class="wl-btn wl-btn-p" type="submit">Get the sample PDF</button>
+        </form>
+        <small id="wl-sample-msg" class="wl-sample-msg" role="status">We'll also tell you when a cheaper plan comes along. Unsubscribe any time.</small>
+      </div>
+    </div></section>
 
     <section class="wl-band" id="why"><div class="wl-two"><div>
       <div class="wl-sh"><div class="wl-eyebrow">Why the hour matters</div><h2 class="wl-h2">The same kilowatt-hour can cost ${(Math.min(...Object.values((getPlanById('YN-EV-DNP') || {}).rates || { a: .086 })) * 100).toFixed(0)}c or ${((((getPlanById('YN-EV-DNP') || {}).rates || {}).peak || .45) * 100).toFixed(0)}c.</h2><p>Smart plans split the day into price bands. Run the dishwasher at 6pm and you can pay five times what a car pays at 3am.</p></div>
@@ -3263,6 +3344,7 @@ function webDecorate(html){
     end = dash + end;
   } else if (scr === 'plans'){
     end = nx([[...toAnswer, 1], toSolar]);
+    html = html.replace('<div class="v7-plan-list">', '<div class="v7-plan-list"><div class="web-plan-cols" aria-hidden="true"><span>#</span><span>Plan</span><span>Its day</span><span>A year, on your home</span><span></span></div>');
   } else if (scr === 'analytics' || scr === 'solar'){
     const t = scr === 'solar' ? 'solar' : tab;
     top = t === 'solar' ? head('Solar', 'Would solar pay off <em>here</em>?', 'Sized for your roof, with the SEAI grant counted.')
