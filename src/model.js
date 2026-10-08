@@ -721,17 +721,23 @@ export const EMBEDDED_TARIFFS = [
 ];
 
 /**
- * One name per supplier. The rates come from more than one read of a
- * supplier's site, and Bord Gáis is written both with and without "Energy";
- * setup listed it twice, and a customer could not tell which was theirs.
+ * One name per supplier, one spelling per plan family. The rates come from
+ * more than one read of a supplier's site, and the sites are not consistent:
+ * Bord Gáis is written with and without "Energy" (setup listed it twice, and
+ * a customer could not tell which was theirs), and Electric Ireland writes
+ * both "Home Electric+" and "Home Electric +".
  */
 const SUPPLIER_NAMES = { 'Bord Gáis': 'Bord Gáis Energy', 'Bord Gais': 'Bord Gáis Energy', 'Bord Gais Energy': 'Bord Gáis Energy' };
-export function oneSupplierName(list){
-  for (const p of list || []) if (p && SUPPLIER_NAMES[p.supplier]) p.supplier = SUPPLIER_NAMES[p.supplier];
+export function tidyNames(list){
+  for (const p of list || []){
+    if (!p) continue;
+    if (SUPPLIER_NAMES[p.supplier]) p.supplier = SUPPLIER_NAMES[p.supplier];
+    if (typeof p.plan === 'string') p.plan = p.plan.replace(/Home Electric ?\+ ?/, 'Home Electric+ ');
+  }
   return list;
 }
 
-export let TARIFFS = oneSupplierName(EMBEDDED_TARIFFS.slice());
+export let TARIFFS = tidyNames(EMBEDDED_TARIFFS.slice());
 export function getPlanById(id){
   const base = TARIFFS.find(t => t.id === id);
   if (!base) return TARIFFS[0];
@@ -1565,7 +1571,7 @@ export function calcSeaiGrant(kwp, batteryKwh){
 
 // Setters for the values main.js replaces.
 export function setState(v){ state = v; }
-export function setTariffs(v){ TARIFFS = oneSupplierName(v); }
+export function setTariffs(v){ TARIFFS = tidyNames(v); }
 
 /* ---- Stress test: the same system under future prices -----------------
  * A future is where prices end up: what export pays, what the cheapest

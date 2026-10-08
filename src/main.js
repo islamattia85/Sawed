@@ -21,7 +21,7 @@ import { BRAND, CONTROLLER, MARK_PATHS, iconDataUri, wordmarkHtml } from './bran
 import { IC, ic } from './icons';
 import FIG from './data/front-figures.json';
 import {
-  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileDays, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, oneSupplierName, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
+  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileDays, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, tidyNames, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
   outcomeAgainst, sweepSetup, evaluateDesign, finishSweep,
 } from './model';
 
@@ -553,6 +553,14 @@ function renderAuthModal(){
   </div>`;
 }
 
+/** The account as a line in the website's menu, the same size as the rest. */
+function accountMenuLink(){
+  if (!sbInitialized()) return '';
+  const close = "event.preventDefault();this.closest('details').open=false;";
+  return _sbUser
+    ? `<a href="#account" onclick="${close}setScreen('account')">${ic('user', 16)} Account</a>`
+    : `<a href="#" onclick="${close}_authModalOpen=true;window._authEmailOpen=false;renderApp()">${ic('shield', 16)} Sign in</a>`;
+}
 function renderProfileNavBtn(){
   if (!sbInitialized()) return '';
   if (_sbUser){
@@ -996,7 +1004,7 @@ async function loadTariffs(){
     if (!Array.isArray(data) || data.length === 0) throw new Error('empty');
     const meta = data.find(t => t.id === '__meta__');
     if (meta) window._tariffsMeta = meta;
-    const fetched = oneSupplierName(data.filter(t => t.id && t.id !== '__meta__' && t.supplier));
+    const fetched = tidyNames(data.filter(t => t.id && t.id !== '__meta__' && t.supplier));
 
     // Only report a refresh when the rates actually differ from the ones
     // already loaded. This returned true on every successful fetch, so a normal
@@ -1090,7 +1098,9 @@ function currentGridGain(){
    step per tick so the screen stays responsive. */
 const STRESS_EXP = [0, 0.05, 0.10, 0.15, 0.20, 0.25];
 const STRESS_CHEAP = [0.05, 0.12, 0.19, 0.26, 0.33, 0.40];
-let _stress = { key: '', b0: null, nb0: null, pts: {}, grid: {}, gridImp: null, queued: false };
+let _stress = { key: '', b0: null, nb0: null, pts: {}, grids: {}, queued: false };
+/** The map for a level of other prices (1 = today's), as far as it is worked out. */
+const stressGrid = (imp = stressF().imports) => _stress.grids[imp] || (_stress.grids[imp] = {});
 function stressKey(){
   return JSON.stringify([state.count_A, state.count_B, state.azimuth_A, state.azimuth_B, state.tilt_A, state.battery_kwh, usageKey(),
     state.heating_type, state.ev_active, state.ev_km_per_year, state.area, state.meter_type, state.region, state.grid_charge_now,
@@ -1117,17 +1127,19 @@ function stressStep(){
   _stress.queued = false;
   if (!(state.has_solar && totalPanels() > 0)) return;
   const key = stressKey();
-  if (_stress.key !== key) _stress = { key, b0: null, nb0: null, pts: {}, grid: {}, gridImp: null, queued: false };
+  if (_stress.key !== key) _stress = { key, b0: null, nb0: null, pts: {}, grids: {}, queued: false };
   const batt = state.battery_kwh > 0;
   const f = stressF(), fk = stressFKey(f);
   try {
     if (_stress.b0 === null){ _stress.b0 = benefitIn({}).benefit; if (batt) _stress.nb0 = benefitIn({}, { battery_kwh: 0 }).benefit; }
     else if (!_stress.pts[fk]){ _stress.pts[fk] = { b: benefitIn(f).benefit, nb: batt ? benefitIn(f, { battery_kwh: 0 }).benefit : null }; }
     else {
-      if (_stress.gridImp !== f.imports){ _stress.grid = {}; _stress.gridImp = f.imports; }
-      const next = STRESS_EXP.flatMap((e) => STRESS_CHEAP.map((c) => [e, c])).find(([e, c]) => _stress.grid[`${e},${c}`] === undefined);
+      // One map per level of other prices, kept: going back to a preset
+      // already worked out is instant.
+      const grid = stressGrid(f.imports);
+      const next = STRESS_EXP.flatMap((e) => STRESS_CHEAP.map((c) => [e, c])).find(([e, c]) => grid[`${e},${c}`] === undefined);
       if (!next){ stressPaint(); return; }
-      _stress.grid[`${next[0]},${next[1]}`] = benefitIn({ exportTo: next[0], cheapTo: next[1], imports: f.imports }).benefit;
+      grid[`${next[0]},${next[1]}`] = benefitIn({ exportTo: next[0], cheapTo: next[1], imports: f.imports }).benefit;
     }
   } catch (e) { console.warn('stress', e); return; }
   stressPaint();
@@ -1163,7 +1175,7 @@ function stressNeeds(years){
   const c = STRESS_CHEAP.reduce((a, x) => Math.abs(x - f.cheapTo) < Math.abs(a - f.cheapTo) ? x : a, STRESS_CHEAP[0]);
   let prev = null;
   for (const e of STRESS_EXP){
-    const b1 = _stress.grid[`${e},${c}`]; if (b1 === undefined) return null;
+    const b1 = stressGrid()[`${e},${c}`]; if (b1 === undefined) return null;
     const pb = pathValue(_stress.b0, b1, years, cost, batt).payback;
     if (pb !== null && pb <= stressLimit()) return { exp: prev === null ? 0 : e, cheap: c };
     prev = e;
@@ -1201,8 +1213,9 @@ function renderStressCard(){
   const tier = (pb) => pb === null || pb > pb0 + 4 ? 2 : pb > pb0 + 1 ? 1 : 0;
   const tone = (pb) => ['var(--accent)', 'var(--amber)', 'var(--loss)'][tier(pb)];
   let cells = '';
+  const grid = stressGrid(f.imports);
   STRESS_CHEAP.slice().reverse().forEach((cv, r) => STRESS_EXP.forEach((ev, i) => {
-    const b1 = _stress.grid[`${ev},${cv}`];
+    const b1 = grid[`${ev},${cv}`];
     const pb = b1 === undefined ? undefined : pathValue(_stress.b0, b1, years, cost, batt).payback;
     cells += `<rect x="${gx + i * cell + 1}" y="${gy + r * cell + 1}" width="${cell - 2}" height="${cell - 2}" rx="4" fill="${pb === undefined ? 'var(--line)' : tone(pb)}" opacity="${pb === undefined ? .5 : .78}"><title>Export ${c(ev)}, night ${c(cv)}: ${pb === undefined ? 'working…' : `pays back in ${pbTxt(pb)}`}</title></rect>`;
   }));
@@ -1216,6 +1229,10 @@ function renderStressCard(){
       <circle cx="${px(m.exportRate)}" cy="${py(m.cheapRate)}" r="5" fill="var(--panel)" stroke="var(--ink)" stroke-width="2"><title>Today</title></circle>
       ${atToday ? '' : `<circle cx="${px(f.exportTo)}" cy="${py(f.cheapTo)}" r="6" fill="none" stroke="var(--ink)" stroke-width="2.5" stroke-dasharray="3 2"><title>This future</title></circle>`}
     </svg>`;
+  // The map fills a square at a time; say so, rather than leave grey squares.
+  const total = STRESS_EXP.length * STRESS_CHEAP.length;
+  const filled = STRESS_EXP.reduce((n, e) => n + STRESS_CHEAP.filter((cv) => grid[`${e},${cv}`] !== undefined).length, 0);
+  const progress = filled < total ? `<div class="st-prog" role="status"><span>Filling in the map: ${filled} of ${total} futures worked out</span><i style="--p:${Math.round(filled / total * 100)}%"></i></div>` : '';
   const need = stressNeeds(years);
   const needLine = need === null ? '' : need.exp === null
     ? `At ${c(need.cheap)} night power, no export rate on the map keeps the payback within ${stressLimit()} years.`
@@ -1235,6 +1252,7 @@ function renderStressCard(){
         <input type="range" min="3" max="40" step="0.5" value="${(f.cheapTo * 100).toFixed(1)}" oninput="stressSlide(this,'cheap')" onchange="stressSet('cheap',this.value/100)" aria-label="What night or EV-window power costs, cents a kWh"></label>
       <div class="st-when"><span>Gets there</span><span class="sy-seg">${when}</span></div>
     </details>
+    ${progress}
     <div class="st-mapwrap">${map}
       <div class="st-key"><span><i style="background:var(--accent)"></i>Within a year of today’s payback</span><span><i style="background:var(--amber)"></i>1–4 years longer</span><span><i style="background:var(--loss)"></i>More, or never</span><span>○ today · ◌ this future</span><span class="st-axy">Night power (c) up the side</span></div>
     </div>
@@ -1250,7 +1268,7 @@ function stressHomeLine(){
   const cv = STRESS_CHEAP.reduce((a, x) => Math.abs(x - m.cheapRate) < Math.abs(a - m.cheapRate) ? x : a, STRESS_CHEAP[0]);
   let need = null;
   for (const e of STRESS_EXP){
-    const b1 = _stress.grid[`${e},${cv}`]; if (b1 === undefined) return '';
+    const b1 = stressGrid(1)[`${e},${cv}`]; if (b1 === undefined) return '';
     const pb = pathValue(_stress.b0, b1, 6, cost, batt).payback;
     if (pb !== null && pb <= stressLimit()){ need = e; break; }
   }
@@ -6327,7 +6345,7 @@ function renderFlow(){
   const body = (q) => {
     // Any number, not only the three shown.
     const own = (q, unit, max, ph, lab = 'Or your own') => `<div class="fl-own"><label for="flow-own-${q}">${lab}</label>
-        <span class="sy-num"><input id="flow-own-${q}" type="number" inputmode="numeric" min="0" max="${max}" placeholder="${ph}" onkeydown="if(event.key==='Enter'){event.preventDefault();this.closest('.fl-own').querySelector('.sy-stop').click()}"><i>${unit}</i></span>
+        <span class="sy-num">${unit === '€' ? `<i>€</i>` : ''}<input id="flow-own-${q}" type="number" inputmode="numeric" min="0" max="${max}" placeholder="${ph}" onkeydown="if(event.key==='Enter'){event.preventDefault();this.closest('.fl-own').querySelector('.sy-stop').click()}">${unit === '€' ? '' : `<i>${unit}</i>`}</span>
         <button class="sy-stop" onclick="const v = document.getElementById('flow-own-${q}').value; if (v !== '') flowAnswer('${q}', Math.max(0, Math.min(${max}, Math.round(+v))))">Use</button></div>`;
     if (q === 'bill'){
       const kwhMode = state._flow_unit === 'kwh' || (state._flow_unit == null && String(f.bill || '').startsWith('kwh:'));
@@ -6396,7 +6414,8 @@ function renderFlow(){
     if (q === 'house') return `<div class="fl-opts fl-two">${opt('house', 'terraced', 'Terraced', 'Up to 10 panels, 18 on two faces')}${opt('house', 'semi', 'Semi-detached', 'Up to 14, 26 on two faces')}${opt('house', 'detached', 'Detached', 'Up to 20, 36 on two faces')}${opt('house', 'bungalow', 'Bungalow', 'Up to 18, 32 on two faces')}</div>
       ${opt('house', 'apartment', 'Apartment', 'Only with a roof of your own')}`;
     if (q === 'system') return flowSystemStep(opt);
-    if (q === 'where') return `<div class="fl-where">${renderIrelandMap(state.region || 'east').replace(/setRegion\('/g, "flowPick(this, 'where', '")}</div>
+    // Nothing is picked on the map until it is answered: East lit up looked like an answer already given.
+    if (q === 'where') return `<div class="fl-where">${renderIrelandMap('where' in f ? f.where : null).replace(/setRegion\('/g, "flowPick(this, 'where', '")}</div>
       <div class="fl-opts fl-two">${Object.entries(IRISH_REGIONS).map(([id, r]) => opt('where', id, r.name, r.counties)).join('')}</div>`;
     if (q === 'meter') return `<div class="fl-opts">${opt('meter', 'smart', 'Smart meter', 'Most homes now. No meter readings')}${opt('meter', '24hr', 'Standard meter', 'One reading, the same rate all day')}${opt('meter', 'nightsaver', 'Day and night meter', 'Two readings, cheaper at night (Nightsaver)')}</div>
       <button class="sg-link" onclick="flowAnswer('meter', 'smart')">Not sure (assume smart)</button>`;
@@ -6536,8 +6555,8 @@ function flowChapters(steps, f, open){
   return `<ol class="fl-chap" aria-label="Stages">${names.map((c) => {
     const ks = steps.filter((k) => flowChap(k) === c);
     const st = c === now ? 'is-now' : ks.every((k) => k in f) ? 'is-done' : '';
-    return `<li class="${st}" ${c === now ? 'aria-current="step"' : ''}>${st === 'is-done' ? ic('check', 13) + ' ' : ''}${c}</li>`;
-  }).join('')}${!open ? `<li class="is-now" aria-current="step">Your answer</li>` : `<li>Your answer</li>`}</ol>`;
+    return `<li class="${st}" ${c === now ? 'aria-current="step"' : ''}>${st === 'is-done' ? ic('check', 13) : ''}<span>${c}</span></li>`;
+  }).join('')}${!open ? `<li class="is-now" aria-current="step"><span>Your answer</span></li>` : `<li><span>Your answer</span></li>`}</ol>`;
 }
 
 /** The website's side card beside each question: the answers so far, and what it leads to. */
@@ -9942,7 +9961,9 @@ function householdScore(){
     const acc = modelAccuracy();
     const knowPts = Math.round(20 * Math.max(0, Math.min(1, (15 - acc.pct) / 12)));
     parts.push({ key: 'know', label: 'Home known', max: 20, pts: knowPts });
-    if (acc.tip && !/smart-meter|meter data/i.test(acc.tip.tip)) quests.push({ pts: Math.max(2, Math.round((20 - knowPts) / 2)), icon: 'spark',
+    // The meter file has a to-do of its own below, worth what it adds here
+    // too: the same step twice, at two different scores, read as two tasks.
+    if (acc.tip && !/smart-meter|meter data/i.test(acc.tip.tip) && !/v7Sheet\('meter'\)/.test(acc.tip.go)) quests.push({ pts: Math.max(2, Math.round((20 - knowPts) / 2)), icon: 'spark',
       title: acc.tip.tip, sub: `Tightens every figure, now ±${acc.pct}%`, go: acc.tip.go });
     if (knowPts >= 16) done.push(`Figures accurate to ±${acc.pct}%`);
 
@@ -11373,7 +11394,7 @@ function v7ResultEmpty(){
 const V7 = createV7({
   brand: BRAND.name, wordmark: wordmarkHtml,
   state: () => state,
-  ic, IRISH_REGIONS, renderProfileNavBtn,
+  ic, IRISH_REGIONS, renderProfileNavBtn, accountMenuLink,
   annualKwh: v7AnnualKwh, setupLabel: v7SetupLabel,
   plansData: v7PlansData, solarData: v7SolarData, monthlyTotals: v7MonthlyTotals, monthDetail: v7MonthDetail,
   getBestPlan,
