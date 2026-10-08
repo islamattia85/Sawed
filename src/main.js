@@ -3308,11 +3308,11 @@ function heroArt(){
 function askList(){
   const F = planFacts();
   const Q = [
+    ['I have solar. Am I on the right plan?', `Export pay runs from 0c to ${c1(F.maxEx)} a unit. We find the plan that pays most for your setup.`, "siteGo('have')", 'Check my plan'],
     ['They told me five years. Is that right?', 'We work out the payback on your own home, on every plan, with the SEAI grant.', "siteGo('solar')", 'Check my payback'],
     ['Is it the right system for my roof?', 'Sized for your roof and what you use, and whether a battery is worth it.', "siteGo('solar')", 'Size my system'],
     ['Is my quote fair?', 'We compare it with the usual price for that size, and work out its payback on your home.', "siteGo('quote')", 'Check my quote'],
     ['What if export pay drops, or night rates go up?', 'The stress test shows how long the payback takes in tougher futures.', "siteGo('stress')", 'Stress-test it'],
-    ['I have panels. Which plan should I be on now?', `Export pay runs from 0c to ${c1(F.maxEx)} a unit. We find the plan that pays most for your setup.`, "siteGo('have')", 'Check my plan'],
     ['I’m getting an electric car. What changes?', 'What it adds to the bill, the cheapest hours to charge, and whether solar pays more with it.', "siteGo('ev')", 'Check with a car'],
     ['I just want a cheaper plan.', 'Every plan priced on your home, in about a minute.', "siteGo('plans')", 'Compare plans'],
   ];
@@ -3453,6 +3453,7 @@ function renderSite(){
         <h1 class="wl-h1">Will solar pay off on <em>your</em> home?</h1>
         <p class="wl-lede">Your home, priced on all ${n} plans in Ireland and tested against tougher prices. Free, about three minutes.</p>
         <div class="wl-cta"><button class="wl-btn wl-btn-p wl-btn-lg" onclick="siteGo('solar')">${done ? 'See my solar answer' : 'Check my payback'}</button><button class="wl-btn wl-btn-g wl-btn-lg" onclick="siteGo('plans')">${done ? 'My plans' : 'Just compare plans'}</button></div>
+        <button class="wl-solarq" onclick="siteGo('have')">${ic('sun', 16)} <span>Already have solar? <b>Am I on the right plan?</b></span> ${ic('chevR', 14)}</button>
         <div class="wl-proof"><div><b>${n}</b><span>plans, rates checked this week</span></div><div><b>8,760</b><span>hours priced, not averages</span></div><div><b>€0</b><span>commission from suppliers</span></div></div>
       </div>
       ${heroArt()}

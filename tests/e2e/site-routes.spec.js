@@ -17,7 +17,8 @@ const WAYS = [
   ['Is it the right system for my roof', 'Does solar pay on your home?', 'Where in Ireland is the home?'],
   ['Is my quote fair', 'Checking your quote', 'How many panels are on the quote?'],
   ['What if export pay drops', 'What if prices change?', 'Where in Ireland is the home?'],
-  ['I have panels. Which plan', 'Getting the most from your panels', 'Where in Ireland is the home?'],
+  ['I have solar. Am I on the right plan', 'Getting the most from your panels', 'Where in Ireland is the home?'],
+  ['Already have solar', 'Getting the most from your panels', 'Where in Ireland is the home?'],
   ['getting an electric car', 'What a car means for your bill', 'How far do you drive in a year?'],
   ['I just want a cheaper plan', 'Comparing every plan on your home', 'What’s your electricity bill?'],
   ['Just compare plans', 'Comparing every plan on your home', 'What’s your electricity bill?'],
@@ -103,7 +104,7 @@ test('returning visitor with no panels on file: "I have panels" asks only about 
   await boot(page, { current_screen: 'welcome', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, region_asked: true }, '/');
   await page.evaluate(() => { window.state.current_screen = 'welcome'; window.renderApp(); });
   const before = await page.evaluate(() => ({ s: window.state.has_solar, n: window.state.count_A }));
-  await page.getByRole('button', { name: 'I have panels. Which plan' }).click();
+  await page.getByRole('button', { name: 'I have solar. Am I on the right plan' }).first().click();
   await confirmHome(page);
   await page.waitForFunction(() => window.state.current_screen === 'flow');
   await expect(page.locator('.fl-q h2')).toHaveText('Which way does the roof face?');

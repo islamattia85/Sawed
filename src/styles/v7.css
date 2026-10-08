@@ -2607,3 +2607,9 @@ html.web { scrollbar-gutter: stable; }
 /* The brand line above the headline: what Peakless is, at a glance. */
 .wl-motto { display: inline-flex; align-items: center; gap: 6px; }
 .wl-motto svg { color: var(--brand-gold); flex: none; }
+
+/* The question panel owners ask most, straight under the hero's buttons. */
+.wl-solarq { display: inline-flex; align-items: center; gap: 8px; margin: -4px 0 20px; padding: 10px 14px; border-radius: var(--radius-pill); border: 1px solid var(--hair-strong); background: var(--panel); color: var(--ink-soft); font: 500 15px var(--body, inherit); cursor: pointer; text-align: left; }
+.wl-solarq b { color: var(--ink); }
+.wl-solarq > svg:first-child { color: var(--brand-gold); flex: none; }
+.wl-solarq > svg:last-child { color: var(--accent); flex: none; }
