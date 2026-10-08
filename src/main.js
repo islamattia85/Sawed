@@ -3455,12 +3455,14 @@ function renderSite(){
 
     <section class="wl-hero">
       <div class="wl-copy">
-        <div class="wl-eyebrow wl-motto">${ic('sun', 15)} The real payback on solar, for Irish homes</div>
-        <h1 class="wl-h1">Will solar pay off on <em>your</em> home?</h1>
-        <p class="wl-lede">Your home, priced on all ${n} plans in Ireland and tested against tougher prices. Free, about three minutes.</p>
-        <div class="wl-journeys" role="group" aria-label="Where are you with solar?">
-          <button class="wl-journey is-plan" onclick="siteGo('solar')"><span class="wl-j-ic">${ic('sun', 22)}</span><span><b>${done ? 'My solar answer' : 'I’m planning solar'}</b><small>Will it pay back, what size, and which plan to pair it with</small></span>${ic('chevR', 18)}</button>
-          <button class="wl-journey is-have" onclick="siteGo('${done ? 'plans' : 'have'}')"><span class="wl-j-ic">${ic('plans', 22)}</span><span><b>${done ? 'My plans' : 'I already have solar'}</b><small>Am I on the best plan for my panels?</small></span>${ic('chevR', 18)}</button>
+        <div class="wl-eyebrow wl-motto">${ic('sun', 15)} Solar and electricity plans, priced on your home</div>
+        <h1 class="wl-h1">The right plan, <em>with or without</em> solar.</h1>
+        <p class="wl-lede">All ${n} plans in Ireland, priced hour by hour on your own home. Free, no commission from anyone.</p>
+        <div class="wl-j-k">Where are you?</div>
+        <div class="wl-journeys" role="group" aria-label="Where are you?">
+          <button class="wl-journey is-have" onclick="siteGo('have')"><span class="wl-j-ic">${ic('sun', 22)}</span><span><b>I have solar</b><small>Am I on the best plan for my panels?</small></span>${ic('chevR', 18)}</button>
+          <button class="wl-journey is-plan" onclick="siteGo('solar')"><span class="wl-j-ic">${ic('battery', 22)}</span><span><b>I’m thinking about solar</b><small>Will it pay back, what size, and on which plan?</small></span>${ic('chevR', 18)}</button>
+          <button class="wl-journey is-bill" onclick="siteGo('plans')"><span class="wl-j-ic">${ic('plans', 22)}</span><span><b>Just a better plan</b><small>No solar: every plan priced on my bill, in a minute</small></span>${ic('chevR', 18)}</button>
         </div>
         <div class="wl-proof"><div><b>${n}</b><span>plans, rates checked this week</span></div><div><b>8,760</b><span>hours priced, not averages</span></div><div><b>€0</b><span>commission from suppliers</span></div></div>
       </div>

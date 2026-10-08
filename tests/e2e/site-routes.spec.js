@@ -12,15 +12,16 @@ async function confirmHome(page) {
 // starts setup on the question the button promised, with setup naming what
 // it is for; someone with an answer goes to the matching part of it.
 const WAYS = [
-  ['planning solar', 'Does solar pay on your home?', 'Where in Ireland is the home?'],
+  ['thinking about solar', 'Does solar pay on your home?', 'Where in Ireland is the home?'],
   ['They told me five years', 'Does solar pay on your home?', 'Where in Ireland is the home?'],
   ['Is it the right system for my roof', 'Does solar pay on your home?', 'Where in Ireland is the home?'],
   ['Is my quote fair', 'Checking your quote', 'How many panels are on the quote?'],
   ['What if export pay drops', 'What if prices change?', 'Where in Ireland is the home?'],
   ['I have solar. Am I on the right plan', 'Getting the most from your panels', 'Where in Ireland is the home?'],
-  ['I already have solar', 'Getting the most from your panels', 'Where in Ireland is the home?'],
+  ['I have solar', 'Getting the most from your panels', 'Where in Ireland is the home?'],
   ['getting an electric car', 'What a car means for your bill', 'How far do you drive in a year?'],
   ['I just want a cheaper plan', 'Comparing every plan on your home', 'What’s your electricity bill?'],
+  ['Just a better plan', 'Comparing every plan on your home', 'What’s your electricity bill?'],
   ['Check my home', 'Checking your home', 'What’s your electricity bill?'],
 ];
 
@@ -82,7 +83,7 @@ const ANSWERED = [
   ['They told me five years', 'solar'],
   ['Is my quote fair', 'solar'],
   ['What if export pay drops', 'flow'],
-  ['My plans', 'plans'],
+  ['Just a better plan', 'plans'],
   ['getting an electric car', 'ev-guide'],
 ];
 for (const [button, screen] of ANSWERED) {
@@ -144,7 +145,7 @@ test('returning visitor: the first way in shows the saved home, and only once a 
   await page.setViewportSize({ width: 390, height: 844 });
   await boot(page, { current_screen: 'welcome', bimonthly_bill_eur: 250, heating_type: 'gas', has_solar: false }, '/');
   await page.evaluate(() => { window.state.current_screen = 'welcome'; window.renderApp(); });
-  await page.getByRole('button', { name: 'My plans' }).click();
+  await page.getByRole('button', { name: 'Just a better plan' }).click();
   const dlg = page.getByRole('dialog', { name: 'Is this your home?' });
   await expect(dlg).toContainText('Gas or oil');
   await expect(dlg).toContainText('No panels');

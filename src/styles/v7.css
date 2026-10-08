@@ -2610,7 +2610,8 @@ html.web { scrollbar-gutter: stable; }
 
 /* The two journeys: planning solar, or already have it. Equal weight, one tap each. */
 .wl-journeys { display: grid; gap: 12px; margin-bottom: 24px; }
-@media (min-width: 640px) { .wl-journeys { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 640px) { .wl-journeys { grid-template-columns: 1fr; } }
+.wl-j-k { font: 700 13px var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-dim); margin: 4px 0 10px; }
 .wl-journey { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: var(--radius-lg); border: 1.5px solid var(--hair-strong); background: var(--panel); color: var(--ink); text-align: left; cursor: pointer; font: inherit; }
 .wl-journey:hover { border-color: var(--accent); }
 .wl-journey > span:nth-child(2) { flex: 1; min-width: 0; display: grid; gap: 4px; }
@@ -2618,8 +2619,8 @@ html.web { scrollbar-gutter: stable; }
 .wl-journey small { font-size: 13px; color: var(--ink-soft); line-height: 1.4; }
 .wl-journey > svg { flex: none; color: var(--accent); }
 .wl-j-ic { flex: none; width: 44px; height: 44px; border-radius: var(--radius-md); display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
-.wl-journey.is-plan .wl-j-ic { color: var(--brand-gold); background: color-mix(in srgb, var(--brand-gold) 14%, transparent); }
-.wl-journey.is-plan { border-color: var(--accent); }
+.wl-journey.is-have .wl-j-ic { color: var(--brand-gold); background: color-mix(in srgb, var(--brand-gold) 14%, transparent); }
+.wl-journey { padding: 14px 16px; }
 
 /* The hero's four bills: today's in a quiet grey. */
 .wl-pb-row.is-now i { background: var(--ink-dim); opacity: .55; }
