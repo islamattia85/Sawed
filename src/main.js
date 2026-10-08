@@ -3258,7 +3258,7 @@ function askList(){
     ['I just want a cheaper plan.', 'Every plan priced on your home, in about a minute.', "siteGo('plans')", 'Compare plans'],
   ];
   return `<section class="wl-band wl-ask" id="ask"><div class="wl-in">
-    <div class="wl-sh"><div class="wl-eyebrow">Start here</div><h2 class="wl-h2">What’s your question?</h2></div>
+    <div class="wl-sh"><div class="wl-eyebrow">The questions everyone asks</div><h2 class="wl-h2">Sound familiar?</h2><p>Pick yours. We’ll answer it for your own home.</p></div>
     <div class="wl-asks" aria-label="Questions">${Q.map(([q, a, go, b]) => `<button class="wl-askrow" onclick="${go}"><span class="wl-ask-q"><b>${q}</b><small>${a}</small></span><span class="wl-ask-go">${b} ${ic('chevR', 14)}</span></button>`).join('')}</div>
   </div></section>`;
 }
