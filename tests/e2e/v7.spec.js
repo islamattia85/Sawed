@@ -828,3 +828,24 @@ test('v8 Home adapts: a card per part of the home, invitations for what it lacks
   // Reached from the nav, not from Home: no "Home" back button.
   await expect(page.locator('.v7-home-back')).toHaveCount(0);
 });
+
+test('alerts: a withdrawn plan the home is on says so, and whether anything on sale beats it', async ({ page }) => {
+  // The plan that paid 25c for export and 6c at night, withdrawn in May 2026.
+  await boot(page, { baseline: 'PIN-EV', baseline_known: true, alerts_seen: {} });
+  const alerts = await page.evaluate(() => window.computeAlerts());
+  const w = alerts.find((a) => a.kind === 'withdrawn');
+  expect(w, 'a withdrawn-plan alert').toBeTruthy();
+  expect(w.title).toContain('stopped selling your plan');
+  expect(w.body).toContain('21 May 2026');
+  expect(w.body).toContain('can’t go back');
+  // The switch lives in this alert, not in a second one beside it.
+  expect(alerts.filter((a) => a.kind === 'cheaper')).toHaveLength(0);
+  await page.evaluate(() => window.setScreen('updates'));
+  await expect(page.locator('.up-card').first()).toContainText('stopped selling your plan');
+});
+
+test('alerts: no withdrawn-plan alert for a plan we only assumed', async ({ page }) => {
+  await boot(page, { baseline: 'PIN-EV', baseline_known: false, alerts_seen: {} });
+  const kinds = await page.evaluate(() => window.computeAlerts().map((a) => a.kind));
+  expect(kinds).not.toContain('withdrawn');
+});

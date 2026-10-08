@@ -30,9 +30,9 @@
     "zero_bill": 1138,
     "zero_payback": 9.7,
     "stress": {
-      "today": 5.4,
-      "half": 6.3,
-      "both": 7.1
+      "today": 5.3,
+      "half": 6.2,
+      "both": 7
     }
   },
   "big": {
@@ -52,8 +52,8 @@
     "gone_bill": -209,
     "gone_payback": 4.1,
     "stress": {
-      "today": 6.9,
-      "half": 6.7,
+      "today": 5.9,
+      "half": 6.6,
       "both": 6.9
     }
   }

@@ -1614,13 +1614,17 @@ export function benefitIn(f, sys = null){
  */
 export function pathValue(b0, b1, years, cost, batteryKwh){
   const deg = state.panel_degradation || 0.005;
-  let cum = -cost, payback = null, saved = 0;
+  // The payback is counted the way the Solar page counts it (the price after
+  // the grant over the yearly saving, no panel wear), so at today's prices the
+  // two read the same; a future changes it only by what that future changes.
+  // The twenty-year value keeps the panels' wear and the battery swap.
+  let left = cost, payback = null, saved = 0;
   for (let y = 1; y <= 20; y++){
     const t = years > 0 ? Math.min(1, y / years) : 1;
-    const b = (b0 + (b1 - b0) * t) * Math.pow(1 - deg, y - 1);
-    saved += b;
-    if (payback === null && cum + b >= 0) payback = y - 1 + (b > 0 ? -cum / b : 0);
-    cum += b;
+    const raw = b0 + (b1 - b0) * t;
+    if (payback === null && raw >= left) payback = y - 1 + (raw > 0 ? left / raw : 0);
+    left -= raw;
+    saved += raw * Math.pow(1 - deg, y - 1);
   }
   const value = saved - cost - batteryReplacement(batteryKwh);
   return { value: Math.round(value), saved: Math.round(saved), payback: payback === null ? null : +payback.toFixed(1) };

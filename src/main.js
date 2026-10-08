@@ -106,7 +106,7 @@ async function sbInit(){
  * the person to choose. Saved quotes from both are always kept. */
 
 // What describes this screen rather than the household is never synced.
-const NO_SYNC = ['_flow', '_flow_edit', '_flow_intent', '_flow_given', '_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_solar_more', '_an_tab', '_an_from', '_an_pick', '_an_note', '_an_day_open', '_an_mon', '_sheet', '_sys_saving', '_sys_name', '_fine_open', '_settings_open', '_return_to', '_lead_form',
+const NO_SYNC = ['_flow', '_flow_edit', '_flow_intent', '_flow_given', '_st_open', '_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_solar_more', '_an_tab', '_an_from', '_an_pick', '_an_note', '_an_day_open', '_an_mon', '_sheet', '_sys_saving', '_sys_name', '_fine_open', '_settings_open', '_return_to', '_lead_form',
   '_tariff_refreshing', '_expert_open', '_account_id', '_saved_at'];
 let _sync = { status: 'idle', at: null };
 let _syncTimer = null;
@@ -1170,20 +1170,22 @@ function renderStressCard(){
   const s = state._st || {}, m = marketToday(), f = stressF(), fk = stressFKey(f);
   const years = s.years ?? 6, cost = stressCost(), batt = state.battery_kwh || 0;
   const now = pathValue(_stress.b0, _stress.b0, 0, cost, batt);
+  const atToday = Math.abs(f.exportTo - m.exportRate) < 0.0005 && Math.abs(f.cheapTo - m.cheapRate) < 0.0005 && (f.imports || 1) === 1;
   const pt = _stress.pts[fk];
-  if (!pt) stressQueue();
-  const fut = pt ? pathValue(_stress.b0, pt.b, years, cost, batt) : null;
+  if (!pt && !atToday) stressQueue();
+  // Today is today: each plan at its own prices, the Solar page's figure. The
+  // futures re-price every plan at the slider's export and night rates.
+  const fut = atToday ? now : pt ? pathValue(_stress.b0, pt.b, years, cost, batt) : null;
   const pbTxt = (p) => p === null ? 'never' : `${p.toFixed(1)} years`;
   const signed = (v) => `${v >= 0 ? '' : '−'}${fmtCurrency(Math.abs(v))}`;
   const c = (v) => `${(v * 100).toFixed(1)}c`;
-  const atToday = Math.abs(f.exportTo - m.exportRate) < 0.0005 && Math.abs(f.cheapTo - m.cheapRate) < 0.0005 && (f.imports || 1) === 1;
   const answer = !fut ? `<div class="fl-working" aria-busy="true">${ic('spark', 16)} Working it out…</div>`
     : `<div class="st-ans">
         <div><small>Pays back in</small><b class="${fut.payback === null || fut.payback > now.payback + 0.05 ? 'is-loss' : ''}">${pbTxt(fut.payback)}</b><small>${atToday ? 'at today’s prices' : `today: ${pbTxt(now.payback)}`}</small></div>
         <div><small>After 20 years</small><b class="${fut.value < 0 ? 'is-loss' : 'is-gain'}">${signed(fut.value)}</b><small>${atToday ? 'ahead, on today’s prices' : `today: ${signed(now.value)}`}</small></div>
       </div>
-      ${batt > 0 && pt && pt.nb !== null ? (() => { const nb = pathValue(_stress.nb0, pt.nb, years, Math.max(0, cost - estimateBatteryCost(batt)), 0);
-        return `<p class="ax-note">Without the battery, in this future: ${signed(nb.value)} after 20 years, paying back in ${pbTxt(nb.payback)}.</p>`; })() : ''}`;
+      ${batt > 0 && (atToday ? _stress.nb0 !== null : pt && pt.nb !== null) ? (() => { const nb = pathValue(_stress.nb0, atToday ? _stress.nb0 : pt.nb, atToday ? 0 : years, Math.max(0, cost - estimateBatteryCost(batt)), 0);
+        return `<p class="ax-note">Without the battery${atToday ? '' : ', in this future'}: ${signed(nb.value)} after 20 years, paying back in ${pbTxt(nb.payback)}.</p>`; })() : ''}`;
   // The map: end prices, coloured by payback with the chosen pace.
   const cell = 24, gx = 26, gy = 6, W = gx + cell * STRESS_EXP.length + 4, H = gy + cell * STRESS_CHEAP.length + 30;
   // Coloured against today's payback, so every home sees where its own
@@ -1218,11 +1220,14 @@ function renderStressCard(){
     <h2 class="ax-t">If prices change${infoTip('the stress test', 'Not a forecast: a what-if. Set where prices end up and how fast they get there. Each year we pick the best plan in that future, with and without the panels, and keep today’s system price.')}</h2>
     ${answer}
     <div class="st-presets">${preset('half', 'Export halves')}${preset('nights', 'Cheap nights end')}${preset('both', 'Both')}${preset('crisis', 'Energy crisis')}${s.preset || !atToday ? `<button class="v7-chip" onclick="stressSet('reset')">Today’s prices</button>` : ''}</div>
-    <label class="st-sl"><span>Export pays <b id="st-exp">${(f.exportTo * 100).toFixed(1)}c</b><small>today ${c(m.exportRate)}</small></span>
-      <input type="range" min="0" max="30" step="0.5" value="${(f.exportTo * 100).toFixed(1)}" oninput="stressSlide(this,'exp')" onchange="stressSet('exp',this.value/100)" aria-label="What export pays, cents a kWh"></label>
-    <label class="st-sl"><span>Night power costs <b id="st-cheap">${(f.cheapTo * 100).toFixed(1)}c</b><small>today ${c(m.cheapRate)}</small></span>
-      <input type="range" min="3" max="40" step="0.5" value="${(f.cheapTo * 100).toFixed(1)}" oninput="stressSlide(this,'cheap')" onchange="stressSet('cheap',this.value/100)" aria-label="What night or EV-window power costs, cents a kWh"></label>
-    <div class="st-when"><span>Gets there</span><span class="sy-seg">${when}</span></div>
+    <details class="st-own" ${state._st_open || (!s.preset && !atToday) ? 'open' : ''} ontoggle="state._st_open=this.open">
+      <summary>Set your own prices${ic('chevD', 16)}</summary>
+      <label class="st-sl"><span>Export pays <b id="st-exp">${(f.exportTo * 100).toFixed(1)}c</b><small>today ${c(m.exportRate)}</small></span>
+        <input type="range" min="0" max="30" step="0.5" value="${(f.exportTo * 100).toFixed(1)}" oninput="stressSlide(this,'exp')" onchange="stressSet('exp',this.value/100)" aria-label="What export pays, cents a kWh"></label>
+      <label class="st-sl"><span>Night power costs <b id="st-cheap">${(f.cheapTo * 100).toFixed(1)}c</b><small>today ${c(m.cheapRate)}</small></span>
+        <input type="range" min="3" max="40" step="0.5" value="${(f.cheapTo * 100).toFixed(1)}" oninput="stressSlide(this,'cheap')" onchange="stressSet('cheap',this.value/100)" aria-label="What night or EV-window power costs, cents a kWh"></label>
+      <div class="st-when"><span>Gets there</span><span class="sy-seg">${when}</span></div>
+    </details>
     <div class="st-mapwrap">${map}
       <div class="st-key"><span><i style="background:var(--accent)"></i>Within a year of today’s payback</span><span><i style="background:var(--amber)"></i>1–4 years longer</span><span><i style="background:var(--loss)"></i>More, or never</span><span>○ today · ◌ this future</span><span class="st-axy">Night power (c) up the side</span></div>
     </div>
@@ -5864,6 +5869,8 @@ function guidePush(kind, step){ try { history.pushState({ guide: kind, step }, '
 function startFlow(mode, intent){
   guidePush('flow', 0);
   state._flow = {}; state._flow_edit = null; state._flow_given = [];
+  // A new setup is a new home: its stress test starts at today's prices.
+  delete state._st;
   state._flow_mode = mode === 'quick' ? 'quick' : 'full';
   state._flow_intent = FLOW_INTENT[intent] ? intent : null;
   if (!state.region) state.region = 'east';
@@ -9517,7 +9524,21 @@ function computeAlerts(){
     }
     const rec = getRecommendation();
     const save = myPlanCost() - rec.best.net;
-    if (rec.best.plan.id !== state.baseline && save >= ALERT_MIN_SAVING){
+    // The home's own plan withdrawn: say so, and whether anything on sale beats
+    // it. Only for a plan the household told us, not one we assumed.
+    if (plan && plan.discontinued && state.baseline_known){
+      const since = plan.discontinued_date ? ` since ${fmtDay(plan.discontinued_date)}` : '';
+      const best = `${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}`;
+      const beaten = save >= ALERT_MIN_SAVING, still = save <= -ALERT_MIN_SAVING;
+      out.push({ id: `withdrawn:${plan.id}`, kind: 'withdrawn', level: beaten ? 'warn' : 'info',
+        title: `${esc(plan.supplier)} has stopped selling your plan`,
+        body: `${esc(plan.plan)} has not been on sale${since}. `
+          + (beaten ? `${best} would save you ${eur(save)} a year.`
+            : still ? `It still costs your home ${eur(-save)} a year less than anything on sale, so there is no rush.`
+            : `It costs your home about the same as the best plan on sale, ${best}.`)
+          + ' Once you move off a withdrawn plan, you can’t go back to it. We’ll tell you if its prices change.',
+        go: "setScreen('plans')", cta: 'See the plans' });
+    } else if (rec.best.plan.id !== state.baseline && save >= ALERT_MIN_SAVING){
       out.push({ id: `cheaper:${rec.best.plan.id}`, kind: 'cheaper', level: 'gain',
         title: `${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)} would save you ${eur(save)} a year`,
         body: 'Against what your plan costs this home today. Switching takes about ten minutes and there is nothing to cancel.',
@@ -10639,7 +10660,8 @@ function updatesFeed(){
   const twin = { swap: 'cheaper', csv: 'meter', calendar: 'contract' };
   const items = alerts.map((a) => ({ ...a, pts: 0 }));
   sc.quests.forEach((q, qi) => {
-    const t = items.find((a) => a.kind === twin[q.icon]);
+    // A withdrawn plan's alert carries the switch, so the "swap" challenge joins it.
+    const t = items.find((a) => a.kind === twin[q.icon]) || (q.icon === 'swap' ? items.find((a) => a.kind === 'withdrawn') : null);
     if (t){ t.pts = Math.max(t.pts, q.pts || 0); if (q.eur) t.eur = q.eur; return; }
     items.push({ id: 'quest:' + q.title, kind: 'quest', level: q.eur ? 'gain' : 'info', icon: q.icon, title: q.title, body: q.sub,
       go: `state._quest_sel=${qi};v7Sheet('quest','${qi}')`, cta: 'Do it', pts: q.pts || 0, eur: q.eur || 0 });
@@ -10654,7 +10676,7 @@ function renderUpdates(){
   const perYear = (state.journey || []).reduce((a, e) => a + (e.per_year || 0), 0);
   const feed = updatesFeed();
   const cls = { warn: 'is-warn', gain: 'is-gain', info: '' };
-  const icons = { price: 'warn', cheaper: 'bolt', contract: 'calendar', meter: 'chart' };
+  const icons = { price: 'warn', cheaper: 'bolt', contract: 'calendar', meter: 'chart', withdrawn: 'warn' };
   // News (a price rise, a cheaper plan, a contract ending) gets a card of its own.
   const card = (a) => `<div class="al up-card ${cls[a.level] || ''} ${seen[a.id] ? '' : 'is-new'}">
       <div class="up-card-top"><span class="up-ico">${ic(icons[a.kind] || 'bell', 16)}</span>${a.pts ? `<i class="up-pts">+${a.pts} points</i>` : ''}</div>

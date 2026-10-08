@@ -101,7 +101,8 @@ test('sending the quote form again updates the request', async ({ page }) => {
   await expect(page.locator('#lead-modal')).toContainText('Update your quote request');
   await page.check('#lead-consent');
   await page.click('#lead-submit');
-  await expect(page.getByText(/Updated\. The installers already looking at it/)).toBeVisible();
+  // The toast, not the screen-reader copy of it that can carry the same words.
+  await expect(page.locator('#toast-stack').getByText(/Updated\. The installers already looking at it/)).toBeVisible();
 });
 
 test('privacy notice: who, what and how long, who receives it, rights, and a data download', async ({ page }) => {

@@ -63,7 +63,7 @@ async function costs(page) {
 
 /** The Solar tab's stress test: payback today, if export halves, and if cheap nights end too. */
 async function stress(page) {
-  await page.evaluate(() => anTab('solar'));
+  await page.evaluate(() => { stressSet('reset'); anTab('solar'); });
   const card = page.locator('#stress-card');
   await expect(card.locator('.st-ans')).toBeVisible({ timeout: 60000 });
   const n = (t) => (/never/.test(t) ? 99 : parseFloat(t.replace(/[^\d.]/g, '')));

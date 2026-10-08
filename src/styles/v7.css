@@ -1769,6 +1769,13 @@ p a, li a, .priv a { text-decoration: underline; text-underline-offset: 2px; }
 .st-sl > span small { margin-left: auto; color: var(--ink-soft); font-size: var(--text-caption); }
 .st-sl input[type=range] { width: 100%; accent-color: var(--accent); }
 .st-when { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); font-size: var(--text-body); }
+/* Your own prices: the sliders and the pace, folded until wanted. */
+.st-own { display: grid; gap: var(--space-3); }
+.st-own[open] { padding-bottom: var(--space-1); }
+.st-own > summary { list-style: none; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font: 700 15px var(--display); color: var(--accent); }
+.st-own > summary::-webkit-details-marker { display: none; }
+.st-own[open] > summary svg { transform: rotate(180deg); }
+.st-own[open] > :not(summary) { margin-top: var(--space-2); }
 .st-mapwrap { display: grid; grid-template-columns: minmax(0, 220px) 1fr; gap: var(--space-3); align-items: center; }
 .st-map { width: 100%; height: auto; }
 .st-map text { font-family: var(--display); font-weight: 600; fill: var(--ink-soft); }
