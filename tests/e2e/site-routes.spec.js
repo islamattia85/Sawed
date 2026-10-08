@@ -124,8 +124,10 @@ test('the front page’s figures are the model’s: the hero bars read from the 
   const fig = JSON.parse((await import('node:fs')).readFileSync(new URL('../../src/data/front-figures.json', import.meta.url), 'utf8'));
   await isolate(page);
   await page.goto('/');
+  const L = fig.big.ladder, eur = (v) => `€${Math.round(v).toLocaleString('en-IE')}`;
   const bars = page.locator('.wl-hero .wl-pb-row em');
-  await expect(bars).toHaveText([`${fig.typical.payback.toFixed(1)} years`, `${fig.typical.stress.half.toFixed(1)} years`, `${fig.typical.zero_payback.toFixed(1)} years`]);
+  await expect(bars).toHaveText([L.now, L.switch, L.solar_stay, L.solar_best].map(eur));
+  await expect(page.locator('.wl-hero .wl-pb-note')).toContainText(`${L.stay_payback.toFixed(1)} years on the old plan, ${L.best_payback.toFixed(1)}`);
   await expect(page.locator('#plan')).toContainText(`${fig.big.gone_payback.toFixed(1)} years`);
 });
 

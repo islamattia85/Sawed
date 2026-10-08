@@ -3291,16 +3291,22 @@ function pbBars(rows, max){
  * today's plans no longer give them.
  */
 function heroArt(){
-  const t = FIG.typical, F = planFacts(), best = getPlanById(t.best_plan);
-  const max = Math.max(10, Math.ceil(t.zero_payback));
-  return `<figure class="wl-shot wl-pb" aria-label="Payback for the same 12 panels: ${t.payback.toFixed(1)} years on the best plan, ${t.stress.half.toFixed(1)} if export pay halves, ${t.zero_payback.toFixed(1)} on a plan that pays nothing for export">
-    <div class="wl-pb-h"><b>Five years to pay back? Or ten?</b><small>The same home and the same 12 panels: years to pay back</small></div>
-    ${pbBars([
-      ['On the best plan for panels', planPlain(best), t.payback, 'is-good'],
-      ['If export pay halves over six years', 'Still on the best plan', t.stress.half, 'is-mid'],
-      ['On a plan that pays nothing for export', `${F.zero} of the ${F.n} plans in Ireland`, t.zero_payback, 'is-bad'],
-    ], max)}
-    <p class="wl-pb-note">A Dublin semi on gas heating using about ${t.kwh.toLocaleString('en-IE')} kWh a year, with 12 panels facing south for ${eur(t.net)} after the SEAI grant. Worked out on the plans of ${fmtDay(FIG.worked_out)}.</p>
+  // One home, four yearly bills: as it is, a new plan only, panels on the old
+  // plan, and panels on the plan that suits them. The plan is half the answer.
+  const b = FIG.big, L = b.ladder, stay = getPlanById(L.plan);
+  const rows = [
+    ['Today, no panels', stay ? planPlain(stay).split(',')[0] : 'The plan it is on', L.now, 'is-now'],
+    ['Switch plan only', `${eur(L.now - L.switch)} less`, L.switch, 'is-now'],
+    ['Add the panels, keep the plan', `${eur(L.now - L.solar_stay)} less`, L.solar_stay, 'is-part'],
+    ['Add the panels, on the plan that suits them', `${eur(L.now - L.solar_best)} less`, L.solar_best, 'is-good'],
+  ];
+  return `<figure class="wl-shot wl-pb wl-bills" aria-label="One home's yearly bill: ${rows.map((r) => `${r[0]}, ${eur(r[2])}`).join('; ')}">
+    <div class="wl-pb-h"><b>One home, four bills a year</b><small>${b.panels} panels, a ${b.battery} kWh battery and an electric car</small></div>
+    ${rows.map(([label, sub, v, cls]) => `<div class="wl-pb-row ${cls}">
+      <div class="wl-pb-l"><b>${label}</b><small>${sub}</small></div>
+      <div class="wl-pb-track"><i style="width:${Math.max(4, Math.round(Math.max(0, v) / L.now * 72))}%"></i><em>${eur(v)}</em></div>
+    </div>`).join('')}
+    <p class="wl-pb-note"><b>The same panels pay back in ${L.stay_payback.toFixed(1)} years on the old plan, ${L.best_payback.toFixed(1)} on the plan that suits them.</b> A Dublin semi driving ${b.km.toLocaleString('en-IE')} km a year, ${eur(b.net)} after the SEAI grants. Worked out on the plans of ${fmtDay(FIG.worked_out)}.</p>
   </figure>`;
 }
 

@@ -95,6 +95,15 @@ test('the front page’s figures match the model on today’s plans', async ({ p
     zero_payback: yrs(t.net, t.without[t.zero] - t.withSys[t.zero]),
     stress: tStress,
   };
+  // The four bills the hero compares: today's plan with no panels, the best
+  // plan with no panels, today's plan with the panels, the best plan with them.
+  const switchId = Object.entries(t.without).sort((a, b) => a[1] - b[1])[0][0];
+  typical.ladder = {
+    plan: 'EI-24', now: t.without['EI-24'],
+    switch_plan: switchId, switch: t.without[switchId],
+    solar_stay: t.withSys['EI-24'], solar_best: t.withSys[t.best],
+    stay_payback: yrs(t.net, t.without['EI-24'] - t.withSys['EI-24']),
+  };
 
   // 16 panels, a 10 kWh battery and an electric car, from a standard plan.
   await page.evaluate(setup({ panels: 16, battery: 10, ev: true }));
@@ -109,6 +118,9 @@ test('the front page’s figures match the model on today’s plans', async ({ p
     gone_plan: b.gone, gone_bill: b.goneBill, gone_payback: b.goneBill == null ? null : yrs(b.net, before - b.goneBill),
     stress: bStress,
   };
+  const bSwitch = Object.entries(b.without).sort((a, c) => a[1] - c[1])[0][0];
+  big.ladder = { plan: 'EI-24', now: before, switch_plan: bSwitch, switch: b.without[bSwitch],
+    solar_stay: b.withSys['EI-24'], solar_best: b.withSys[b.best], stay_payback: big.stay_payback, best_payback: big.best_payback };
   const now = { worked_out: new Date().toISOString().slice(0, 10), typical, big };
 
   if (WRITE) {
@@ -123,6 +135,8 @@ test('the front page’s figures match the model on today’s plans', async ({ p
   for (const k of ['today', 'half', 'both']) near(typical.stress[k], saved.typical.stress[k], 0.6, `typical.stress.${k}`);
   for (const k of ['payback', 'stay_payback', 'best_payback', 'gone_payback']) near(big[k], saved.big[k], 0.6, `big.${k}`);
   near(typical.net, saved.typical.net, 400, 'typical.net');
+  for (const k of ['now', 'switch', 'solar_stay', 'solar_best']) near(typical.ladder[k], saved.typical.ladder[k], 120, `typical.ladder.${k}`);
+  near(typical.ladder.stay_payback, saved.typical.ladder.stay_payback, 0.6, 'typical.ladder.stay_payback');
   near(typical.best_bill, saved.typical.best_bill, 120, 'typical.best_bill');
   near(big.net, saved.big.net, 600, 'big.net');
   expect(typical.zero_plan, 'a plan that pays nothing for export still exists').toBeTruthy();

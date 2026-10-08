@@ -2613,3 +2613,8 @@ html.web { scrollbar-gutter: stable; }
 .wl-solarq b { color: var(--ink); }
 .wl-solarq > svg:first-child { color: var(--brand-gold); flex: none; }
 .wl-solarq > svg:last-child { color: var(--accent); flex: none; }
+
+/* The hero's four bills: today's in a quiet grey. */
+.wl-pb-row.is-now i { background: var(--ink-dim); opacity: .55; }
+.wl-pb-note b { color: var(--ink); font-weight: 650; }
+.wl-pb-row.is-part i { background: var(--accent); opacity: .45; }

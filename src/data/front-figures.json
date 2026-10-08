@@ -33,6 +33,15 @@
       "today": 5.3,
       "half": 6.2,
       "both": 7
+    },
+    "ladder": {
+      "plan": "EI-24",
+      "now": 1823,
+      "switch_plan": "EN-SMART-24-HOUR",
+      "switch": 1746,
+      "solar_stay": 626,
+      "solar_best": 560,
+      "stay_payback": 5.3
     }
   },
   "big": {
@@ -55,6 +64,16 @@
       "today": 5.9,
       "half": 6.6,
       "both": 6.9
+    },
+    "ladder": {
+      "plan": "EI-24",
+      "now": 2674,
+      "switch_plan": "FL-EV",
+      "switch": 2187,
+      "solar_stay": 984,
+      "solar_best": 205,
+      "stay_payback": 6.9,
+      "best_payback": 4.7
     }
   }
 }
