@@ -1970,6 +1970,16 @@ a.wl-btn { text-decoration: none; display: inline-flex; align-items: center; jus
 .wl-table td:first-child { white-space: normal; min-width: 180px; }
 .wl-table td small { display: block; color: var(--ink-soft); font-size: 13px; }
 .wl-table .wl-strip { width: 28%; min-width: 140px; }
+/* The plans by kind: four rows, so on a phone each is a small card, not a table to scroll sideways. */
+@media (max-width: 640px) {
+  .wl-kinds table { min-width: 0; }
+  .wl-kinds thead { display: none; }
+  .wl-kinds tr { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; padding: 16px; border-bottom: 1px solid var(--hair); }
+  .wl-kinds tr:last-child { border-bottom: 0; }
+  .wl-kinds td { display: block; padding: 0; border: 0; white-space: normal; }
+  .wl-kinds td:first-child { grid-column: 1 / -1; min-width: 0; }
+  .wl-kinds td[data-k]::before { content: attr(data-k); display: block; font: 700 12px var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-dim); }
+}
 .wl-plans-foot { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
 .wl-end { padding-top: 40px; padding-bottom: 40px; border-top: 1px solid var(--hair); display: grid; justify-items: start; gap: 16px; }
 .wl-end .wl-h2 { margin: 0; }

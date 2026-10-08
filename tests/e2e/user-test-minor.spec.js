@@ -82,3 +82,26 @@ test('in the website menu, Sign in is a line like the others', async ({ page }) 
   await signIn.click();
   await expect(page.locator('#auth-modal-root')).toHaveCount(1);
 });
+
+test('the front page names no supplier, and says Peakless earns nothing today', async ({ page }) => {
+  await isolate(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.waitForFunction(() => window.__bootSettled === true, null, { timeout: 10_000 });
+  for (const v of [['solar', '12'], ['ev', 'yes']]) await page.evaluate(([k, x]) => window.demoSet(k, x), v);
+  const found = await page.evaluate(() => {
+    const text = document.querySelector('.wl-site').textContent;
+    const names = [...new Set(window.TARIFFS.map((p) => p.supplier)), 'Bord Gáis', 'Yuno', 'SSE', 'Airtricity', 'Pinergy'];
+    return names.filter((n) => new RegExp(`\\b${n}\\b`).test(text));
+  });
+  expect(found).toEqual([]);
+  await expect(page.locator('#faq')).toContainText("It doesn't, for now");
+});
+
+test('"How we make money" says it does not, for now', async ({ page }) => {
+  await boot(page, { current_screen: 'independence' });
+  await expect(page.locator('.screen')).toContainText('For now, it doesn’t');
+  await expect(page.locator('.screen')).not.toContainText('pay us for the introduction');
+});

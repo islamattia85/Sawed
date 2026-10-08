@@ -3083,7 +3083,7 @@ function dayCard(){
     const bands = Array.from({ length: 24 }, (_, h) => bandAt(h, p));
     const cheap = Math.min(...Object.values(p.rates).filter((v) => v > 0));
     return `<div class="wl-rib">
-      <div class="wl-who">${p.supplier}<small>${p.plan.replace('Home Electric+ ', '').replace(' Electricity Discount', '')}</small></div>
+      <div class="wl-who">${planCategoryLabel(planCategory(p))}<small>${planRatesLine(p)}</small></div>
       ${rateStrip({ bands, rates: p.rates, height: 10 })}
       <div class="wl-cost">${(cheap * 100).toFixed(1)}c</div>
     </div>`;
@@ -3114,25 +3114,25 @@ function doorsHtml(site){
 }
 /** Every plan Peakless tracks, with its rates: public, no home needed. */
 function sitePlans(){
+  // The plans on sale today, by kind, with the spread of their rates. The
+  // front page names no supplier; the app names plans, where you choose one.
   const live = TARIFFS.filter((t) => !t.discontinued && !t.on_hold);
-  const c = (v) => v > 0 ? (v * 100).toFixed(1) + 'c' : '—';
-  const row = (p) => `<tr><td><b>${p.supplier}</b><small>${p.plan}</small></td>
-    <td class="wl-strip">${rateStrip({ bands: Array.from({ length: 24 }, (_, h) => bandAt(h, p)), rates: p.rates, height: 6 })}</td>
-    <td>${c(p.rates.day)}</td><td>${c(p.rates.night)}</td><td>${c(p.rates.ev)}</td><td>€${Math.round(p.standing)}</td></tr>`;
-  const sorted = live.slice().sort((a, b) => a.supplier.localeCompare(b.supplier) || a.plan.localeCompare(b.plan));
-  return `<section class="wl-plans" id="plans">
-    <h2 class="wl-h2">Every plan we track</h2>
-    <p class="wl-sec-sub">${live.length} plans from ${new Set(live.map((p) => p.supplier)).size} suppliers, rates read from each supplier's website, inc VAT. Which is cheapest depends on when you use power, which is what the app works out.</p>
-    <button class="wl-btn wl-btn-g wl-table-open" onclick="this.closest('.wl-plans').classList.add('is-open')">See all ${live.length} plans and their rates</button>
-    <div class="wl-table"><table>
-      <thead><tr><th>Plan</th><th>Its day</th><th>Day</th><th>Night</th><th>EV / boost</th><th>Standing a year</th></tr></thead>
-      <tbody>${sorted.slice(0, 8).map(row).join('')}</tbody>
-      <tbody class="wl-more" hidden>${sorted.slice(8).map(row).join('')}</tbody>
+  const span = (vals, fmt) => { const lo = Math.min(...vals), hi = Math.max(...vals); return fmt(lo) === fmt(hi) ? fmt(lo) : `${fmt(lo)} to ${fmt(hi)}`; };
+  const cheap = (p) => Math.min(p.rates.night ?? 9, p.rates.ev ?? 9, p.rates.day ?? 9);
+  const kinds = ['flat', 'tou', 'ev', 'dynamic'].map((k) => ({ k, ps: live.filter((p) => planCategory(p) === k) })).filter((x) => x.ps.length);
+  const note = { flat: 'The same price every hour', tou: 'Cheaper overnight, some dearer at teatime', ev: 'A few very cheap hours in the night', dynamic: 'A base price plus the wholesale market, hour by hour' };
+  const row = ({ k, ps }) => `<tr><td><b>${planCategoryLabel(k)}</b><small>${ps.length} plan${ps.length > 1 ? 's' : ''} · ${note[k]}</small></td>
+    <td data-k="Day">${span(ps.map((p) => p.rates.day), c1)}</td><td data-k="Cheapest hours">${k === 'flat' ? '—' : span(ps.map(cheap), c1)}</td>
+    <td data-k="Export pays">${span(ps.map((p) => p.export_rate || 0), c1)}</td><td data-k="Standing a year">${span(ps.map((p) => Math.round(p.standing)), (v) => `€${v}`)}</td></tr>`;
+  return `<section class="wl-plans is-open" id="plans">
+    <h2 class="wl-h2">Every plan in Ireland, by kind</h2>
+    <p class="wl-sec-sub">${live.length} plans from ${new Set(live.map((p) => p.supplier)).size} suppliers, rates read from each supplier's website and checked this week, inc VAT. Which is cheapest depends on when you use power, which is what the app works out, plan by plan.</p>
+    <div class="wl-table wl-kinds"><table>
+      <thead><tr><th>Kind of plan</th><th>Day</th><th>Cheapest hours</th><th>Export pays</th><th>Standing a year</th></tr></thead>
+      <tbody>${kinds.map(row).join('')}</tbody>
     </table></div>
-    ${bandLegend()}
     <div class="wl-plans-foot">
-      <button class="wl-btn wl-btn-g" onclick="this.closest('.wl-plans').querySelector('.wl-more').hidden=false;this.remove()">Show all ${live.length} plans</button>
-      <button class="wl-btn wl-btn-p" onclick="siteGo('plans')">Price them on my home</button>
+      <button class="wl-btn wl-btn-p" onclick="siteGo('plans')">Price every plan on my home</button>
     </div>
   </section>`;
 }
@@ -3191,9 +3191,9 @@ function demoCard(){
   return `<div class="wl-demo" id="wl-demo">
     <div class="wl-demo-h"><b>Try it on a typical Irish home</b><span>4,200 kWh a year</span></div>
     <div class="wl-ctrls">${seg('heat', [['gas', 'Gas'], ['hp', 'Heat pump']], 'Heating')}${seg('solar', [['none', 'None'], ['6', '6'], ['12', '12']], 'Solar panels')}${seg('batt', [['0', 'None'], ['5', '5'], ['10', '10 kWh']], 'Battery')}${seg('ev', [['no', 'No'], ['yes', 'Yes']], 'Electric car')}</div>
-    <div class="wl-res">${rows.map((r, i) => `<div class="wl-rrow ${i === 0 ? 'is-best' : ''}"><div class="wl-who">${r.p.supplier}<small>${r.p.plan.replace('Home Electric+ ', '').replace('Home Electric + ', '')}</small></div>
+    <div class="wl-res">${rows.map((r, i) => `<div class="wl-rrow ${i === 0 ? 'is-best' : ''}"><div class="wl-who">${planCategoryLabel(planCategory(r.p))}<small>${planRatesLine(r.p)}</small></div>
       <div class="wl-track"><i style="width:${Math.max(4, Math.max(0, r.c) / max * 100)}%"></i></div><b>${eur(r.c)}</b></div>`).join('')}</div>
-    <div class="wl-demo-f"><p>Cheapest here: <b>${rows[0].p.supplier} ${rows[0].p.plan.replace('Home Electric+ ', '').replace('Home Electric + ', '')}</b>. A simple model on real rates; the app prices your own home hour by hour.</p>
+    <div class="wl-demo-f"><p>Cheapest here: <b>${lowerFirst(planPlain(rows[0].p))}</b>. A simple model on four real plans’ rates; the app prices your own home on every plan, hour by hour.</p>
       <button class="wl-btn wl-btn-p" onclick="siteGo('home')">Do it for my home</button></div>
   </div>`;
 }
@@ -3244,6 +3244,26 @@ function demoSet(k, v){ _demo[k] = v; const el = document.getElementById('wl-dem
 window.demoSet = demoSet;
 
 /**
+ * A plan by what it is, not who sells it. The front page names no supplier:
+ * its examples say what kind of plan, what it pays for export and its
+ * cheapest hour. The app names plans, because that is where you choose one.
+ */
+function planPlain(p){
+  if (!p) return '';
+  const cat = planCategory(p);
+  const kind = { flat: 'A one-price plan', tou: 'A plan cheaper at night', ev: 'An EV plan', dynamic: 'A plan priced by the hour' }[cat] || 'A plan';
+  const cheap = Math.min(p.rates.night ?? 9, p.rates.ev ?? 9, p.rates.day ?? 9);
+  return `${kind}, ${p.export_rate > 0 ? `${c1(p.export_rate)} for export` : 'nothing for export'}${cat === 'flat' ? '' : `, ${c1(cheap)} at its cheapest`}`;
+}
+const lowerFirst = (t) => t ? t[0].toLowerCase() + t.slice(1) : t;
+/** A plan's rates in one short line, for the demo's rows. */
+function planRatesLine(p){
+  const cheap = Math.min(p.rates.night ?? 9, p.rates.ev ?? 9, p.rates.day ?? 9);
+  return planCategory(p) === 'flat' ? `${c1(p.rates.day)} all day · ${c1(p.export_rate || 0)} export`
+    : `day ${c1(p.rates.day)} · cheapest ${c1(cheap)} · ${c1(p.export_rate || 0)} export`;
+}
+
+/**
  * Facts from the plans as they are today, for the front page's words: how
  * many plans, how many pay nothing for export, the most any pays, the
  * cheapest EV-hours rate, and the withdrawn plan the figures mention.
@@ -3276,7 +3296,7 @@ function heroArt(){
   return `<figure class="wl-shot wl-pb" aria-label="Payback for the same 12 panels: ${t.payback.toFixed(1)} years on the best plan, ${t.stress.half.toFixed(1)} if export pay halves, ${t.zero_payback.toFixed(1)} on a plan that pays nothing for export">
     <div class="wl-pb-h"><b>Same home, same 12 panels</b><small>Years to pay back</small></div>
     ${pbBars([
-      ['On the best plan for panels', best ? esc(`${best.supplier} ${best.plan}`) : '', t.payback, 'is-good'],
+      ['On the best plan for panels', planPlain(best), t.payback, 'is-good'],
       ['If export pay halves over six years', 'Still on the best plan', t.stress.half, 'is-mid'],
       ['On a plan that pays nothing for export', `${F.zero} of the ${F.n} plans in Ireland`, t.zero_payback, 'is-bad'],
     ], max)}
@@ -3310,9 +3330,9 @@ function askList(){
 function planMatters(){
   const F = planFacts(), b = FIG.big, g = F.gone, best = getPlanById(b.best_plan), stay = getPlanById(b.before_plan);
   const rows = [
-    ...(g && b.gone_payback != null ? [['On the plan that was withdrawn', esc(`${g.supplier} ${g.plan}`), b.gone_payback, 'is-gone']] : []),
-    ['On today’s best plan', best ? esc(`${best.supplier} ${best.plan}`) : '', b.best_payback, 'is-good'],
-    [stay && stay.type === 'flat' ? 'Staying on a one-price plan' : 'Staying on the plan it was on', stay ? esc(`${stay.supplier} ${stay.plan}`) : '', b.stay_payback, 'is-bad'],
+    ...(g && b.gone_payback != null ? [['On the plan that was withdrawn', planPlain(g), b.gone_payback, 'is-gone']] : []),
+    ['On today’s best plan', planPlain(best), b.best_payback, 'is-good'],
+    [stay && planCategory(stay) === 'flat' ? 'Staying on a one-price plan' : 'Staying on the plan it was on', planPlain(stay), b.stay_payback, 'is-bad'],
   ];
   const gone = g && g.discontinued_date ? `One plan paid ${c1(g.export_rate)} for export and ${c1(g.rates.ev)} to charge at night. It was withdrawn on ${fmtDay(g.discontinued_date)}.` : '';
   return `<section class="wl-band wl-tint" id="plan"><div class="wl-two"><div>
@@ -3359,24 +3379,19 @@ function showDay(){
   const C = { night: 'var(--bandink-night)', day: 'var(--bandink-day)', peak: 'var(--bandink-peak)', ev: 'var(--bandink-ev)' };
   const r = (b) => `${((p.rates[b] ?? p.rates.day) * 100).toFixed(0)}c`;
   return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
-    ${T(4, 12, `A day on ${p.supplier}`, 'class="h"')}
+    ${T(4, 12, `A day on ${lowerFirst(planPlain(p).split(',')[0])}`, 'class="h"')}
     ${v.map((x, h) => { const hh = Math.max(2, x / mx * 78); return `<rect x="${8 + h * 10.3}" y="${104 - hh}" width="8" height="${hh}" rx="2" fill="${C[bandAt(h, p)] || C.day}"/>`; }).join('')}
     ${T(56, 58, `← car ${r('ev')}`, 'class="g"')}${T(190, 46, `peak ${r('peak')}`, 'class="pk"')}
     ${['00', '06', '12', '18', '24'].map((t, i) => T(8 + i * 61.8, 118, t, 'text-anchor="middle"')).join('')}
     ${T(4, 130, 'kWh each hour, coloured by price', 'class="mute-t"')}</svg>`;
 }
-/** The example home's four cheapest plans with its 12 panels, from the model's figures. */
-const SUP_SHORT = { 'Electric Ireland': 'EI', 'SSE Airtricity': 'SSE', 'Bord Gáis Energy': 'Bord Gáis', 'Yuno Energy': 'Yuno', 'Community Power': 'Community Power' };
-const shortPlan = (p) => {
-  const n = `${SUP_SHORT[p.supplier] || p.supplier} ${p.plan.replace(/Home Electric ?\+ ?/, '').replace(/^Smart /, '')}`;
-  return n.length > 19 ? n.slice(0, 18) + '…' : n;
-};
+/** The example home's four cheapest plans with its 12 panels, from the model's figures, by kind. */
 function showPlans(){
   const rows = (FIG.typical.top || []).map(([id, c]) => ({ p: getPlanById(id), c })).filter((r) => r.p);
   const mx = Math.max(...rows.map((r) => r.c));
   return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
     ${T(4, 12, 'A year with 12 panels', 'class="h"')}
-    ${rows.map((r, i) => { const y = 24 + i * 26, w = Math.max(6, r.c / mx * 80); return `${T(4, y + 8, esc(shortPlan(r.p)), i ? '' : 'class="g"')}
+    ${rows.map((r, i) => { const y = 24 + i * 26, w = Math.max(6, r.c / mx * 80); return `${T(4, y + 8, `${i + 1}. ${planCategoryLabel(planCategory(r.p))}`, i ? '' : 'class="g"')}
       <rect x="142" y="${y}" width="${w}" height="9" rx="4.5" class="${i ? 'mute' : 'acc'}"/>${T(266, y + 8, eur(r.c), `text-anchor="end" ${i ? '' : 'class="g"'}`)}`; }).join('')}
     ${T(4, 130, `The example home, ${TARIFFS.filter((t) => !t.discontinued).length} plans checked this week`, 'class="mute-t"')}</svg>`;
 }
@@ -3492,7 +3507,7 @@ function renderSite(){
         <details><summary>What if my plan is withdrawn?</summary><p>It happens: plans close to new customers, and prices change. If you're on one, your supplier tells you what happens next. We price every plan on your home, so you can see the next best straight away, and Updates tell you when a cheaper plan comes along.</p></details>
         <details><summary>Do I need a smart meter?</summary><p>For time-of-day and EV plans, yes. Most Irish homes have one now. Without one, we compare only the plans you can move to.</p></details>
         <details><summary>Is switching safe? Will my power go off?</summary><p>No. Your supply never stops. The new supplier handles the switch with ESB Networks.</p></details>
-        <details><summary>How does Peakless make money?</summary><p>Not from suppliers. The ranking is only about what you'd pay.</p></details>
+        <details><summary>How does Peakless make money?</summary><p>It doesn't, for now. No supplier or installer pays us, and there are no ads. If that ever changes, we'll say so here first, and it will never change the order plans are ranked in.</p></details>
         <details><summary>What is the ESB meter file and why is it better?</summary><p>Your real half-hourly readings, free from esbnetworks.ie: My Meter, Downloads, “30-minute readings in kW”. With it we price your actual year instead of an estimate.</p></details>
         <details><summary>Does it work for solar I already have?</summary><p>Yes. We count what the panels make, what you sell back and what the battery shifts, and rank the plans with all of that in.</p></details>
       </div></div></section>
@@ -6788,7 +6803,7 @@ function handleSwitchClick(planId, planName, savings){
     window.open(url, '_blank');
   } else {
     // Show toast for now (since affiliate not wired in this build)
-    showToast(`Tracked. In production, this opens the affiliate link for ${planName}.`);
+    showToast(`Switch to ${planName} on the supplier’s own website. It takes about ten minutes.`);
   }
 }
 
@@ -9411,16 +9426,17 @@ function renderContractAlert(){
 /* ── INDEPENDENCE / TRUST ─────────────────────────────────── */
 function renderIndependence(){
   const cards = [
-    ['green', ic('plans',19), 'Rankings','The plan that saves you most is always first, whether we earn from it or not.'],
-    ['blue', ic('swap',19), 'Switching','If a supplier pays us when you switch, we say so on that plan. Your price is the same, and the ranking doesn’t change.'],
-    ['blue', ic('sun',19), 'Installer quotes','If you ask for installer quotes, installers pay us for the introduction. It never affects rankings or what we say about a quote.'],
+    ['green', ic('plans',19), 'Rankings','The plan that saves you most is always first. Plans are ranked only by what you’d pay.'],
+    ['blue', ic('swap',19), 'Switching','No supplier pays us when you switch. You switch on the supplier’s own website, at the same price.'],
+    ['blue', ic('sun',19), 'Installer quotes','No installer pays us. What we say about a quote is only about its price and payback.'],
+    ['blue', ic('info',19), 'If that changes','We’ll say so here first, and on any plan or quote it touches. It will never change the order plans are ranked in.'],
     ['green', ic('shield',19), 'Your data','Your usage stays on your device. We only share your contact details when you ask us to.'],
   ];
   return `${topbar('How we make money', 'blue', true)}
   <div class="screen">
     <div class="qr-hero" style="border-color:var(--blue);box-shadow:var(--hero-shadow),0 0 32px -10px var(--blue-glow);text-align:left;padding:20px">
       <div class="qr-eyebrow" style="color:var(--blue)">How we make money</div>
-      <div style="font-family:var(--display);font-size:17px;font-weight:600;color:var(--ink);line-height:1.35;margin-top:6px">Here’s where our money comes from.</div>
+      <div style="font-family:var(--display);font-size:17px;font-weight:600;color:var(--ink);line-height:1.35;margin-top:6px">For now, it doesn’t. Peakless is free: no commissions, no introduction fees, no ads.</div>
     </div>
     ${cards.map(([cls,ic,t,b]) => `<div class="indep-card ${cls}">
       <div class="indep-ic">${ic}</div>
@@ -9501,7 +9517,7 @@ function renderQuotes(){
 
     <div class="refine-panel" style="padding:13px 15px;background:rgba(90,156,255,.04);border-color:rgba(90,156,255,.2);margin-top:8px">
       <div style="font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--blue);font-weight:700;margin-bottom:5px">WHY YOU CAN TRUST THIS</div>
-      <div style="font-size:12px;color:var(--ink-soft);line-height:1.5">Installers pay us for introductions, but never to rank higher. Prices are compared with typical Irish prices this year.</div>
+      <div style="font-size:12px;color:var(--ink-soft);line-height:1.5">No installer pays us. Prices are compared with typical Irish prices this year.</div>
     </div>
   </div>
   ${bottomNav()}`;
@@ -11622,14 +11638,14 @@ function renderPrivacy(){
 
       <h3>Who receives it</h3>
       <ul>
-        <li><b>Installers</b>: up to three SEAI-registered installers, only if you ask for quotes. They pay us for the introduction.</li>
+        <li><b>Installers</b>: up to three SEAI-registered installers, only if you ask for quotes.</li>
         <li><b>Supabase</b>: our database, in Ireland.</li>
         <li><b>Vercel</b>: hosts the app.</li>
         <li><b>Anthropic</b> (USA): reads uploaded quotes and writes quarterly suggestions. Suggestions get no personal details.</li>
         <li><b>Resend</b> (USA): sends our emails.</li>
         <li><b>Google</b>: only if you sign in with Google.</li>
       </ul>
-      <p>Transfers to the USA are covered by the EU–US Data Privacy Framework or the EU's standard contractual clauses. Switching supplier happens on the supplier's own site: we send them nothing. Some suppliers pay us a commission; it never changes the ranking.</p>
+      <p>Transfers to the USA are covered by the EU–US Data Privacy Framework or the EU's standard contractual clauses. Switching supplier happens on the supplier's own site: we send them nothing. No supplier or installer pays us.</p>
 
       <h3>Your rights</h3>
       <p>You can see, download, correct or delete your data, object to how we use it, or withdraw consent at any time. Use the buttons below or email us. We’ll reply within a month. You can also complain to the Data Protection Commission at <a href="https://www.dataprotection.ie" target="_blank" rel="noopener">dataprotection.ie</a>.</p>
@@ -13139,7 +13155,7 @@ const SWITCH_GUIDES = {
     name: 'Electric Ireland',
     color: 'var(--blue)',
     steps: [
-      { icon: ic('globe',18), title: 'Go to Electric Ireland', body: 'Visit <b>electricireland.ie</b> → click "Switch" in the nav. Use the UTM-tagged link below to ensure they know you came via Peakless.' },
+      { icon: ic('globe',18), title: 'Go to Electric Ireland', body: 'Visit <b>electricireland.ie</b> → click "Switch" in the nav. Or use the link below.' },
       { icon: ic('clip',18), title: 'Get your MPRN', body: 'Your MPRN is on your electricity bill. It’s 11 digits and starts with 10. You’ll need it to switch.' },
       { icon: ic('clock',18), title: 'Allow 10–15 days', body: 'Electric Ireland takes 2–3 weeks. They tell your old supplier, so you don’t need to cancel.' },
       { icon: ic('phone',18), title: 'No engineer needed', body: 'No engineer visit. Your meter stays the same.' },
@@ -13321,7 +13337,7 @@ function renderHowToSwitch(){
       </div>
     </div>
 
-    <p class="disclaimer">Plans are ranked only by what you’d pay. If a supplier pays us when you switch, we say so on that plan. Your price is the same.</p>
+    <p class="disclaimer">Plans are ranked only by what you’d pay. No supplier pays us when you switch.</p>
   </div>
   ${bottomNav()}`;
 }
@@ -13867,7 +13883,7 @@ function renderMethodology(){
     <div class="card">
       <div class="card-label">${ic('link',13)} Independence &amp; revenue</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.75;margin-top:6px">
-        Plans are ranked only by what you’d pay. If a supplier pays us when you switch, we say so on that plan. Your price is the same. Installers pay us when you ask them for a quote.<br><br>
+        Plans are ranked only by what you’d pay. No supplier or installer pays us, and there are no ads.<br><br>
         We don’t sell your data. Your home stays on your device unless you sign in.
       </div>
     </div>
@@ -13952,7 +13968,7 @@ function openLeadForm(){
       <div id="lead-error" class="lead-error" role="alert"></div>
       <button class="modal-btn" id="lead-submit" onclick="submitLeadForm()">Send</button>
       <button class="modal-skip" onclick="closeLeadModal()">Not now</button>
-      <div class="modal-privacy">We never sell your data. Installers pay us for introductions; that never changes which plan or system we show you. <a href="#" onclick="event.preventDefault();closeLeadModal();setScreen('privacy')">Privacy</a></div>
+      <div class="modal-privacy">We never sell your data, and no installer pays us. <a href="#" onclick="event.preventDefault();closeLeadModal();setScreen('privacy')">Privacy</a></div>
     </div>`;
   m.onclick = closeLeadModal;
   document.body.appendChild(m);
