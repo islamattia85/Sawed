@@ -3294,7 +3294,7 @@ function heroArt(){
   const t = FIG.typical, F = planFacts(), best = getPlanById(t.best_plan);
   const max = Math.max(10, Math.ceil(t.zero_payback));
   return `<figure class="wl-shot wl-pb" aria-label="Payback for the same 12 panels: ${t.payback.toFixed(1)} years on the best plan, ${t.stress.half.toFixed(1)} if export pay halves, ${t.zero_payback.toFixed(1)} on a plan that pays nothing for export">
-    <div class="wl-pb-h"><b>Same home, same 12 panels</b><small>Years to pay back</small></div>
+    <div class="wl-pb-h"><b>Five years to pay back? Or ten?</b><small>The same home and the same 12 panels: years to pay back</small></div>
     ${pbBars([
       ['On the best plan for panels', planPlain(best), t.payback, 'is-good'],
       ['If export pay halves over six years', 'Still on the best plan', t.stress.half, 'is-mid'],
@@ -3449,9 +3449,9 @@ function renderSite(){
 
     <section class="wl-hero">
       <div class="wl-copy">
-        <div class="wl-eyebrow">Solar, batteries and electricity plans in Ireland</div>
-        <h1 class="wl-h1">Five years to pay back? Or <em>ten</em>?</h1>
-        <p class="wl-lede">The same panels can take nearly twice as long, depending on your electricity plan and what export pays. Peakless works out the payback on your own home, on all ${n} plans in Ireland, and tests it against tougher prices.</p>
+        <div class="wl-eyebrow wl-motto">${ic('sun', 15)} The real payback on solar, for Irish homes</div>
+        <h1 class="wl-h1">Will solar pay off on <em>your</em> home?</h1>
+        <p class="wl-lede">Your home, priced on all ${n} plans in Ireland and tested against tougher prices. Free, about three minutes.</p>
         <div class="wl-cta"><button class="wl-btn wl-btn-p wl-btn-lg" onclick="siteGo('solar')">${done ? 'See my solar answer' : 'Check my payback'}</button><button class="wl-btn wl-btn-g wl-btn-lg" onclick="siteGo('plans')">${done ? 'My plans' : 'Just compare plans'}</button></div>
         <div class="wl-proof"><div><b>${n}</b><span>plans, rates checked this week</span></div><div><b>8,760</b><span>hours priced, not averages</span></div><div><b>€0</b><span>commission from suppliers</span></div></div>
       </div>

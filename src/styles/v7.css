@@ -2603,3 +2603,7 @@ html.web { scrollbar-gutter: stable; }
 
 /* A price needs room for five digits and its "e.g." hint, or "e.g. 9800" reads as "e.g. 980". */
 .sy-num input#flow-own-price { width: 132px; }
+
+/* The brand line above the headline: what Peakless is, at a glance. */
+.wl-motto { display: inline-flex; align-items: center; gap: 6px; }
+.wl-motto svg { color: var(--brand-gold); flex: none; }
