@@ -3458,8 +3458,10 @@ function renderSite(){
         <div class="wl-eyebrow wl-motto">${ic('sun', 15)} The real payback on solar, for Irish homes</div>
         <h1 class="wl-h1">Will solar pay off on <em>your</em> home?</h1>
         <p class="wl-lede">Your home, priced on all ${n} plans in Ireland and tested against tougher prices. Free, about three minutes.</p>
-        <div class="wl-cta"><button class="wl-btn wl-btn-p wl-btn-lg" onclick="siteGo('solar')">${done ? 'See my solar answer' : 'Check my payback'}</button><button class="wl-btn wl-btn-g wl-btn-lg" onclick="siteGo('plans')">${done ? 'My plans' : 'Just compare plans'}</button></div>
-        <button class="wl-solarq" onclick="siteGo('have')">${ic('sun', 16)} <span>Already have solar? <b>Am I on the right plan?</b></span> ${ic('chevR', 14)}</button>
+        <div class="wl-journeys" role="group" aria-label="Where are you with solar?">
+          <button class="wl-journey is-plan" onclick="siteGo('solar')"><span class="wl-j-ic">${ic('sun', 22)}</span><span><b>${done ? 'My solar answer' : 'I’m planning solar'}</b><small>Will it pay back, what size, and which plan to pair it with</small></span>${ic('chevR', 18)}</button>
+          <button class="wl-journey is-have" onclick="siteGo('${done ? 'plans' : 'have'}')"><span class="wl-j-ic">${ic('plans', 22)}</span><span><b>${done ? 'My plans' : 'I already have solar'}</b><small>Am I on the best plan for my panels?</small></span>${ic('chevR', 18)}</button>
+        </div>
         <div class="wl-proof"><div><b>${n}</b><span>plans, rates checked this week</span></div><div><b>8,760</b><span>hours priced, not averages</span></div><div><b>€0</b><span>commission from suppliers</span></div></div>
       </div>
       ${heroArt()}

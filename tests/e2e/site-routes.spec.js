@@ -12,16 +12,15 @@ async function confirmHome(page) {
 // starts setup on the question the button promised, with setup naming what
 // it is for; someone with an answer goes to the matching part of it.
 const WAYS = [
-  ['Check my payback', 'Does solar pay on your home?', 'Where in Ireland is the home?'],
+  ['planning solar', 'Does solar pay on your home?', 'Where in Ireland is the home?'],
   ['They told me five years', 'Does solar pay on your home?', 'Where in Ireland is the home?'],
   ['Is it the right system for my roof', 'Does solar pay on your home?', 'Where in Ireland is the home?'],
   ['Is my quote fair', 'Checking your quote', 'How many panels are on the quote?'],
   ['What if export pay drops', 'What if prices change?', 'Where in Ireland is the home?'],
   ['I have solar. Am I on the right plan', 'Getting the most from your panels', 'Where in Ireland is the home?'],
-  ['Already have solar', 'Getting the most from your panels', 'Where in Ireland is the home?'],
+  ['I already have solar', 'Getting the most from your panels', 'Where in Ireland is the home?'],
   ['getting an electric car', 'What a car means for your bill', 'How far do you drive in a year?'],
   ['I just want a cheaper plan', 'Comparing every plan on your home', 'What’s your electricity bill?'],
-  ['Just compare plans', 'Comparing every plan on your home', 'What’s your electricity bill?'],
   ['Check my home', 'Checking your home', 'What’s your electricity bill?'],
 ];
 
@@ -155,7 +154,7 @@ test('returning visitor: the first way in shows the saved home, and only once a 
   await page.waitForFunction(() => window.state.current_screen === 'plans');
   // Back on the front page, the next way in goes straight through.
   await page.evaluate(() => { window.state.current_screen = 'welcome'; window.renderApp(); });
-  await page.getByRole('button', { name: 'Just compare plans' }).or(page.getByRole('button', { name: 'My plans' })).first().click();
+  await page.getByRole('button', { name: 'I just want a cheaper plan' }).or(page.getByRole('button', { name: 'My plans' })).first().click();
   await expect(page.getByRole('dialog', { name: 'Is this your home?' })).toHaveCount(0);
   await page.waitForFunction(() => window.state.current_screen === 'plans');
 });

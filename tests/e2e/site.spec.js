@@ -17,7 +17,7 @@ for (const width of [390, 1440]) {
     await expect(page.locator('#plans tbody tr').first()).toBeVisible();
     await expect(page.locator('a[href="/app"]').first()).toBeAttached();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
-    await page.getByRole('button', { name: 'Just compare plans' }).click();
+    await page.getByRole('button', { name: 'I just want a cheaper plan' }).click();
     await page.waitForFunction(() => window.state.current_screen === 'flow');
     expect(new URL(page.url()).pathname).toBe('/');
   });
@@ -48,7 +48,7 @@ test('front page uses the full width after leaving setup', async ({ page }) => {
   await isolate(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/'); await page.evaluate(() => localStorage.clear()); await page.reload(); await page.waitForTimeout(600);
-  await page.getByRole('button', { name: 'Just compare plans' }).click(); await page.waitForTimeout(400);
+  await page.getByRole('button', { name: 'I just want a cheaper plan' }).click(); await page.waitForTimeout(400);
   await page.goBack(); await page.waitForTimeout(600);
   const w = await page.evaluate(() => document.querySelector('.pk-land').getBoundingClientRect().width);
   expect(w).toBeGreaterThan(1400);
@@ -58,7 +58,7 @@ test('the setup questions use the full width, in two panes', async ({ page }) =>
   await isolate(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/'); await page.evaluate(() => localStorage.clear()); await page.reload();
-  await page.getByRole('button', { name: 'Just compare plans' }).click();
+  await page.getByRole('button', { name: 'I just want a cheaper plan' }).click();
   await page.waitForFunction(() => window.state.current_screen === 'flow');
   const g = await page.evaluate(() => document.querySelector('.fl-grid').getBoundingClientRect().width);
   expect(g).toBeGreaterThan(1000);

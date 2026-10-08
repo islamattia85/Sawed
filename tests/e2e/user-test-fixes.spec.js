@@ -17,7 +17,7 @@ const pick = async (page, name) => { await page.getByRole('button', { name }).fi
 
 test('Back in setup goes back one question with the answer still picked; Forward and the arrow step too', async ({ page }) => {
   await fresh(page);
-  await page.getByRole('button', { name: 'Check my payback' }).first().click();
+  await page.getByRole('button', { name: 'planning solar' }).click();
   await pick(page, /East \/ Dublin/);
   await pick(page, /^Semi-detached/);
   await pick(page, /^South$/);
@@ -38,7 +38,7 @@ test('Back in setup goes back one question with the answer still picked; Forward
 
 test('Back from the first question leaves setup; Forward comes back in; the same way in carries on', async ({ page }) => {
   await fresh(page);
-  await page.getByRole('button', { name: 'Check my payback' }).first().click();
+  await page.getByRole('button', { name: 'planning solar' }).click();
   await expect(heading(page)).toHaveText('Where in Ireland is the home?');
   await page.goBack();
   await expect(page.locator('.wl-site')).toBeVisible();
@@ -48,7 +48,7 @@ test('Back from the first question leaves setup; Forward comes back in; the same
   await pick(page, /^Semi-detached/);
   await page.locator('.fl-exit').click();
   await expect(page.locator('.wl-site')).toBeVisible();
-  await page.getByRole('button', { name: 'Check my payback' }).first().click();
+  await page.getByRole('button', { name: 'planning solar' }).click();
   await expect(heading(page)).toHaveText('Which way does the roof face?');
   await expect(page.locator('.fl-step-k')).toContainText('Step 3 of');
 });
@@ -128,7 +128,7 @@ test('owners are asked about their panels as bought, and a yearly kWh figure is 
 
 test('on a phone the question clears the sticky bar after an answer, and Enter moves on', async ({ page }) => {
   await fresh(page);
-  await page.getByRole('button', { name: 'Just compare plans' }).first().click();
+  await page.getByRole('button', { name: 'I just want a cheaper plan' }).click();
   await page.fill('#flow-bill', '260');
   await page.locator('#flow-bill').press('Enter');
   await expect(heading(page)).toHaveText('Which electricity meter do you have?');
