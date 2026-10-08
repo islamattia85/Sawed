@@ -6081,6 +6081,7 @@ function flowAnswer(q, v){
   // jump to the very bottom, while the card was still sliding in, left iOS
   // hit-testing the old spot: "See my home" ignored taps until a scroll.
   requestAnimationFrame(() => {
+    if (WEB && matchMedia('(min-width: 900px)').matches){ window.scrollTo(0, 0); return; }
     const el = document.querySelector('.fl-reveal') || [...document.querySelectorAll('.fl-q')].pop();
     if (el) window.scrollTo(0, Math.max(0, el.getBoundingClientRect().top + window.scrollY - 16));
   });
@@ -6116,7 +6117,7 @@ function flowSupplier(i){
   const sups = [...new Set(activeTariffsSorted().map((p) => p.supplier))].sort((a, b) => a.localeCompare(b));
   state._flow_sup = sups[i] || null; renderApp();
 }
-function flowEdit(q){ state._flow_edit = q; renderApp(); }
+function flowEdit(q){ state._flow_edit = q; renderApp(); if (WEB && matchMedia('(min-width: 900px)').matches) window.scrollTo(0, 0); }
 /** From the quick answer into the guided route, keeping every answer given. */
 function flowUpgrade(){
   state._flow_mode = 'full';
@@ -6382,13 +6383,14 @@ function renderFlow(){
       ${save > 10 ? `<div class="fl-r-big is-saving">${eur(save)}<span> less a year</span></div>
         <div class="fl-r-line">${pl ? `switching plan and adding the solar: <b>${eur(Math.max(0, pl.today - pl.noSolar.net))}</b> from switching now, <b>${eur(Math.max(0, pl.noSolar.net - pl.best.net))}</b> more once the panels are in` : `by switching to <b>${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}</b>`}</div>${bars}`
         : `<div class="fl-r-line"><b>You’re already on a good plan.</b> Nothing on sale beats it for your home.</div>`}
-      <div class="fl-r-list">
+      <div class="fl-r-act"><div class="fl-r-list">
         ${sd ? `<span>${state.solar_planned ? 'Solar would pay back in' : 'Your panels bring back'} <b>${state.solar_planned ? `${sd.cur.payback < 50 ? sd.cur.payback.toFixed(1) : '—'} years` : `${eur(sd.cur.solarBenefit)} a year`}</b></span>` : ''}
         ${ev ? `<span>Your car costs <b>${eur(ev.evElectricityCost)} a year</b> to charge, <b>${eur(ev.evVsPetrolNet)}</b> less than petrol</span>` : ''}
         <span>Built on 8,760 hours of your year · ±${acc}%</span>
       </div>
       <button class="fl-go" onclick="flowFinish()">${solarEnd ? (state._flow_intent === 'stress' ? 'See the stress test' : 'See my solar answer') : 'See my home'}</button>
       ${state._flow_mode === 'quick' ? `<button class="fl-upgrade" onclick="flowUpgrade()">${ic('sun', 16)} Thinking about solar or an EV? Get the full picture ${ic('chevR', 14)}</button>` : ''}
+      </div>
     </section>
     ${sbInitialized() && !_sbUser ? `<section class="fl-save">
       <span class="fl-save-ico">${ic('shield', 20)}</span>

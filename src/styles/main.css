@@ -41,7 +41,7 @@
      for: the audience is homeowners reading a four-figure decision on a phone.
      Declared outside the theme blocks because a scale is not a colour. */
   :root{
-  --brand-ink:#16343d; --brand-gold:#ffd166; --brand-mist:#8fb0b8; --brand-paper:#eef3f4;
+  --brand-ink:#16343d; --brand-gold:#ffd166; --brand-mist:#8fb0b8; --brand-paper:#eef3f4; --brand-leaf:#6ee7a8;
     --text-caption: 12px;   /* smallest permitted — labels, units, footnotes */
     --text-data:    13px;   /* dense figures in tables and rows */
     --text-body:    15px;

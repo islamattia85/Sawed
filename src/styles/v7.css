@@ -1031,6 +1031,8 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .fl-r-big span { font-size: var(--text-lead); font-weight: 600; color: var(--brand-mist); letter-spacing: 0; }
 .fl-r-line { font-size: var(--text-body); }
 .fl-r-list { display: grid; gap: 6px; font-size: var(--text-data); color: var(--brand-mist); }
+.fl-r-act { display: grid; gap: var(--space-3); align-content: start; }
+.fl-r-act .fl-upgrade { margin-top: 0; }
 .fl-r-list b { color: var(--brand-paper); }
 .fl-go { background: var(--brand-gold); color: var(--brand-ink); }
 .fl-save { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-4); border-radius: var(--radius-xl); border: 1px solid var(--line); background: var(--panel); font-size: var(--text-data); color: var(--ink-soft); animation: flIn .3s; }
@@ -1107,6 +1109,12 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .fl-bars i { grid-column: 1 / -1; height: 10px; border-radius: 999px; background: rgba(255, 255, 255, .25); }
 .fl-bars i.is-best { background: var(--brand-gold); }
 .fl-bars b { color: var(--ink); }
+/* The answer card is dark in both themes: its text takes the brand's light
+   colours, never the page's ink (dark on dark in the light theme). */
+.fl-reveal .fl-bars > div { color: var(--brand-mist); }
+.fl-reveal .fl-bars b { color: var(--brand-paper); }
+.fl-reveal .fl-r-big.is-saving { color: var(--brand-leaf); }
+.fl-reveal .fl-upgrade { color: var(--brand-leaf); border-color: color-mix(in srgb, var(--brand-leaf) 55%, transparent); }
 /* Solar guide intro */
 .sg-intro-ico { display: grid; place-items: center; width: 64px; height: 64px; margin-top: var(--space-4); border-radius: var(--radius-xl); background: var(--accent-faint); color: var(--brand-gold); }
 .sg-promise { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); color: var(--ink-soft); font-size: var(--text-data); }
@@ -2126,7 +2134,10 @@ html.web .ax-top > .v7-home-back, html.web .ax-top > .v7-brand-static { display:
 html.web .web-bell.on { background: var(--well); color: var(--ink); }
 
 /* Setup in two panes: the question, and your home so far. */
-.fl-grid { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 40px; align-items: start; padding: 0 24px; }
+/* Full width up to the cap: centred with auto margins inside the setup's flex
+   column, the grid otherwise shrank to each question's content and the side
+   card moved sideways from question to question. */
+.fl-grid { width: 100%; box-sizing: border-box; max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 40px; align-items: start; padding: 0 24px; }
 html.web .fl-grid .fl-body { max-width: none; padding-left: 0; padding-right: 0; margin: 0; }
 html.web .fl-prog { max-width: 1072px; }
 html.web .fl-chips { display: none; }
@@ -2406,8 +2417,8 @@ html.web .fl-guide .sg-top { margin-top: 32px; }
   html.web .fl-grid:has(.fl-reveal) .fl-side { display: none; }
   html.web .fl-reveal { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); column-gap: 32px; align-items: start; }
   html.web .fl-reveal > * { grid-column: 1; }
-  html.web .fl-reveal > .fl-r-list, html.web .fl-reveal > .fl-go, html.web .fl-reveal > .fl-upgrade { grid-column: 2; }
-  html.web .fl-reveal > .fl-r-list { grid-row: 1 / span 3; }
+  /* The figures, the button and the next step as one group beside the answer. */
+  html.web .fl-reveal > .fl-r-act { grid-column: 2; grid-row: 1 / span 6; align-self: center; }
 }
 @media (max-width: 899px) {
   html.web .v7-top .v7-top-end { display: none; }
@@ -2559,3 +2570,5 @@ html.web #wh-home .v7-cta-2:has(svg) { display: none; }
 .hc-rows dd { margin: 0; color: var(--ink); font-weight: 600; text-align: right; }
 .hc .wl-btn { width: 100%; padding: 12px 18px; }
 .hc-new { justify-self: center; background: none; border: 0; color: var(--ink-soft); font: 600 15px var(--display); text-decoration: underline; cursor: pointer; padding: 4px; }
+
+html.web { scrollbar-gutter: stable; }

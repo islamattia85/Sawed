@@ -117,3 +117,44 @@ test('the logo on the front page stays on the front page', async ({ page }) => {
   await page.waitForTimeout(500);
   await expect(page.locator('.wl-site')).toBeVisible();
 });
+
+test('setup on a computer: the side card stays put from question to question', async ({ page }) => {
+  await isolate(page);
+  await page.setViewportSize({ width: 1440, height: 880 });
+  await page.goto('/');
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('sawed_analytics', 'no'); });
+  await page.reload();
+  await page.waitForFunction(() => window.__bootSettled === true, null, { timeout: 10_000 });
+  await page.evaluate(() => window.siteGo('plans'));
+  const at = () => page.evaluate(() => { const r = document.querySelector('.fl-side').getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width)]; });
+  const first = await at();
+  // A short question, the long supplier list, a row of three: the card must not move.
+  for (const [q, v] of [['bill', 250], ['meter', 'smart'], ['area', 'urban'], ['plan', 'EI-24'], ['disc', 0]]) {
+    await page.evaluate(([q, v]) => window.flowAnswer(q, v), [q, v]);
+    await page.waitForTimeout(400);
+    expect(await at(), `after ${q}`).toEqual(first);
+  }
+});
+
+test('the answer card keeps its figures, button and next step together, readable in the light theme', async ({ page }) => {
+  await isolate(page);
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.setViewportSize({ width: 1440, height: 880 });
+  await page.goto('/');
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('sawed_analytics', 'no'); });
+  await page.reload();
+  await page.waitForFunction(() => window.__bootSettled === true, null, { timeout: 10_000 });
+  await page.evaluate(() => { window.siteGo('plans'); for (const [q, v] of [['bill', 250], ['meter', 'smart'], ['area', 'urban'], ['plan', 'BG-24'], ['disc', 0], ['heat', 'gas'], ['gas', 'no'], ['night', 'no']]) window.flowAnswer(q, v); });
+  await expect(page.locator('.fl-reveal')).toBeVisible();
+  const g = await page.evaluate(() => {
+    const r = (s) => document.querySelector(s).getBoundingClientRect();
+    const lum = (c) => { const [R, G, B] = c.match(/\d+/g).map(Number); return (0.2126 * R + 0.7152 * G + 0.0722 * B) / 255; };
+    const amount = document.querySelector('.fl-reveal .fl-bars b');
+    return { listToGo: r('.fl-go').top - r('.fl-r-list').bottom, goToUp: r('.fl-upgrade').top - r('.fl-go').bottom,
+      amountLum: amount ? lum(getComputedStyle(amount).color) : 1 };
+  });
+  expect(g.listToGo).toBeLessThan(24);
+  expect(g.goToUp).toBeLessThan(24);
+  // The card is dark in both themes: its amounts are light, never the page's dark ink.
+  expect(g.amountLum).toBeGreaterThan(0.6);
+});
