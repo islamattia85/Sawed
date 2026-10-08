@@ -3259,7 +3259,7 @@ function askList(){
   ];
   return `<section class="wl-band wl-ask" id="ask"><div class="wl-in">
     <div class="wl-sh"><div class="wl-eyebrow">Start here</div><h2 class="wl-h2">What’s your question?</h2></div>
-    <div class="wl-asks">${Q.map(([q, a, go, b]) => `<button class="wl-askrow" onclick="${go}"><span class="wl-ask-q"><b>${q}</b><small>${a}</small></span><span class="wl-ask-go">${b} ${ic('chevR', 14)}</span></button>`).join('')}</div>
+    <div class="wl-asks" aria-label="Questions">${Q.map(([q, a, go, b]) => `<button class="wl-askrow" onclick="${go}"><span class="wl-ask-q"><b>${q}</b><small>${a}</small></span><span class="wl-ask-go">${b} ${ic('chevR', 14)}</span></button>`).join('')}</div>
   </div></section>`;
 }
 
@@ -3380,7 +3380,7 @@ function showReport(){
 function renderSite(){
   const done = state.onboarding_complete;
   const n = TARIFFS.filter((t) => !t.discontinued).length;
-  const go = done ? "setScreen('result')" : "siteGo('home')";
+  const go = "siteGo('home')";
   // Someone with an answer opens the app on it, not on its start page.
   const app = done ? APP_HREF + '#result' : APP_HREF;
   const strip = (id) => { const p = getPlanById(id); return p ? rateStrip({ bands: Array.from({ length: 24 }, (_, h) => bandAt(h, p)), rates: p.rates, height: 10 }) : ''; };
@@ -3461,6 +3461,7 @@ function renderSite(){
     <section class="wl-in wl-endwrap"><div class="wl-endcta"><div><h2 class="wl-h2">${done ? 'Your answer is saved on this device.' : 'Find out what your panels would really pay back.'}</h2><p>Free, no account needed. Prefer an app? <a href="${app}">The Peakless mobile app</a> gives the same answers on your phone’s home screen.</p></div><button class="wl-btn wl-btn-gold wl-btn-lg" onclick="${done ? go : "siteGo('solar')"}">${done ? 'See my answer' : 'Check my payback'}</button></div></section>
     <footer class="wl-foot"><span>Peakless · independent, no commissions · your data stays on your device</span>
       <nav><a href="#how">How it works</a><a href="#plans">Every plan</a><a href="${app}">Mobile app</a></nav></footer>
+    ${renderHomeCheck()}
   </div>`;
 }
 
@@ -4540,20 +4541,6 @@ async function loadTariffStatus(){
   }
 }
 
-function navigateAuditor(){
-  state.auditor_entry = true;
-  state.current_screen = 'auditor';
-  state.onboarding_complete = true;  // skip onboarding for auditor-first users
-  // Set sane defaults so the engine doesn't crash
-  if (!Object.keys(state.bills).length){
-    state.bills = inferBillsFromEuro(200, 'gas');
-    state.bimonthly_bill_eur = 200;
-    state.heating_type = 'gas';
-  }
-  invalidate();
-  saveState();
-  renderApp();
-}
 
 /* ============================================================
    EV SAVINGS CARD — shown on result screen when EV is active.
@@ -5915,8 +5902,13 @@ const flowChap = (k) => ((FLOW_INTENT[state._flow_intent] || {}).chap || {})[k] 
  * question the button promised. Someone with an answer already goes to the
  * matching part of it, never back to the first question.
  */
-function siteGo(intent){
+function siteGo(intent, sure){
   if (state.onboarding_complete){
+    // The first way in this visit shows the saved home first: the person
+    // tapping may not be the one who set it up (a shared phone, a shared
+    // link, a visit long ago), and nothing should be worked out on answers
+    // they don't recognise.
+    if (!sure && !homeOkThisVisit()){ _homeCheck = intent || 'home'; renderApp(); return; }
     if (intent === 'quote'){ setScreen('solar'); v7Sheet('quote'); }
     else if (intent === 'stress'){
       // A system to test: straight to the test. None yet: its questions first, ending on the test.
@@ -5935,6 +5927,51 @@ function siteGo(intent){
   startFlow(intent === 'plans' || intent === 'meter' ? 'quick' : 'full', intent || 'home');
 }
 window.siteGo = siteGo;
+
+let _homeCheck = null;
+const homeOkThisVisit = () => { try { return sessionStorage.getItem('pk_home_ok') === '1'; } catch (e) { return false; } };
+function homeCheck(v){ _homeCheck = v; renderApp(); }
+/** "Yes, that's my home": carry on to where the visitor was going. */
+function homeCheckGo(){
+  const intent = _homeCheck; _homeCheck = null;
+  try { sessionStorage.setItem('pk_home_ok', '1'); } catch (e) {}
+  siteGo(intent, true);
+}
+/** "Not my home": clear the saved answers (after asking) and start setup on the same question. */
+function homeCheckNew(){
+  const intent = _homeCheck; _homeCheck = null;
+  if (!confirm('Start with a new home?\n\nThis clears the answers saved on this device. Nothing is sent anywhere.')){ renderApp(); return; }
+  const keep = { theme: state.theme, theme_chosen: state.theme_chosen };
+  try { localStorage.removeItem('solarAppState_v2'); } catch (e) {}
+  setState(Object.assign(structuredClone(DEFAULT_STATE), keep));
+  _ob = makeOb(); invalidate();
+  try { sessionStorage.setItem('pk_home_ok', '1'); } catch (e) {}
+  startFlow(intent === 'plans' || intent === 'meter' ? 'quick' : 'full', intent || 'home');
+}
+window.homeCheck = homeCheck; window.homeCheckGo = homeCheckGo; window.homeCheckNew = homeCheckNew;
+/** The saved home, in the words setup used, for the check before an answer. */
+function homeRows(){
+  const plan = getPlanById(state.baseline), R = IRISH_REGIONS[state.region || 'east'];
+  const heat = { gas: 'Gas or oil', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heaters' }[state.heating_type || 'gas'];
+  const use = `${Math.round(v7AnnualKwh()).toLocaleString('en-IE')} kWh a year${state._csv_imported ? ', from your meter file' : state.usage_input_mode === 'kwh' ? '' : `, from a ${eur(state.bimonthly_bill_eur || 0)} bill`}`;
+  const sol = state.has_solar && totalPanels() > 0 ? `${totalPanels()} panels${state.solar_planned ? ', planned' : ''}${state.battery_kwh > 0 ? `, ${state.battery_kwh} kWh battery` : ''}` : 'No panels';
+  return [['Usage', use], ['Heating', heat], ['Plan now', state.baseline_known && plan ? `${plan.supplier} ${plan.plan}` : 'Not sure, a standard plan assumed'],
+    ['Where', R ? R.name : ''], ['Solar', sol], ['Car', state.ev_active ? `Electric, ${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No electric car']].filter(([, v]) => v);
+}
+function renderHomeCheck(){
+  if (!_homeCheck || !state.onboarding_complete) return '';
+  return `<div class="auth-modal-backdrop hc-backdrop" onclick="if(event.target===this)homeCheck(null)">
+    <div class="auth-modal hc" role="dialog" aria-modal="true" aria-labelledby="hc-t">
+      <button class="auth-modal-close" onclick="homeCheck(null)" aria-label="Close">${ic('x', 18)}</button>
+      <h3 id="hc-t">Is this your home?</h3>
+      <p class="hc-sub">These answers are saved on this device. Everything we show is worked out on them.</p>
+      <dl class="hc-rows">${homeRows().map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
+      <button class="wl-btn wl-btn-p hc-go" onclick="homeCheckGo()">Yes, carry on</button>
+      <button class="wl-btn wl-btn-g hc-edit" onclick="homeCheck(null);sessionStorage.setItem('pk_home_ok','1');setScreen('myhome')">Change some answers</button>
+      <button class="pk-link hc-new" onclick="homeCheckNew()">Not my home: start again</button>
+    </div>
+  </div>`;
+}
 /** Bring the Solar page's stress test into view once it has drawn. */
 function toStressCard(){
   setTimeout(() => { const el = document.getElementById('stress-card'); if (el) el.scrollIntoView({ block: 'start' }); }, 80);
@@ -6089,6 +6126,7 @@ function flowUpgrade(){
 function flowFinish(then){
   state.onboarding_complete = true;
   state.seen_intro = true;
+  delete state.auditor_entry;
   const intent = state._flow_intent;
   state._flow = null; state._flow_edit = null; state._flow_intent = null; state._flow_given = null; _flowBefore = null;
   if (state.has_solar && totalPanels() > 0) snapshotMySystem();
@@ -12783,6 +12821,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const loader = document.getElementById('loader');
     if (loader) loader.remove();
     dismissSplash();
+    // The old quote screen marked a home as set up with made-up answers (a
+    // €200 bill, gas heating) before the household answered anything. That
+    // home isn't theirs: they start like anyone new. Setup always asks for the
+    // meter, and the quote screen never did, so no meter answer means no setup.
+    if (state.onboarding_complete && state.auditor_entry && !state.meter_type){
+      state.onboarding_complete = false; delete state.auditor_entry; state.current_screen = 'welcome'; saveState();
+    }
     // Sprint 2 H5 — try to restore shared URL state before anything else
     tryRestoreFromUrl();
     // Reopen the screen named in the URL hash (bookmark, refresh, or a Back
@@ -13844,7 +13889,6 @@ function submitPdfRequest(){
 window.obNext = obNext;
 window.obBack = obBack;
 window.renderApp = renderApp;
-window.navigateAuditor = navigateAuditor;
 window.exploreSolar = exploreSolar;
 window.handleSwitchClick = handleSwitchClick;
 window.setScreen = setScreen;

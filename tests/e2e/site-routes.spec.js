@@ -2,6 +2,12 @@
 import { test, expect } from '@playwright/test';
 import { isolate, boot } from './support.js';
 
+/** A returning visitor's first way in shows the saved home; carry on with it. */
+async function confirmHome(page) {
+  await expect(page.getByRole('dialog', { name: 'Is this your home?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Yes, carry on' }).click();
+}
+
 // Every way in on the front page lands where its label says. A new visitor
 // starts setup on the question the button promised, with setup naming what
 // it is for; someone with an answer goes to the matching part of it.
@@ -85,6 +91,7 @@ for (const [button, screen] of ANSWERED) {
     await boot(page, { current_screen: 'welcome', has_solar: false, considering_solar: false, ev_active: false }, '/');
     await page.evaluate(() => { window.state.current_screen = 'welcome'; window.renderApp(); });
     await page.getByRole('button', { name: button }).first().click();
+    await confirmHome(page);
     await page.waitForFunction((s) => window.state.current_screen === s, screen);
     if (button === 'Is my quote fair') await expect(page.locator('#v7-sheet')).toContainText('quote');
     if (button === 'What if export pay drops') await expect(page.locator('.fl-route b')).toHaveText('What if prices change?');
@@ -97,6 +104,7 @@ test('returning visitor with no panels on file: "I have panels" asks only about 
   await page.evaluate(() => { window.state.current_screen = 'welcome'; window.renderApp(); });
   const before = await page.evaluate(() => ({ s: window.state.has_solar, n: window.state.count_A }));
   await page.getByRole('button', { name: 'I have panels. Which plan' }).click();
+  await confirmHome(page);
   await page.waitForFunction(() => window.state.current_screen === 'flow');
   await expect(page.locator('.fl-q h2')).toHaveText('Which way does the roof face?');
   await expect(page.locator('.fl-step-k')).toContainText('Step 1 of');
@@ -125,6 +133,61 @@ test('returning visitor with a system: "What if export pay drops" opens the stre
   await boot(page, { current_screen: 'welcome', has_solar: true, solar_planned: true, count_A: 12, battery_kwh: 0 }, '/');
   await page.evaluate(() => { window.state.current_screen = 'welcome'; window.renderApp(); });
   await page.getByRole('button', { name: 'What if export pay drops' }).click();
+  await confirmHome(page);
   await page.waitForFunction(() => window.state.current_screen === 'solar');
   await expect(page.locator('#stress-card')).toBeInViewport({ timeout: 10000 });
+});
+
+test('returning visitor: the first way in shows the saved home, and only once a visit', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await boot(page, { current_screen: 'welcome', bimonthly_bill_eur: 250, heating_type: 'gas', has_solar: false }, '/');
+  await page.evaluate(() => { window.state.current_screen = 'welcome'; window.renderApp(); });
+  await page.getByRole('button', { name: 'My plans' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Is this your home?' });
+  await expect(dlg).toContainText('Gas or oil');
+  await expect(dlg).toContainText('No panels');
+  // Nothing is opened until they say it's theirs.
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('welcome');
+  await page.getByRole('button', { name: 'Yes, carry on' }).click();
+  await page.waitForFunction(() => window.state.current_screen === 'plans');
+  // Back on the front page, the next way in goes straight through.
+  await page.evaluate(() => { window.state.current_screen = 'welcome'; window.renderApp(); });
+  await page.getByRole('button', { name: 'Just compare plans' }).or(page.getByRole('button', { name: 'My plans' })).first().click();
+  await expect(page.getByRole('dialog', { name: 'Is this your home?' })).toHaveCount(0);
+  await page.waitForFunction(() => window.state.current_screen === 'plans');
+});
+
+test('returning visitor: "Not my home" clears the saved answers and starts setup on the same question', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await boot(page, { current_screen: 'welcome', bimonthly_bill_eur: 200, heating_type: 'gas' }, '/');
+  await page.evaluate(() => { window.state.current_screen = 'welcome'; window.renderApp(); });
+  await page.getByRole('button', { name: 'Is my quote fair' }).click();
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: 'Not my home: start again' }).click();
+  await page.waitForFunction(() => window.state.current_screen === 'flow');
+  await expect(page.locator('.fl-route b')).toHaveText('Checking your quote');
+  expect(await page.evaluate(() => window.state.onboarding_complete)).toBeFalsy();
+});
+
+test('a home the old quote screen made up is not treated as the visitor’s own', async ({ page }) => {
+  await boot(page, { current_screen: 'result', auditor_entry: true, bimonthly_bill_eur: 200 }, '/');
+  expect(await page.evaluate(() => window.state.onboarding_complete)).toBeFalsy();
+  await expect(page.locator('.wl-bar .wl-btn-p')).toHaveText('Check my home');
+});
+
+test('on a phone the questions swipe sideways instead of stacking', async ({ page }) => {
+  await isolate(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.locator('.wl-asks').waitFor();
+  const m = await page.evaluate(() => { const r = document.querySelector('.wl-asks'); const rows = [...r.children].map((c) => c.getBoundingClientRect()); return { h: r.getBoundingClientRect().height, scroll: r.scrollWidth > r.clientWidth, sameRow: rows.every((x) => Math.abs(x.top - rows[0].top) < 2) }; });
+  expect(m.scroll).toBe(true);
+  expect(m.sameRow).toBe(true);
+  expect(m.h).toBeLessThan(400);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+});
+
+test('a home someone set up keeps its answers, even if they once used the old quote screen', async ({ page }) => {
+  await boot(page, { current_screen: 'result', auditor_entry: true, meter_type: 'smart' }, '/');
+  expect(await page.evaluate(() => window.state.onboarding_complete)).toBe(true);
 });

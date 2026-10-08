@@ -41,6 +41,8 @@ test('the website logo opens the front page, even once set up', async ({ page })
   await page.locator('.web-logo').click();
   await expect(page.locator('.wl-site')).toBeVisible();
   await page.locator('.wl-bar .wl-btn-p').click();
+  // The first way in this visit shows the saved home before the answer.
+  await page.getByRole('button', { name: 'Yes, carry on' }).click();
   expect(await page.evaluate(() => window.state.current_screen)).toBe('result');
 });
 test('front page uses the full width after leaving setup', async ({ page }) => {

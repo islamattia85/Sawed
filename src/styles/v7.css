@@ -2541,3 +2541,21 @@ html.web #wh-home .v7-cta-2:has(svg) { display: none; }
 .wl-ask-go { flex: none; display: inline-flex; align-items: center; gap: 4px; font: 700 15px var(--display); color: var(--accent); white-space: nowrap; }
 @media (min-width: 900px) { .wl-asks { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .wl-askrow { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 16px; } }
+
+/* The questions: a swipe row on a phone, a grid on a computer. */
+@media (max-width: 640px) {
+  .wl-asks { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; margin-inline: -16px; padding: 0 16px 8px; scrollbar-width: none; }
+  .wl-asks::-webkit-scrollbar { display: none; }
+  .wl-askrow { flex: 0 0 82%; scroll-snap-align: start; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 12px; }
+}
+
+/* Is this your home? The saved answers, before an answer is shown on them. */
+.hc { display: grid; gap: 12px; max-width: 440px; }
+.hc h3 { margin: 0; font: 600 25px/1.2 "Fraunces", Georgia, serif; color: var(--ink); }
+.hc-sub { margin: 0; font-size: 15px; color: var(--ink-soft); line-height: 1.45; }
+.hc-rows { margin: 0; display: grid; border-top: 1px solid var(--hair); }
+.hc-rows > div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--hair); font-size: 15px; }
+.hc-rows dt { color: var(--ink-soft); flex: none; }
+.hc-rows dd { margin: 0; color: var(--ink); font-weight: 600; text-align: right; }
+.hc .wl-btn { width: 100%; padding: 12px 18px; }
+.hc-new { justify-self: center; background: none; border: 0; color: var(--ink-soft); font: 600 15px var(--display); text-decoration: underline; cursor: pointer; padding: 4px; }
