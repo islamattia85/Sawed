@@ -46,7 +46,7 @@ test.beforeEach(async ({ page }) => {
 test('a quote is judged on what the quoted system saves, not on a tariff switch', async ({ page }) => {
   const text = await audit(page, 12000, 12, 5);
 
-  const benefit = Number((text.match(/€([\d,]+)\/yr benefit/) || [])[1]?.replace(/,/g, ''));
+  const benefit = Number((text.match(/€([\d,]+) back a year/) || [])[1]?.replace(/,/g, ''));
   const payback = Number((text.match(/payback[^\n]*\n([\d.]+) yr/i) || [])[1]);
 
   // A 5.3 kWp system with storage on a heat-pump home with an EV saves well
@@ -62,7 +62,7 @@ test('a quote is judged on what the quoted system saves, not on a tariff switch'
 
 test('a bigger system saves more, and a dearer one takes longer to repay', async ({ page }) => {
   const parse = (t) => ({
-    benefit: Number((t.match(/€([\d,]+)\/yr benefit/) || [])[1]?.replace(/,/g, '')),
+    benefit: Number((t.match(/€([\d,]+) back a year/) || [])[1]?.replace(/,/g, '')),
     payback: Number((t.match(/payback[^\n]*\n([\d.]+) yr/i) || [])[1]),
   });
 
@@ -100,8 +100,8 @@ test('the price verdict still reads the market, not the payback', async ({ page 
   // the wrong system, and an over-priced one can still pay back. Fixing the
   // payback must not have disturbed the price benchmark.
   const dear = await audit(page, 22000, 12, 5);
-  expect(dear).toMatch(/Over-Market|Premium/i);
+  expect(dear).toMatch(/On the high side|Well above the usual price/i);
 
   const fair = await audit(page, 9000, 12, 5);
-  expect(fair).toMatch(/Fair Market Value|Excellent/i);
+  expect(fair).toMatch(/A fair price|Cheaper than most/i);
 });

@@ -2572,3 +2572,6 @@ html.web #wh-home .v7-cta-2:has(svg) { display: none; }
 .hc-new { justify-self: center; background: none; border: 0; color: var(--ink-soft); font: 600 15px var(--display); text-decoration: underline; cursor: pointer; padding: 4px; }
 
 html.web { scrollbar-gutter: stable; }
+
+/* A price needs room for five digits and its "e.g." hint, or "e.g. 9800" reads as "e.g. 980". */
+.sy-num input#flow-own-price { width: 132px; }

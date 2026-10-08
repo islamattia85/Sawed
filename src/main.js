@@ -2283,20 +2283,20 @@ function auditQuote(quotedPrice, numPanels, batteryKwh){
   const deltaPct = expMid > 0 ? (delta / expMid) * 100 : 0;
   if (quotedPrice <= expLo * 0.95){
     verdict = 'excellent';
-    headline = 'Aggressive / Excellent Pricing';
-    advice = 'This is cheaper than most. Check the installer is SEAI-registered, which panel and battery brands they use, and that scaffolding and certification are included.';
+    headline = 'Cheaper than most';
+    advice = 'Below our guide price for this size. Check the installer is SEAI-registered, which panels and battery they use, and that scaffolding and certification are included.';
   } else if (quotedPrice <= expHi){
     verdict = 'fair';
-    headline = 'Fair Market Value';
-    advice = `Within the typical 2026 Irish market range (€${expLo.toLocaleString()}-€${expHi.toLocaleString()} for this spec). Compare with at least one more SEAI-registered installer to confirm.`;
+    headline = 'A fair price';
+    advice = `Within the usual range for this size, ${fmtCurrency(expLo)} to ${fmtCurrency(expHi)}. One more quote from an SEAI-registered installer is still worth getting.`;
   } else if (quotedPrice <= expHi * 1.20){
     verdict = 'premium';
-    headline = 'Premium Quote';
-    advice = `€${Math.abs(delta).toFixed(0)} above the market midpoint (${deltaPct > 0 ? '+' : ''}${deltaPct.toFixed(0)}%). Request an itemised breakdown showing inverter make/model, battery brand, scaffolding cost, and SEAI cert fees before signing.`;
+    headline = 'On the high side';
+    advice = `${fmtCurrency(Math.abs(delta))} above our guide price (${deltaPct > 0 ? '+' : ''}${deltaPct.toFixed(0)}%). Before you sign, ask for an itemised quote: the inverter and battery brands, scaffolding and the SEAI cert.`;
   } else {
     verdict = 'warning';
-    headline = 'Significantly Over-Market';
-    advice = `€${Math.abs(delta).toFixed(0)} above market midpoint (+${deltaPct.toFixed(0)}%). Walk away unless the quote includes substantial extras (e.g., complex roof access, slate roof, EV charger install, dedicated consumer unit). Get 2 more quotes from SEAI-registered installers in your area.`;
+    headline = 'Well above the usual price';
+    advice = `${fmtCurrency(Math.abs(delta))} above our guide price (+${deltaPct.toFixed(0)}%). Unless it includes real extras, like a hard roof, an EV charger or a new consumer unit, get two more quotes from SEAI-registered installers.`;
   }
   // Apply SEAI grant using correct 2024 tiered structure
   const grant = calcSeaiGrant(kwp, batteryKwh).total;
@@ -2714,6 +2714,20 @@ function applyUsageInput(){
     const bills = {};
     keys.forEach((k, i) => { bills[k] = Math.max(1, Math.round(per * shape[i])); });
     state.bills = bills;
+    // Units from after the panels went up are what the home bought, not what
+    // it used: find the use that buys that many units with these panels.
+    if (state.has_solar && !state.solar_planned && totalPanels() > 0 && state.bill_when === 'after'){
+      const target = +state.annual_kwh, start = { ...bills };
+      const boughtAt = (k) => {
+        for (const key in start) state.bills[key] = Math.max(1, Math.round(start[key] * k));
+        invalidate(); rebuildBase();
+        return sumF(sim(state.baseline).grid_import);
+      };
+      let lo = 0.5, hi = 5;
+      for (let it = 0; it < 14; it++){ const mid = (lo + hi) / 2; if (boughtAt(mid) < target) lo = mid; else hi = mid; }
+      boughtAt((lo + hi) / 2);
+      invalidate();
+    }
     syncDerivedBill();
   } else {
     state.bills = inferBillsFromEuro(state.bimonthly_bill_eur, state.heating_type);
@@ -5420,11 +5434,12 @@ function flowFromState(){
  */
 function startTopicFlow(topic){
   _flowBefore = structuredClone(state); _flowFrom = state.current_screen === 'welcome' ? 'result' : state.current_screen || 'result';
-  guidePush('flow', 0);
   state._flow = flowFromState(); state._flow_edit = null; state._flow_mode = 'full'; state._flow_intent = topic;
   state._flow_given = Object.keys(state._flow).concat('solar');
   state.current_screen = 'flow';
-  flowAnswer('solar', topic === 'have' ? 'have' : 'thinking');
+  _flowNoPush = true;
+  try { flowAnswer('solar', topic === 'have' ? 'have' : 'thinking'); } finally { _flowNoPush = false; }
+  flowPush(true);
   requestAnimationFrame(() => window.scrollTo(0, 0));
 }
 let _flowBefore = null, _flowFrom = 'result';
@@ -5807,8 +5822,8 @@ function dualFuelNote(toPlan){
   }
   return `Your gas is with ${esc(cur.supplier)} too. Moving only the electricity can end a dual-fuel discount, often €50–150 a year. Ask ${esc(cur.supplier)} first.`;
 }
-function flowSteps(){
-  const f = state._flow || {}, out = [];
+function flowSteps(f = state._flow || {}, fbIn){
+  const out = [];
   const quick = state._flow_mode === 'quick';
   for (const q of FLOW_Q){
     // The quick route is about the plan only: no solar or car questions.
@@ -5832,8 +5847,9 @@ function flowSteps(){
       if (+f.battery > 0 && !state._csv_imported) out.push('gridnow');
       // A meter file and a typed bill each need to be placed before or after
       // the panels went up.
-      if (state._csv_imported){ const fb = fileBasis(); if ((fb && fb.ask) || f.filewhen !== undefined) out.push('filewhen'); }
-      else { out.push('billwhen'); if (f.billwhen === 'after') out.push('billmonths'); }
+      if (state._csv_imported){ const fb = fbIn !== undefined ? fbIn : fileBasis(); if ((fb && fb.ask) || f.filewhen !== undefined) out.push('filewhen'); }
+      // A yearly kWh figure covers every month: only a bill needs its months.
+      else { out.push('billwhen'); if (f.billwhen === 'after' && !String(f.bill || '').startsWith('kwh:')) out.push('billmonths'); }
       out.push('price', 'grant');
     }
     if (q === 'solar' && f.solar === 'thinking'){
@@ -5854,7 +5870,14 @@ function flowSteps(){
 function guidePush(kind, step){ try { history.pushState({ guide: kind, step }, '', '#' + kind); } catch (e) {} }
 
 function startFlow(mode, intent){
-  guidePush('flow', 0);
+  const m = mode === 'quick' ? 'quick' : 'full', it = FLOW_INTENT[intent] ? intent : null;
+  // The same way in again before setup was finished: carry on where they
+  // left off, with every answer kept, instead of starting from nothing.
+  if (!state.onboarding_complete && state._flow && Object.keys(state._flow).length && state._flow_mode === m && (state._flow_intent || null) === it){
+    state._flow_edit = null; state.current_screen = 'flow'; saveState(); renderApp(); flowPush(true);
+    requestAnimationFrame(() => window.scrollTo(0, 0));
+    return;
+  }
   state._flow = {}; state._flow_edit = null; state._flow_given = [];
   // A new setup is a new home: its stress test starts at today's prices.
   delete state._st;
@@ -5868,10 +5891,41 @@ function startFlow(mode, intent){
   // What the way in already said is answered, so the first question is the one it promised.
   const pre = (FLOW_INTENT[intent] || {}).pre || [];
   state._flow_given = pre.map(([q]) => q);
-  if (pre.length) pre.forEach(([q, v]) => flowAnswer(q, v)); else renderApp();
+  _flowNoPush = true;
+  try { if (pre.length) pre.forEach(([q, v]) => flowAnswer(q, v)); else renderApp(); } finally { _flowNoPush = false; }
+  flowPush(true);
   // Every way in starts at the top of setup, wherever the page was scrolled.
   requestAnimationFrame(() => window.scrollTo(0, 0));
 }
+/*
+ * Setup keeps a history entry per question, so the phone's Back (and the
+ * arrow at the top) steps back one question, with its answer still picked,
+ * and Forward steps on again. Back from the first question leaves setup
+ * with the answers kept.
+ */
+let _flowNoPush = false;
+function flowPush(first){
+  if (_flowNoPush) return;
+  const f = state._flow || {};
+  const q = state._flow_edit || flowSteps().find((k) => !(k in f)) || '__done';
+  const prev = history.state && history.state.guide === 'flow' ? history.state.n : -1;
+  try { history.pushState({ guide: 'flow', q, n: first ? 0 : (prev ?? -1) + 1 }, '', '#flow'); } catch (e) {}
+}
+/** Show one question of setup again (Back or Forward), its answer picked. */
+function flowShowStep(q){
+  const f = state._flow || {};
+  state._flow_edit = q !== '__done' && q in f ? q : null;
+  state.current_screen = 'flow';
+  saveState(); renderApp();
+  window.scrollTo(0, 0);
+}
+/** The arrow at the top of setup: back one question, or out from the first. */
+function flowBack(){
+  const st = history.state || {};
+  if (st.guide === 'flow' && st.q !== undefined){ history.back(); return; }
+  if (state.onboarding_complete) flowLeave(); else goLanding();
+}
+window.flowBack = flowBack;
 /**
  * The ways into setup from the website, each with what it already tells us,
  * which questions come first, and how setup names itself. A route that says
@@ -5896,6 +5950,25 @@ const FLOW_INTENT = {
   meter: { t: 'Starting from your meter file', s: 'Add the file from esbnetworks.ie, then a few short questions. About 2 minutes.' },
   home: { t: 'Checking your home', s: 'Your bill and heating, then panels and a car if you have or want them. About 3 minutes.' },
 };
+/**
+ * The most questions this route can still ask: every unanswered fork tried
+ * both ways. Shown as the total, it can only fall as answers come in, so
+ * "Step 10 of 14" never follows "Step 9 of 13".
+ */
+const FLOW_FORKS = { plan: ['unsure', 'EI-24'], heat: ['gas', 'heatpump', 'storage'], gas: ['yes', 'no'], solar: ['no', 'have', 'thinking'],
+  system: ['custom', 'pick'], battery: [0, 5], billwhen: ['before', 'after'], ev: ['no', 'have', 'thinking'] };
+function flowMaxSteps(f){
+  // The meter file's own check is read once, not once per route tried.
+  const fb = state._csv_imported ? fileBasis() : null;
+  let best = flowSteps(f, fb);
+  const open = Object.keys(FLOW_FORKS).filter((k) => !(k in f));
+  const go = (i, g) => {
+    if (i === open.length){ const st = flowSteps(g, fb); if (st.length > best.length) best = st; return; }
+    for (const v of FLOW_FORKS[open[i]]) go(i + 1, { ...g, [open[i]]: v });
+  };
+  go(0, f);
+  return best;
+}
 const flowChap = (k) => ((FLOW_INTENT[state._flow_intent] || {}).chap || {})[k] || FLOW_CHAPTER[k] || 'Your home';
 /**
  * Where each way in on the website leads. A new visitor starts setup on the
@@ -6020,7 +6093,13 @@ function flowAnswer(q, v){
   if (q === 'evtime') state.ev_charge_time = v === 'evening' ? 'evening' : 'night';
   if (q === 'heattime') state.heat_time = v === 'night' ? 'night' : 'day';
   if (q === 'area') state.area = v === 'rural' ? 'rural' : 'urban';
-  if (q === 'disc') state.baseline_discount_pct = Math.max(0, Math.min(60, Math.round(+v) || 0));
+  if (q === 'disc'){
+    // A plan with its discount in the name already has it in its prices:
+    // the same figure again would count it twice.
+    const nm = /(\d{1,2})\s?%/.exec((getPlanById(state.baseline) || {}).plan || '');
+    if (nm && state.baseline_known && Math.round(+v) === +nm[1]){ v = 0; f[q] = 0; showToast(`Your plan’s ${nm[1]}% is already in its prices, so we haven’t added it again.`); }
+    state.baseline_discount_pct = Math.max(0, Math.min(60, Math.round(+v) || 0));
+  }
   if (q === 'gasbill') state.gas_bill_eur = Math.max(0, Math.round(+v) || 0);
   if ((q === 'heat' && v !== 'gas') || q === 'plan'){ delete f.gas; delete f.gasbill; }
   if (q === 'plan'){ delete f.disc; state.baseline_discount_pct = 0; }
@@ -6072,18 +6151,22 @@ function flowAnswer(q, v){
   // choice is usually waiting by the time it is asked.
   if (['house', 'roof', 'tilt', 'where'].includes(q) && f.solar === 'thinking'){ try { invalidate(); scheduleGoalSweep(); } catch (e) {} }
   // Panels already on the roof change what the bill means: re-read it.
-  if (['solar', 'roof', 'tilt', 'panels', 'battery', 'gridnow', 'billwhen', 'billmonths'].includes(q) && state.usage_input_mode !== 'kwh' && !state._csv_imported) applyUsageInput();
+  if (['solar', 'roof', 'tilt', 'panels', 'battery', 'gridnow', 'billwhen', 'billmonths'].includes(q) && !state._csv_imported) applyUsageInput();
   if (q === 'solar' && state._csv_imported) refreshFileBills();
   state._flow_edit = null;
   try { applyRegion(state.region || 'east'); } catch (e) {}
   invalidate(); saveState(); renderApp();
+  flowPush();
   // Bring the new question (or the answer) into view in one instant jump. A
   // jump to the very bottom, while the card was still sliding in, left iOS
   // hit-testing the old spot: "See my home" ignored taps until a scroll.
   requestAnimationFrame(() => {
     if (WEB && matchMedia('(min-width: 900px)').matches){ window.scrollTo(0, 0); return; }
     const el = document.querySelector('.fl-reveal') || [...document.querySelectorAll('.fl-q')].pop();
-    if (el) window.scrollTo(0, Math.max(0, el.getBoundingClientRect().top + window.scrollY - 16));
+    // Clear of the sticky bar at the top, or the question starts underneath it.
+    const bar = document.querySelector('.fl-top');
+    const off = (bar && getComputedStyle(bar).position === 'sticky' ? bar.getBoundingClientRect().height : 0) + 12;
+    if (el) window.scrollTo(0, Math.max(0, el.getBoundingClientRect().top + window.scrollY - off));
   });
 }
 /** The ready-made systems for this home, as a setup step. */
@@ -6117,7 +6200,7 @@ function flowSupplier(i){
   const sups = [...new Set(activeTariffsSorted().map((p) => p.supplier))].sort((a, b) => a.localeCompare(b));
   state._flow_sup = sups[i] || null; renderApp();
 }
-function flowEdit(q){ state._flow_edit = q; renderApp(); if (WEB && matchMedia('(min-width: 900px)').matches) window.scrollTo(0, 0); }
+function flowEdit(q){ state._flow_edit = q; renderApp(); flowPush(); if (WEB && matchMedia('(min-width: 900px)').matches) window.scrollTo(0, 0); }
 /** From the quick answer into the guided route, keeping every answer given. */
 function flowUpgrade(){
   state._flow_mode = 'full';
@@ -6143,6 +6226,9 @@ function renderFlow(){
   const f = state._flow || {};
   const steps = flowSteps();
   const open = state._flow_edit || steps.find((s) => !(s in f));
+  // Panels already on the roof, usage typed as kWh, a plan with its discount in its name.
+  const owner = f.solar === 'have', kwhIn = String(f.bill || '').startsWith('kwh:') || state.usage_input_mode === 'kwh';
+  const namedDisc = (() => { const m = /(\d{1,2})\s?%/.exec((getPlanById(state.baseline) || {}).plan || ''); return state.baseline_known && m ? +m[1] : 0; })();
   const plan = getPlanById(state.baseline);
   const label = {
     bill: ['What’s your electricity bill?', 'Every two months, electricity only.'],
@@ -6169,6 +6255,13 @@ function renderFlow(){
     panels: ['How many panels?', `For your usage we suggest ${_flowSuggest()}.`],
     battery: ['A battery?', 'It stores the day’s solar for the evening.'],
     ...(state._flow_intent === 'meter' ? { bill: ['Add your ESB meter file', 'Your real half-hour readings. The most exact answer there is.'] } : {}),
+    // Panels already on the roof: ask about them as bought, not as a purchase.
+    ...(owner ? {
+      price: ['What did the panels cost?', 'Roughly is fine. Including VAT, before any grant.'],
+      grant: ['Did you get the SEAI grant for them?', 'Up to €1,800 for the panels.'],
+    } : {}),
+    // A plan with its discount in the name already has it in its prices.
+    ...(namedDisc ? { disc: [`Any discount on top of the ${namedDisc}%?`, `Your plan’s ${namedDisc}% is already in its prices. Only add a discount your bill shows beyond it.`] } : {}),
     ...(state._flow_intent === 'quote' ? {
       panels: ['How many panels are on the quote?', 'It’s usually near the top, with the panel model.'],
       battery: ['Is there a battery on the quote?', 'Its size is in kWh.'],
@@ -6183,11 +6276,13 @@ function renderFlow(){
     ev: ['An electric car?', ''],
     km: ['How far do you drive in a year?', 'The Irish average is about 16,000 km.'],
     car: ['What kind of car?', ''],
+    // Usage typed as kWh is units bought, not a bill.
+    ...(kwhIn ? { billwhen: ['Is that usage from before or after the panels went up?', 'Units bought after them are already lower.'] } : {}),
   };
   const shown = {
     bill: (v) => v === 'meter' ? 'Smart-meter data' : String(v).startsWith('kwh:') ? `${(+String(v).slice(4)).toLocaleString('en-IE')} kWh a year` : `€${v} / 2 months`,
     plan: (v) => v === 'unsure' ? 'Plan not sure' : String(v).startsWith('guess:') ? `${(getPlanById(String(v).slice(6)) || {}).supplier}, plan not sure` : (() => { const p = getPlanById(v); return `${p.supplier} ${p.plan}`; })(),
-    disc: (v) => (+v > 0 ? `${v}% discount` : 'No discount'),
+    disc: (v) => (+v > 0 ? `${v}% discount${namedDisc ? ' on top' : ''}` : namedDisc ? `Just the ${namedDisc}%` : 'No discount'),
     where: (v) => (IRISH_REGIONS[v] || {}).name || v,
     house: (v) => ({ apartment: 'Apartment', terraced: 'Terraced', semi: 'Semi-detached', detached: 'Detached', bungalow: 'Bungalow' })[v] || v,
     system: (v) => v === 'custom' ? (state._flow_intent === 'quote' ? 'From the quote' : 'My own size') : `${totalPanels()} panels${state.battery_kwh > 0 ? ` + ${state.battery_kwh} kWh battery` : ''}`,
@@ -6225,7 +6320,7 @@ function renderFlow(){
   const body = (q) => {
     // Any number, not only the three shown.
     const own = (q, unit, max, ph, lab = 'Or your own') => `<div class="fl-own"><label for="flow-own-${q}">${lab}</label>
-        <span class="sy-num"><input id="flow-own-${q}" type="number" inputmode="numeric" min="0" max="${max}" placeholder="${ph}"><i>${unit}</i></span>
+        <span class="sy-num"><input id="flow-own-${q}" type="number" inputmode="numeric" min="0" max="${max}" placeholder="${ph}" onkeydown="if(event.key==='Enter'){event.preventDefault();this.closest('.fl-own').querySelector('.sy-stop').click()}"><i>${unit}</i></span>
         <button class="sy-stop" onclick="const v = document.getElementById('flow-own-${q}').value; if (v !== '') flowAnswer('${q}', Math.max(0, Math.min(${max}, Math.round(+v))))">Use</button></div>`;
     if (q === 'bill'){
       const kwhMode = state._flow_unit === 'kwh' || (state._flow_unit == null && String(f.bill || '').startsWith('kwh:'));
@@ -6234,12 +6329,12 @@ function renderFlow(){
         <button class="${kwhMode ? 'on' : ''}" aria-pressed="${kwhMode}" onclick="state._flow_unit='kwh';renderApp()">My usage in kWh</button></div>`;
       if (kwhMode){
         const cur = String(f.bill || '').startsWith('kwh:') ? +String(f.bill).slice(4) : (state.usage_input_mode === 'kwh' && state.annual_kwh) || 4200;
-        return `${tabs}<div class="fl-bill"><input id="flow-bill" inputmode="numeric" value="${cur}" aria-label="Electricity used in a year, in kWh"><span class="fl-unit-k">kWh a year</span></div>
+        return `${tabs}<div class="fl-bill"><input id="flow-bill" inputmode="numeric" value="${cur}" aria-label="Electricity used in a year, in kWh" onkeydown="if(event.key==='Enter'){event.preventDefault();this.closest('.fl-q').querySelector('.fl-next').click()}"><span class="fl-unit-k">kWh a year</span></div>
       <p class="fl-note">On your bill as "units", or in your ESB Networks account. A typical Irish home uses about 4,200.</p>
       <div class="fl-row">${[2500, 4200, 6000].map((v) => `<button class="sy-stop" onclick="document.getElementById('flow-bill').value=${v}">${v.toLocaleString('en-IE')}</button>`).join('')}</div>
       <button class="fl-next" onclick="flowAnswer('bill', 'kwh:' + document.getElementById('flow-bill').value.replace(/[^0-9]/g, ''))">Next</button>`;
       }
-      const typed = `${tabs}<div class="fl-bill"><span>€</span><input id="flow-bill" inputmode="numeric" value="${String(f.bill || '').startsWith('kwh:') ? state.bimonthly_bill_eur || 250 : f.bill || state.bimonthly_bill_eur || 250}" aria-label="Two-month bill in euro"></div>
+      const typed = `${tabs}<div class="fl-bill"><span>€</span><input id="flow-bill" inputmode="numeric" value="${String(f.bill || '').startsWith('kwh:') ? state.bimonthly_bill_eur || 250 : f.bill || state.bimonthly_bill_eur || 250}" aria-label="Two-month bill in euro" onkeydown="if(event.key==='Enter'){event.preventDefault();this.closest('.fl-q').querySelector('.fl-next').click()}"></div>
       <div class="fl-row">${[150, 250, 420].map((v) => `<button class="sy-stop" onclick="document.getElementById('flow-bill').value=${v}">€${v}</button>`).join('')}</div>
       <button class="fl-next" onclick="flowAnswer('bill', document.getElementById('flow-bill').value)">Next</button>`;
       const file = `<label class="fl-upload">${ic('csv', 20)}<span><b>Upload your ESB smart-meter file</b><small>Every half hour of your real year. Free at esbnetworks.ie: My Meter → Downloads → “30-minute readings in kW”.</small></span>
@@ -6251,7 +6346,9 @@ function renderFlow(){
         : `${typed}<div class="fl-or"><span>or, most accurate</span></div>${file}`;
     }
     if (q === 'plan'){
-      const plans = activeTariffsSorted();
+      // Every plan, withdrawn ones too: people are still on them, and their
+      // bill is priced on them. Withdrawn plans go last, marked as such.
+      const plans = TARIFFS.slice().sort((a, b) => (a.supplier || '').localeCompare(b.supplier || '', 'en', { sensitivity: 'base' }) || (a.plan || '').localeCompare(b.plan || '', 'en', { sensitivity: 'base' }));
       const sups = [...new Set(plans.map((p) => p.supplier))].sort((a, b) => a.localeCompare(b));
       const sup = state._flow_sup;
       if (sup){
@@ -6262,22 +6359,23 @@ function renderFlow(){
         // also keeps older 24-hour plans, a day/night meter its Nightsaver ones.
         const meter = state.meter_type || 'smart';
         const canBeOn = (p) => meter === 'smart' ? p.meter !== 'nightsaver' : meter === '24hr' ? p.meter === '24hr' : p.meter !== 'smart';
-        const all = plans.filter((p) => p.supplier === sup).sort((a, b) => (order[a.type] ?? 1) - (order[b.type] ?? 1));
+        const all = plans.filter((p) => p.supplier === sup).sort((a, b) => (a.discontinued ? 1 : 0) - (b.discontinued ? 1 : 0) || (order[a.type] ?? 1) - (order[b.type] ?? 1));
         const fit = all.filter(canBeOn);
         const mine = state._flow_allplans || !fit.length ? all : fit;
         const others = all.length - fit.length;
         return `<button class="fl-crumb" onclick="state._flow_sup=null;state._flow_allplans=false;renderApp()">${ic('chevL', 14)} All suppliers</button>
           <div class="fl-k">${esc(sup)}: which plan? It’s on your bill, near the top.</div>
-          <div class="fl-opts">${mine.map((p) => opt('plan', p.id, esc(p.plan))).join('')}
-          ${!['ev', 'dynamic'].includes(mine[0].type)
-            ? opt('plan', 'guess:' + mine[0].id, 'Not sure which plan', `We’ll assume ${esc(mine[0].plan)}`)
-            : opt('plan', 'unsure', 'Not sure which plan', 'We’ll assume a standard plan')}</div>
+          <div class="fl-opts">${mine.map((p) => opt('plan', p.id, esc(p.plan), p.discontinued ? `No longer on sale${p.discontinued_date ? ` since ${fmtDay(p.discontinued_date)}` : ''}` : '')).join('')}
+          ${(() => { const g = mine.find((p) => !p.discontinued) || mine[0];
+            return !['ev', 'dynamic'].includes(g.type)
+              ? opt('plan', 'guess:' + g.id, 'Not sure which plan', `We’ll assume ${esc(g.plan)}`)
+              : opt('plan', 'unsure', 'Not sure which plan', 'We’ll assume a standard plan'); })()}</div>
           ${others && !state._flow_allplans && fit.length ? `<button class="sg-link" onclick="state._flow_allplans=true;renderApp()">Show ${others} plan${others > 1 ? 's' : ''} for other meters</button>` : ''}`;
       }
       return `<div class="fl-sups">${sups.map((n, i) => `<button class="fl-sup ${f.plan && f.plan !== 'unsure' && (getPlanById(f.plan) || {}).supplier === n ? 'on' : ''}" onclick="flowSupplier(${i})"><span class="fl-sup-mark">${esc(n.split(/\s+/).map((w) => w[0]).join('').slice(0, 2))}</span>${esc(n)}</button>`).join('')}</div>
         <button class="sg-link" onclick="flowAnswer('plan', 'unsure')">I’m not sure: assume a standard plan</button>`;
     }
-    if (q === 'gasbill') return `<div class="fl-bill"><span>€</span><input id="flow-gas" inputmode="numeric" value="${f.gasbill || state.gas_bill_eur || 200}" aria-label="Two-month gas bill in euro"></div>
+    if (q === 'gasbill') return `<div class="fl-bill"><span>€</span><input id="flow-gas" inputmode="numeric" value="${f.gasbill || state.gas_bill_eur || 200}" aria-label="Two-month gas bill in euro" onkeydown="if(event.key==='Enter'){event.preventDefault();this.closest('.fl-q').querySelector('.fl-next').click()}"></div>
       <div class="fl-row">${[120, 200, 320].map((v) => `<button class="sy-stop" onclick="document.getElementById('flow-gas').value=${v}">€${v}</button>`).join('')}</div>
       <button class="fl-next" onclick="flowAnswer('gasbill', document.getElementById('flow-gas').value)">Next</button>
       <button class="v7-link" onclick="flowAnswer('gasbill', 0)">Not sure</button>`;
@@ -6304,6 +6402,7 @@ function renderFlow(){
       <div class="fl-opts fl-two fl-tiles">${opt('roof', 'EW', 'East and west')}${opt('roof', 'SESW', 'South-east and south-west')}</div>
       ${own('roof', '°', 359, 'e.g. 200')}
       <button class="sg-link" onclick="flowAnswer('roof', 'unsure')">Not sure (assume south)</button>`;
+    if (q === 'disc' && namedDisc) return `<div class="fl-opts">${opt('disc', 0, `No, just the ${namedDisc}%`)}</div>${own('disc', '%', 60, 'e.g. 5', 'An extra discount')}`;
     if (q === 'disc') return `<div class="fl-opts fl-three">${opt('disc', 0, 'None')}${opt('disc', 15, '15%')}${opt('disc', 30, '30%')}</div>${own('disc', '%', 60, 'e.g. 22')}
       <button class="sg-link" onclick="flowAnswer('disc', 0)">Not sure</button>`;
     if (q === 'panels' && state._flow_intent === 'quote') return `<div class="fl-opts fl-three">${[8, 10, 12, 14, 16, 20].map((n) => opt('panels', n, `${n}`)).join('')}</div>${own('panels', 'panels', 60, 'e.g. 13')}`;
@@ -6320,6 +6419,8 @@ function renderFlow(){
       <button class="sg-link" onclick="flowAnswer('tilt', 35)">Not sure (assume 35°)</button>`;
     if (q === 'price'){
       const kwp = (totalPanels() * (+state.panel_w || 460)) / 1000, guide = Math.round(estimateInstallCost(kwp, +state.battery_kwh || 0) / 100) * 100;
+      if (owner) return `${own('price', '€', 60000, 'e.g. 9800', 'Price paid, incl. VAT')}
+        <div class="fl-opts">${opt('price', 0, 'I don’t know', `We’ll use a guide price, about ${eur(guide)} for this size`)}</div>`;
       if (state._flow_intent === 'quote') return `${own('price', '€', 60000, 'e.g. 11500', 'Price on the quote, incl. VAT')}
         <div class="fl-opts">${opt('price', 0, 'I don’t have it to hand', `We’ll use a guide price, about ${eur(guide)} for this size`)}</div>
         <p class="fl-note">You can upload the quote itself later, and we’ll read the details for you.</p>`;
@@ -6336,12 +6437,14 @@ function renderFlow(){
   // The questions this visit asks: not the ones the way in, or the saved home, already answered.
   const given = state._flow_given || [];
   const asked = steps.filter((k) => !given.includes(k) || k === open);
+  // The total is the longest this route can still be, so it never grows.
+  const total = Math.max(asked.length, flowMaxSteps(f).filter((k) => !given.includes(k) || k === open).length);
   let h = '';
   for (const s of steps){
     const branch = ['roof', 'tilt', 'panels', 'battery', 'price', 'grant', 'km', 'car'].includes(s);
     if (s === open){
       h += `<section class="fl-q ${branch ? 'fl-branch' : ''}" aria-label="${label[s][0]}">
-        ${WEB ? `<div class="fl-step-k">Step ${asked.filter((k) => k in f && k !== s).length + 1} of ${asked.length} · ${flowChap(s)}</div>` : ''}<h2>${label[s][0]}</h2>${label[s][1] ? `<p>${label[s][1]}</p>` : ''}${body(s)}</section>`;
+        ${WEB ? `<div class="fl-step-k">Step ${asked.filter((k) => k in f && k !== s).length + 1} of ${total} · ${flowChap(s)}</div>` : ''}<h2>${label[s][0]}</h2>${label[s][1] ? `<p>${label[s][1]}</p>` : ''}${body(s)}</section>`;
       break;
     }
   }
@@ -6402,14 +6505,14 @@ function renderFlow(){
   const leave = state.onboarding_complete ? 'flowLeave()' : 'goLanding()';
   return `<div class="fl">
     <div class="fl-top">
-      <button class="sg-back" onclick="${leave}" aria-label="Back">${ic('chevL', 18)}</button>
+      <button class="sg-back" onclick="flowBack()" aria-label="Back one question">${ic('chevL', 18)}</button>
       <span class="fl-word">${WEB ? `<span class="v7-brand-mark web-logo-ico">${ic('logo', 22, 'stroke-width:1.6')}</span>` : ''}${wordmarkHtml('pk-word-top')}</span>
       ${WEB ? `<span class="fl-top-end"><a class="wl-applink" href="${APP_HREF}">${ic('mobile', 16)}<span>Get the app</span></a>
         <button class="web-theme" onclick="setTheme(state.theme==='dark'?'light':'dark')" aria-label="Switch light or dark">${ic('contrast', 20)}</button>
         <button class="fl-exit" onclick="${leave}">${state.onboarding_complete ? 'Back to my answer' : 'Leave'}</button></span>` : ''}
     </div>
     ${WEB ? flowChapters(steps, f, open) : ''}
-    <div class="sg-progress fl-prog"><i style="width:${finished ? 100 : Math.round(done / Math.max(1, asked.length) * 100)}%"></i></div>
+    <div class="sg-progress fl-prog"><i style="width:${finished ? 100 : Math.round(done / Math.max(1, total) * 100)}%"></i></div>
     ${WEB ? `<div class="fl-grid"><div class="fl-body">${h}</div>${flowSide(steps, f, open, shown)}</div>` : `<div class="fl-body">${h}</div>`}
   </div>`;
 }
@@ -8393,15 +8496,20 @@ function clearShapeOverride(){
 /* ============================================================
    QUOTE AUDITOR — viral standalone tool
    ============================================================ */
-let _aud_quote = 14000, _aud_panels = 12, _aud_battery = 5, _aud_result = null;
+// Null until the reader types: the form starts from the home's own quote and system.
+let _aud_quote = null, _aud_panels = null, _aud_battery = null, _aud_result = null;
 
 function renderAuditor(){
-  return `${topbar('Quote auditor', 'blue', true)}
+  // The quote already given in setup, and the home's own system, unless the reader has typed others.
+  const qPrice = _aud_quote ?? (state.cost_is_manual && state.install_cost > 0 ? state.install_cost : '');
+  const qPanels = _aud_panels ?? (totalPanels() || '');
+  const qBatt = _aud_battery ?? (state.has_solar && totalPanels() > 0 ? (state.battery_kwh || 0) : '');
+  return `${topbar('Check a quote', 'accent', true)}
   <div class="screen">
-    <div class="qr-hero" style="border-color:var(--blue);box-shadow:var(--hero-shadow),0 0 32px -10px var(--blue-glow)">
-      <div class="qr-eyebrow" style="color:var(--blue)">Solar quote auditor</div>
-      <div style="font-family:var(--display);font-size:20px;font-weight:700;color:var(--ink);line-height:1.3;letter-spacing:-.015em;margin-top:4px">Paste an installer quote.<br>Get an objective verdict.</div>
-      <div class="qr-sub">Compared against 2026 Irish market benchmarks. We have no affiliations with installers.</div>
+    <div class="qr-hero" style="border-color:var(--accent)">
+      <div class="qr-eyebrow" style="color:var(--accent)">Check an installer’s quote</div>
+      <div style="font-family:var(--display);font-size:20px;font-weight:700;color:var(--ink);line-height:1.3;letter-spacing:-.015em;margin-top:4px">Is the price fair, and does it pay back on your home?</div>
+      <div class="qr-sub">Compared with our guide price for that size. We have no ties to installers.</div>
     </div>
 
     <button class="v7-tile v7-tile-wide" style="margin-bottom:14px" onclick="v7Sheet('quote')">
@@ -8412,28 +8520,30 @@ function renderAuditor(){
     <div class="card" style="padding:18px">
       <div class="aud-input-row">
         <label>Total quoted price (€)</label>
-        <input id="aud-price" type="number" inputmode="numeric" min="0" max="100000" step="100" value="${_aud_quote}">
+        <input id="aud-price" type="number" inputmode="numeric" min="0" max="100000" step="100" value="${qPrice}" placeholder="e.g. 11500" onkeydown="if(event.key==='Enter'){event.preventDefault();runAudit()}">
       </div>
       <div class="aud-input-row">
         <label>Number of panels proposed</label>
-        <input id="aud-panels" type="number" inputmode="numeric" min="0" max="50" step="1" value="${_aud_panels}">
+        <input id="aud-panels" type="number" inputmode="numeric" min="0" max="50" step="1" value="${qPanels}" placeholder="e.g. 12" onkeydown="if(event.key==='Enter'){event.preventDefault();runAudit()}">
       </div>
       <div class="aud-input-row">
         <label>Battery size proposed (kWh, 0 if none)</label>
-        <input id="aud-battery" type="number" inputmode="decimal" min="0" max="50" step="0.5" value="${_aud_battery}">
+        <input id="aud-battery" type="number" inputmode="decimal" min="0" max="50" step="0.5" value="${qBatt}" placeholder="0" onkeydown="if(event.key==='Enter'){event.preventDefault();runAudit()}">
       </div>
-      <button class="aud-btn" onclick="runAudit()">Run audit →</button>
+      <button class="aud-btn" onclick="runAudit()">Check this quote</button>
     </div>
 
     <div id="audit-result"></div>
 
-    <div class="card" style="background:rgba(41,182,246,.04);border-color:var(--blue);margin-top:14px">
-      <div class="card-label" style="color:var(--blue)">How we benchmark</div>
+    <div class="card" style="border-color:var(--hair-strong);margin-top:14px">
+      <div class="card-label">How we judge the price</div>
       <div style="font-size:13px;color:var(--ink-soft);line-height:1.8">
-        Panels and inverter: €950–€1,200 per kWp, fitted<br>
-        Battery: €350-€480/kWh capacity<br>
-        Scaffolding + SEAI cert + wiring: €1,100-€1,300 fixed<br>
-        SEAI grant: up to €1,800
+        The same guide price setup and the Solar page use, for a system that size:<br>
+        €3,300 for the inverter, scaffolding and labour<br>
+        €1,000 a kWp for the first 3 kWp, then €800 a kWp<br>
+        A battery: €800, plus €380 a kWh<br>
+        Within 15% either side of that is a fair price.<br>
+        SEAI grant: up to €1,800 for the panels, and €600 for a battery
       </div>
     </div>
 
@@ -8486,12 +8596,12 @@ function renderAuditResult(r){
       <div class="card">
         <div class="card-label">Price per kWp</div>
         <div class="card-value ${r.perKwp > 2200 ? 'amber' : r.perKwp < 1400 ? 'accent' : ''}">${fmtCurrency(r.perKwp)}<span class="unit">/kWp</span></div>
-        <div class="card-delta">Fair ~€1,150-€1,500 ex-battery</div>
+        <div class="card-delta">Guide: ${fmtCurrency(Math.round(fairRange(r.kwp, 0).mid / Math.max(0.1, r.kwp)))}/kWp without a battery</div>
       </div>
       <div class="card">
-        <div class="card-label">Fair-market range</div>
+        <div class="card-label">Usual price range</div>
         <div class="card-value blue" style="font-size:15px">${fmtCurrency(r.expLo)}–${fmtCurrency(r.expHi)}</div>
-        <div class="card-delta">2026 Irish market</div>
+        <div class="card-delta">Our guide price, ±15%</div>
       </div>
       <div class="card">
         <div class="card-label">After SEAI grant</div>
@@ -8501,7 +8611,7 @@ function renderAuditResult(r){
       <div class="card">
         <div class="card-label">Payback (your usage)</div>
         <div class="card-value ${r.payback < 8 ? 'accent' : r.payback < 15 ? 'amber' : 'red'}">${r.payback < 50 ? r.payback.toFixed(1) + ' yr' : '—'}</div>
-        <div class="card-delta">€${r.totalAnnualBenefit.toFixed(0)}/yr benefit</div>
+        <div class="card-delta">${fmtCurrency(r.totalAnnualBenefit)} back a year</div>
       </div>
       <div class="card">
         <div class="card-label">20-year value</div>
@@ -9562,13 +9672,18 @@ function computeAlerts(){
         body: `${pc.effective_date > today ? 'From' : 'Since'} ${fmtDay(pc.effective_date)}${pc.standing_pct ? `, standing charge ${up ? '+' : '−'}${Math.round(pc.standing_pct * 100)}%` : ''}. Your figures already include it.`,
         go: "setScreen('plans')", cta: 'Compare plans' });
     }
+    // Panels that are only planned aren't on the roof: switching now is
+    // priced without them, the same plan and figure Home shows ("€84 from
+    // switching plan, today"), not the best plan once they're fitted.
     const rec = getRecommendation();
-    const save = myPlanCost() - rec.best.net;
+    const pl = state.has_solar && state.solar_planned && totalPanels() > 0 ? plannedLadder() : null;
+    const bestNow = pl ? pl.noSolar : rec.best;
+    const save = pl ? pl.today - pl.noSolar.net : myPlanCost() - rec.best.net;
     // The home's own plan withdrawn: say so, and whether anything on sale beats
     // it. Only for a plan the household told us, not one we assumed.
     if (plan && plan.discontinued && state.baseline_known){
       const since = plan.discontinued_date ? ` since ${fmtDay(plan.discontinued_date)}` : '';
-      const best = `${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}`;
+      const best = `${esc(bestNow.plan.supplier)} ${esc(bestNow.plan.plan)}`;
       const beaten = save >= ALERT_MIN_SAVING, still = save <= -ALERT_MIN_SAVING;
       out.push({ id: `withdrawn:${plan.id}`, kind: 'withdrawn', level: beaten ? 'warn' : 'info',
         title: `${esc(plan.supplier)} has stopped selling your plan`,
@@ -9578,9 +9693,9 @@ function computeAlerts(){
             : `It costs your home about the same as the best plan on sale, ${best}.`)
           + ' Once you move off a withdrawn plan, you can’t go back to it. We’ll tell you if its prices change.',
         go: "setScreen('plans')", cta: 'See the plans' });
-    } else if (rec.best.plan.id !== state.baseline && save >= ALERT_MIN_SAVING){
-      out.push({ id: `cheaper:${rec.best.plan.id}`, kind: 'cheaper', level: 'gain',
-        title: `${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)} would save you ${eur(save)} a year`,
+    } else if (bestNow.plan.id !== state.baseline && save >= ALERT_MIN_SAVING){
+      out.push({ id: `cheaper:${bestNow.plan.id}`, kind: 'cheaper', level: 'gain',
+        title: `${esc(bestNow.plan.supplier)} ${esc(bestNow.plan.plan)} would save you ${eur(save)} a year`,
         body: 'Against what your plan costs this home today. Switching takes about ten minutes and there is nothing to cancel.',
         go: "setScreen('result')", cta: 'See the switch' });
     }
@@ -12239,8 +12354,14 @@ window.addEventListener('popstate', function(e){
   // Inside a guide or the first-visit flow, Back steps back through it, and
   // past its first step closes it, landing where it was opened from.
   const g = state.current_screen;
+  // Forward from where setup was left, back into it at that question.
+  if (g !== 'flow' && e.state && e.state.guide === 'flow' && e.state.q && state._flow && Object.keys(state._flow).length && !state.onboarding_complete){
+    flowShowStep(e.state.q); return;
+  }
   if (g === 'solar-guide' || g === 'ev-guide' || g === 'flow'){
     const st = e.state || {};
+    // One question back (or on), its answer still picked.
+    if (g === 'flow' && st.guide === 'flow' && st.q){ flowShowStep(st.q); return; }
     if (st.guide === g && (st.step >= 1 || (g === 'solar-guide' && st.step === 0))){
       if (g === 'solar-guide') sgGo(st.step, true); else if (g === 'ev-guide') egGo(st.step, true);
       return;
@@ -12249,7 +12370,9 @@ window.addEventListener('popstate', function(e){
     if (g === 'ev-guide') egCancel();
     else if (g === 'solar-guide') sgCancel();
     else if (_flowBefore){ _suppressHistoryPush = true; try { flowLeave(); } finally { _suppressHistoryPush = false; } }
-    else { state._flow = null; state.current_screen = state.onboarding_complete ? 'result' : 'welcome'; saveState(); renderApp(); }
+    // Out of setup from its first question: the answers are kept, so the same
+    // way in carries on from here.
+    else { state._flow_edit = null; state.current_screen = state.onboarding_complete ? 'result' : 'welcome'; saveState(); renderApp(); }
     return;
   }
   // An open overlay is the top-most thing on screen — Back should close it
@@ -12823,6 +12946,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const loader = document.getElementById('loader');
     if (loader) loader.remove();
     dismissSplash();
+    // A discount typed again on a plan whose name already carries it was
+    // counted twice (usage then came out far too high). Take it out once.
+    try {
+      const nm = /(\d{1,2})\s?%/.exec((getPlanById(state.baseline) || {}).plan || '');
+      if (nm && state.baseline_known && +state.baseline_discount_pct === +nm[1]){ state.baseline_discount_pct = 0; applyUsageInput(); invalidate(); saveState(); }
+    } catch (e) {}
     // The old quote screen marked a home as set up with made-up answers (a
     // €200 bill, gas heating) before the household answered anything. That
     // home isn't theirs: they start like anyone new. Setup always asks for the
