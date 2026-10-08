@@ -1,0 +1,60 @@
+{
+  "worked_out": "2026-10-08",
+  "typical": {
+    "kwh": 5000,
+    "panels": 12,
+    "net": 6300,
+    "payback": 5.3,
+    "best_plan": "EI-SST",
+    "best_bill": 560,
+    "top": [
+      [
+        "EI-SST",
+        560
+      ],
+      [
+        "EN-SMART",
+        616
+      ],
+      [
+        "SSE-DNP",
+        619
+      ],
+      [
+        "EN-SMART-24-HOUR",
+        620
+      ]
+    ],
+    "zero_plan": "WP-SST",
+    "zero_before": 1785,
+    "zero_bill": 1138,
+    "zero_payback": 9.7,
+    "stress": {
+      "today": 5.4,
+      "half": 6.3,
+      "both": 7.1
+    }
+  },
+  "big": {
+    "panels": 16,
+    "battery": 10,
+    "km": 16000,
+    "net": 11700,
+    "payback": 5.9,
+    "before_plan": "EI-24",
+    "before": 2674,
+    "stay_bill": 984,
+    "stay_payback": 6.9,
+    "best_plan": "YN-EV-DNP",
+    "best_bill": 205,
+    "best_payback": 4.7,
+    "gone_plan": "PIN-EV",
+    "gone_bill": -209,
+    "gone_payback": 4.1,
+    "stress": {
+      "today": 6.9,
+      "half": 6.7,
+      "both": 6.9
+    }
+  }
+}

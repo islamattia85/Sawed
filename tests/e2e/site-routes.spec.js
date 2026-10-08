@@ -6,11 +6,14 @@ import { isolate, boot } from './support.js';
 // starts setup on the question the button promised, with setup naming what
 // it is for; someone with an answer goes to the matching part of it.
 const WAYS = [
-  ['Check if solar pays for me', 'Does solar pay on your home?', 'Where in Ireland is the home?'],
-  ['Thinking about solar', 'Does solar pay on your home?', 'Where in Ireland is the home?'],
-  ['I have a quote', 'Checking your quote', 'How many panels are on the quote?'],
-  ['I already have panels', 'Getting the most from your panels', 'Where in Ireland is the home?'],
-  ['Getting an EV', 'What a car means for your bill', 'How far do you drive in a year?'],
+  ['Check my payback', 'Does solar pay on your home?', 'Where in Ireland is the home?'],
+  ['They told me five years', 'Does solar pay on your home?', 'Where in Ireland is the home?'],
+  ['Is it the right system for my roof', 'Does solar pay on your home?', 'Where in Ireland is the home?'],
+  ['Is my quote fair', 'Checking your quote', 'How many panels are on the quote?'],
+  ['What if export pay drops', 'What if prices change?', 'Where in Ireland is the home?'],
+  ['I have panels. Which plan', 'Getting the most from your panels', 'Where in Ireland is the home?'],
+  ['getting an electric car', 'What a car means for your bill', 'How far do you drive in a year?'],
+  ['I just want a cheaper plan', 'Comparing every plan on your home', 'What’s your electricity bill?'],
   ['Just compare plans', 'Comparing every plan on your home', 'What’s your electricity bill?'],
   ['Check my home', 'Checking your home', 'What’s your electricity bill?'],
 ];
@@ -42,7 +45,7 @@ test('the quote route never invents a home: nothing is set up until setup is fin
   await page.evaluate(() => { localStorage.clear(); localStorage.setItem('sawed_analytics', 'no'); });
   await page.reload();
   await page.waitForFunction(() => window.__bootSettled === true, null, { timeout: 10_000 });
-  await page.getByRole('button', { name: 'I have a quote' }).click();
+  await page.getByRole('button', { name: 'Is my quote fair' }).click();
   await page.waitForFunction(() => window.state.current_screen === 'flow');
   expect(await page.evaluate(() => window.state.onboarding_complete)).toBeFalsy();
   await page.locator('.fl-exit').click();
@@ -70,10 +73,11 @@ test('the quote route ends on whether the price is fair', async ({ page }) => {
 });
 
 const ANSWERED = [
-  ['Thinking about solar', 'solar'],
-  ['I have a quote', 'solar'],
+  ['They told me five years', 'solar'],
+  ['Is my quote fair', 'solar'],
+  ['What if export pay drops', 'flow'],
   ['My plans', 'plans'],
-  ['Getting an EV', 'ev-guide'],
+  ['getting an electric car', 'ev-guide'],
 ];
 for (const [button, screen] of ANSWERED) {
   test(`returning visitor: "${button}" goes to the matching page, not back to the first question`, async ({ page }) => {
@@ -82,16 +86,17 @@ for (const [button, screen] of ANSWERED) {
     await page.evaluate(() => { window.state.current_screen = 'welcome'; window.renderApp(); });
     await page.getByRole('button', { name: button }).first().click();
     await page.waitForFunction((s) => window.state.current_screen === s, screen);
-    if (button === 'I have a quote') await expect(page.locator('#v7-sheet')).toContainText('quote');
+    if (button === 'Is my quote fair') await expect(page.locator('#v7-sheet')).toContainText('quote');
+    if (button === 'What if export pay drops') await expect(page.locator('.fl-route b')).toHaveText('What if prices change?');
   });
 }
 
-test('returning visitor with no panels on file: "I already have panels" asks only about the panels, and leaving changes nothing', async ({ page }) => {
+test('returning visitor with no panels on file: "I have panels" asks only about the panels, and leaving changes nothing', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await boot(page, { current_screen: 'welcome', has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, region_asked: true }, '/');
   await page.evaluate(() => { window.state.current_screen = 'welcome'; window.renderApp(); });
   const before = await page.evaluate(() => ({ s: window.state.has_solar, n: window.state.count_A }));
-  await page.getByRole('button', { name: 'I already have panels' }).click();
+  await page.getByRole('button', { name: 'I have panels. Which plan' }).click();
   await page.waitForFunction(() => window.state.current_screen === 'flow');
   await expect(page.locator('.fl-q h2')).toHaveText('Which way does the roof face?');
   await expect(page.locator('.fl-step-k')).toContainText('Step 1 of');
@@ -104,4 +109,22 @@ test('the "How it works" link goes to how it works', async ({ page }) => {
   await isolate(page);
   await page.goto('/');
   await expect(page.locator('#how')).toContainText('Tell us about your home');
+});
+
+test('the front page’s figures are the model’s: the hero bars read from the figures file', async ({ page }) => {
+  const fig = JSON.parse((await import('node:fs')).readFileSync(new URL('../../src/data/front-figures.json', import.meta.url), 'utf8'));
+  await isolate(page);
+  await page.goto('/');
+  const bars = page.locator('.wl-hero .wl-pb-row em');
+  await expect(bars).toHaveText([`${fig.typical.payback.toFixed(1)} years`, `${fig.typical.stress.half.toFixed(1)} years`, `${fig.typical.zero_payback.toFixed(1)} years`]);
+  await expect(page.locator('#plan')).toContainText(`${fig.big.gone_payback.toFixed(1)} years`);
+});
+
+test('returning visitor with a system: "What if export pay drops" opens the stress test itself', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await boot(page, { current_screen: 'welcome', has_solar: true, solar_planned: true, count_A: 12, battery_kwh: 0 }, '/');
+  await page.evaluate(() => { window.state.current_screen = 'welcome'; window.renderApp(); });
+  await page.getByRole('button', { name: 'What if export pay drops' }).click();
+  await page.waitForFunction(() => window.state.current_screen === 'solar');
+  await expect(page.locator('#stress-card')).toBeInViewport({ timeout: 10000 });
 });
