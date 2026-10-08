@@ -720,7 +720,18 @@ export const EMBEDDED_TARIFFS = [
   {"id": "BG-SMART-STANDARD-GREEN-ELECTRICITY-ONLY", "supplier": "Bord Gáis", "plan": "Smart Standard Green Electricity Only", "type": "tou", "meter": "smart", "rates": {"day": 0.3378, "night": 0.2493, "peak": 0.4112, "ev": 0.2493}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 244.76, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-15", "notes": "Not in Bord Gáis's new-customer plan list on 30 Sep 2026.", "price_change": {"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "Bord Gais price announcement, 9 Sep 2026", "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."}, "discontinued": true}
 ];
 
-export let TARIFFS = EMBEDDED_TARIFFS.slice();
+/**
+ * One name per supplier. The rates come from more than one read of a
+ * supplier's site, and Bord Gáis is written both with and without "Energy";
+ * setup listed it twice, and a customer could not tell which was theirs.
+ */
+const SUPPLIER_NAMES = { 'Bord Gáis': 'Bord Gáis Energy', 'Bord Gais': 'Bord Gáis Energy', 'Bord Gais Energy': 'Bord Gáis Energy' };
+export function oneSupplierName(list){
+  for (const p of list || []) if (p && SUPPLIER_NAMES[p.supplier]) p.supplier = SUPPLIER_NAMES[p.supplier];
+  return list;
+}
+
+export let TARIFFS = oneSupplierName(EMBEDDED_TARIFFS.slice());
 export function getPlanById(id){
   const base = TARIFFS.find(t => t.id === id);
   if (!base) return TARIFFS[0];
@@ -1554,7 +1565,7 @@ export function calcSeaiGrant(kwp, batteryKwh){
 
 // Setters for the values main.js replaces.
 export function setState(v){ state = v; }
-export function setTariffs(v){ TARIFFS = v; }
+export function setTariffs(v){ TARIFFS = oneSupplierName(v); }
 
 /* ---- Stress test: the same system under future prices -----------------
  * A future is where prices end up: what export pays, what the cheapest

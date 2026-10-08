@@ -86,5 +86,5 @@ test('the whole path still works from the button a person actually taps', async 
   const download = page.waitForEvent('download', { timeout: 45_000 });
   await page.locator('#pdf-modal button', { hasText: /download/i }).first().click();
   const file = await download;
-  expect(file.suggestedFilename()).toMatch(/^solar-optimiser-report-\d{4}-\d{2}-\d{2}\.pdf$/);
+  expect(file.suggestedFilename()).toMatch(/^peakless-report-\d{4}-\d{2}-\d{2}\.pdf$/);
 });

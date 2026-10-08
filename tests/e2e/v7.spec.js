@@ -309,6 +309,14 @@ test('when nothing beats the current plan, the answer is to stay — not €0 an
   await boot(page, { has_solar: false, considering_solar: false, count_A: 0, battery_kwh: 0, baseline: cheapest });
   const hero = page.locator('.v7-hero');
   await expect(hero).toContainText('already the best value');
+  // The plan named beside it is another one, never the home's own.
+  const named = await page.evaluate(() => {
+    const p = window.getPlanById(window.state.baseline);
+    const m = document.querySelector('.v7-hero .v7-headline').textContent.match(/The next best is (.+), €[\d,]+ a year more/);
+    return { own: `${p.supplier} ${p.plan}`, next: m && m[1].trim() };
+  });
+  expect(named.next, 'names the next best plan').toBeTruthy();
+  expect(named.next).not.toBe(named.own);
   await expect(page.locator('.v7-switch-btn')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /See every plan compared/ })).toBeVisible();
   // Like for like: today's bill and the same plan's cost carry the same levy.
@@ -444,7 +452,7 @@ test('Profile: the household, each part of the home with its quotes, and the acc
 
   // A guest's account card is behind Account, not in the way.
   await page.evaluate(() => window.setScreen('account'));
-  await expect(page.locator('.screen.account .me-guest')).toContainText('Saved on this phone only');
+  await expect(page.locator('.screen.account .me-guest')).toContainText('Saved on this device only');
 });
 
 test('account sync: screen state stays local, quotes are never lost, the same home is recognised', async ({ page }) => {

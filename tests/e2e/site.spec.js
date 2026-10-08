@@ -37,7 +37,7 @@ test('the mobile app opens at /app with its own start', async ({ page }) => {
 test('the website logo opens the front page, even once set up', async ({ page }) => {
   const { boot } = await import('./support.js');
   await page.setViewportSize({ width: 1440, height: 900 });
-  await boot(page, {}, '/');
+  await boot(page, {}, '/#result');
   await page.locator('.web-logo').click();
   await expect(page.locator('.wl-site')).toBeVisible();
   await page.locator('.wl-bar .wl-btn-p').click();
@@ -68,7 +68,7 @@ test('the setup questions use the full width, in two panes', async ({ page }) =>
 test('no empty gap between the answer and what follows it', async ({ page }) => {
   const { boot } = await import('./support.js');
   await page.setViewportSize({ width: 1850, height: 960 });
-  await boot(page, {}, '/');
+  await boot(page, {}, '/#result');
   const gap = await page.evaluate(() => {
     const next = document.querySelector('.web-after').firstElementChild.getBoundingClientRect().top;
     const above = [...document.querySelectorAll('.screen > *')].map((e) => e.getBoundingClientRect().bottom);
@@ -99,7 +99,7 @@ test('the front page gives a real sample report for an email, and leaves your ow
 test('Everything in Peakless lists every part, and each link goes somewhere', async ({ page }) => {
   const { boot } = await import('./support.js');
   await page.setViewportSize({ width: 390, height: 844 });
-  await boot(page, {}, '/');
+  await boot(page, {}, '/#result');
   await page.locator('.web-menu summary').click();
   await page.locator('.web-menu-list a', { hasText: 'Everything' }).click();
   await expect(page.locator('.web-all-it')).toHaveCount(20);
@@ -110,7 +110,7 @@ test('Everything in Peakless lists every part, and each link goes somewhere', as
 test('the logo on the front page stays on the front page', async ({ page }) => {
   const { boot } = await import('./support.js');
   await page.setViewportSize({ width: 390, height: 844 });
-  await boot(page, {}, '/');
+  await boot(page, {}, '/#result');
   await page.locator('.web-logo').click();
   await expect(page.locator('.wl-site')).toBeVisible();
   await page.locator('.wl-logo').click();

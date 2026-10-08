@@ -145,3 +145,62 @@ test('the quote check starts from the quote given in setup and explains today’
   await page.locator('#aud-price').press('Enter');
   await expect(page.locator('#audit-result')).toContainText(/A fair price|On the high side|Cheaper than most|Well above/);
 });
+
+test('coming back to the website address opens the front page; a page in the address keeps its place', async ({ page }) => {
+  await boot(page, { current_screen: 'solar' }, '/');
+  await expect(page.locator('.wl-site')).toBeVisible();
+  await expect(page.locator('.wl-bar .wl-btn-p')).toHaveText('My answer');
+  await page.goto('/#plans');
+  await page.reload();
+  await page.waitForFunction(() => window.__bootSettled === true, null, { timeout: 10_000 });
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('plans');
+  // The app never opens on its start page for a home that is set up, even
+  // straight after the website's front page.
+  await page.goto('/');
+  await page.waitForFunction(() => window.__bootSettled === true, null, { timeout: 10_000 });
+  await expect(page.locator('.wl-site')).toBeVisible();
+  await page.evaluate(() => window.saveState());
+  await page.goto('/app');
+  await page.waitForFunction(() => window.__bootSettled === true, null, { timeout: 10_000 });
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('result');
+});
+
+test('a plan card says what each figure is, with no minus signs', async ({ page }) => {
+  await boot(page, { current_screen: 'plans', has_solar: true, considering_solar: true, count_A: 16, battery_kwh: 10, baseline: 'BG-24', _plans_all: true });
+  const cards = page.locator('.v7-plan');
+  await expect(cards.first()).toBeVisible();
+  const texts = await page.locator('.v7-plan-cost').allInnerTexts();
+  for (const t of texts) {
+    expect(t, t).not.toMatch(/[-−]\s?€/);
+    expect(t, t).toMatch(/a year/);
+    expect(t, t).toMatch(/(less|more) than now|same as now|what you pay now/);
+  }
+});
+
+test('Bord Gáis is one supplier, not two', async ({ page }) => {
+  await fresh(page, 1280);
+  await page.evaluate(() => { window.siteGo('plans'); window.flowAnswer('bill', 300); window.flowAnswer('meter', 'smart'); window.flowAnswer('area', 'urban'); });
+  const names = await page.locator('.fl-sup').allInnerTexts();
+  expect(names.filter((n) => /Bord G/.test(n))).toHaveLength(1);
+  expect(await page.evaluate(() => [...new Set(window.TARIFFS.filter((p) => /Bord G/.test(p.supplier)).map((p) => p.supplier))])).toEqual(['Bord Gáis Energy']);
+});
+
+test('Updates names the score and says what it is out of', async ({ page }) => {
+  await boot(page, { current_screen: 'updates' });
+  const sum = page.locator('.up-progress > summary');
+  await expect(sum).toContainText('of 100');
+  await expect(sum).toContainText('Savings score');
+  await expect(sum).not.toContainText('points');
+  await sum.click();
+  await expect(page.locator('.up-progress')).toContainText('out of 100');
+});
+
+test('on Updates the bell has no count; elsewhere it shows what is new', async ({ page }) => {
+  const soon = new Date(Date.now() + 10 * 864e5).toISOString().slice(0, 10);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await boot(page, { contract_end: soon, alerts_seen: {} }, '/#result');
+  await expect(page.locator('.web-bell .web-badge')).toBeVisible();
+  await page.evaluate(() => window.setScreen('updates'));
+  await expect(page.locator('.web-bell .web-badge')).toHaveCount(0);
+  await expect(page.locator('.web-links .web-badge')).toHaveCount(0);
+});

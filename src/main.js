@@ -21,7 +21,7 @@ import { BRAND, CONTROLLER, MARK_PATHS, iconDataUri, wordmarkHtml } from './bran
 import { IC, ic } from './icons';
 import FIG from './data/front-figures.json';
 import {
-  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileDays, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
+  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileDays, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, oneSupplierName, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
   outcomeAgainst, sweepSetup, evaluateDesign, finishSweep,
 } from './model';
 
@@ -98,7 +98,7 @@ async function sbInit(){
 }
 
 /* ---- The account copy of the household -----------------------------------
- * Signed in, every save on this phone is also written to the account a few
+ * Signed in, every save on this device is also written to the account a few
  * seconds later, so the same home opens on any device. Signing in on a phone
  * that already has a setup never silently throws one away: an empty account
  * takes the phone's setup, an empty phone takes the account's, the same home
@@ -218,7 +218,7 @@ function handoverKeep(which){
   if (!h) return renderApp();
   if (which === 'cloud') takeRemote(h.remote);
   else { state.solar_quotes = mergeQuotes(state.solar_quotes, h.remote.solar_quotes); saveState(); sbSaveProfile(); }
-  showToast(which === 'cloud' ? 'Opened the setup saved in your account' : "This phone's setup is now saved to your account",
+  showToast(which === 'cloud' ? 'Opened the setup saved in your account' : "This device's setup is now saved to your account",
     { type: 'accent', icon: ic('checkC', 16) });
   renderApp();
 }
@@ -239,16 +239,16 @@ function renderHandoverSheet(){
       <div class="v7-eyebrow">Signed in</div>
       <h2 class="v7-h">Which home should we keep?</h2>
     </div>
-    <p class="me-p">This phone and your account have different homes. Which one is yours? Saved quotes from both are kept.</p>
+    <p class="me-p">This device and your account have different homes. Which one is yours? Saved quotes from both are kept.</p>
     <button class="me-choice" onclick="handoverKeep('local')">
-      <span class="me-choice-tag">On this phone</span>
+      <span class="me-choice-tag">On this device</span>
       <b>${esc(setupSummary(state))}</b>
       <small>Keep this one, and save it to your account</small>
     </button>
     <button class="me-choice" onclick="handoverKeep('cloud')">
       <span class="me-choice-tag">In your account${when ? ` · saved ${when}` : ''}</span>
       <b>${esc(setupSummary(h.remote))}</b>
-      <small>Open this one on this phone</small>
+      <small>Open this one on this device</small>
     </button>`;
 }
 
@@ -379,6 +379,13 @@ function reportOAuthSilence(){
       + 'or this address is missing from its redirect allow-list'), 60);
     return true;
   } catch (e) { return false; }
+}
+
+/** A sign-in coming back to the page: Google, an emailed link, or a password reset. */
+function authReturning(){
+  if (_oauthReturn) return true;
+  try { if (sessionStorage.getItem('oauth_pending')) return true; } catch (e) {}
+  return /[?&](code|error)=/.test(location.search) || /(access_token|error)=/.test(location.hash || '');
 }
 
 function reportOAuthReturn(){
@@ -989,7 +996,7 @@ async function loadTariffs(){
     if (!Array.isArray(data) || data.length === 0) throw new Error('empty');
     const meta = data.find(t => t.id === '__meta__');
     if (meta) window._tariffsMeta = meta;
-    const fetched = data.filter(t => t.id && t.id !== '__meta__' && t.supplier);
+    const fetched = oneSupplierName(data.filter(t => t.id && t.id !== '__meta__' && t.supplier));
 
     // Only report a refresh when the rates actually differ from the ones
     // already loaded. This returned true on every successful fetch, so a normal
@@ -3341,7 +3348,7 @@ function showDay(){
     ${T(4, 130, 'kWh each hour, coloured by price', 'class="mute-t"')}</svg>`;
 }
 /** The example home's four cheapest plans with its 12 panels, from the model's figures. */
-const SUP_SHORT = { 'Electric Ireland': 'EI', 'SSE Airtricity': 'SSE', 'Bord Gáis': 'Bord Gáis', 'Yuno Energy': 'Yuno', 'Community Power': 'Community Power' };
+const SUP_SHORT = { 'Electric Ireland': 'EI', 'SSE Airtricity': 'SSE', 'Bord Gáis Energy': 'Bord Gáis', 'Yuno Energy': 'Yuno', 'Community Power': 'Community Power' };
 const shortPlan = (p) => {
   const n = `${SUP_SHORT[p.supplier] || p.supplier} ${p.plan.replace(/Home Electric ?\+ ?/, '').replace(/^Smart /, '')}`;
   return n.length > 19 ? n.slice(0, 18) + '…' : n;
@@ -3753,7 +3760,7 @@ function renderOnboarding(){
   return `<div class="ob-page">
     <div class="ob-shell">
       <div class="ob-header">
-        <div class="ob-brand">Solar <em>Optimiser</em> · Ireland</div>
+        <div class="ob-brand">${BRAND.name} · Ireland</div>
         <span class="ob-skip" onclick="confirmExitOnboarding()">✕ Exit</span>
       </div>
       <div class="ob-progress">
@@ -6498,7 +6505,7 @@ function renderFlow(){
     ${sbInitialized() && !_sbUser ? `<section class="fl-save">
       <span class="fl-save-ico">${ic('shield', 20)}</span>
       <div><b>Free account (optional)</b>
-        <span>Your home is only saved on this phone. With an account it’s backed up, works on any device, and we’ll tell you when a cheaper plan comes along.</span>
+        <span>Your home is only saved on this device. With an account it’s backed up, works on any device, and we’ll tell you when a cheaper plan comes along.</span>
         <button class="fl-save-link" onclick="flowFinish('save')">Create a free account ${ic('chevR', 14)}</button></div></section>` : ''}`;
   }
   const done = asked.filter((s) => s in f).length;
@@ -7210,7 +7217,7 @@ function requestInstallerQuotes(){
       address: state.address
     }
   });
-  showToast('Saved on this phone. We can’t connect you with installers yet, so copy these details into a quote request.', { type:'blue', icon:ic('info',16) });
+  showToast('Saved on this device. We can’t connect you with installers yet, so copy these details into a quote request.', { type:'blue', icon:ic('info',16) });
 }
 
 /* ============================================================
@@ -7378,7 +7385,7 @@ function renderPlanDetail(){
     </div>
 
     <p class="disclaimer">
-      <b>Editing rates:</b> Change a rate here to try “what if”. It only affects this plan, on this phone. Tap Reset to go back.
+      <b>Editing rates:</b> Change a rate here to try “what if”. It only affects this plan, on this device. Tap Reset to go back.
     </p>
   </div>
   ${bottomNav()}`;
@@ -8171,7 +8178,7 @@ async function doGeneratePdf(email){
       }
     } catch (e) { console.warn('Report font not loaded', e); }
     renderReport(doc, data);
-    const how = await deliverPdf(doc, 'solar-optimiser-report-' + new Date().toISOString().slice(0,10) + '.pdf');
+    const how = await deliverPdf(doc, 'peakless-report-' + new Date().toISOString().slice(0,10) + '.pdf');
     if (how === 'cancelled') return;
     showToast(
       how === 'shared' ? 'Report ready. Choose where to save it.'
@@ -8282,7 +8289,7 @@ function downloadTextReport(email){
   const blob = new Blob([L.join('\n')], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'solar-optimiser-' + new Date().toISOString().slice(0,10) + '.txt'; a.rel = 'noopener';
+  a.href = url; a.download = 'peakless-' + new Date().toISOString().slice(0,10) + '.txt'; a.rel = 'noopener';
   document.body.appendChild(a); a.click();
   setTimeout(() => { try { document.body.removeChild(a); } catch(_){} URL.revokeObjectURL(url); }, 5000);
   showToast('Couldn’t make the PDF here, so we saved a text version to Downloads', { type:'blue', icon:ic('doc',16), title:'Text report saved' });
@@ -9060,7 +9067,7 @@ function submitModalEmail(source){
   captureEmail(email, source);
   closeEmailModal();
   if (source === 'installer_quotes'){
-    showToast('Saved on this phone. We can’t connect you with installers yet.');
+    showToast('Saved on this device. We can’t connect you with installers yet.');
   } else {
     showToast('Thanks. We’ll email you the report.');
   }
@@ -9388,7 +9395,7 @@ function renderIndependence(){
     ['green', ic('plans',19), 'Rankings','The plan that saves you most is always first, whether we earn from it or not.'],
     ['blue', ic('swap',19), 'Switching','If a supplier pays us when you switch, we say so on that plan. Your price is the same, and the ranking doesn’t change.'],
     ['blue', ic('sun',19), 'Installer quotes','If you ask for installer quotes, installers pay us for the introduction. It never affects rankings or what we say about a quote.'],
-    ['green', ic('shield',19), 'Your data','Your usage stays on your phone. We only share your contact details when you ask us to.'],
+    ['green', ic('shield',19), 'Your data','Your usage stays on your device. We only share your contact details when you ask us to.'],
   ];
   return `${topbar('How we make money', 'blue', true)}
   <div class="screen">
@@ -9631,7 +9638,7 @@ function renderCompareTable(selIds){
 /* ── MY PEAKLESS ───────────────────────────────────────────────
  * The household in one place: the home, the system and the car it was
  * built from, what the app found, the quotes kept and the requests sent.
- * A guest gets the same page, saved on this phone, with the one thing an
+ * A guest gets the same page, saved on this device, with the one thing an
  * account adds said plainly. */
 /** What the home's current plan costs it as modelled — panels, battery and
  *  car included, export credited. The same figure the Plans tab shows, so
@@ -9914,6 +9921,8 @@ function realityChecks(){
  * so the score always has somewhere to go and says how to get there.
  */
 const SCORE_LEVELS = [[0, 'Starter'], [40, 'Saver'], [65, 'Smart saver'], [85, 'Peakless']];
+/** "a, b and c" */
+function andList(a){ return a.length > 1 ? `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}` : (a[0] || ''); }
 const PLAN_GAP_OK = 50;   // €/yr: closer than this to the cheapest counts as the best plan
 
 function householdScore(){
@@ -10013,7 +10022,7 @@ function renderMeterSheet(){
     <label class="v7-cta-2 ms-pick">${ic('csv', 16)} Choose the file
       <input id="csv-file-input" type="file" accept=".csv,.CSV" onchange="handleCsvFile(event)" hidden></label>
     <div id="csv-parse-result"></div>
-    <div class="v7-fine">The file stays on this phone, and in your account if you’re signed in. Less than a year is fine.</div>`;
+    <div class="v7-fine">The file stays on this device, and in your account if you’re signed in. Less than a year is fine.</div>`;
 }
 
 /**
@@ -10064,7 +10073,7 @@ function checkScoreRise(){
     // was getting "+1 points" with no idea what it meant.
     if (_scoreSeen != null && sc > _scoreSeen && state.score_seen){
       const a = scoreLevel(_scoreSeen), b = scoreLevel(sc);
-      showToast(b.name !== a.name ? `Level up: ${b.name}. Your score is ${sc}.` : `Your score is now ${sc}.`,
+      showToast(b.name !== a.name ? `Level up: ${b.name}. Your savings score is ${sc} of 100.` : `Your savings score is now ${sc} of 100.`,
         { type: 'accent', icon: ic('spark', 16), title: `+${sc - _scoreSeen} points` });
     }
     _scoreSeen = sc;
@@ -10096,7 +10105,7 @@ function renderScoreBlock(opts = {}){
   const checks = realityChecks();
   return `<section class="gm">
     <div class="gm-top">
-      <div class="sc-ring ${tone}" style="--p:${Math.max(3, sc.score)}"><b>${sc.score}</b><small>points</small></div>
+      <div class="sc-ring ${tone}" style="--p:${Math.max(3, sc.score)}"><b>${sc.score}</b><small>of 100</small></div>
       <div class="gm-level">
         <span class="gm-level-name ${tone}">${lv.name}</span>
         ${lv.next ? `<small>${lv.toNext} point${lv.toNext === 1 ? '' : 's'} to <b>${lv.next}</b></small>
@@ -10104,6 +10113,7 @@ function renderScoreBlock(opts = {}){
       </div>
     </div>
     <div class="gm-parts">${sc.parts.map((p) => `<span class="gm-part"><b>${p.pts}</b>/${p.max} ${p.label.toLowerCase()}</span>`).join('')}</div>
+    <p class="v7-fine">Your savings score, out of 100: how much your home already does of what saves money (${andList(sc.parts.map((p) => p.label.toLowerCase()))}). The right plan counts most. Each to-do says how many points it adds.</p>
 
     ${sc.quests.length && !opts.noQuests ? `<div class="gm-h">Next challenges</div>
     ${sc.quests.map((q, qi) => `<button class="gm-q ${(state._quest_sel ?? 0) === qi ? 'is-sel' : ''}" onclick="state._quest_sel=${qi};v7Sheet('quest','${qi}')">
@@ -10729,7 +10739,7 @@ function renderMe(){
       </section>`
     : `<section class="me-head me-guest">
         <div class="me-guest-top">${wordmarkHtml('pk-word-top')}<span class="me-badge">Guest</span></div>
-        <p class="me-p">Your home is only saved on this phone. A free account backs it up and opens it on any device. Rankings are the same either way.</p>
+        <p class="me-p">Your home is only saved on this device. A free account backs it up and opens it on any device. Rankings are the same either way.</p>
         ${sbInitialized() ? `<div class="me-auth">
           <button class="v7-cta-2" onclick="meOpenAuth('signup')">Create a free account</button>
           <button class="me-ghost" onclick="meOpenAuth('login')">I have an account</button>
@@ -10750,7 +10760,7 @@ function renderMe(){
   return `${topbar('My ' + BRAND.name, 'sage', true)}
   <div class="screen me">
     ${head}
-    ${_handover ? `<button class="me-warn" onclick="v7Sheet('handover')">${ic('warn', 16)} This phone and your account have different homes. Choose which to keep. </button>` : ''}
+    ${_handover ? `<button class="me-warn" onclick="v7Sheet('handover')">${ic('warn', 16)} This device and your account have different homes. Choose which to keep. </button>` : ''}
 
     ${state.onboarding_complete ? `<div class="section-title">Alerts${unseenAlerts().length ? ` <span class="al-count">${unseenAlerts().length} new</span>` : ''}</div>
     ${renderAlertsBlock()}
@@ -10783,14 +10793,14 @@ function renderMe(){
     <div class="section-title">Settings and more</div>
     <section class="me-list">
       <button class="me-row me-link" onclick="reRunOnboarding()"><span><b>Re-run setup</b><small>Go through the setup questions again, starting from your answers</small></span>${ic('chevR', 16)}</button>
-      <button class="me-row me-link" onclick="startFresh()"><span><b>Start fresh</b><small>Signs you out and clears this phone</small></span>${ic('chevR', 16)}</button>
+      <button class="me-row me-link" onclick="startFresh()"><span><b>Start fresh</b><small>Signs you out and clears this device</small></span>${ic('chevR', 16)}</button>
       <button class="me-row me-link" onclick="setScreen('more')"><span><b>Settings, help and more</b><small>Advanced settings, appearance, privacy, how to switch, methodology</small></span>${ic('chevR', 16)}</button>
     </section>
 
     ${signedIn ? `<div class="section-title">Account</div>
     <section class="me-list">
       <button class="me-row me-link" onclick="setScreen('privacy')"><span><b>Privacy and your data</b><small>What we keep, download or delete it</small></span>${ic('chevR', 16)}</button>
-      <button class="me-row me-link" onclick="doSignOut()"><span><b>Sign out</b><small>Your setup stays on this phone and in your account</small></span>${ic('chevR', 16)}</button>
+      <button class="me-row me-link" onclick="doSignOut()"><span><b>Sign out</b><small>Your setup stays on this device and in your account</small></span>${ic('chevR', 16)}</button>
     </section>` : ''}
 
     <!-- Last on the page: when signed in it arrives a moment after the rest,
@@ -10845,9 +10855,9 @@ function renderUpdates(){
   const news = feed.filter((a) => a.kind !== 'quest'), todo = feed.filter((a) => a.kind === 'quest');
   return `${topbar('Updates', 'sage')}
   <div class="screen me updates">
-    ${_handover ? `<button class="me-warn" onclick="v7Sheet('handover')">${ic('warn', 16)} This phone and your account have different homes. Choose which to keep.</button>` : ''}
+    ${_handover ? `<button class="me-warn" onclick="v7Sheet('handover')">${ic('warn', 16)} This device and your account have different homes. Choose which to keep.</button>` : ''}
     <details class="up-progress">
-      <summary><span class="up-score"><b>${sc.score}</b> points · ${lv.name}</span><span>${perYear > 0 ? `${eur(perYear)} a year saved so far` : 'Your progress'}</span>${ic('chevD', 16)}</summary>
+      <summary><span class="up-score"><b>${sc.score}</b> of 100<small>Savings score · ${lv.name}</small></span><span>${perYear > 0 ? `${eur(perYear)} a year saved so far` : 'Your progress'}</span>${ic('chevD', 16)}</summary>
       ${renderTallyBlock()}
       ${renderScoreBlock({ noQuests: true })}
     </details>
@@ -10900,7 +10910,7 @@ function renderAccount(){
     ? `<section class="me-head"><div class="me-avatar" aria-hidden="true">${esc((name || '?').slice(0, 1).toUpperCase())}</div>
         <div class="me-who"><b>${esc(name)}</b><small>${esc(_sbUser.email || '')}</small><small class="me-sync" id="me-sync">${ic('checkC', 12)} ${esc(syncLine())}</small></div></section>`
     : `<section class="me-head me-guest"><div class="me-guest-top">${wordmarkHtml('pk-word-top')}<span class="me-badge">Guest</span></div>
-        <p class="me-p">Saved on this phone only. A free account backs it up and works on any device.</p>
+        <p class="me-p">Saved on this device only. A free account backs it up and works on any device.</p>
         ${sbInitialized() ? `<div class="me-auth"><button class="v7-cta-2" onclick="meOpenAuth('signup')">Create a free account</button><button class="me-ghost" onclick="meOpenAuth('login')">I have an account</button></div>` : ''}</section>`;
   const link = (go, title, sub) => `<button class="me-row me-link" onclick="${go}"><span><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span>${ic('chevR', 16)}</button>`;
   return `${topbar('Account', 'sage', true)}
@@ -10913,8 +10923,8 @@ function renderAccount(){
       ${link("setScreen('more')", 'Settings and help', 'Appearance, advanced, methodology')}
     </section>
     <section class="me-list">
-      ${signedIn ? link('doSignOut()', 'Sign out', 'Your home stays on this phone and in your account') : ''}
-      ${link('startFresh()', 'Start fresh', 'Clears this phone')}
+      ${signedIn ? link('doSignOut()', 'Sign out', 'Your home stays on this device and in your account') : ''}
+      ${link('startFresh()', 'Start fresh', 'Clears this device')}
     </section>
   </div>
   ${bottomNav()}`;
@@ -10949,7 +10959,7 @@ function renderMore(){
   <div class="screen">
     <button class="me-entry" onclick="setScreen('profile')">
       <span class="me-avatar" aria-hidden="true">${_sbUser ? esc(((_sbProfile && _sbProfile.display_name) || _sbUser.email || '?').slice(0, 1).toUpperCase()) : ic('home', 18)}</span>
-      <span class="me-who"><b>My ${BRAND.name}</b><small>${(() => { const n = unseenAlerts().length; return n ? `${n} new alert${n > 1 ? 's' : ''} · ` : ''; })()}${_sbUser ? 'Your home, savings, alerts and quotes' : 'Your home, savings and quotes · saved on this phone'}</small></span>
+      <span class="me-who"><b>My ${BRAND.name}</b><small>${(() => { const n = unseenAlerts().length; return n ? `${n} new alert${n > 1 ? 's' : ''} · ` : ''; })()}${_sbUser ? 'Your home, savings, alerts and quotes' : 'Your home, savings and quotes · saved on this device'}</small></span>
       ${unseenAlerts().length ? `<i class="me-entry-badge" aria-hidden="true">${unseenAlerts().length}</i>` : ''}
       ${ic('chevR', 16)}
     </button>
@@ -10987,7 +10997,7 @@ function renderMore(){
       </div>`)).join('')}
     </details>
     <div style="font-size:13px;color:var(--ink-dim);text-align:center;margin-top:18px;line-height:1.7">
-      ${BRAND.name} · Ireland<br>${_sbUser ? 'Your setup is saved on this phone and in your account.' : 'Your data stays on this phone.'}
+      ${BRAND.name} · Ireland<br>${_sbUser ? 'Your setup is saved on this device and in your account.' : 'Your data stays on this device.'}
       <!-- Which build you are actually running. A fix can be deployed and
            verified and still not be what is on someone's phone: the installed
            app caches the page, and an offline or flaky load falls back to that
@@ -11568,7 +11578,7 @@ function renderPrivacy(){
   return `${topbar('Privacy', 'accent', true)}
   <div class="screen">
     <div class="card"><div class="privacy-copy">
-      <p><b>Short version.</b> Your home stays on this phone unless you sign in. We only share your details with installers when you ask for quotes. No ads, and we never sell your data.</p>
+      <p><b>Short version.</b> Your home stays on this device unless you sign in. We only share your details with installers when you ask for quotes. No ads, and we never sell your data.</p>
 
       <h3>Who we are</h3>
       <p>${BRAND.name} is run by ${who}. We are the controller of your personal data. Contact: ${mail}.</p>
@@ -11577,7 +11587,7 @@ function renderPrivacy(){
       <table class="privacy-table">
         <thead><tr><th>What</th><th>Why (legal basis)</th><th>Kept</th></tr></thead>
         <tbody>
-          ${row('Your home answers and results, on this phone', 'To give you the answer. Never sent to us unless you sign in', 'Until you clear them')}
+          ${row('Your home answers and results, on this device', 'To give you the answer. Never sent to us unless you sign in', 'Until you clear them')}
           ${row('Account: email, name, home answers', 'To keep your home on every device (contract)', 'Until you delete the account')}
           ${row('Quote request: name, email, phone, county, system', 'To get you installer quotes (your consent)', '24 months')}
           ${row('Alert emails', 'You turned them on (consent)', 'Until you turn them off')}
@@ -11615,7 +11625,7 @@ function renderPrivacy(){
         <div class="secondary-card-sub">Everything held about you, as a file</div></div><div class="secondary-card-arrow">›</div>
     </div>
     <div class="secondary-card" onclick="clearThisDevice()">
-      <div class="secondary-card-body"><div class="secondary-card-title">Clear everything on this phone</div>
+      <div class="secondary-card-body"><div class="secondary-card-title">Clear everything on this device</div>
         <div class="secondary-card-sub">Your setup, saved quotes and settings</div></div><div class="secondary-card-arrow">›</div>
     </div>
     ${_sbUser ? `<div class="secondary-card" onclick="deleteMyAccount()">
@@ -11626,7 +11636,7 @@ function renderPrivacy(){
   ${bottomNav()}`;
 }
 
-/** Right of access and portability: what this phone and the account hold, as one JSON file. */
+/** Right of access and portability: what this device and the account hold, as one JSON file. */
 async function downloadMyData(){
   const out = { exported_at: new Date().toISOString(), app: BRAND.name, on_this_phone: cloudCopy(state) };
   if (_sb && _sbUser){
@@ -11642,7 +11652,7 @@ async function downloadMyData(){
 }
 /** Back to the very first screen: signs out (so the account can't restore it) and clears this device. */
 async function startFresh(){
-  if (!confirm('Start fresh? This signs you out and clears everything on this phone. Your account keeps its saved copy.')) return;
+  if (!confirm('Start fresh? This signs you out and clears everything on this device. Your account keeps its saved copy.')) return;
   try { if (_sb && _sbUser) await _sb.auth.signOut(); } catch (e) {}
   try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
   location.replace(location.pathname);
@@ -12960,12 +12970,20 @@ document.addEventListener('DOMContentLoaded', () => {
       state.onboarding_complete = false; delete state.auditor_entry; state.current_screen = 'welcome'; saveState();
     }
     // Sprint 2 H5 — try to restore shared URL state before anything else
-    tryRestoreFromUrl();
+    const _shared = tryRestoreFromUrl();
     // Reopen the screen named in the URL hash (bookmark, refresh, or a Back
     // that landed on our first entry) rather than always dropping on Home.
     if (state.onboarding_complete){
       const _h = _hashScreen();
       if (_h) state.current_screen = _h;
+      // The website's address on its own, typed in or bookmarked, opens the
+      // front page, not wherever the last visit ended: the answer is one click
+      // away under "My answer". A shared link, setup under way, or a sign-in
+      // on its way back keeps its place.
+      else if (WEB && !_shared && !/^#(flow|go-)/.test(location.hash) && !authReturning()) state.current_screen = 'welcome';
+      // The app opens on the answer, even when the website's front page was
+      // the last thing shown.
+      else if (!WEB && state.current_screen === 'welcome') state.current_screen = 'result';
     }
     // A way in chosen on the website: open the app at that setup.
     const _go = (location.hash || '').match(/^#go-(quick|full|meter|quote)$/);
@@ -13100,7 +13118,7 @@ const SWITCH_GUIDES = {
     name: 'Electric Ireland',
     color: 'var(--blue)',
     steps: [
-      { icon: ic('globe',18), title: 'Go to Electric Ireland', body: 'Visit <b>electricireland.ie</b> → click "Switch" in the nav. Use the UTM-tagged link below to ensure they know you came via Peakless Optimiser.' },
+      { icon: ic('globe',18), title: 'Go to Electric Ireland', body: 'Visit <b>electricireland.ie</b> → click "Switch" in the nav. Use the UTM-tagged link below to ensure they know you came via Peakless.' },
       { icon: ic('clip',18), title: 'Get your MPRN', body: 'Your MPRN is on your electricity bill. It’s 11 digits and starts with 10. You’ll need it to switch.' },
       { icon: ic('clock',18), title: 'Allow 10–15 days', body: 'Electric Ireland takes 2–3 weeks. They tell your old supplier, so you don’t need to cancel.' },
       { icon: ic('phone',18), title: 'No engineer needed', body: 'No engineer visit. Your meter stays the same.' },
@@ -13829,7 +13847,7 @@ function renderMethodology(){
       <div class="card-label">${ic('link',13)} Independence &amp; revenue</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.75;margin-top:6px">
         Plans are ranked only by what you’d pay. If a supplier pays us when you switch, we say so on that plan. Your price is the same. Installers pay us when you ask them for a quote.<br><br>
-        We don’t sell your data. Your home stays on your phone unless you sign in.
+        We don’t sell your data. Your home stays on your device unless you sign in.
       </div>
     </div>
 
@@ -13994,7 +14012,7 @@ function openPdfReportModal(){
       <input id="pdf-email" class="modal-input" type="email" placeholder="you@example.com (optional)" autocomplete="email" value="${state.user_email || ''}">
       <button class="modal-btn" id="pdf-submit-btn" onclick="submitPdfRequest()">Download PDF →</button>
       <button class="modal-skip" onclick="closePdfModal(); doGeneratePdf('')">Download only (no email)</button>
-      <div class="modal-privacy" style="margin-top:8px">The PDF is made on your phone.</div>
+      <div class="modal-privacy" style="margin-top:8px">The PDF is made on your device.</div>
     </div>`;
   m.onclick = closePdfModal;
   document.body.appendChild(m);

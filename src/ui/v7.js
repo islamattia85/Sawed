@@ -71,7 +71,8 @@ export function createV7(api) {
   function webLinks() {
     const st = S();
     const cur = st.current_screen === 'analytics' && st._an_tab === 'solar' ? 'solar' : st.current_screen;
-    const n = api.alertCount();
+    // On Updates the news is on the page: no count asking you to go there.
+    const n = cur === 'updates' ? 0 : api.alertCount();
     return `<a class="web-logo" href="/" onclick="event.preventDefault();state._sheet=null;state.current_screen='welcome';renderApp();scrollTo(0,0)" aria-label="Peakless front page"><span class="v7-brand-mark web-logo-ico">${api.ic('logo', 22, 'stroke-width:1.6')}</span>${api.wordmark('pk-word-top')}</a>
     <nav class="web-links" aria-label="Main">${WEB_LINKS.map((l) => {
       const on = l.screens.includes(cur);
@@ -102,13 +103,14 @@ export function createV7(api) {
   function nav() {
     const cur = S().current_screen;
     const active = (V7_SURFACES.find((s) => s.screens.includes(cur)) || {}).id;
+    const n = cur === 'updates' ? 0 : api.alertCount();
     return `${api.renderConsentBar()}<nav class="bottom-nav v7-nav" role="navigation" aria-label="Sections">
       ${V7_SURFACES.map((s) => {
         const go = navGo(s.id, cur);
         return `
         <button class="bottom-nav-item v7-nav-item ${active === s.id ? 'active' : ''}"
           onclick="${go}" aria-current="${active === s.id ? 'page' : 'false'}">
-          <span class="nav-ico">${api.ic(s.icon, 22)}${s.id === 'updates' && api.alertCount() ? `<i class="nav-badge" aria-label="${api.alertCount()} new alerts">${api.alertCount()}</i>` : ''}</span>
+          <span class="nav-ico">${api.ic(s.icon, 22)}${s.id === 'updates' && n ? `<i class="nav-badge" aria-label="${n} new alert${n > 1 ? 's' : ''}">${n}</i>` : ''}</span>
           <span class="nav-label">${s.label}</span>
         </button>`;
       }).join('')}
@@ -251,10 +253,16 @@ export function createV7(api) {
     // When nothing on the market beats the plan this home is on, the answer
     // is "stay" — not a €0 saving with a button to switch to something dearer.
     let stay = saving < 20 && !chosen;
+    // The plan to name beside "stay" is another one: the best was often the
+    // home's own plan, which read as "the closest is your plan, €0 more".
+    const next = stay && !pl ? (rec.ranked || []).find((r) => r.plan.id !== st.baseline) : null;
+    const gap = next ? Math.round(next.net - mineNow) : 0;
     let hero = stay ? `
-        <div class="v7-eyebrow">Your plan is already the best value</div>
+        <div class="v7-eyebrow">${gap >= 0 ? 'Your plan is already the best value' : 'Your plan is as good as any'}</div>
         <div class="qr-value v7-figure"><span>${api.fmtCurrency(mineNow)}</span><span class="v7-figure-unit">a year where you are</span></div>
-        <div class="v7-headline">No plan on the market costs less for this home. The closest is <b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}, ${eur(Math.max(0, -saving))} a year more.</div>`
+        <div class="v7-headline">${!next ? 'No plan on the market costs less for this home.'
+          : gap >= 0 ? `No plan on the market costs less for this home. The next best is <b>${esc(next.plan.supplier)}</b> ${esc(next.plan.plan)}, ${eur(gap)} a year more.`
+          : `<b>${esc(next.plan.supplier)}</b> ${esc(next.plan.plan)} would save only ${eur(-gap)} a year: not worth a switch.`}</div>`
       : `
         <div class="v7-eyebrow">${pl ? 'Switch plan and add your planned solar to save' : saving > 10 ? (withSolar ? 'Switching plan saves, with your solar' : 'You could pay less') : 'Your best plan'}</div>
         <div class="qr-value v7-figure ${saving > 10 ? 'is-saving' : ''}" data-countup="${Math.round(Math.max(0, saving))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, saving))}</span><span class="v7-figure-unit">${saving > 10 ? 'less a year' : 'a year'}</span></div>
@@ -571,6 +579,15 @@ export function createV7(api) {
     return m ? { pct: m[1], months: m[2] ? 12 : null } : null;
   }
 
+  /**
+   * A plan's year in words. Below zero the plan pays the home (export pay
+   * beats the bill), which a minus sign beside another minus sign never said.
+   */
+  function yearWords(cost, html) {
+    const s = (t) => (html ? `<small>${t}</small>` : t);
+    return cost < -0.5 ? `${s('paid')} ${api.fmtCurrency(-cost)} ${s('a year')}` : `${api.fmtCurrency(Math.max(0, cost))} ${s('a year')}`;
+  }
+
   function plans() {
     const st = S();
     const d = api.plansData();
@@ -615,13 +632,15 @@ export function createV7(api) {
           <div class="v7-plan-head">
             <span class="v7-rank">${r.onHold ? '—' : isChosen ? '✓' : rank}</span>
             <div class="v7-plan-names">
-              <button type="button" class="v7-plan-open" onclick="event.stopPropagation(); v7Sheet('plan','${r.plan.id}')" aria-label="${esc(r.plan.supplier)} ${esc(r.plan.plan)}, ${api.fmtCurrency(r.cost)} a year. Details"></button>
+              <button type="button" class="v7-plan-open" onclick="event.stopPropagation(); v7Sheet('plan','${r.plan.id}')" aria-label="${esc(r.plan.supplier)} ${esc(r.plan.plan)}, ${yearWords(r.cost)}. Details"></button>
               <div class="plan-supplier">${esc(r.plan.supplier)}${isCurrent ? ' <span class="v7-tag">yours now</span>' : ''}${isBest ? ' <span class="v7-tag is-best">best</span>' : ''}</div>
               <div class="plan-name">${esc(r.plan.plan)}</div>
             </div>
             <div class="v7-plan-cost">
-              <div class="plan-cost">${api.fmtCurrency(r.cost)}</div>
-              ${isCurrent ? '<div class="v7-plan-delta">today</div>' : `<div class="v7-plan-delta ${saving > 0 ? 'is-gain' : 'is-loss'}">${saving > 0 ? '−' : '+'}${api.fmtCurrency(Math.abs(saving))}</div>`}
+              <div class="plan-cost">${yearWords(r.cost, true)}</div>
+              ${isCurrent ? '<div class="v7-plan-delta">what you pay now</div>'
+                : Math.abs(saving) < 0.5 ? '<div class="v7-plan-delta">same as now</div>'
+                : `<div class="v7-plan-delta ${saving > 0 ? 'is-gain' : 'is-loss'}">${api.fmtCurrency(Math.abs(saving))} ${saving > 0 ? 'less' : 'more'} than now</div>`}
             </div>
           </div>
           ${meta ? `<div class="v7-meta">${meta}</div>` : ''}
@@ -1460,8 +1479,8 @@ export function createV7(api) {
         <div class="v7-muted">${esc(plan.plan)}</div>
       </div>
       <div class="v7-sheet-figs">
-        <div><div class="v7-fig">${api.fmtCurrency(c.net)}</div><div class="v7-fig-sub">a year on your home</div></div>
-        <div><div class="v7-fig ${saving > 0 ? 'is-gain' : 'is-loss'}">${saving > 0 ? '−' : '+'}${api.fmtCurrency(Math.abs(saving))}</div><div class="v7-fig-sub">vs your plan now</div></div>
+        <div><div class="v7-fig">${api.fmtCurrency(Math.abs(c.net) < 0.5 ? 0 : Math.abs(c.net))}</div><div class="v7-fig-sub">${c.net < -0.5 ? 'paid to you a year, on your home' : 'a year on your home'}</div></div>
+        <div><div class="v7-fig ${Math.abs(saving) < 0.5 ? '' : saving > 0 ? 'is-gain' : 'is-loss'}">${api.fmtCurrency(Math.abs(saving) < 0.5 ? 0 : Math.abs(saving))}</div><div class="v7-fig-sub">${Math.abs(saving) < 0.5 ? 'difference from your plan now' : saving > 0 ? 'less than your plan now' : 'more than your plan now'}</div></div>
       </div>
       <div class="v7-card-title">Its day</div>
       ${rateStrip({ bands: BANDS24(plan), rates: plan.rates, height: 22 })}

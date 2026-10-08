@@ -44,7 +44,7 @@ test('website: a plan opens beside the list, not over it', async ({ page }) => {
 
 test('website: My home is a page with the answers and Start over', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await boot(page, {}, '/');
+  await boot(page, {}, '/#result');
   await page.evaluate(() => window.v7Sheet('home'));
   await expect(page.locator('#v7-sheet')).toHaveCount(0);
   await expect(page.locator('#wh-home')).toBeVisible();
@@ -68,7 +68,7 @@ test('the mobile app at /app keeps the bottom bar and no top menu, even on a com
 
 test('website on a phone: menu button, no bottom bar, every page reachable', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await boot(page, { has_solar: true, solar_planned: true, battery_kwh: 9 }, '/');
+  await boot(page, { has_solar: true, solar_planned: true, battery_kwh: 9 }, '/#result');
   await expect(page.locator('.v7-nav')).toBeHidden();
   await page.locator('.web-menu summary').click();
   await page.locator('.web-menu-list a', { hasText: 'Plans' }).click();
