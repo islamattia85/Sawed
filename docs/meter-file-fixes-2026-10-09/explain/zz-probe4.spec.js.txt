@@ -1,0 +1,19 @@
+// Scratch probe (not committed): which path builds the no-solar home's hours for a battery file.
+import { test } from '@playwright/test';
+import { writeFileSync } from 'node:fs';
+import { SCENARIOS, runScenario } from './run-scenario.js';
+const OUT = process.env.PROBE_OUT;
+test('probe4', async ({ page }) => {
+  test.setTimeout(180_000);
+  await runScenario(page, SCENARIOS.find((s) => s.id === 'B2-hp_solar_batt'));
+  const p = await page.evaluate(() => {
+    const s = window.state, sh = s._csv_hourly_shape;
+    const nightOf = (a) => { let n = 0, t = 0; a.forEach((v, h) => { t += v; if (h >= 23 || h < 8) n += v; }); return +(n / t * 100).toFixed(1); };
+    const inWhatIf = window.withSimState({ has_solar: false, count_A: 0, count_B: 0, battery_kwh: 0 }, () => {
+      const c = window.CACHE.cons, day = Array.from(c.slice(15 * 24, 16 * 24)).map((v) => +v.toFixed(3));
+      return { basis: window.fileBasis(), jan16: day };
+    });
+    return { csvShapeNightPct: sh ? nightOf(sh) : null, inWhatIf, meterJan16: (s.meter.days['2026-01-16'] || []).slice(0, 24) };
+  });
+  writeFileSync(`${OUT}/probe4.json`, JSON.stringify(p, null, 1));
+});

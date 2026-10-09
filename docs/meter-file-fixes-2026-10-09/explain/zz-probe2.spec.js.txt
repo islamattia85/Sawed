@@ -1,0 +1,28 @@
+// Scratch probe (not committed): solar hour alignment and battery use by band.
+import { test } from '@playwright/test';
+import { writeFileSync } from 'node:fs';
+import { SCENARIOS, runScenario } from './run-scenario.js';
+const OUT = process.env.PROBE_OUT;
+for (const id of ['A1-gas', 'B1a-friend']) {
+  test(`probe2 ${id}`, async ({ page }) => {
+    test.setTimeout(180_000);
+    await runScenario(page, SCENARIOS.find((s) => s.id === id));
+    const p = await page.evaluate(() => {
+      const C = window.CACHE, s = window.state;
+      const day = (d) => Array.from(C.solar.total.slice(d * 24, d * 24 + 24)).map((v) => +v.toFixed(2));
+      const peak = (d) => { const a = day(d); return a.indexOf(Math.max(...a)); };
+      const out = { june21: day(171), june21_peak_hour_index: peak(171), dec21_peak_hour_index: peak(354), consJune21: Array.from(C.cons.slice(171 * 24, 171 * 24 + 24)).map((v) => +v.toFixed(2)) };
+      if (s.battery_kwh > 0) {
+        out.batt = window.withSimState({ strategy_mode: 'self-consume', charge_from_grid: false }, () => {
+          const r = window.getRecommendation().ranked.find((x) => x.plan.id === 'EI-SST'); const m = r.sim;
+          const by = {}; let ch = 0, dis = 0, imp = 0, exp = 0;
+          for (let i = 0; i < m.grid_import.length; i++) { const b = m.band[i]; by[b] = by[b] || { imp: 0, dis: 0, cons: 0 }; by[b].imp += m.grid_import[i]; by[b].dis += m.battery_discharge[i]; by[b].cons += m.cons[i]; ch += m.battery_charge[i]; dis += m.battery_discharge[i]; imp += m.grid_import[i]; exp += m.grid_export[i]; }
+          for (const b in by) for (const k in by[b]) by[b][k] = Math.round(by[b][k]);
+          return { cap: s.battery_kwh, eff: s.battery_eff, min: s.battery_min, max: s.battery_max, charged: Math.round(ch), discharged: Math.round(dis), imp: Math.round(imp), exp: Math.round(exp), byBand: by, net: Math.round(r.net), rev: Math.round(r.export_revenue), tax: Math.round(r.export_tax || 0) };
+        });
+      }
+      return out;
+    });
+    writeFileSync(`${OUT}/${id}-p2.json`, JSON.stringify(p, null, 1));
+  });
+}

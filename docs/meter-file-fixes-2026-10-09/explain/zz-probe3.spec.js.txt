@@ -1,0 +1,20 @@
+// Scratch probe (not committed): the hours of the worked-back home, and the app's panels for a 6 kWp system.
+import { test } from '@playwright/test';
+import { writeFileSync } from 'node:fs';
+import { SCENARIOS, runScenario } from './run-scenario.js';
+const OUT = process.env.PROBE_OUT;
+for (const id of ['B2-hp_solar_batt', 'B5-hp_solar_gridfill', 'A2-heatpump']) {
+  test(`probe3 ${id}`, async ({ page }) => {
+    test.setTimeout(180_000);
+    const sc = SCENARIOS.find((s) => s.id === id);
+    await runScenario(page, id === 'A2-heatpump' ? { ...sc, override: { count_A: 13, panel_w: 6000 / 13 } } : sc);
+    const p = await page.evaluate(() => {
+      const night = () => { const c = window.CACHE.cons; let n = 0, t = 0, win = 0, winN = 0;
+        for (let i = 0; i < c.length; i++) { const h = i % 24, d = Math.floor(i / 24); t += c[i]; if (h >= 23 || h < 8) n += c[i]; if (d < 59 || d >= 304) { win += c[i]; if (h >= 23 || h < 8) winN += c[i]; } }
+        return { total: Math.round(t), night_pct: +(n / t * 100).toFixed(1), winter_night_pct: +(winN / win * 100).toFixed(1) }; };
+      const gen = () => { let g = 0; for (const v of window.CACHE.solar.total) g += v; return Math.round(g); };
+      return { noSolar: window.withSimState({ has_solar: false, count_A: 0, count_B: 0, battery_kwh: 0 }, night), asIs: night(), gen: gen(), gsc: window.state.grid_charge_now, cfg: window.state.charge_from_grid, strat: window.state.strategy_mode };
+    });
+    writeFileSync(`${OUT}/${id}-p3.json`, JSON.stringify(p, null, 1));
+  });
+}

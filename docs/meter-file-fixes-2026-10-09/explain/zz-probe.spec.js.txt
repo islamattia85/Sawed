@@ -1,0 +1,26 @@
+// Scratch probe (not committed): what the app's simulation says, for the explanations.
+import { test } from '@playwright/test';
+import { writeFileSync } from 'node:fs';
+import { SCENARIOS, runScenario } from './run-scenario.js';
+const IDS = (process.env.PROBE_IDS || '').split(',').filter(Boolean);
+const OUT = process.env.PROBE_OUT;
+for (const id of IDS) {
+  test(`probe ${id}`, async ({ page }) => {
+    test.setTimeout(180_000);
+    const sc = SCENARIOS.find((s) => s.id === id);
+    const r = await runScenario(page, sc);
+    const p = await page.evaluate(() => {
+      const s = window.state, ev = !!s.ev_active, sumF = (a) => { let t = 0; for (const v of a) t += v; return t; };
+      const pick = (o) => ({ cost: Math.round(o.annualCost), plan: o.bestPlanId, gen: Math.round(o.annualGen), imp: Math.round(o.annualImport), exp: Math.round(o.annualExport) });
+      const rank = () => Object.fromEntries(window.getRecommendation().ranked.map((x) => [x.plan.id, { net: Math.round(x.net), imp: Math.round(sumF(x.sim.grid_import)), exp: Math.round(sumF(x.sim.grid_export)), rev: Math.round(x.export_revenue || 0), tax: Math.round(x.export_tax || 0) }]));
+      const one = () => ({ no: pick(window.cachedScenario(false, ev)), with: pick(window.cachedScenario(true, ev)), withRank: rank(),
+        noRank: window.withSimState({ has_solar: false, count_A: 0, count_B: 0, battery_kwh: 0 }, rank) });
+      const base = one();
+      const solarOnly = s.has_solar && s.battery_kwh > 0 ? window.withSimState({ strategy_mode: 'self-consume', charge_from_grid: false }, one) : null;
+      const cons = window.CACHE ? sumF(window.CACHE.cons) : null;
+      return { base, solarOnly, cons, battery: s.battery_kwh, strategy: s.strategy_mode, cfg: s.charge_from_grid, rt: s.battery_rt_eff || s.battery_efficiency || null,
+        sys: { A: [s.count_A, s.azimuth_A, s.tilt_A], B: [s.count_B, s.azimuth_B, s.tilt_B], w: s.panel_w, inv: s.inverter_kw } };
+    });
+    writeFileSync(`${OUT}/${id}.json`, JSON.stringify({ id, kwh: r.kwh, solar: r.solar, ...p }, null, 1));
+  });
+}

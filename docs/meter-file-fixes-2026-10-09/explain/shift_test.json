@@ -1,0 +1,131 @@
+{
+ "gas": {
+  "no_solar": 1453.4,
+  "truth": {
+   "plan": "EI-SST",
+   "with_solar": 573.7,
+   "saving": 879.7,
+   "bought": 2643,
+   "sold": 2556,
+   "self_use": 1357
+  },
+  "summer_hour_early": {
+   "plan": "EN-SMART-24-HOUR",
+   "with_solar": 591.7,
+   "saving": 861.7,
+   "bought": 2715,
+   "sold": 2629,
+   "self_use": 1285
+  },
+  "gen_minus_1.9pct": {
+   "plan": "EI-SST",
+   "with_solar": 589.4,
+   "saving": 864.0,
+   "bought": 2653,
+   "sold": 2494,
+   "self_use": 1347
+  },
+  "both": {
+   "plan": "EN-SMART-24-HOUR",
+   "with_solar": 606.2,
+   "saving": 847.2,
+   "bought": 2724,
+   "sold": 2565,
+   "self_use": 1276
+  }
+ },
+ "heatpump": {
+  "no_solar": 2476.2,
+  "truth": {
+   "plan": "EI-SST",
+   "with_solar": 1439.0,
+   "saving": 1037.2,
+   "bought": 5506,
+   "sold": 1919,
+   "self_use": 1994
+  },
+  "summer_hour_early": {
+   "plan": "EI-SST",
+   "with_solar": 1460.9,
+   "saving": 1015.3,
+   "bought": 5535,
+   "sold": 1949,
+   "self_use": 1965
+  },
+  "gen_minus_1.9pct": {
+   "plan": "EI-SST",
+   "with_solar": 1455.7,
+   "saving": 1020.5,
+   "bought": 5523,
+   "sold": 1864,
+   "self_use": 1977
+  },
+  "both": {
+   "plan": "EI-SST",
+   "with_solar": 1477.4,
+   "saving": 998.8,
+   "bought": 5553,
+   "sold": 1893,
+   "self_use": 1947
+  }
+ },
+ "ev": {
+  "no_solar": 1784.9,
+  "truth": {
+   "plan": "EI-NB",
+   "with_solar": 851.4,
+   "saving": 933.5,
+   "bought": 4730,
+   "sold": 2644,
+   "self_use": 1270
+  },
+  "summer_hour_early": {
+   "plan": "EI-NB",
+   "with_solar": 876.0,
+   "saving": 908.9,
+   "bought": 4805,
+   "sold": 2719,
+   "self_use": 1195
+  },
+  "gen_minus_1.9pct": {
+   "plan": "EI-NB",
+   "with_solar": 867.2,
+   "saving": 917.7,
+   "bought": 4740,
+   "sold": 2580,
+   "self_use": 1260
+  },
+  "both": {
+   "plan": "EI-NB",
+   "with_solar": 891.5,
+   "saving": 893.4,
+   "bought": 4813,
+   "sold": 2654,
+   "self_use": 1187
+  }
+ },
+ "friend_truth_battery": {
+  "on_EI_SST": 274.7,
+  "bought": 2552,
+  "sold": 3596,
+  "charged": 1600,
+  "delivered": 1515,
+  "night_bought": 1137
+ },
+ "friend_held_through_night": {
+  "on_EI_SST": 277.9,
+  "bought": 3043,
+  "sold": 4111,
+  "charged": 1085,
+  "delivered": 1024,
+  "night_bought": 1695
+ },
+ "friend_held_through_night_92rt_10pct_floor": {
+  "on_EI_SST": 288.9,
+  "bought": 3075,
+  "sold": 4113,
+  "charged": 1083,
+  "delivered": 991,
+  "night_bought": 1695
+ }
+}

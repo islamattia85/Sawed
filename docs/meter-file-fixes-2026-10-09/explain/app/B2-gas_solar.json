@@ -1,0 +1,513 @@
+{
+ "id": "B2-gas_solar",
+ "kwh": 3929,
+ "solar": {
+  "payback": 6.928998182101744,
+  "saving": 865.9260462065881,
+  "costNoSolar": 1433.2790844412948,
+  "costWithSolar": 567.3530382347067,
+  "sysCost": 6000
+ },
+ "base": {
+  "no": {
+   "cost": 1433,
+   "plan": "EN-SMART-24-HOUR",
+   "gen": 0,
+   "imp": 3931,
+   "exp": 0
+  },
+  "with": {
+   "cost": 567,
+   "plan": "EI-SST",
+   "gen": 0,
+   "imp": 2641,
+   "exp": 0
+  },
+  "withRank": {
+   "EI-SST": {
+    "net": 567,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 504,
+    "tax": 0
+   },
+   "EN-SMART-24-HOUR": {
+    "net": 578,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 478,
+    "tax": 0
+   },
+   "EI-24": {
+    "net": 580,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 504,
+    "tax": 0
+   },
+   "FL-24": {
+    "net": 603,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 478,
+    "tax": 0
+   },
+   "EN-SMART": {
+    "net": 607,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 478,
+    "tax": 0
+   },
+   "SSE-EVDAY": {
+    "net": 614,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 504,
+    "tax": 0
+   },
+   "SSE-DNP": {
+    "net": 617,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 504,
+    "tax": 0
+   },
+   "PIN-FAM": {
+    "net": 643,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 646,
+    "tax": 13
+   },
+   "FL-DNP": {
+    "net": 650,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 478,
+    "tax": 0
+   },
+   "BG-24": {
+    "net": 654,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 478,
+    "tax": 0
+   },
+   "EI-WKND": {
+    "net": 671,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 504,
+    "tax": 0
+   },
+   "BG-WKND": {
+    "net": 684,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 478,
+    "tax": 0
+   },
+   "BG-TOU": {
+    "net": 686,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 478,
+    "tax": 0
+   },
+   "BG-TOU-PLUS": {
+    "net": 686,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 478,
+    "tax": 0
+   },
+   "EI-NB": {
+    "net": 701,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 504,
+    "tax": 0
+   },
+   "YN-24": {
+    "net": 703,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 444,
+    "tax": 0
+   },
+   "YN-DNP": {
+    "net": 720,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 444,
+    "tax": 0
+   },
+   "EN-SMART-DAY-NIGHT": {
+    "net": 725,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 478,
+    "tax": 0
+   },
+   "FL-EV": {
+    "net": 739,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 478,
+    "tax": 0
+   },
+   "BG-EV": {
+    "net": 807,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 478,
+    "tax": 0
+   },
+   "YN-EV": {
+    "net": 817,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 444,
+    "tax": 0
+   },
+   "PIN-LF": {
+    "net": 817,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 646,
+    "tax": 13
+   },
+   "PIN-WFH": {
+    "net": 837,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 646,
+    "tax": 13
+   },
+   "SSE-WKND": {
+    "net": 843,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 504,
+    "tax": 0
+   },
+   "EN-EV": {
+    "net": 871,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 478,
+    "tax": 0
+   },
+   "YN-EV-DNP": {
+    "net": 876,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 444,
+    "tax": 0
+   },
+   "SSE-EVMAX": {
+    "net": 916,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 504,
+    "tax": 0
+   },
+   "EP-24": {
+    "net": 918,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 393,
+    "tax": 0
+   },
+   "EP-SST": {
+    "net": 940,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 393,
+    "tax": 0
+   },
+   "BG-STANDARD-VARIABLE-SMART-ALL-DAY-ELECTRICITY": {
+    "net": 989,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 478,
+    "tax": 0
+   },
+   "WP-SST": {
+    "net": 1071,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "CP-SST": {
+    "net": 1329,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "PPP-TOU": {
+    "net": 1521,
+    "imp": 2641,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   }
+  },
+  "noRank": {
+   "EN-SMART-24-HOUR": {
+    "net": 1433,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "FL-24": {
+    "net": 1459,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "WP-SST": {
+    "net": 1482,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "EI-24": {
+    "net": 1488,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "EN-SMART": {
+    "net": 1489,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "EI-SST": {
+    "net": 1500,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "SSE-EVDAY": {
+    "net": 1525,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "FL-DNP": {
+    "net": 1537,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "SSE-DNP": {
+    "net": 1550,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "BG-24": {
+    "net": 1554,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "BG-WKND": {
+    "net": 1594,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "YN-24": {
+    "net": 1596,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "EI-WKND": {
+    "net": 1606,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "BG-TOU": {
+    "net": 1612,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "BG-TOU-PLUS": {
+    "net": 1612,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "FL-EV": {
+    "net": 1627,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "YN-DNP": {
+    "net": 1640,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "EN-SMART-DAY-NIGHT": {
+    "net": 1647,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "EI-NB": {
+    "net": 1677,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "YN-EV": {
+    "net": 1732,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "BG-EV": {
+    "net": 1734,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "EP-24": {
+    "net": 1800,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "YN-EV-DNP": {
+    "net": 1830,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "SSE-WKND": {
+    "net": 1836,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "EP-SST": {
+    "net": 1854,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "CP-SST": {
+    "net": 1859,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "EN-EV": {
+    "net": 1866,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "PIN-FAM": {
+    "net": 1867,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "PIN-WFH": {
+    "net": 1956,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "SSE-EVMAX": {
+    "net": 1970,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "PIN-LF": {
+    "net": 2036,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "PPP-TOU": {
+    "net": 2046,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   },
+   "BG-STANDARD-VARIABLE-SMART-ALL-DAY-ELECTRICITY": {
+    "net": 2052,
+    "imp": 3931,
+    "exp": 0,
+    "rev": 0,
+    "tax": 0
+   }
+  }
+ },
+ "solarOnly": null,
+ "cons": 2641.4070021247026,
+ "battery": 0,
+ "strategy": "auto",
+ "cfg": true,
+ "rt": null,
+ "sys": {
+  "A": [
+   9,
+   180,
+   35
+  ],
+  "B": [
+   0,
+   270,
+   30
+  ],
+  "w": 444.44444444444446,
+  "inv": 5
+ }
+}

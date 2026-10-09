@@ -1,0 +1,150 @@
+{
+ "gas": {
+  "use": 4000,
+  "gen": 3914,
+  "bought": 2643,
+  "sold": 2556,
+  "self_use": 1357,
+  "no_solar": [
+   "EN-SMART-24-HOUR",
+   1453.4
+  ],
+  "with_solar": [
+   "EI-SST",
+   573.7
+  ],
+  "saving": 879.7,
+  "with_on_EI_SST": 573.7,
+  "hourly_netting": {
+   "sold": 2493,
+   "with_solar": [
+    "EI-SST",
+    564.6
+   ]
+  }
+ },
+ "heatpump": {
+  "use": 7500,
+  "gen": 3914,
+  "bought": 5506,
+  "sold": 1919,
+  "self_use": 1994,
+  "no_solar": [
+   "EN-SMART-24-HOUR",
+   2476.2
+  ],
+  "with_solar": [
+   "EI-SST",
+   1439.0
+  ],
+  "saving": 1037.2,
+  "with_on_EI_SST": 1439.0,
+  "hourly_netting": {
+   "sold": 1865,
+   "with_solar": [
+    "EI-SST",
+    1431.0
+   ]
+  }
+ },
+ "ev": {
+  "use": 6000,
+  "gen": 3914,
+  "bought": 4730,
+  "sold": 2644,
+  "self_use": 1270,
+  "no_solar": [
+   "FL-EV",
+   1784.9
+  ],
+  "with_solar": [
+   "EI-NB",
+   851.4
+  ],
+  "saving": 933.5,
+  "with_on_EI_SST": 889.0
+ },
+ "gas_solar": {
+  "use": 4000,
+  "gen": 3946,
+  "bought": 2639,
+  "sold": 2585,
+  "no_solar": [
+   "EN-SMART-24-HOUR",
+   1453.4
+  ],
+  "with_solar": [
+   "EI-SST",
+   566.8
+  ],
+  "saving": 886.6,
+  "with_on_EI_SST": 566.8
+ },
+ "hp_solar_batt": {
+  "use": 7500,
+  "gen": 5905,
+  "bought": 3386,
+  "sold": 1692,
+  "no_solar": [
+   "EN-SMART-24-HOUR",
+   2476.2
+  ],
+  "with_solar": [
+   "EI-SST",
+   846.0
+  ],
+  "saving": 1630.2,
+  "with_on_EI_SST": 846.0
+ },
+ "hp_solar_gridfill": {
+  "use": 7500,
+  "gen": 5905,
+  "bought": 3490,
+  "sold": 1745,
+  "no_solar": [
+   "EN-SMART-24-HOUR",
+   2476.2
+  ],
+  "with_solar": [
+   "EI-SST",
+   783.7
+  ],
+  "saving": 1692.5,
+  "with_on_EI_SST": 783.7
+ },
+ "friend": {
+  "use": 6500,
+  "gen": 7418,
+  "bought": 2686,
+  "sold": 3484,
+  "no_solar": [
+   "EN-SMART-24-HOUR",
+   2184.0
+  ],
+  "with_solar": [
+   "EI-SST",
+   331.5
+  ],
+  "saving": 1852.5,
+  "with_on_EI_SST": 331.5
+ },
+ "friend_full_year": {
+  "gen": 7629,
+  "bought": 2552,
+  "sold": 3596,
+  "with_solar": [
+   "EI-SST",
+   274.7
+  ],
+  "on_EI_SST": 274.7
+ },
+ "friend_full_year_90rt": {
+  "bought": 2592,
+  "sold": 3556,
+  "with_solar": [
+   "EI-SST",
+   290.5
+  ],
+  "on_EI_SST": 290.5
+ }
+}

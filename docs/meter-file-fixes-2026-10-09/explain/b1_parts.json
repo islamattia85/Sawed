@@ -1,0 +1,115 @@
+{
+ "coming_year_reference": {
+  "EI-24": 382.4,
+  "EI-SST": 274.69,
+  "EI-NB": 390.06,
+  "EI-WKND": 489.17,
+  "BG-24": 455.47,
+  "BG-TOU": 421.31,
+  "BG-TOU-PLUS": 421.31,
+  "BG-EV": 524.97,
+  "BG-WKND": 453.15,
+  "BG-STANDARD-VARIABLE-SMART-ALL-DAY-ELECTRICITY": 779.32,
+  "EN-SMART-24-HOUR": 383.01,
+  "EN-SMART": 343.18,
+  "EN-SMART-DAY-NIGHT": 451.75,
+  "EN-EV": 618.01,
+  "SSE-EVDAY": 416.72,
+  "SSE-DNP": 335.49,
+  "SSE-EVMAX": 646.43,
+  "SSE-WKND": 537.99,
+  "YN-24": 502.86,
+  "YN-DNP": 431.03,
+  "YN-EV": 572.96,
+  "YN-EV-DNP": 533.43,
+  "FL-24": 407.29,
+  "FL-DNP": 388.39,
+  "FL-EV": 458.58,
+  "PIN-LF": 524.5,
+  "PIN-WFH": 612.21,
+  "PIN-FAM": 501.15,
+  "PPP-TOU": 1361.99,
+  "WP-SST": 979.94,
+  "CP-SST": 1198.68,
+  "EP-SST": 648.0,
+  "EP-24": 730.5
+ },
+ "coming_year_app_like": {
+  "EI-24": 472.54,
+  "EI-SST": 288.92,
+  "EI-NB": 396.63,
+  "EI-WKND": 621.34,
+  "BG-24": 556.61,
+  "BG-TOU": 483.05,
+  "BG-TOU-PLUS": 483.05,
+  "BG-EV": 565.37,
+  "BG-WKND": 543.32,
+  "BG-STANDARD-VARIABLE-SMART-ALL-DAY-ELECTRICITY": 946.89,
+  "EN-SMART-24-HOUR": 465.98,
+  "EN-SMART": 382.57,
+  "EN-SMART-DAY-NIGHT": 490.26,
+  "EN-EV": 689.28,
+  "SSE-EVDAY": 507.91,
+  "SSE-DNP": 364.64,
+  "SSE-EVMAX": 683.32,
+  "SSE-WKND": 593.3,
+  "YN-24": 620.43,
+  "YN-DNP": 481.25,
+  "YN-EV": 639.45,
+  "YN-EV-DNP": 542.29,
+  "FL-24": 490.79,
+  "FL-DNP": 435.82,
+  "FL-EV": 486.31,
+  "PIN-LF": 608.44,
+  "PIN-WFH": 757.62,
+  "PIN-FAM": 633.14,
+  "PPP-TOU": 1467.86,
+  "WP-SST": 1096.06,
+  "CP-SST": 1327.13,
+  "EP-SST": 703.41,
+  "EP-24": 857.15
+ },
+ "file_year_use": {
+  "B1a-friend": {
+   "window": [
+    "2024-10-20",
+    "2025-10-19"
+   ],
+   "use": 6221,
+   "days": 365
+  },
+  "B1b-friend": {
+   "window": [
+    "2025-04-20",
+    "2025-10-19"
+   ],
+   "use": 2298,
+   "days": 183
+  },
+  "B1c-friend": {
+   "window": [
+    "2025-06-01",
+    "2025-08-31"
+   ],
+   "use": 1015,
+   "days": 92
+  },
+  "B1d-friend": {
+   "window": [
+    "2024-12-01",
+    "2025-02-28"
+   ],
+   "use": 2119,
+   "days": 90
+  }
+ },
+ "heatpump_night_share_pct": 28.5,
+ "heatpump_no_solar_cost": {
+  "EI-SST": 2488.92,
+  "EN-SMART-24-HOUR": 2476.16
+ },
+ "hp_solar_batt_battery": {
+  "charged": 1852,
+  "lost": 93
+ }
+}

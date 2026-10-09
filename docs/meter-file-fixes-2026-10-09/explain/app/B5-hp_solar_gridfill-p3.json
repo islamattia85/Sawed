@@ -1,0 +1,15 @@
+{
+ "noSolar": {
+  "total": 7233,
+  "night_pct": 54.7,
+  "winter_night_pct": 54.7
+ },
+ "asIs": {
+  "total": 3497,
+  "night_pct": 58.3,
+  "winter_night_pct": 58.4
+ },
+ "gen": 0,
+ "cfg": true,
+ "strat": "auto"
+}
