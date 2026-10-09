@@ -28,7 +28,9 @@ REFERENCE = ['A1-gas', 'A2-heatpump', 'A7-ev', 'A3a-gas', 'A5b-heatpump', 'B2-ga
              'D2a-gas',
              # A typed figure the file disagrees with is said, with the choice to keep it (fix 4, 9 October).
              'D6-gas']
-TOL = dict(kwh=5.0, bill=5.0, plan=25, payback=0.5)
+# The solar saving is held to 3% (added with fix 12, 9 October): the app's
+# solar on winter time all summer had made every saving 2-2.6% low.
+TOL = dict(kwh=5.0, bill=5.0, plan=25, payback=0.5, saving=3.0)
 ASKS = ('filewhen', 'fileexp', 'typed', 'filehome')
 
 def limit(err, tol, step):
@@ -55,12 +57,13 @@ if __name__ == '__main__':
         lim = dict(kwh=limit(r['kwh_err'], TOL['kwh'], 0.5), bill=limit(r['bill_err'], TOL['bill'], 0.5), plan=limit(r['plan_gap'], TOL['plan'], 5))
         if r.get('true_payback'):
             lim['payback'] = limit(r['payback_err'], TOL['payback'], 0.1) if r.get('payback_err') is not None else None
+        if r.get('saving_err') is not None: lim['saving'] = limit(r['saving_err'], TOL['saving'], 0.5)
         p = prev.get(sid, {}) if sid not in loosen else {}
         if sid in loosen: lim['loosened'] = loosen[sid]
         elif prev.get(sid, {}).get('loosened'): lim['loosened'] = prev[sid]['loosened']
-        for k in ('kwh', 'bill', 'plan', 'payback'):
+        for k in ('kwh', 'bill', 'plan', 'payback', 'saving'):
             if k in lim and k in p: lim[k] = tighter(p[k], lim[k])
-        gaps = [k for k in ('kwh', 'bill', 'plan', 'payback') if lim.get(k) is not None and lim[k] > TOL[k]]
+        gaps = [k for k in ('kwh', 'bill', 'plan', 'payback', 'saving') if lim.get(k) is not None and lim[k] > TOL[k]]
         if 'payback' in lim and lim['payback'] is None: gaps.append('no payback shown')
         # Warnings and questions, once given, stay.
         # A note about repeated rows is held only where the file really repeats them.
@@ -75,7 +78,7 @@ if __name__ == '__main__':
         else:
             lim['acc_min'] = max(r['accuracy_shown'] or 0, p.get('acc_min') or 0); gaps.append('accuracy')
         if gaps: lim['known_gap'] = ', '.join(gaps)
-        lim['today'] = dict(kwh_err=r['kwh_err'], bill_err=r['bill_err'], plan_gap=r['plan_gap'], payback=r.get('payback'), true_payback=r.get('true_payback'),
+        lim['today'] = dict(kwh_err=r['kwh_err'], bill_err=r['bill_err'], plan_gap=r['plan_gap'], payback=r.get('payback'), true_payback=r.get('true_payback'), saving_err=r.get('saving_err'),
                             accuracy=r['accuracy_shown'], lost_pct=r.get('lost_pct'))
         out['scenarios'][sid] = lim
     json.dump(out, open(path, 'w'), indent=1)

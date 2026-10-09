@@ -43,6 +43,31 @@ export function solarPosition(doy: number, hour: number, lat: number, lon: numbe
   return { altitude, azimuth };
 }
 
+/**
+ * Irish summer time in the model year (2025): from the last Sunday of March to
+ * the last Sunday of October. The clocks change at 01:00 UTC, in the dark, so
+ * whole days are enough.
+ */
+const SUMMER_TIME_FROM = dayOfYear(2, 30);
+const SUMMER_TIME_TO = dayOfYear(9, 26);
+
+/**
+ * The hour on the sun's clock (UTC, which solarPosition takes) for an hour on
+ * the clock the home keeps.
+ *
+ * The model's hours are clock hours: the meter file stamps its readings in
+ * Irish local time, and every plan's night and peak hours are local time.
+ * The sun used to be placed as if the clock never changed, so from late March
+ * to late October the panels ran an hour early against the home: on 21 June
+ * they made power from 04:00 and peaked at 12:00 to 13:00, where the sun is
+ * highest at about 13:30. Less of it was used at home, and more sold for less:
+ * measured on homes of known use, the solar saving came out 2.0% to 2.6% low
+ * (docs/meter-file-fixes-2026-10-09.md).
+ */
+export function sunHour(doy: number, clockHour: number): number {
+  return doy >= SUMMER_TIME_FROM && doy < SUMMER_TIME_TO ? clockHour - 1 : clockHour;
+}
+
 /** Erbs model: diffuse fraction of global irradiance from clearness index. */
 export function erbsDiffuse(kt: number): number {
   if (kt <= 0.22) return 1 - 0.09 * kt;
@@ -91,7 +116,8 @@ function clearnessWeights(monthIndex: number, days: number): number[] {
  *
  * Monthly totals are distributed across days by a clearness weight and then
  * across daylight hours in proportion to solar altitude, so the monthly energy
- * matches the location profile exactly while individual days differ.
+ * matches the location profile exactly while individual days differ. Hours are
+ * clock hours (sunHour).
  */
 /**
  * The most global horizontal irradiance a day can physically receive, Wh/m².
@@ -107,7 +133,7 @@ function clearSkyDailyGhi(doy: number, lat: number, lon: number): number {
   let total = 0;
   const e0 = extraterrestrialNormal(doy);
   for (let h = 0; h < 24; h += 1) {
-    const pos = solarPosition(doy, h + 0.5, lat, lon);
+    const pos = solarPosition(doy, sunHour(doy, h) + 0.5, lat, lon);
     total += Math.max(0, Math.sin(pos.altitude)) * e0;
   }
   return total * MAX_CLEARNESS;
@@ -166,7 +192,7 @@ export function buildHourlyGhi(location: LocationProfile): Float32Array {
       const dayGhi = dayGhis[d] ?? 0;
       const altitudes: number[] = [];
       for (let h = 0; h < 24; h += 1) {
-        const pos = solarPosition(doy, h + 0.5, location.lat, location.lon);
+        const pos = solarPosition(doy, sunHour(doy, h) + 0.5, location.lat, location.lon);
         altitudes.push(Math.max(0, Math.sin(pos.altitude)));
       }
       const sumAlt = altitudes.reduce((a, b) => a + b, 0);
@@ -226,7 +252,7 @@ export function buildPoa(
       for (let h = 0; h < 24; h += 1) {
         const ghiH = ghi[hourIdx] ?? 0;
         if (ghiH <= 0) { poa[hourIdx] = 0; hourIdx += 1; continue; }
-        const pos = solarPosition(doy, h + 0.5, location.lat, location.lon);
+        const pos = solarPosition(doy, sunHour(doy, h) + 0.5, location.lat, location.lon);
         const sinAlt = Math.sin(pos.altitude);
         if (sinAlt <= 0.01) { poa[hourIdx] = 0; hourIdx += 1; continue; }
         // Hourly clearness index: this hour's irradiance against what a

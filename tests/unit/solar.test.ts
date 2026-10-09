@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  solarPosition, erbsDiffuse, buildHourlyGhi, buildPoa, buildPvGeneration,
+  solarPosition, erbsDiffuse, buildHourlyGhi, buildPoa, buildPvGeneration, sunHour,
 } from '../../src/engine/solar.js';
 import {
   LOCATION_BASE, withGhiMultiplier, dayOfYear, DEG, HOURS_IN_YEAR,
@@ -104,6 +104,29 @@ describe('buildHourlyGhi', () => {
   it('scales linearly with a regional multiplier', () => {
     const sunnier = buildHourlyGhi(withGhiMultiplier(LOCATION_BASE, 1.1));
     expect(sumOf(sunnier)).toBeCloseTo(sumOf(ghi) * 1.1, 0);
+  });
+
+  // The hours are the clock's, as the meter file and every plan keep them. The
+  // sun is highest at about 13:25 Irish summer time in June and 12:25 in
+  // December; placed on winter time all year, June's peak sat an hour early.
+  const peakHour = (doy: number) => {
+    const day = Array.from(ghi.slice((doy - 1) * 24, doy * 24));
+    return day.indexOf(Math.max(...day));
+  };
+  it('peaks at 13:00-14:00 on the clock in June and 12:00-13:00 in December', () => {
+    expect(peakHour(dayOfYear(5, 21))).toBe(13);
+    expect(peakHour(dayOfYear(11, 21))).toBe(12);
+  });
+
+  it('is dark at 04:00 on the clock on midsummer morning, as it is in Dublin', () => {
+    expect(ghi[(dayOfYear(5, 21) - 1) * 24 + 4]).toBe(0);
+  });
+
+  it('changes clock on the last Sundays of March and October', () => {
+    expect(sunHour(dayOfYear(2, 29), 12)).toBe(12);
+    expect(sunHour(dayOfYear(2, 30), 12)).toBe(11);
+    expect(sunHour(dayOfYear(9, 25), 12)).toBe(11);
+    expect(sunHour(dayOfYear(9, 26), 12)).toBe(12);
   });
 });
 

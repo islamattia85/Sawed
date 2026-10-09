@@ -12,7 +12,7 @@
 // (make_golden.py only ever tightens). The warnings the import card gives and
 // the questions asked are held too: once given, always given. And the
 // accuracy figure shown must cover the error found where it does today, and
-// may not shrink where it does not yet.
+// may not shrink where it does not yet. The solar saving is held too (3%).
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { SCENARIOS, TRUTH, DIR, runScenario } from './run-scenario.js';
@@ -42,6 +42,7 @@ for (const [id, lim] of Object.entries(GOLDEN.scenarios)) {
       bill: tenth(Math.abs(r.bestNet - t.costs[r.best]) / t.costs[r.best] * 100),
       plan: t.costs[r.best] - t.best_cost,
       payback: r.solar && t.payback ? tenth(Math.abs(tenth(r.solar.payback) - t.payback)) : null,
+      saving: r.solar && t.saving ? tenth(Math.abs(r.solar.saving - t.saving) / t.saving * 100) : null,
     };
     const say = `${id}: use ${r.kwh} kWh (true ${t.use_kwh}), best ${r.best} €${r.bestNet} (true €${Math.round(t.costs[r.best])}; cheapest ${t.best} €${Math.round(t.best_cost)})` +
       (r.solar ? `, payback ${r.solar.payback.toFixed(1)} (true ${t.payback})` : '') + `, accuracy shown ±${r.accuracy.pct}%`;
@@ -49,6 +50,7 @@ for (const [id, lim] of Object.entries(GOLDEN.scenarios)) {
     expect(err.bill, say).toBeLessThanOrEqual(lim.bill);
     expect(err.plan, say).toBeLessThanOrEqual(lim.plan);
     if (lim.payback != null && err.payback != null) expect(err.payback, say).toBeLessThanOrEqual(lim.payback);
+    if (lim.saving != null && err.saving != null) expect(err.saving, `${say}, solar saving €${Math.round(r.solar.saving)} (true €${Math.round(t.saving)})`).toBeLessThanOrEqual(lim.saving);
     const asked = r.seen.questions.map((q) => q.q), warned = r.seen.warns.flat();
     for (const q of [].concat(lim.asks || [])) expect(asked, `${say}; asks ${q}`).toContain(q);
     for (const w of lim.warns || []) expect(warned, `${say}; warns ${w}`).toContain(w);
