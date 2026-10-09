@@ -799,18 +799,38 @@ export function createV7(api) {
         <em>Change ${api.ic('chevD', 14)}</em></button>`;
   }
 
+  /**
+   * A plan picked here, or chosen on Plans, that isn't the cheapest for the
+   * home: every tab's figures are that plan's, so say what it costs against
+   * the cheapest, and offer the cheapest instead (in Analytics only).
+   */
+  function anDearer(tab) {
+    let ap, rec;
+    try { ap = api.anPlan(); rec = api.getRecommendation(); } catch (e) { return ''; }
+    if (!ap.picked && !ap.bestIsChoice) return '';
+    // A plan chosen on Plans already says this on the Solar tab, with its own way back.
+    if (tab === 'solar' && !ap.picked && S().chosen_plan) return '';
+    const cheapest = rec.cheapest, shown = rec.ranked.find((r) => r.plan.id === ap.plan.id);
+    if (!cheapest || !shown || shown.net - cheapest.net < 1) return '';
+    return `<div class="v7-note is-rise ax-dearer">${api.ic('warn', 16)}<div>This isn’t the cheapest plan for your home.
+      ${esc(cheapest.plan.supplier)} ${esc(cheapest.plan.plan)} costs ${eur(shown.net - cheapest.net)} a year less.
+      <button class="ax-inline" onclick="anPick('${esc(cheapest.plan.id)}')">Show the cheapest</button></div></div>`;
+  }
+
   /** Any plan, priced on this home, the best one marked. */
   function anPlanSheet() {
     const st = S();
     const rec = api.getRecommendation();
     const ap = api.anPlan();
-    const bestId = ap.best.id;
+    // The cheapest is the best for the home; a plan chosen on Plans is marked as the choice.
+    const bestId = rec.cheapest ? rec.cheapest.plan.id : ap.best.id;
+    const choiceId = rec.isManualChoice ? rec.best.plan.id : null;
     return `<div class="v7-sheet-head"><div class="v7-eyebrow">Analytics</div>
         <h2 class="v7-h">Which plan should the figures use?</h2>
         <p class="v7-muted">Every plan priced on this home${homeWith() ? `, with ${homeWith()}` : ''}. Only Analytics changes; Home keeps its advice.</p></div>
       <div class="ax-plans">${rec.ranked.map((r) => `<button class="ax-plan-row ${r.plan.id === ap.plan.id ? 'on' : ''}" onclick="anPick('${r.plan.id}')">
           <span><b>${esc(r.plan.supplier)}</b><small>${esc(r.plan.plan)}</small>
-          ${r.plan.id === bestId ? '<i class="ax-tag">Best for this home</i>' : ''}${r.plan.id === st.baseline ? '<i class="ax-tag is-now">Your plan now</i>' : ''}</span>
+          ${r.plan.id === bestId ? '<i class="ax-tag">Best for this home</i>' : ''}${r.plan.id === choiceId ? '<i class="ax-tag">Your choice</i>' : ''}${r.plan.id === st.baseline ? '<i class="ax-tag is-now">Your plan now</i>' : ''}</span>
           <em>${eur(r.net)}</em></button>`).join('')}</div>`;
   }
 
@@ -986,7 +1006,7 @@ export function createV7(api) {
     }
     const msg = st._an_note ? `<div class="v7-note is-check ax-msg">${api.ic('info', 16)}<div>${esc(st._an_note)}</div></div>` : '';
     return `${anTop(t)}
-    <div class="screen v7 ax ax-${t}${t === 'solar' ? ' v7-solar' : ''}" data-tab="${t}">${msg}${body}</div>
+    <div class="screen v7 ax ax-${t}${t === 'solar' ? ' v7-solar' : ''}" data-tab="${t}">${msg}${anDearer(t)}${body}</div>
     ${nav()}`;
   }
 

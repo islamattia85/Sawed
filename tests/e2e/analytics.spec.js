@@ -151,6 +151,24 @@ test('a plan picked in Analytics changes every tab, not Home, and lapses when th
   expect(errors).toEqual([]);
 });
 
+test('a picked plan that is not the cheapest says so on every tab, with the way back', async ({ page }) => {
+  const errors = await boot(page, { ...PLANNED, current_screen: 'analytics', _an_tab: 'bill' });
+  await expect(page.locator('.ax-dearer')).toHaveCount(0);
+  await page.locator('.ax-plan').click();
+  await page.locator('.ax-plan-row').nth(3).click();
+  const r = await page.evaluate(() => { const x = window.getRecommendation(); return { more: Math.round(x.ranked[3].net - x.cheapest.net), name: `${x.cheapest.plan.supplier} ${x.cheapest.plan.plan}` }; });
+  await expect(page.locator('.ax-dearer')).toContainText(`${r.name} costs`);
+  expect(euros(await page.locator('.ax-dearer').textContent())).toBe(r.more);
+  for (const tab of ['Hours', 'Solar']) {
+    await page.locator('.ax-tab', { hasText: tab }).click();
+    await expect(page.locator('.ax-dearer')).toBeVisible();
+  }
+  await page.locator('.ax-dearer button').click();
+  await expect(page.locator('.ax-dearer')).toHaveCount(0);
+  await expect(page.locator('.ax-plan')).toContainText('Best plan for this home');
+  expect(errors).toEqual([]);
+});
+
 test('Bill by month: hover or tap a month for its bill, with summer credit carried into autumn', async ({ page }) => {
   const errors = await boot(page, { ...PLANNED, current_screen: 'analytics', _an_tab: 'bill' });
   const months = page.locator('.ax-mb-col');
