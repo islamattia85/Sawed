@@ -1,11 +1,12 @@
 /**
  * POST /api/event — anonymous funnel events, sent only with analytics consent.
  * A fixed list of names and no personal data: which parts of the app are
- * used, so we know what to improve, and nothing else.
+ * used, so we know what to improve. If partners are switched on
+ * (src/features.js), a partner is billed on these counts too.
  */
 import { guard, readBody, adminDb } from './_server.js';
 
-export const EVENT_NAMES = ['switch_click', 'quote_uploaded', 'report_downloaded', 'pro_viewed'];
+export const EVENT_NAMES = ['switch_click', 'lead_submitted', 'quote_uploaded', 'report_downloaded', 'pro_viewed'];
 
 export default async function handler(req, res) {
   if (guard(req, res)) return;

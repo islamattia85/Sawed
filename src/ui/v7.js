@@ -33,7 +33,7 @@ export const V7_SURFACES = [
   { id: 'analytics', icon: 'chart', label: 'Analytics', screens: ['analytics', 'csv-import', 'solar'] },
   { id: 'updates', icon: 'bell', label: 'Updates', screens: ['updates', 'me', 'monitor'] },
   { id: 'profile', icon: 'user', label: 'Profile',
-    screens: ['profile', 'account', 'more', 'refine', 'auditor', 'quotes', 'methodology', 'independence', 'how-to-switch', 'privacy', 'terms'] },
+    screens: ['profile', 'account', 'more', 'refine', 'auditor', 'quotes', 'methodology', 'independence', 'how-to-switch', 'privacy', 'terms', 'installer'] },
 ];
 
 export function createV7(api) {
@@ -1321,7 +1321,9 @@ export function createV7(api) {
       </button>
       ${more ? `<div class="ax-fold">${api.renderDayInspector()}</div>` : ''}
       ${planned
-        ? `${cta('Check an installer’s quote', "v7Sheet('quote')")}${cta2('Compare plans with your panels', "setScreen('plans')")}`
+        ? (api.FEATURES.installerQuotes
+          ? `${cta('Get 3 quotes for this system', 'openLeadForm()')}${cta2('Check a quote you already have', "v7Sheet('quote')", 'clip')}`
+          : `${cta('Check an installer’s quote', "v7Sheet('quote')")}${cta2('Compare plans with your panels', "setScreen('plans')")}`)
         : cta('Compare plans with your panels', "setScreen('plans')")}`;
   }
 
@@ -1519,6 +1521,7 @@ export function createV7(api) {
         if (intro) lines.push(`${intro.pct}% discount already in the rates${intro.months ? ', for 12 months' : ''}.`);
         return `<div class="v7-note is-gift">${api.ic('spark', 16)}<div>${lines.join(' ')}</div></div>`;
       })()}
+      ${api.isPartnerPlan(plan.id) ? `<div class="v7-fine">We may earn a commission if you switch to this plan. It never changes the order plans are ranked in.</div>` : ''}
       ${weekendLine(plan, label)}
       ${batteryLine(s, plan)}
       <div class="v7-fine">Every plan also carries the ${eur(api.PSO_LEVY || 6.67)} PSO levy, set by the regulator. It’s in the yearly figure above.</div>
@@ -1566,6 +1569,13 @@ export function createV7(api) {
   }
 
   /**
+   * The switch button, in one of two voices. A partner supplier (one that pays
+   * us for a switch) gets "Switch with <app name>"; any other gets "Switch on their
+   * website". Both are the same size and colour: the best plan must always be
+   * the most prominent, whether or not it pays us. Both open the same
+   * "before you switch" sheet.
+   */
+  /**
    * The moves worth making, each as the full-width switch button, stacked
    * when there is more than one. Planned solar: the best plan today and the
    * best once the panels are in, so the reader decides to change now or
@@ -1599,10 +1609,10 @@ export function createV7(api) {
         </button>`).join('')}</div>`;
   }
 
-  /** The switch button: it opens the "before you switch" sheet, which links to the supplier's own site. */
   function switchButton(plan, extra = '', cls = 'switch-cta v7-cta') {
-    return `<button class="${cls} v7-switch-btn" onclick="v7Sheet('switch','${plan.id}')">
-      Switch on ${esc(plan.supplier)}'s website${extra} ${api.ic('external', 18)}
+    const partner = api.isPartnerPlan(plan.id);
+    return `<button class="${cls} v7-switch-btn" data-partner="${partner}" onclick="v7Sheet('switch','${plan.id}')">
+      ${partner ? `${api.ic('logo', 18)} Switch with ${api.brand}` : `Switch on ${esc(plan.supplier)}'s website`}${extra} ${api.ic(partner ? 'chevR' : 'external', 18)}
     </button>`;
   }
 
@@ -1610,11 +1620,12 @@ export function createV7(api) {
     const plan = api.getPlanById(id);
     if (!plan) return '';
     const st = S();
+    const partner = api.isPartnerPlan(id);
     const saving = api.sameHomeCost(st.baseline) - api.annualCost(api.sim(id), plan).net;
     const switchName = jsAttr(`${plan.supplier} ${plan.plan}`);
     const meter = plan.type === 'flat' ? 'any meter' : 'a smart meter (most homes have one now)';
     return `<div class="v7-sheet-head">
-        <div class="v7-eyebrow">Before you switch</div>
+        <div class="v7-eyebrow">${partner ? `Switch with ${api.brand}` : 'Before you switch'}</div>
         <h2 class="v7-h">${esc(plan.supplier)} — ${esc(plan.plan)}</h2>
         ${saving > 1 ? `<div class="v7-muted">About ${eur(saving)} a year less than you pay now.</div>` : ''}
       </div>
@@ -1626,10 +1637,12 @@ export function createV7(api) {
         ${plan.exit ? `<li><b>Contract:</b> ${plan.length || 12} months; leaving early costs €${plan.exit}.</li>` : ''}
       </ol>
       <button class="switch-cta v7-cta" onclick="handleSwitchClick('${plan.id}', '${switchName}', ${Math.round(saving)});v7Sheet('switched','${plan.id}')">
-        Open ${esc(plan.supplier)}'s website ${api.ic('external', 18)}
+        ${partner ? `Continue with ${api.brand} ${api.ic('chevR', 18)}` : `Open ${esc(plan.supplier)}'s website ${api.ic('external', 18)}`}
       </button>
       ${api.dualFuelNote(plan) ? `<div class="v7-evnote is-warn">${api.ic('flame', 14)} ${api.dualFuelNote(plan)}</div>` : ''}
-      <div class="v7-fine">${esc(api.brand)} earns nothing from this switch. We show it because it's the right plan for your home.</div>
+      <div class="v7-fine">${partner
+        ? `${esc(plan.supplier)} pays ${esc(api.brand)} if you switch through us. Your price is the same, and it doesn’t change the ranking.`
+        : `${esc(api.brand)} earns nothing from this switch. We show it because it's the right plan for your home.`}</div>
       ${plan.id !== S().baseline ? `<div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();recordSwitch('${plan.id}')">Already switched? Tell us</a></div>` : ''}`;
   }
 

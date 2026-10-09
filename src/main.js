@@ -18,6 +18,7 @@ import { installErrorReporting } from './errors';
 import { dualFuelChoices, gasPlanFor, gasKwhFromBill, inFirstYear, supplierKey } from './gas.js';
 import { GAS_TARIFFS } from './gas-tariffs.js';
 import { BRAND, CONTROLLER, MARK_PATHS, iconDataUri, wordmarkHtml } from './brand';
+import { FEATURES } from './features.js';
 import { IC, ic } from './icons';
 import FIG from './data/front-figures.json';
 import {
@@ -81,6 +82,7 @@ async function sbInit(){
       await sbLoadProfile();
     }
     _sb.auth.onAuthStateChange(async (event, session) => {
+      if ((session ? session.user.id : null) !== (_sbUser ? _sbUser.id : null)) _myLeads = null;
       _sbUser = session ? session.user : null;
       if (_sbUser) {
         window._authEmailOpen = false;
@@ -107,11 +109,12 @@ async function sbInit(){
 // What describes this screen rather than the household is never synced.
 const NO_SYNC = ['_flow', '_flow_edit', '_flow_intent', '_flow_given', '_st_open', '_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_solar_more', '_an_tab', '_an_from', '_an_pick', '_an_note', '_an_day_open', '_an_mon', '_sheet', '_sys_saving', '_sys_name', '_fine_open', '_settings_open', '_return_to', '_lead_form',
   '_tariff_refreshing', '_expert_open', '_account_id', '_saved_at',
-  // Contact details an earlier version kept; cleared on load, and never taken from an old account copy.
+  // Contact details typed for the email-capture part (src/features.js) stay on this device.
   'lead_queue', 'user_email', 'email_captured'];
 let _sync = { status: 'idle', at: null };
 let _syncTimer = null;
 let _handover = null;          // { remote, remoteAt } while the person chooses
+let _myLeads = null;           // the account's quote requests, once fetched
 
 function cloudCopy(src){
   const o = {};
@@ -2381,6 +2384,55 @@ function auditQuote(quotedPrice, numPanels, batteryKwh){
    modifying engine logic.
    ============================================================ */
 
+// Tests switch parts on before the app loads (see src/features.js).
+if (typeof window !== 'undefined' && window.__SAWED_FEATURES) Object.assign(FEATURES, window.__SAWED_FEATURES);
+
+// Affiliate URLs — UTM-tagged referral links to supplier sign-up pages, used
+// only for partner plans while FEATURES.partners is on; otherwise the switch
+// button opens the plain supplier page (supplierUrl). Replace with real
+// affiliate tracking URLs when partner accounts are approved.
+// Format: { 'TARIFF_ID': 'https://supplier.ie/switch?utm_source=solaropt&utm_medium=referral&utm_campaign=PLAN_ID' }
+const AFFILIATE_URLS = {
+  // Yuno Energy
+  'YN-24':    'https://yuno.ie/residential?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=YN-24&utm_content=tariff_card',
+  'YN-DNP':   'https://yuno.ie/residential?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=YN-DNP&utm_content=tariff_card',
+  'YN-EV':    'https://yuno.ie/residential?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=YN-EV&utm_content=tariff_card',
+  // Electric Ireland
+  'EI-24':    'https://www.electricireland.ie/residential?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=EI-24&utm_content=tariff_card',
+  'EI-DYN':   'https://www.electricireland.ie/residential?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=EI-DYN&utm_content=tariff_card',
+  'EI-NB':    'https://www.electricireland.ie/residential?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=EI-NB&utm_content=tariff_card',
+  'EI-SST':   'https://www.electricireland.ie/residential?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=EI-SST&utm_content=tariff_card',
+  // EI-NS is the legacy Nightsaver — not switchable; no affiliate
+  // Energia
+  'EN-24':    'https://www.energia.ie/energy-plans/electricity?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=EN-24&utm_content=tariff_card',
+  'EN-EV':    'https://www.energia.ie/energy-plans/electricity?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=EN-EV&utm_content=tariff_card',
+  'EN-SMART': 'https://www.energia.ie/energy-plans/electricity?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=EN-SMART&utm_content=tariff_card',
+  'EN-DYN':   'https://www.energia.ie/energy-plans/electricity?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=EN-DYN&utm_content=tariff_card',
+  // Ecopower
+  'EP-SST':   'https://ecopower.ie/ecopower-supply/',
+  'EP-24':    'https://ecopower.ie/ecopower-supply/',
+  // Bord Gáis Energy
+  'BG-24':    'https://www.bordgaisenergy.ie/home/our-plans?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=BG-24&utm_content=tariff_card',
+  'BG-EV':    'https://www.bordgaisenergy.ie/home/our-plans?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=BG-EV&utm_content=tariff_card',
+  'BG-TOU':   'https://www.bordgaisenergy.ie/home/our-plans?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=BG-TOU&utm_content=tariff_card',
+  'BG-DYN':   'https://www.bordgaisenergy.ie/home/our-plans?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=BG-DYN&utm_content=tariff_card',
+  // Flogas
+  'FL-24':    'https://flogas.ie/electricity/residential?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=FL-24&utm_content=tariff_card',
+  'FL-DNP':   'https://flogas.ie/electricity/residential?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=FL-DNP&utm_content=tariff_card',
+  'FL-24-10': 'https://flogas.ie/electricity/residential?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=FL-24-10&utm_content=tariff_card',
+  'FL-DNP-10':'https://flogas.ie/electricity/residential?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=FL-DNP-10&utm_content=tariff_card',
+  'FL-EV-10': 'https://flogas.ie/electricity/residential?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=FL-EV-10&utm_content=tariff_card',
+  // SSE Airtricity
+  'SSE-EVDAY':'https://www.sseairtricity.com/ie/home?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=SSE-EVDAY&utm_content=tariff_card',
+  'SSE-DNP':  'https://www.sseairtricity.com/ie/home?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=SSE-DNP&utm_content=tariff_card',
+  'SSE-EVMAX':'https://www.sseairtricity.com/ie/home?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=SSE-EVMAX&utm_content=tariff_card',
+  // Pinergy
+  'PIN-LF':   'https://pinergy.ie/home-electricity/?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=PIN-LF&utm_content=tariff_card',
+  'PIN-WFH':  'https://pinergy.ie/home-electricity/?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=PIN-WFH&utm_content=tariff_card',
+  'PIN-FAM':  'https://pinergy.ie/home-electricity/?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=PIN-FAM&utm_content=tariff_card',
+  'PIN-EV':   'https://pinergy.ie/home-electricity/?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=PIN-EV&utm_content=tariff_card',
+};
+
 // Override DEFAULT_STATE with product-specific fields BEFORE state initialization runs.
 // We do this by patching the state object after the engine declares it.
 Object.assign(state, {
@@ -2388,15 +2440,18 @@ Object.assign(state, {
   current_screen: state.current_screen || 'onboarding',  // onboarding | result | solar | auditor | refine
   ob_step: state.ob_step || 1,
   considering_solar: state.considering_solar || false,    // user clicked "what if I add solar"
+  email_captured: state.email_captured || false,
+  user_email: state.user_email || '',
   // How many times the person opened a supplier's site to switch
   switch_clicks: state.switch_clicks || 0,
   // For "audit a quote" landing path (entry without onboarding)
   auditor_entry: state.auditor_entry || false
 });
-// Contact details an earlier version kept for quote requests and emails it
-// never sent. Nothing uses them now, so they are not kept on the device or
-// in the account.
-for (const k of ['lead_queue', '_lead_form', 'user_email', 'email_captured']) delete state[k];
+// Contact details kept for a part that is switched off (src/features.js):
+// emails queued for sending, and a quote form's details. With it off nothing
+// uses them, so they are not kept on the device or in the account.
+if (!FEATURES.emailCapture) for (const k of ['lead_queue', 'user_email', 'email_captured']) delete state[k];
+if (!FEATURES.installerQuotes) delete state._lead_form;
 
 // If user re-opens the app after onboarding, default to result screen
 if (state.onboarding_complete && state.current_screen === 'onboarding'){
@@ -2428,6 +2483,21 @@ if (state.onboarding_complete) state.seen_intro = true;
 function supplierUrl(planId){
   const p = getPlanById(planId);
   return (p && p.source && p.source.url) || null;
+}
+
+/*
+ * Plans whose supplier pays us for a switch. Ranking NEVER reads this — it is
+ * used only to label the plan "We may earn a commission" and to tag clicks.
+ * A test proves the ranking is identical with and without partners. Off for
+ * the first launch (FEATURES.partners), so no plan is a partner plan.
+ */
+const PARTNER_PLANS = new Set(window.__SAWED_PARTNERS || []);
+function isPartnerPlan(planId){ return FEATURES.partners && PARTNER_PLANS.has(planId); }
+
+function getAffiliateUrl(planId){
+  const url = AFFILIATE_URLS[planId];
+  if (!url) return null;
+  return url;
 }
 
 /* ============================================================
@@ -2580,8 +2650,57 @@ function trackObComplete(){
   });
 }
 
+function trackLeadSubmit(source){
+  fireEvent('lead_submit', { source, has_solar: state.has_solar, region: state.region });
+}
+
 function trackPageView(screen){
   fireEvent('page_view', { screen, region: state.region || 'unknown' });
+}
+
+/* ============================================================
+   EMAIL CAPTURE — placeholder, wires to your email service
+   ============================================================ */
+/**
+ * Capture contact details. Only reached while FEATURES.emailCapture is on.
+ *
+ * There is no server. Nothing here is transmitted anywhere, and until an
+ * endpoint exists the interface must not imply otherwise — it used to confirm
+ * "we'll match you with 3 SEAI installers within 48h" while writing the address
+ * to this device and stopping.
+ *
+ * Details are queued locally so nothing the user typed is lost when the
+ * endpoint does arrive. Set `LEAD_ENDPOINT` to start sending; the queue drains
+ * on the next capture.
+ */
+const LEAD_ENDPOINT = '';   // e.g. 'https://formspree.io/f/xxxxxxx'
+
+function captureEmail(email, source){
+  state.user_email = email;
+  state.email_captured = true;
+  if (!Array.isArray(state.lead_queue)) state.lead_queue = [];
+  state.lead_queue.push({ email, source, at: new Date().toISOString(), address: state.address || '' });
+  if (state.lead_queue.length > 50) state.lead_queue = state.lead_queue.slice(-50);
+  saveState();
+  trackLeadSubmit(source);
+  dlog('LEAD', 'email_capture', { email, source, address: state.address });
+  flushLeadQueue();
+}
+
+/** Send anything queued, if an endpoint has been configured. No-op otherwise. */
+async function flushLeadQueue(){
+  if (!LEAD_ENDPOINT || !state.lead_queue?.length) return;
+  const batch = state.lead_queue.slice();
+  try {
+    const res = await fetch(LEAD_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leads: batch }),
+    });
+    if (!res.ok) return;                 // keep the queue; try again next time
+    state.lead_queue = state.lead_queue.slice(batch.length);
+    saveState();
+  } catch (e){ /* offline or blocked — the queue survives */ }
 }
 
 /* ============================================================
@@ -3122,9 +3241,22 @@ const SAMPLE_HOME = { onboarding_complete: true, usage_input_mode: 'kwh', annual
   considering_solar: true, solar_is_estimate: false, count_A: 12, count_B: 0, azimuth_A: 180, tilt_A: 35, battery_kwh: 9,
   ev_active: false, _csv_imported: false, bills: null, grant_eligible: true, grant_seai: 2400, charge_from_grid: true, strategy_mode: 'auto' };
 async function sampleReport(){
+  // With email capture on (src/features.js) the sample costs an email address.
+  let email = '';
+  if (FEATURES.emailCapture){
+    const box = document.getElementById('wl-sample-email');
+    email = box ? box.value.trim() : '';
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){
+      if (box){ box.focus(); box.setAttribute('aria-invalid', 'true'); }
+      const msg = document.getElementById('wl-sample-msg'); if (msg) msg.textContent = 'Enter an email address to get the sample report.';
+      return;
+    }
+  }
   const saved = structuredClone(state);
   const btn = document.getElementById('wl-sample-go'); if (btn){ btn.disabled = true; btn.textContent = 'Making the report…'; }
   try {
+    if (email) captureEmail(email, 'sample_report');
+    const keep = structuredClone(state);
     // The PDF library loads on first use; have it ready before the sample home
     // goes in, or the report would run after the reader's answers are back.
     if (typeof window.jspdf === 'undefined' && typeof window.jsPDF === 'undefined' && !(await ensureJsPdf())) throw new Error('PDF library unavailable');
@@ -3134,6 +3266,7 @@ async function sampleReport(){
     if (typeof CACHE === 'object') CACHE.dirty = true;
     invalidate();
     await doGeneratePdf();
+    if (email){ saved.lead_queue = keep.lead_queue; saved.email_captured = keep.email_captured; saved.user_email = keep.user_email; }
   } catch (e) {
     console.error('Sample report failed', e);
   } finally {
@@ -3389,8 +3522,14 @@ function renderSite(){
         <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showReport()}</div><h3>The report</h3><p>A PDF with your answer, every plan, the payback, month-by-month figures and the method, for you or an installer.</p>
 </div>
       </div>
-      <div class="wl-sample"><span><b>Get a sample report.</b> The full PDF for an example home.</span>
-          <button id="wl-sample-go" class="wl-btn wl-btn-p" type="button" onclick="sampleReport()">Download it</button></div>
+      <div class="wl-sample ${FEATURES.emailCapture ? '' : 'is-plain'}"><span><b>Get a sample report.</b> The full PDF for an example home.</span>
+          ${FEATURES.emailCapture ? `<form class="wl-sample-f" novalidate onsubmit="event.preventDefault();sampleReport()">
+            <label class="sr-only" for="wl-sample-email">Email address</label>
+            <input id="wl-sample-email" type="email" autocomplete="email" placeholder="Email for a sample PDF" aria-describedby="wl-sample-msg">
+            <button id="wl-sample-go" class="wl-btn wl-btn-p" type="submit">Get it</button>
+          </form>
+          <small id="wl-sample-msg" class="wl-sample-msg" role="status">A real report for an example home.</small>`
+          : `<button id="wl-sample-go" class="wl-btn wl-btn-p" type="button" onclick="sampleReport()">Download it</button>`}</div>
     </div></section>
 
     <section class="wl-band wl-demo-band" id="try"><div class="wl-in"><div class="wl-sh"><div class="wl-eyebrow">Try it</div><h2 class="wl-h2">See how one home changes the answer.</h2><p>Pick heating, panels, a battery and a car. Four real plans re-rank as you go, on a simple model of a typical home. Your own answer is worked out hour by hour.</p></div>${demoCard()}</div></section>
@@ -6928,8 +7067,13 @@ function handleSwitchClick(planId, planName, savings){
     if (state.switch_history.length > 20) state.switch_history.shift();
     saveState();
   }
-  trackEvent('switch_click', { plan_id: planId, savings_eur: Math.round(savings) });
-  const url = supplierUrl(planId);
+  // A partner plan's click carries an ID, to match against the partner's
+  // confirmed-switch report. Any other plan opens the plain supplier page.
+  const partner = isPartnerPlan(planId);
+  const clickId = partner ? (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())).slice(0, 36) : null;
+  trackEvent('switch_click', partner ? { plan_id: planId, partner: true, savings_eur: Math.round(savings) } : { plan_id: planId, savings_eur: Math.round(savings) }, clickId);
+  const aff = partner ? getAffiliateUrl(planId) : null;
+  const url = aff ? aff + (aff.includes('?') ? '&' : '?') + 'sawed_click=' + encodeURIComponent(clickId) : supplierUrl(planId);
   if (url){
     window.open(url, '_blank', 'noopener');
   } else {
@@ -7362,6 +7506,26 @@ function toggleEv(){
   invalidate();
   saveState();
   renderApp();
+}
+
+function requestInstallerQuotes(){
+  if (!state.email_captured){
+    openEmailModal('installer_quotes');
+    return;
+  }
+  // Email already captured — log the lead request
+  dlog('LEAD', 'installer_quote', {
+    email: state.user_email,
+    spec: {
+      panels: totalPanels(),
+      panel_w: state.panel_w,
+      battery_kwh: state.battery_kwh,
+      inverter_kw: state.inverter_kw,
+      ev: state.ev_active,
+      address: state.address
+    }
+  });
+  showToast('Saved on this device. We can’t connect you with installers yet, so copy these details into a quote request.', { type:'blue', icon:ic('info',16) });
 }
 
 /* ============================================================
@@ -8773,9 +8937,29 @@ function renderAuditResult(r){
       </div>
     </div>
 
+    ${FEATURES.installerQuotes ? (r.verdict === 'fair' || r.verdict === 'excellent' ? `
+      <div class="secondary-card" style="margin-top:14px" onclick="openLeadForm()">
+        <div class="secondary-card-icon" style="color:var(--accent)">${ic('checkC',19)}</div>
+        <div class="secondary-card-body">
+          <div class="secondary-card-title">Get a second opinion</div>
+          <div class="secondary-card-sub">We'll match you with 2 more SEAI-registered installers to quote this spec</div>
+        </div>
+        <div class="secondary-card-arrow">›</div>
+      </div>
+    ` : `
+      <div class="secondary-card amber" style="margin-top:14px" onclick="openLeadForm()">
+        <div class="secondary-card-icon" style="color:var(--amber)">${ic('warn',19)}</div>
+        <div class="secondary-card-body">
+          <div class="secondary-card-title">Get competing quotes before signing</div>
+          <div class="secondary-card-sub">We'll match you with 3 SEAI-registered installers to compare against this quote</div>
+        </div>
+        <div class="secondary-card-arrow">›</div>
+      </div>
+    `) : `
     <p class="disclaimer" style="margin-top:14px">${r.verdict === 'fair' || r.verdict === 'excellent'
       ? 'A fair price. Before signing, check the installer is SEAI-registered: seai.ie lists them.'
       : 'Get at least two more quotes for the same system before signing. SEAI lists registered installers on seai.ie.'}</p>
+`}
   `;
 }
 
@@ -9156,6 +9340,50 @@ function confirmResetAll(){
       // Reload blocked/failed — render the fresh welcome screen in place.
       try { state.current_screen = 'welcome'; renderApp(); } catch(_){}
     }
+  }
+}
+
+/* ============================================================
+   EMAIL CAPTURE MODAL
+   ============================================================ */
+function openEmailModal(source){
+  if (state.email_captured){
+    showToast('You’re already on the list.');
+    return;
+  }
+  const m = document.createElement('div');
+  m.id = 'email-modal';
+  m.className = 'modal-overlay';
+  m.innerHTML = `
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <h3>Get your <em>report</em> by email</h3>
+      <p>${source === 'installer_quotes' ? 'We\'ll send you 3 SEAI-registered installer quotes for your exact spec within 48 hours.' : 'Save a copy of your analysis. Get a monthly update if the best plan changes.'}</p>
+      <input id="modal-email" class="modal-input" type="email" placeholder="you@example.com" autocomplete="email">
+      <button class="modal-btn" onclick="submitModalEmail('${source}')">${source === 'installer_quotes' ? 'Request quotes →' : 'Email me the report →'}</button>
+      <button class="modal-skip" onclick="closeEmailModal()">No thanks · skip</button>
+      <div class="modal-privacy">We never sell your data. Unsubscribe anytime.</div>
+    </div>`;
+  m.onclick = closeEmailModal;
+  document.body.appendChild(m);
+  setTimeout(() => document.getElementById('modal-email').focus(), 100);
+}
+function closeEmailModal(){
+  const m = document.getElementById('email-modal');
+  if (m) m.remove();
+}
+function submitModalEmail(source){
+  const email = document.getElementById('modal-email').value.trim();
+  if (!email || !email.includes('@')){
+    document.getElementById('modal-email').focus();
+    return;
+  }
+  captureEmail(email, source);
+  closeEmailModal();
+  if (source === 'installer_quotes'){
+    showToast('Saved on this device. We can’t connect you with installers yet.');
+  } else {
+    showToast('Thanks. We’ll email you the report.');
   }
 }
 
@@ -10701,6 +10929,15 @@ function quoteToSystem(id){
   setScreen('solar');
 }
 
+async function loadMyLeads(){
+  if (!_sb || !_sbUser) return;
+  try {
+    const { data, error } = await _sb.rpc('my_quote_requests');
+    _myLeads = error ? [] : (data || []);
+  } catch (e){ _myLeads = []; }
+  if (['me', 'updates', 'profile', 'account'].includes(state.current_screen)) renderApp();
+}
+
 function meOpenAuth(view){
   _authModalOpen = true;
   window._authEmailOpen = view === 'signup' || view === 'login';
@@ -10815,6 +11052,7 @@ function householdScene(){
 function renderMe(){
   if (state.onboarding_complete && unseenAlerts().length) setTimeout(markAlertsSeen, 1500);
   const signedIn = !!_sbUser;
+  if (FEATURES.installerQuotes && signedIn && _myLeads === null){ _myLeads = []; loadMyLeads(); }
   const name = (_sbProfile && _sbProfile.display_name) || (signedIn ? (_sbUser.email || '').split('@')[0] : '');
   const region = IRISH_REGIONS[state.region || 'east'];
   const kwh = Math.round(v7AnnualKwh());
@@ -10837,6 +11075,17 @@ function renderMe(){
           <button class="me-ghost" onclick="meOpenAuth('login')">I have an account</button>
         </div>` : ''}
       </section>`;
+
+  const requests = signedIn
+    ? (_myLeads && _myLeads.length ? _myLeads.map((l) => `<div class="me-row">
+          <span><b>${esc(l.spec?.panels ? `${l.spec.panels} panels` : 'Solar')}${l.spec?.battery_kwh ? ` · ${l.spec.battery_kwh} kWh` : ''} · ${esc(l.county)}</b>
+          <small>${new Date(l.updated_at || l.created_at).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })} · ${l.installers
+            ? `sent to ${l.installers} installer${l.installers > 1 ? 's' : ''}${l.responded ? ` · ${l.responded} responded` : ''}`
+            : 'no partner installer in this county yet'}</small></span></div>`).join('')
+        : `<div class="me-empty">No quote requests yet.</div>`)
+    : (state._lead_form?.sent_at
+        ? `<div class="me-row"><span><b>Request sent ${new Date(state._lead_form.sent_at).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })}</b><small>Sign in to follow it from any device</small></span></div>`
+        : `<div class="me-empty">No quote requests yet.</div>`);
 
   return `${topbar('My ' + BRAND.name, 'sage', true)}
   <div class="screen me">
@@ -10884,6 +11133,10 @@ function renderMe(){
       <button class="me-row me-link" onclick="doSignOut()"><span><b>Sign out</b><small>Your setup stays on this device and in your account</small></span>${ic('chevR', 16)}</button>
     </section>` : ''}
 
+    ${FEATURES.installerQuotes ? `<!-- Last on the page: when signed in it arrives a moment after the rest,
+         and anything below it would move just as it was being tapped. -->
+    <div class="section-title">Quote requests</div>
+    <section class="me-list">${requests}</section>` : ''}
   </div>
   ${bottomNav()}`;
 }
@@ -10959,6 +11212,8 @@ function renderProfile(){
   const quotes = (state.solar_quotes || []).filter((q) => q.source !== 'previous').length, saved = (state.saved_systems || []).length;
   const row = (go, icon, title, sub, tag) => `<button class="me-row me-link pf-row" onclick="${go}"><span class="pf-ico">${ic(icon, 18)}</span><span><b>${title}</b><small>${sub}</small></span>${tag ? `<i class="pf-tag ${tag === 'guess' ? 'is-guess' : ''}">${tag === 'guess' ? 'guide' : tag}</i>` : ''}${ic('chevR', 16)}</button>`;
   const gasSub = state.heating_type !== 'gas' ? '' : state.gas_same_supplier === 'yes' ? `With ${esc(plan.supplier)}${+state.gas_bill_eur > 0 ? ` · €${state.gas_bill_eur} every 2 months` : ' · typical use'}` : 'With another supplier, or not set';
+  const leads = FEATURES.installerQuotes && _sbUser && _myLeads && _myLeads.length ? `<div class="section-title">Quote requests</div><section class="me-list">${_myLeads.map((l) => `<div class="me-row"><span><b>${esc(l.spec?.panels ? `${l.spec.panels} panels` : 'Solar')}${l.spec?.battery_kwh ? ` · ${l.spec.battery_kwh} kWh` : ''} · ${esc(l.county)}</b><small>${l.installers ? `sent to ${l.installers} installer${l.installers > 1 ? 's' : ''}${l.responded ? ` · ${l.responded} responded` : ''}` : 'no partner installer in this county yet'}</small></span></div>`).join('')}</section>` : '';
+  if (FEATURES.installerQuotes && _sbUser && _myLeads === null){ _myLeads = []; loadMyLeads(); }
   return `${topbar('Profile', 'sage')}
   <div class="screen me profile">
     ${state.onboarding_complete ? householdScene() : ''}
@@ -10969,6 +11224,7 @@ function renderProfile(){
       ${row('startEvGuide()', 'car', 'EV', state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No EV', '')}
       <button class="me-add" onclick="v7Sheet('quote')">${ic('clip', 16)} Upload an installer's quote</button>
     </section>
+    ${leads}
     <section class="me-list">
       <button class="me-row me-link" onclick="startFlow('full')"><span><b>Go through setup again</b><small>One question at a time, starting from your answers</small></span>${ic('chevR', 16)}</button>
       <button class="me-row me-link" onclick="setScreen('account')"><span><b>Account and settings</b><small>${_sbUser ? 'Your account, privacy, help' : 'Sign in, privacy, help'}</small></span>${ic('chevR', 16)}</button>
@@ -11027,6 +11283,7 @@ function renderMore(){
     [ic('shield',19),'Our independence','How we make money','independence'],
     [ic('shield',19),'Privacy and your data','What we keep, who sees it, delete your account','privacy'],
     [ic('doc',19),'Terms of use','What the figures are, and what they aren’t','terms'],
+    ...(FEATURES.installerQuotes ? [[ic('home',19),'Installer portal','For installers','installer']] : []),
   ];
   const th = state.theme === 'dark' ? 'dark' : 'light';
   return `${topbar('More', 'sage', true)}
@@ -11464,7 +11721,7 @@ const V7 = createV7({
   householdScore: () => householdScore(),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,
-  getPlanById, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, withoutGridCharge, currentGridGain, infoTip, renderStressCard, stressHomeLine, fileSolar, fileBasis, fileSummary, meterYearDays, batteryReplacement, batterySwapYear, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, renderConsentBar,
+  getPlanById, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, withoutGridCharge, currentGridGain, infoTip, renderStressCard, stressHomeLine, fileSolar, fileBasis, fileSummary, meterYearDays, batteryReplacement, batterySwapYear, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, FEATURES, renderConsentBar,
   fmtCurrency, fmtCent, fmtVerifiedDate, latestVerifiedLabel, planDataFlag, planCategoryLabel,
   freshnessChip, priceChangeChip, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
   renderSavingsBreakdown, renderAssumptions,
@@ -11645,6 +11902,7 @@ function v7ApplyQuote(mode){
  * by a solicitor before launch. */
 function renderPrivacy(){
   const a = analyticsConsent();
+  const Q = FEATURES.installerQuotes;   // quote requests to installers (src/features.js)
   const C = CONTROLLER;
   const who = C.name ? `${esc(C.name)}${C.address ? `, ${esc(C.address)}` : ''}` : '<i>[company name and address to be added]</i>';
   const mail = C.email ? `<a href="mailto:${escAttr(C.email)}">${esc(C.email)}</a>` : '<i>[privacy email to be added]</i>';
@@ -11652,7 +11910,7 @@ function renderPrivacy(){
   return `${topbar('Privacy', 'accent', true)}
   <div class="screen">
     <div class="card"><div class="privacy-copy">
-      <p><b>Short version.</b> Your home stays on this device unless you make an account. We don’t pass your details to suppliers or installers, we have no ads, and we never sell your data.</p>
+      <p><b>Short version.</b> Your home stays on this device unless you make an account. ${Q ? 'We only share your details with installers when you ask for quotes, and never with suppliers' : 'We don’t pass your details to suppliers or installers'}, we have no ads, and we never sell your data.</p>
 
       <h3>Who we are</h3>
       <p>${BRAND.name} is run by ${who}. We are the controller of your personal data. Contact: ${mail}.</p>
@@ -11663,6 +11921,7 @@ function renderPrivacy(){
         <tbody>
           ${row('Your home answers and results, on this device', 'To give you the answer. Never sent to us unless you sign in', 'Until you clear them')}
           ${row('Account: email, name, home answers, meter readings you load', 'To keep your home on every device (contract)', 'Until you delete the account')}
+          ${Q ? row('Quote request: name, email, phone, county, system', 'To get you installer quotes (your consent)', '24 months') : ''}
           ${row('Alert emails', 'You turned them on (consent)', 'Until you turn them off')}
           ${row('Installer quote you upload', 'To read it for you (contract)', 'Not kept by us')}
           ${row('Anonymous usage counts', 'To improve the app (consent)', '26 months')}
@@ -11674,13 +11933,14 @@ function renderPrivacy(){
 
       <h3>Who receives it</h3>
       <ul>
+        ${Q ? '<li><b>Installers</b>: up to three SEAI-registered installers, only if you ask for quotes.</li>' : ''}
         <li><b>Supabase</b>: our database, in Ireland.</li>
         <li><b>Vercel</b>: hosts the app and, if you allow it, counts page visits without cookies.</li>
         <li><b>Anthropic</b> (USA): reads quotes you upload and writes quarterly suggestions. Suggestions get no personal details. Anthropic doesn’t train on what it reads for us and keeps it only briefly, as its business terms set out.</li>
         <li><b>Resend</b> (USA): sends our emails.</li>
         <li><b>Google</b>: only if you sign in with Google.</li>
       </ul>
-      <p>Transfers to the USA are covered by the EU–US Data Privacy Framework or the EU's standard contractual clauses. Switching supplier happens on the supplier's own site: we send them nothing. No supplier or installer pays us, and we don’t pass your details to them.</p>
+      <p>Transfers to the USA are covered by the EU–US Data Privacy Framework or the EU's standard contractual clauses. Switching supplier happens on the supplier's own site: we send them nothing. No supplier or installer pays us${Q ? '' : ', and we don’t pass your details to them'}.</p>
 
       <h3>On your device</h3>
       <p>No advertising or tracking cookies. The app keeps your answers in your browser’s storage so they are there next time, and your sign-in if you make an account. If you allow usage counts, it also keeps a random number for that visit, gone when you close the tab. Clearing this device below removes all of it.</p>
@@ -11755,6 +12015,7 @@ async function downloadMyData(){
   const out = { exported_at: new Date().toISOString(), app: BRAND.name, on_this_phone: cloudCopy(state) };
   if (_sb && _sbUser){
     out.account = { email: _sbUser.email || null, created_at: _sbUser.created_at || null, profile: _sbProfile || null };
+    try { const { data } = await _sb.rpc('my_quote_requests'); out.quote_requests = data || []; } catch (e) { out.quote_requests = 'could not be loaded'; }
   }
   const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
@@ -11790,6 +12051,62 @@ async function deleteMyAccount(){
   } catch (e) {
     showToast((e && e.message) || 'Could not delete the account.', { type: 'warn', icon: ic('warn', 16) });
   }
+}
+
+/* ---- Installer portal ---------------------------------------------------
+ * Switched off for the first launch (FEATURES.installerQuotes).
+ * For installers who buy leads. Signed in, they see the leads offered to their
+ * company: the system and its modelled economics always, the homeowner's
+ * contact details once they accept. Row-level security in the database
+ * enforces both; this screen only displays what it is allowed to read. */
+let _portal = { status: 'idle', rows: [], error: null };
+async function loadInstallerLeads(){
+  if (!_sb || !_sbUser) return;
+  _portal = { ..._portal, status: 'loading' };
+  const { data, error } = await _sb.rpc('installer_leads_v2');
+  _portal = error ? { status: 'error', rows: [], error: error.message } : { status: 'ready', rows: data || [], error: null };
+  renderApp();
+}
+async function setLeadStatus(id, status){
+  const { error } = await _sb.rpc('set_assignment_status', { p_assignment: id, p_status: status });
+  if (error) showToast(error.message, { type: 'warn', icon: ic('warn', 16) });
+  loadInstallerLeads();
+}
+function renderInstallerPortal(){
+  if (!sbInitialized()) return `${topbar('Installer portal', 'accent', true)}<div class="screen"><p class="disclaimer">Accounts are not available.</p></div>${bottomNav()}`;
+  if (!_sbUser){
+    return `${topbar('Installer portal', 'accent', true)}
+    <div class="screen"><div class="card">
+      <p style="margin:0 0 12px;line-height:1.6">Installers who work with ${BRAND.name} see the quote requests sent to them here. Sign in with the email your company registered with us.</p>
+      <button class="switch-cta v7-cta" onclick="_authModalOpen=true;renderApp()">Sign in</button>
+    </div></div>${bottomNav()}`;
+  }
+  if (_portal.status === 'idle') setTimeout(loadInstallerLeads, 0);
+  const rows = _portal.rows;
+  const STAGES = [['accepted', 'Accept'], ['contacted', 'Contacted'], ['quoted', 'Quoted'], ['won', 'Won'], ['lost', 'Lost']];
+  const tl = { asap: 'ASAP', '3m': 'within 3 months', '6m': 'within 6 months', '12m': 'within a year', browsing: 'exploring' };
+  return `${topbar('Installer portal', 'accent', true)}
+  <div class="screen">
+    ${_portal.status === 'loading' ? '<p class="disclaimer">Loading your leads…</p>' : ''}
+    ${_portal.status === 'error' ? `<p class="disclaimer">${escAttr(_portal.error)}</p>` : ''}
+    ${_portal.status === 'ready' && !rows.length ? `<div class="card"><p style="margin:0;line-height:1.6">No leads yet for ${escAttr(_sbUser.email || 'this account')}. If your company has just joined, ask us to link this email to it.</p></div>` : ''}
+    ${rows.map((r) => {
+      const sp = r.spec || {};
+      const open = !['sent', 'declined'].includes(r.status);
+      return `<div class="card portal-lead">
+        <div class="portal-head"><b>${escAttr(r.county)}${r.eircode_area ? ' · ' + escAttr(r.eircode_area) : ''}</b><span>${r.details_updated ? '<span class="portal-status is-sent">updated</span> ' : ''}<span class="portal-status is-${r.status}">${r.status}</span></span></div>
+        <div class="portal-spec">${sp.panels || '?'} panels · ${sp.kwp || '?'} kWp${sp.battery_kwh ? ` · ${sp.battery_kwh} kWh battery` : ''}${sp.ev ? ' · EV' : ''} · ${tl[r.timeline] || r.timeline}<br>
+          ${sp.payback_years ? `Modelled payback ${sp.payback_years} yr · ` : ''}${sp.annual_kwh ? `${sp.annual_kwh.toLocaleString('en-IE')} kWh/yr · ` : ''}quality ${r.quality_score}/100 · €${Number(r.price_eur).toFixed(0)}</div>
+        ${open ? `<div class="portal-contact">${escAttr(r.name || '')}<br><a href="mailto:${escAttr(r.email)}">${escAttr(r.email)}</a>${r.phone ? ` · <a href="tel:${escAttr(r.phone)}">${escAttr(r.phone)}</a>` : ''}</div>` : ''}
+        <div class="portal-actions">
+          ${r.status === 'sent' ? `<button class="v7-imp-btn" onclick="setLeadStatus('${r.assignment_id}','accepted')">Accept and show contact details</button>
+            <button class="v7-link" onclick="setLeadStatus('${r.assignment_id}','declined')">Decline</button>`
+          : STAGES.slice(1).map(([v, t]) => `<button class="v7-link ${r.status === v ? 'is-on' : ''}" onclick="setLeadStatus('${r.assignment_id}','${v}')">${t}</button>`).join('')}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
+  ${bottomNav()}`;
 }
 
 /** Open a sheet over the current surface, or close it with null. */
@@ -12415,7 +12732,7 @@ function v7Choose(planId){
    in-app screen stack instead of leaving the app. Screens are
    pushed as hash entries; the ?s= share param is left untouched.
    ============================================================ */
-const APP_SCREENS = ['result','plans','plan-detail','solar','analytics','monitor','privacy','terms','me','updates','profile','account',
+const APP_SCREENS = ['result','plans','plan-detail','solar','analytics','monitor','privacy','terms',...(FEATURES.installerQuotes ? ['installer'] : []),'me','updates','profile','account',
                      'compare','more','independence','quotes','auditor','refine',
                      'how-to-switch','methodology','csv-import','myhome','everything'];
 
@@ -12927,6 +13244,7 @@ function renderApp(){
     case 'auditor':      html = renderAuditor(); break;
     case 'privacy':      html = renderPrivacy(); break;
     case 'terms':        html = renderTerms(); break;
+    case 'installer':    html = FEATURES.installerQuotes ? renderInstallerPortal() : renderMore(); break;
     case 'me':
     case 'updates':      html = renderUpdates(); break;
     case 'profile':      html = renderProfile(); break;
@@ -14078,6 +14396,122 @@ function renderMethodology(){
 }
 
 /* ============================================================
+   SPRINT 4 — IMPROVED INSTALLER LEAD FORM (B3)
+   Qualification fields + detailed spec capture.
+   Switched off for the first launch (FEATURES.installerQuotes).
+   ============================================================ */
+const LEAD_COUNTIES = ['Carlow', 'Cavan', 'Clare', 'Cork', 'Donegal', 'Dublin', 'Galway', 'Kerry', 'Kildare',
+  'Kilkenny', 'Laois', 'Leitrim', 'Limerick', 'Longford', 'Louth', 'Mayo', 'Meath', 'Monaghan', 'Offaly',
+  'Roscommon', 'Sligo', 'Tipperary', 'Waterford', 'Westmeath', 'Wexford', 'Wicklow'];
+// Must match CONSENT_TEXT_V1 in api/_lead.js — the server stores its own copy.
+const LEAD_CONSENT_TEXT = `I agree that ${BRAND.name} may share my name, contact details, county and the system modelled here with up to three SEAI-registered installers so they can contact me with a quote.`;
+
+/** What the installers receive about the system: the spec and its modelled economics. */
+function leadSpec(){
+  const kwp = totalKwp();
+  let payback = null, benefit = null;
+  try {
+    const sc = computeSolarPaybackScenarios();
+    const cur = state.ev_active ? sc.withEv : sc.withoutEv;
+    if (cur && cur.payback < 50) payback = +cur.payback.toFixed(1);
+    if (cur) benefit = Math.round(cur.solarBenefit);
+  } catch (e) { /* the spec alone is still a lead */ }
+  return {
+    panels: totalPanels(), kwp: +kwp.toFixed(2), battery_kwh: state.battery_kwh || 0,
+    annual_kwh: Math.round(Object.values(state.bills).reduce((a, b) => a + b, 0)),
+    ev: !!state.ev_active, heating: state.heating_type || '',
+    payback_years: payback, annual_benefit_eur: benefit,
+    has_solar_now: !!state.has_solar && !state.solar_planned && !state.considering_solar,
+    uploaded_quote: (state.solar_quotes || []).some((q) => q.source === 'upload'),
+  };
+}
+
+function openLeadForm(){
+  const m = document.createElement('div');
+  m.id = 'lead-modal';
+  m.className = 'modal-overlay';
+  const sp = leadSpec();
+  const lf = state._lead_form || {};
+  m.innerHTML = `
+    <div class="modal" onclick="event.stopPropagation()" style="max-height:90vh;overflow-y:auto">
+      <div class="modal-handle"></div>
+      <h3>${lf.sent_at ? 'Update your <em>quote request</em>' : 'Get up to <em>3 installer quotes</em>'}</h3>
+      ${lf.sent_at ? `<p style="font-size:12px;color:var(--ink-dim);margin:-4px 0 10px">Sent ${new Date(lf.sent_at).toLocaleDateString('en-IE')}. Change anything and send again — installers who have it see the update; nobody is charged twice.</p>` : ''}
+      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px;line-height:1.6">SEAI-registered installers covering your county. They see the system below and contact you directly.</p>
+      <div style="background:var(--well);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:var(--ink-soft);line-height:1.6">
+        <b style="color:var(--ink)">${sp.panels} panels · ${sp.kwp} kWp${sp.battery_kwh ? ` · ${sp.battery_kwh} kWh battery` : ''}</b>${sp.payback_years ? `<br>Modelled payback ${sp.payback_years} years` : ''}
+      </div>
+      <label class="lead-field"><span>Email *</span>
+        <input id="lead-email" class="modal-input" type="email" autocomplete="email" value="${escAttr(lf.email || state.user_email || '')}"></label>
+      <label class="lead-field"><span>County *</span>
+        <select id="lead-county" class="modal-input"><option value="">Choose…</option>
+          ${LEAD_COUNTIES.map((c) => `<option ${lf.county === c ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+      <label class="lead-field"><span>Name</span>
+        <input id="lead-name" class="modal-input" type="text" autocomplete="name" value="${escAttr(lf.name || '')}"></label>
+      <label class="lead-field"><span>Phone</span>
+        <input id="lead-phone" class="modal-input" type="tel" autocomplete="tel" value="${escAttr(lf.phone || '')}"></label>
+      <label class="lead-field"><span>Eircode routing key (first 3 characters)</span>
+        <input id="lead-eircode" class="modal-input" type="text" maxlength="3" placeholder="e.g. T12" value="${escAttr(lf.eircode_area || '')}"></label>
+      <label class="lead-field"><span>When are you hoping to install?</span>
+        <select id="lead-timeline" class="modal-input">
+          ${[['asap', 'As soon as possible'], ['3m', 'Within 3 months'], ['6m', 'Within 6 months'], ['12m', 'Within a year'], ['browsing', 'Just exploring']]
+            .map(([v, t]) => `<option value="${v}" ${lf.timeline === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+      <label class="lead-consent"><input id="lead-consent" type="checkbox"> <span>${LEAD_CONSENT_TEXT}</span></label>
+      <div id="lead-error" class="lead-error" role="alert"></div>
+      <button class="modal-btn" id="lead-submit" onclick="submitLeadForm()">Send</button>
+      <button class="modal-skip" onclick="closeLeadModal()">Not now</button>
+      <div class="modal-privacy">We never sell your data, and no installer pays us. <a href="#" onclick="event.preventDefault();closeLeadModal();setScreen('privacy')">Privacy</a></div>
+    </div>`;
+  m.onclick = closeLeadModal;
+  document.body.appendChild(m);
+  setTimeout(() => { const el = document.getElementById('lead-email'); if (el && !el.value) el.focus(); }, 100);
+}
+
+function closeLeadModal(){
+  const m = document.getElementById('lead-modal');
+  if (m) m.remove();
+}
+
+async function submitLeadForm(){
+  const val = (id) => (document.getElementById(id)?.value || '').trim();
+  const err = (msg) => { const e = document.getElementById('lead-error'); if (e) e.textContent = msg; };
+  const body = {
+    email: val('lead-email'), county: val('lead-county'), name: val('lead-name') || null,
+    phone: val('lead-phone') || null, eircode_area: val('lead-eircode') || null, timeline: val('lead-timeline'),
+    consent_share: !!document.getElementById('lead-consent')?.checked,
+    spec: leadSpec(), session_id: analyticsSession(),
+  };
+  // Remembered on this device so a failed send never loses what was typed.
+  state._lead_form = { email: body.email, county: body.county, name: body.name, phone: body.phone, eircode_area: body.eircode_area, timeline: body.timeline };
+  saveState();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(body.email)) return err('Please enter a valid email address.');
+  if (!body.county) return err('Please choose your county.');
+  if (!body.consent_share) return err('Tick the box so we can pass your details to installers.');
+  const btn = document.getElementById('lead-submit');
+  if (btn){ btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    // Signed in: the server links the request to the account (My Peakless lists it).
+    try { const t = _sb && (await _sb.auth.getSession()).data.session?.access_token; if (t) headers.Authorization = 'Bearer ' + t; } catch (e) {}
+    const res = await fetch('/api/lead', { method: 'POST', headers, body: JSON.stringify(body) });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(out.error || 'Your request could not be sent. Please try again.');
+    captureEmail(body.email, 'installer_quotes');
+    state._lead_form = { ...state._lead_form, sent_at: state._lead_form.sent_at || new Date().toISOString() };
+    saveState();
+    trackEvent('lead_submitted', { county: body.county, timeline: body.timeline, battery: body.spec.battery_kwh > 0 });
+    closeLeadModal();
+    showToast(out.updated ? `Updated. ${out.matched > 0 ? `The installer${out.matched > 1 ? 's' : ''} already looking at it will see your new details.` : 'We have your latest details.'}`
+      : out.matched > 0 ? `Sent to ${out.matched} installer${out.matched > 1 ? 's' : ''} in ${body.county}. They'll contact you directly.`
+      : `Saved. We don’t work with an installer in ${body.county} yet. We’ll email you when we do.`,
+      { type: 'accent', icon: ic('checkC', 16) });
+  } catch (e) {
+    err((e && e.message) || 'Your request could not be sent. Please try again.');
+    if (btn){ btn.disabled = false; btn.textContent = 'Send'; }
+  }
+}
+
+/* ============================================================
    REPORT — a PDF made on the device
    ============================================================ */
 function openPdfReportModal(){
@@ -14093,7 +14527,8 @@ function openPdfReportModal(){
         Your report has your plans, solar payback, the grant and how to switch.
         ${best ? `<br><br><b style="color:var(--accent)">Save ${fmtCurrency(publishableSavings())}/yr by switching to ${best.plan.supplier}${state.solar_planned ? ' (excludes your planned solar)' : ''}</b>` : ''}
       </p>
-      <button class="modal-btn" id="pdf-submit-btn" onclick="closePdfModal();doGeneratePdf()">Download PDF</button>
+      ${FEATURES.emailCapture ? `<input id="pdf-email" class="modal-input" type="email" placeholder="you@example.com (optional)" autocomplete="email" value="${escAttr(state.user_email || '')}">` : ''}
+      <button class="modal-btn" id="pdf-submit-btn" onclick="submitPdfRequest()">Download PDF</button>
       <button class="modal-skip" onclick="closePdfModal()">Not now</button>
       <div class="modal-privacy" style="margin-top:8px">The PDF is made on your device.</div>
     </div>`;
@@ -14104,6 +14539,14 @@ function openPdfReportModal(){
 function closePdfModal(){
   const m = document.getElementById('pdf-modal');
   if (m) m.remove();
+}
+
+/** Download the report; with email capture on (src/features.js), keep the address given. */
+function submitPdfRequest(){
+  const email = FEATURES.emailCapture ? (document.getElementById('pdf-email')?.value || '').trim() : '';
+  if (email) captureEmail(email, 'pdf_report');
+  closePdfModal();
+  doGeneratePdf();
 }
 
 // Expose globals for inline onclick attrs
@@ -14314,6 +14757,17 @@ window.copyShareUrl = copyShareUrl;
 window.openHowToSwitch = openHowToSwitch;
 window.openPdfReportModal = openPdfReportModal;
 window.closePdfModal = closePdfModal;
+window.submitPdfRequest = submitPdfRequest;
+// Parts switched off for the first launch (src/features.js); kept so they can be turned on.
+window.isPartnerPlan = isPartnerPlan;
+window.requestInstallerQuotes = requestInstallerQuotes;
+window.openEmailModal = openEmailModal;
+window.closeEmailModal = closeEmailModal;
+window.submitModalEmail = submitModalEmail;
+window.openLeadForm = openLeadForm;
+window.closeLeadModal = closeLeadModal;
+window.submitLeadForm = submitLeadForm;
+window.setLeadStatus = setLeadStatus;
 window.clearCsvImport = clearCsvImport;
 window.handleCsvFile = handleCsvFile;
 window.parseCsvHdf = parseCsvHdf;

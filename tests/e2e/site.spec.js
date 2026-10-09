@@ -92,6 +92,22 @@ test('the front page gives a real sample report, asks for no email, and leaves y
   expect(after).toBe(before);
 });
 
+test('with email capture switched on, the sample report needs an email and keeps it', async ({ page }) => {
+  const { boot } = await import('./support.js');
+  await page.addInitScript(() => { window.__SAWED_FEATURES = { emailCapture: true }; });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await boot(page, { current_screen: 'welcome', annual_kwh: 3100, usage_input_mode: 'kwh' }, '/');
+  await page.evaluate(() => { window.state.current_screen = 'welcome'; window.renderApp(); });
+  await page.locator('#wl-sample-go').click();
+  await expect(page.locator('#wl-sample-msg')).toContainText('Enter an email');
+  await page.fill('#wl-sample-email', 'test@example.ie');
+  const dl = page.waitForEvent('download', { timeout: 30000 });
+  await page.locator('#wl-sample-go').click();
+  expect((await dl).suggestedFilename()).toMatch(/\.pdf$/);
+  await page.waitForFunction(() => window.state.annual_kwh === 3100);
+  expect(await page.evaluate(() => window.state.lead_queue.some((l) => l.source === 'sample_report'))).toBe(true);
+});
+
 test('Everything in Peakless lists every part, and each link goes somewhere', async ({ page }) => {
   const { boot } = await import('./support.js');
   await page.setViewportSize({ width: 390, height: 844 });
