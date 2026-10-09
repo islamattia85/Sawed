@@ -1,0 +1,26 @@
+{
+ "id": "owner",
+ "title": "My home: heat pump, 22 panels on two faces, 9 kWh battery",
+ "esb": "HDF_calckWh_10000000000_09-10-2026.csv",
+ "sigenergy": "sigenergy-energy-export.xlsx",
+ "rural": false,
+ "answers": {
+  "heat": "heatpump",
+  "solar": "have",
+  "panels": 22,
+  "battery": 9,
+  "gridnow": "no",
+  "filewhen": ["allyear", "sinceyes", "noexport", "before"],
+  "ev": "no",
+  "area": "urban",
+  "plan": "EI-24"
+ },
+ "system": {
+  "faces": [[12, 225, 35], [10, 45, 35]],
+  "panel_w": 440,
+  "battery": 9,
+  "cost": 10600,
+  "grant": 0,
+  "installed": "2025-10-20"
+ }
+}

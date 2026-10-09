@@ -20,13 +20,19 @@ import gzip, json, os, re, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRUTH = json.load(open(os.path.join(HERE, 'truth.json')))
 SC = {s['id']: s for s in json.load(open(os.path.join(HERE, 'scenarios.json')))}
+# Real homes (real/private/, kept out of git), when they are there. Their use is
+# known only with a Sigenergy file; without one it is not scored.
+_REAL = os.path.join(HERE, 'real', 'private')
+if os.path.exists(os.path.join(_REAL, 'truth.json')):
+    TRUTH.update(json.load(open(os.path.join(_REAL, 'truth.json'))))
+    SC.update({s['id']: s for s in json.load(open(os.path.join(_REAL, 'scenarios.json')))})
 
 _ROWS = {}
 def file_readings(name):
     """Import readings in a scenario file: distinct half-hours (a repeated row counts once), and all rows."""
     if name not in _ROWS:
         seen, n = set(), 0
-        with gzip.open(os.path.join(HERE, 'files', name + '.gz'), 'rt', errors='replace') as f:
+        with gzip.open(os.path.join(HERE, name + '.gz') if name.startswith('real/') else os.path.join(HERE, 'files', name + '.gz'), 'rt', errors='replace') as f:
             for line in f:
                 c = line.rstrip('\n').split(',')
                 if len(c) >= 5 and 'import' in c[3].lower(): seen.add((c[1], c[4], c[2])); n += 1
@@ -46,7 +52,7 @@ def score(r):
     asked = [q for q in r['seen']['questions'] if q['q'] in ('filewhen',)]
     out['asked'] = [q['text'] for q in asked]
     out['kwh'] = r['kwh']; out['true_kwh'] = t['use_kwh']
-    out['kwh_err'] = round((r['kwh'] - t['use_kwh']) / t['use_kwh'] * 100, 1)
+    out['kwh_err'] = round((r['kwh'] - t['use_kwh']) / t['use_kwh'] * 100, 1) if t['use_kwh'] else None
     # A home planning solar is priced as it is today (the app ranks plans with the planned panels in).
     ranked = r.get('today') or r['ranked']
     # A battery that only stores solar (every battery home here but the one filled at night): the
@@ -72,7 +78,7 @@ def score(r):
         out['true_payback'] = t['payback']
         out['payback_err'] = round(out['payback'] - t['payback'], 1) if out['payback'] is not None else None
     out['accuracy_shown'] = r['accuracy']['pct']
-    raw = max(abs(r['kwh'] - t['use_kwh']) / t['use_kwh'] * 100, abs(best_net - costs[best]) / costs[best] * 100 if best in costs else 0)
+    raw = max(abs(r['kwh'] - t['use_kwh']) / t['use_kwh'] * 100 if t['use_kwh'] else 0, abs(best_net - costs[best]) / costs[best] * 100 if best in costs else 0)
     out['acc_covers'] = out['accuracy_shown'] is not None and out['accuracy_shown'] >= raw
     # Readings in the file the app did not read, and whether the card said so.
     files = sc.get('files') or [sc['file']]
@@ -87,7 +93,7 @@ def score(r):
     out['lost_pct'] = max(lost); out['repeat_pct'] = max(rep); out['warns'] = sorted({w for ws in warns for w in ws})
     out['asked_ids'] = sorted({q['q'] for q in r['seen']['questions'] if q['q'] in ('filewhen', 'fileexp', 'filehome', 'typed')})
     fails = []
-    if abs(out['kwh_err']) > tol['kwh']: fails.append('consumption')
+    if out['kwh_err'] is not None and abs(out['kwh_err']) > tol['kwh']: fails.append('consumption')
     if out['bill_err'] is None or abs(out['bill_err']) > tol['bill']: fails.append('bill')
     if out['plan_gap'] is None or out['plan_gap'] > tol['plan']: fails.append('plan')
     if 'payback_err' in out and (out['payback_err'] is None or abs(out['payback_err']) > tol['payback']): fails.append('payback' if out['payback_err'] is not None else 'no payback shown')
@@ -106,4 +112,4 @@ if __name__ == '__main__':
     json.dump(rows, open(os.path.join(d, 'scores.json'), 'w'), indent=1)
     for r in rows:
         if r['outcome'] == 'rejected': print(f"{r['id']:22} REJECTED  {r['message'][:110]}"); continue
-        print(f"{r['id']:22} {'PASS' if r['pass'] else 'FAIL':4} kWh {r['kwh']:6} ({r['kwh_err']:+6}%)  bill {r['bill_err']}%  gap {r['price_gap']}%  plan {r['best']:18} gap €{r['plan_gap']}  payback {r.get('payback')} vs {r.get('true_payback')}  acc ±{r['accuracy_shown']}%  {'asked' if r['asked'] else ''} {','.join(r['fails'])}")
+        print(f"{r['id']:22} {'PASS' if r['pass'] else 'FAIL':4} kWh {r['kwh']:6} ({r['kwh_err'] if r['kwh_err'] is not None else 'n/a':>6}%)  bill {r['bill_err']}%  gap {r['price_gap']}%  plan {r['best']:18} gap €{r['plan_gap']}  payback {r.get('payback')} vs {r.get('true_payback')}  acc ±{r['accuracy_shown']}%  {'asked' if r['asked'] else ''} {','.join(r['fails'])}")

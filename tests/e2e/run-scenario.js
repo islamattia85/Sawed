@@ -5,17 +5,21 @@
 // answer the questions the app asks the way this person would, then read what
 // the app concluded. Prices and today's date are frozen so the answers can be
 // compared with stored true values.
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { isolate } from './support.js';
 
 export const DIR = new URL('../fixtures/meter-scenarios/', import.meta.url).pathname;
-export const SCENARIOS = JSON.parse(readFileSync(DIR + 'scenarios.json', 'utf8'));
-export const TRUTH = JSON.parse(readFileSync(DIR + 'truth.json', 'utf8'));
+// Real homes (real/private/, kept out of git) join the made-up ones when they are there.
+const REAL = DIR + 'real/private/';
+const realJson = (f, empty) => (existsSync(REAL + f) ? JSON.parse(readFileSync(REAL + f, 'utf8')) : empty);
+export const SCENARIOS = [...JSON.parse(readFileSync(DIR + 'scenarios.json', 'utf8')), ...realJson('scenarios.json', [])];
+export const TRUTH = { ...JSON.parse(readFileSync(DIR + 'truth.json', 'utf8')), ...realJson('truth.json', {}) };
 const TARIFFS = readFileSync(DIR + 'tariffs-2026-10-09.json');
 export const TODAY = new Date('2026-10-09T12:00:00Z');
 
-const fileOf = (name) => ({ name: name.replace(/\.gz$/, '').replace(/^.*\//, ''), mimeType: 'text/csv', buffer: gunzipSync(readFileSync(DIR + 'files/' + name.replace(/(\.gz)?$/, '.gz'))) });
+const fileOf = (name) => ({ name: name.replace(/\.gz$/, '').replace(/^.*\//, ''), mimeType: 'text/csv',
+  buffer: gunzipSync(readFileSync(DIR + (name.startsWith('real/') ? '' : 'files/') + name.replace(/(\.gz)?$/, '.gz'))) });
 
 /** What each question gets when the scenario does not say: an ordinary urban home in Cork on Electric Ireland. */
 const DEFAULTS = { meter: 'smart', area: 'urban', plan: 'EI-24', disc: 0, heat: 'gas', heattime: 'day', night: 'no', gas: 'no', solar: 'no',
