@@ -11822,15 +11822,43 @@ const SYS_MAX_BATTERY = 30;
  * squares) over a floor for the weather and the tariff model itself. The
  * tip is the single change that would tighten the estimate most.
  */
+/**
+ * How far the year can be from a meter file that covers only part of it.
+ * The missing days are filled from the ones there, shaped by the seasons of
+ * the heating: about right for a gas home, a guess for a heat pump, whose
+ * winter can be three times its summer. Measured on homes with known use
+ * (tests/fixtures/meter-scenarios): four weeks of a gas home within 4%, of a
+ * heat pump home 37% to 80% out. So the share of the year missing counts at
+ * 15% for a home not heated by electricity and 60% for one that is.
+ */
+function fileCoverageErr(fb){
+  const days = state.meter && state.meter.days;
+  const n = Math.min(365, days ? Object.keys(days).filter((k) => !fb || (k >= fb.from && k <= fb.to)).length : (+state._csv_days || 0));
+  const missing = Math.max(0, 365 - n) / 365;
+  const seasonal = ['heatpump', 'storage', 'direct'].includes(state.heating_type) ? 0.6 : 0.15;
+  return { days: n, err: Math.round(100 * missing * seasonal) };
+}
+
 function modelAccuracy(){
   const fine = state.fine || {};
   const sys = !!state.has_solar && totalPanels() > 0;
+  const fileParts = [];
   const parts = [
     { label: 'Weather and our estimates', err: 3 },
     state._csv_imported
       ? (() => { const fb = fileBasis();
+          // What the file is missing, and what could not be read from it.
+          const cov = fileCoverageErr(fb);
+          if (cov.days < 330) fileParts.push({ label: `Your meter file covers ${cov.days} day${cov.days === 1 ? '' : 's'}. We filled in the rest of the year`, err: Math.max(1, cov.err), tip: 'Add a whole year from ESB Networks', go: "v7Sheet('meter')" });
+          const unread = +state._csv_unread_pct || 0;
+          if (unread > 5) fileParts.push({ label: `We couldn’t read ${Math.round(unread)}% of the readings in your file`, err: Math.min(15, Math.round(unread / 4)), tip: 'Download the file again and add it unopened', go: "v7Sheet('meter')" });
           if (fb && fb.ask) return { label: 'Meter file: before or after the panels?', err: 8, tip: 'Say when the panels went up', go: "flowEdit('filewhen')" };
-          if (fb && fb.contradicts) return { label: 'Meter file shows panels already running', err: 6, tip: 'Mark the panels as installed', go: 'openMySystem()' };
+          // No panels said, and the file shows power sold from its first weeks:
+          // what it shows bought is what was left after panels, a third or so
+          // less than the home uses (tests/fixtures/meter-scenarios, B6: -34%).
+          if (fb && fb.contradicts) return fb.to === fileSolar().last
+            ? { label: 'Your meter file shows power sold, and you said there are no panels', err: 25, tip: 'Say if you have panels', go: 'openMySystem()' }
+            : { label: 'Meter file shows panels from partway; we use the days before them', err: 3, tip: 'Mark the panels as installed', go: 'openMySystem()' };
           // The months since the panels went in are worked back from what was bought and sold.
           if (fb && fb.rebuilt) return { label: `Your meter data; from ${fmtDay(fb.rebuilt)}, when the panels began, worked back to what the home used`, err: 3 };
           return { label: 'Your meter data', err: 1 }; })()
@@ -11842,6 +11870,7 @@ function modelAccuracy(){
             : { label: 'Usage worked out from a bill after the panels', err: 11, tip: 'Import your meter file', go: "v7Sheet('meter')" })
           : { label: 'Usage worked out from your bill', err: 9, tip: 'Enter your yearly kWh from a bill, or import meter data', go: "v7Sheet('home')" },
   ];
+  parts.push(...fileParts);
   if (sys){
     parts.push(fine.roof ? { label: 'Roof direction and tilt confirmed', err: 1 }
       : { label: 'Roof direction and tilt assumed', err: 4, tip: 'Confirm which way the roof faces', go: "openMySystem()" });
