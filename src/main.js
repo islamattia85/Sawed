@@ -5913,6 +5913,15 @@ function flowSteps(f = state._flow || {}, fbIn){
       // A meter file and a typed bill each need to be placed before or after
       // the panels went up.
       if (state._csv_imported){ const fb = fbIn !== undefined ? fbIn : fileBasis(); if ((fb && fb.ask) || f.filewhen !== undefined) out.push('filewhen'); }
+      // A heat pump home whose meter file has its panels in all of it: the
+      // file shows what was bought, not when the home used it, so it cannot
+      // say when the heating runs or the water is heated. Asked, not assumed:
+      // the heat pump profile's water at 2am-5am put 42% of such a home's day
+      // in the night hours, against 28.5% (docs/meter-file-fixes-2026-10-09.md).
+      if (state._csv_imported && f.heat === 'heatpump'){
+        const fb = fbIn !== undefined ? fbIn : fileBasis(), own = (!(fb && fb.ask) || f.filewhen !== undefined) && fileOwnShape();
+        if (own && !own.buckets){ if (!out.includes('heattime')) out.push('heattime'); out.push('hotwater'); }
+      }
       // A yearly kWh figure covers every month: only a bill needs its months.
       else { out.push('billwhen'); if (f.billwhen === 'after' && !String(f.bill || '').startsWith('kwh:')) out.push('billmonths'); }
       out.push('price', 'grant');
@@ -6159,6 +6168,7 @@ function flowAnswer(q, v){
   if (q === 'night') state.immersion_night = v === 'immersion';
   if (q === 'evtime') state.ev_charge_time = v === 'evening' ? 'evening' : 'night';
   if (q === 'heattime') state.heat_time = v === 'night' ? 'night' : 'day';
+  if (q === 'hotwater') state.hot_water_strategy = v === 'night' ? 'smart' : 'none';
   if (q === 'area') state.area = v === 'rural' ? 'rural' : 'urban';
   if (q === 'disc'){
     // A plan with its discount in the name already has it in its prices:
@@ -6312,6 +6322,7 @@ function renderFlow(){
       ? ['When do the heaters take their charge?', 'It decides how much of the bill is at the night rate.']
       : ['When does the heat pump mostly run?', 'It decides how much of the bill is at the night rate.'],
     night: ['Is water heated at night on a timer?', 'An immersion on a night timer moves a lot of use into the cheap hours.'],
+    hotwater: ['When does the heat pump heat the water?', 'Your meter file can’t show it: the panels and battery change when you buy.'],
     gas: [`Is your gas with ${esc(plan.supplier)} too?`, 'It changes what a switch is worth.'],
     gasbill: ['What’s your gas bill?', 'Every two months. Not sure? We’ll use a typical home.'],
     solar: ['Solar panels?', ''],
@@ -6360,6 +6371,7 @@ function renderFlow(){
     area: (v) => (v === 'rural' ? 'Rural' : 'Urban'),
     night: (v) => (v === 'immersion' ? 'Immersion at night' : 'Nothing at night'),
     heattime: (v) => (v === 'night' ? 'Heating mostly at night' : 'Heating through the day'),
+    hotwater: (v) => (v === 'night' ? 'Water heated overnight' : 'Water heated through the day'),
     evtime: (v) => (v === 'evening' ? 'Car charges in the evening' : 'Car charges overnight'),
     heat: (v) => ({ gas: 'Gas or oil', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heaters' })[v],
     gas: (v) => (v === 'yes' ? `Gas with ${plan.supplier} too` : 'Gas with another supplier'),
@@ -6451,6 +6463,7 @@ function renderFlow(){
       <button class="fl-next" onclick="flowAnswer('gasbill', document.getElementById('flow-gas').value)">Next</button>
       <button class="v7-link" onclick="flowAnswer('gasbill', 0)">Not sure</button>`;
     if (q === 'gas') return `<div class="fl-opts">${opt('gas', 'yes', 'Yes, both with them')}${opt('gas', 'no', 'No, or oil')}</div>`;
+    if (q === 'hotwater') return `<div class="fl-opts">${opt('hotwater', 'day', 'During the day, when it needs to', 'The heat pump’s own schedule')}${opt('hotwater', 'night', 'Overnight, on a timer', 'For the night rate')}</div>`;
     if (q === 'heattime') return state.heating_type === 'storage'
       ? `<div class="fl-opts">${opt('heattime', 'night', 'Overnight only', 'On the night rate, the usual way')}${opt('heattime', 'day', 'Also during the day', 'A daytime boost, or other electric heaters')}</div>`
       : `<div class="fl-opts">${opt('heattime', 'day', 'Through the day, as needed', 'The usual way')}${opt('heattime', 'night', 'Mostly overnight', 'On a timer for the night rate')}</div>`;
@@ -6593,7 +6606,7 @@ function renderFlow(){
 
 /** The setup's stages, named, with where you are among them. */
 const FLOW_CHAPTER = { bill: 'Your usage', meter: 'Your usage', area: 'Your usage', filewhen: 'Your usage', billwhen: 'Your usage', billmonths: 'Your usage',
-  plan: 'Your plan', disc: 'Your plan', heat: 'Heating', heattime: 'Heating', night: 'Heating', gas: 'Heating', gasbill: 'Heating',
+  plan: 'Your plan', disc: 'Your plan', heat: 'Heating', heattime: 'Heating', hotwater: 'Heating', night: 'Heating', gas: 'Heating', gasbill: 'Heating',
   where: 'Your home', house: 'Your home', solar: 'Solar', roof: 'Solar', tilt: 'Solar', panels: 'Solar', battery: 'Solar', system: 'Solar',
   price: 'Solar', grant: 'Solar', gridnow: 'Solar', fileexp: 'Solar', ev: 'Car', evtime: 'Car', km: 'Car', car: 'Car' };
 function flowChapters(steps, f, open){
@@ -6609,7 +6622,7 @@ function flowChapters(steps, f, open){
 
 /** The website's side card beside each question: the answers so far, and what it leads to. */
 const FLOW_SHORT = { bill: 'Usage', plan: 'Plan now', disc: 'Discount', house: 'House', system: 'System', where: 'Region',
-  meter: 'Meter', area: 'Area', heat: 'Heating', evtime: 'Car charging', heattime: 'Heating hours', night: 'Water at night',
+  meter: 'Meter', area: 'Area', heat: 'Heating', evtime: 'Car charging', heattime: 'Heating hours', hotwater: 'Hot water', night: 'Water at night',
   gas: 'Gas', gasbill: 'Gas bill', solar: 'Solar', tilt: 'Roof pitch', price: 'Price', grant: 'SEAI grant', roof: 'Roof faces',
   panels: 'Panels', battery: 'Battery', filewhen: 'Meter file date', fileexp: 'Power sold in the file', billwhen: 'Bill date', billmonths: 'Bill months',
   gridnow: 'Battery charging', km: 'Driving', car: 'Car' };

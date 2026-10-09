@@ -1,0 +1,3540 @@
+[
+ {
+  "id": "A1-gas",
+  "group": "A",
+  "title": "Calendar year 2025",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 3952,
+  "true_kwh": 4000,
+  "kwh_err": -1.2,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1440,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1440,
+  "true_bill_same_plan": 1453,
+  "bill_err": -0.9,
+  "price_gap": 1.0,
+  "saving": 876,
+  "true_saving": 880,
+  "saving_err": -0.4,
+  "payback": 6.8,
+  "true_payback": 6.82,
+  "payback_err": -0.0,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 675 kWh \u00b7 Mar-Apr: 644 kWh \u00b7 May-Jun: 586 kWh \u00b7 Jul-Aug: 634 kWh \u00b7 Sep-Oct: 692 kWh \u00b7 Nov-Dec: 721 kWh\nTotal: 3,952 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 1 Jan 2025 to 31 Dec 2025. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-01-01",
+   "to": "2025-12-31",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A1-heatpump",
+  "group": "A",
+  "title": "Calendar year 2025",
+  "home": "heatpump",
+  "truth_home": "heatpump",
+  "asked": [],
+  "kwh": 7110,
+  "true_kwh": 7500,
+  "kwh_err": -5.2,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 2363,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 2363,
+  "true_bill_same_plan": 2476,
+  "bill_err": -4.6,
+  "price_gap": 4.5,
+  "saving": 1023,
+  "true_saving": 1037,
+  "saving_err": -1.3,
+  "payback": 5.9,
+  "true_payback": 5.78,
+  "payback_err": 0.1,
+  "accuracy_shown": 4,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [
+   "consumption"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 1,595 kWh \u00b7 Mar-Apr: 1,335 kWh \u00b7 May-Jun: 907 kWh \u00b7 Jul-Aug: 745 kWh \u00b7 Sep-Oct: 983 kWh \u00b7 Nov-Dec: 1,545 kWh\nTotal: 7,110 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 1 Jan 2025 to 31 Dec 2025. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-01-01",
+   "to": "2025-12-31",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A1-ev",
+  "group": "A",
+  "title": "Calendar year 2025",
+  "home": "ev",
+  "truth_home": "ev",
+  "asked": [],
+  "kwh": 5970,
+  "true_kwh": 6000,
+  "kwh_err": -0.5,
+  "headline": {
+   "best": "FL-EV",
+   "bill": 1783,
+   "gap": 0
+  },
+  "best": "FL-EV",
+  "true_best": "FL-EV",
+  "plan_gap": 0,
+  "bill": 1783,
+  "true_bill_same_plan": 1785,
+  "bill_err": -0.1,
+  "price_gap": 0.3,
+  "saving": 935,
+  "true_saving": 934,
+  "saving_err": 0.2,
+  "payback": 6.4,
+  "true_payback": 6.43,
+  "payback_err": -0.0,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 887 kWh \u00b7 Mar-Apr: 1,030 kWh \u00b7 May-Jun: 1,023 kWh \u00b7 Jul-Aug: 978 kWh \u00b7 Sep-Oct: 1,013 kWh \u00b7 Nov-Dec: 1,039 kWh\nTotal: 5,970 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 1 Jan 2025 to 31 Dec 2025. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-01-01",
+   "to": "2025-12-31",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A2-gas",
+  "group": "A",
+  "title": "Twelve months, March 2025 to February 2026",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 3974,
+  "true_kwh": 4000,
+  "kwh_err": -0.7,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1446,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1446,
+  "true_bill_same_plan": 1453,
+  "bill_err": -0.5,
+  "price_gap": 0.6,
+  "saving": 876,
+  "true_saving": 880,
+  "saving_err": -0.4,
+  "payback": 6.9,
+  "true_payback": 6.82,
+  "payback_err": 0.1,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 697 kWh \u00b7 Mar-Apr: 644 kWh \u00b7 May-Jun: 586 kWh \u00b7 Jul-Aug: 634 kWh \u00b7 Sep-Oct: 692 kWh \u00b7 Nov-Dec: 721 kWh\nTotal: 3,974 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 1 Mar 2025 to 28 Feb 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-03-01",
+   "to": "2026-02-28",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A2-heatpump",
+  "group": "A",
+  "title": "Twelve months, March 2025 to February 2026",
+  "home": "heatpump",
+  "truth_home": "heatpump",
+  "asked": [],
+  "kwh": 7563,
+  "true_kwh": 7500,
+  "kwh_err": 0.8,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 2491,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 2491,
+  "true_bill_same_plan": 2476,
+  "bill_err": 0.6,
+  "price_gap": 0.6,
+  "saving": 1028,
+  "true_saving": 1037,
+  "saving_err": -0.8,
+  "payback": 5.8,
+  "true_payback": 5.78,
+  "payback_err": 0.0,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 2,048 kWh \u00b7 Mar-Apr: 1,335 kWh \u00b7 May-Jun: 907 kWh \u00b7 Jul-Aug: 745 kWh \u00b7 Sep-Oct: 983 kWh \u00b7 Nov-Dec: 1,545 kWh\nTotal: 7,563 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 1 Mar 2025 to 28 Feb 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-03-01",
+   "to": "2026-02-28",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A2-ev",
+  "group": "A",
+  "title": "Twelve months, March 2025 to February 2026",
+  "home": "ev",
+  "truth_home": "ev",
+  "asked": [],
+  "kwh": 6127,
+  "true_kwh": 6000,
+  "kwh_err": 2.1,
+  "headline": {
+   "best": "FL-EV",
+   "bill": 1797,
+   "gap": 0
+  },
+  "best": "FL-EV",
+  "true_best": "FL-EV",
+  "plan_gap": 0,
+  "bill": 1797,
+  "true_bill_same_plan": 1785,
+  "bill_err": 0.7,
+  "price_gap": 1.4,
+  "saving": 933,
+  "true_saving": 934,
+  "saving_err": -0.0,
+  "payback": 6.4,
+  "true_payback": 6.43,
+  "payback_err": -0.0,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 1,044 kWh \u00b7 Mar-Apr: 1,030 kWh \u00b7 May-Jun: 1,023 kWh \u00b7 Jul-Aug: 978 kWh \u00b7 Sep-Oct: 1,013 kWh \u00b7 Nov-Dec: 1,039 kWh\nTotal: 6,127 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 1 Mar 2025 to 28 Feb 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-03-01",
+   "to": "2026-02-28",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A3a-gas",
+  "group": "A",
+  "title": "Nine months, June 2025 to February 2026 (no spring)",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 4061,
+  "true_kwh": 4000,
+  "kwh_err": 1.5,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1471,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1471,
+  "true_bill_same_plan": 1453,
+  "bill_err": 1.2,
+  "price_gap": 1.1,
+  "saving": 908,
+  "true_saving": 880,
+  "saving_err": 3.2,
+  "payback": 6.6,
+  "true_payback": 6.82,
+  "payback_err": -0.2,
+  "accuracy_shown": 6,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 10,
+   "bill": 10,
+   "payback": 0.75,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 13,106 readings\nJan-Feb: 697 kWh \u00b7 Mar-Apr: 700 kWh* \u00b7 May-Jun: 617 kWh \u00b7 Jul-Aug: 634 kWh \u00b7 Sep-Oct: 692 kWh \u00b7 Nov-Dec: 721 kWh\nTotal: 4,061 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\nPartial year: 273 days across 5 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nYour file runs 1 Jun 2025 to 28 Feb 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-06-01",
+   "to": "2026-02-28",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A3a-heatpump",
+  "group": "A",
+  "title": "Nine months, June 2025 to February 2026 (no spring)",
+  "home": "heatpump",
+  "truth_home": "heatpump",
+  "asked": [],
+  "kwh": 7416,
+  "true_kwh": 7500,
+  "kwh_err": -1.1,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 2452,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 2452,
+  "true_bill_same_plan": 2476,
+  "bill_err": -1.0,
+  "price_gap": 1.1,
+  "saving": 1046,
+  "true_saving": 1037,
+  "saving_err": 0.9,
+  "payback": 5.7,
+  "true_payback": 5.78,
+  "payback_err": -0.1,
+  "accuracy_shown": 15,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 10,
+   "bill": 10,
+   "payback": 0.75,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 13,106 readings\nJan-Feb: 2,048 kWh \u00b7 Mar-Apr: 1,278 kWh* \u00b7 May-Jun: 817 kWh \u00b7 Jul-Aug: 745 kWh \u00b7 Sep-Oct: 983 kWh \u00b7 Nov-Dec: 1,545 kWh\nTotal: 7,416 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\nPartial year: 273 days across 5 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nYour file runs 1 Jun 2025 to 28 Feb 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-06-01",
+   "to": "2026-02-28",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A3a-ev",
+  "group": "A",
+  "title": "Nine months, June 2025 to February 2026 (no spring)",
+  "home": "ev",
+  "truth_home": "ev",
+  "asked": [],
+  "kwh": 6278,
+  "true_kwh": 6000,
+  "kwh_err": 4.6,
+  "headline": {
+   "best": "FL-EV",
+   "bill": 1906,
+   "gap": 0
+  },
+  "best": "FL-EV",
+  "true_best": "FL-EV",
+  "plan_gap": 0,
+  "bill": 1906,
+  "true_bill_same_plan": 1785,
+  "bill_err": 6.8,
+  "price_gap": 4.6,
+  "saving": 978,
+  "true_saving": 934,
+  "saving_err": 4.8,
+  "payback": 6.1,
+  "true_payback": 6.43,
+  "payback_err": -0.3,
+  "accuracy_shown": 6,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 10,
+   "bill": 10,
+   "payback": 0.75,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 13,106 readings\nJan-Feb: 1,044 kWh \u00b7 Mar-Apr: 1,082 kWh* \u00b7 May-Jun: 1,122 kWh \u00b7 Jul-Aug: 978 kWh \u00b7 Sep-Oct: 1,013 kWh \u00b7 Nov-Dec: 1,039 kWh\nTotal: 6,278 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\nPartial year: 273 days across 5 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nYour file runs 1 Jun 2025 to 28 Feb 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in bef",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-06-01",
+   "to": "2026-02-28",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A3b-gas",
+  "group": "A",
+  "title": "Nine months, September 2025 to May 2026 (no summer)",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 3987,
+  "true_kwh": 4000,
+  "kwh_err": -0.3,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1450,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1450,
+  "true_bill_same_plan": 1453,
+  "bill_err": -0.2,
+  "price_gap": 0.7,
+  "saving": 906,
+  "true_saving": 880,
+  "saving_err": 3.0,
+  "payback": 6.6,
+  "true_payback": 6.82,
+  "payback_err": -0.2,
+  "accuracy_shown": 6,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 10,
+   "bill": 10,
+   "payback": 0.75,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 13,104 readings\nJan-Feb: 697 kWh \u00b7 Mar-Apr: 664 kWh \u00b7 May-Jun: 608 kWh \u00b7 Jul-Aug: 605 kWh* \u00b7 Sep-Oct: 692 kWh \u00b7 Nov-Dec: 721 kWh\nTotal: 3,987 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\nPartial year: 273 days across 5 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nYour file runs 1 Sept 2025 to 31 May 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-09-01",
+   "to": "2026-05-31",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A3b-heatpump",
+  "group": "A",
+  "title": "Nine months, September 2025 to May 2026 (no summer)",
+  "home": "heatpump",
+  "truth_home": "heatpump",
+  "asked": [],
+  "kwh": 8148,
+  "true_kwh": 7500,
+  "kwh_err": 8.6,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 2665,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 2665,
+  "true_bill_same_plan": 2476,
+  "bill_err": 7.6,
+  "price_gap": 7.5,
+  "saving": 1083,
+  "true_saving": 1037,
+  "saving_err": 4.4,
+  "payback": 5.5,
+  "true_payback": 5.78,
+  "payback_err": -0.3,
+  "accuracy_shown": 15,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 10,
+   "bill": 10,
+   "payback": 0.75,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 13,104 readings\nJan-Feb: 2,048 kWh \u00b7 Mar-Apr: 1,367 kWh \u00b7 May-Jun: 969 kWh \u00b7 Jul-Aug: 1,236 kWh* \u00b7 Sep-Oct: 983 kWh \u00b7 Nov-Dec: 1,545 kWh\nTotal: 8,148 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\nPartial year: 273 days across 5 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nYour file runs 1 Sept 2025 to 31 May 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in befo",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-09-01",
+   "to": "2026-05-31",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A3b-ev",
+  "group": "A",
+  "title": "Nine months, September 2025 to May 2026 (no summer)",
+  "home": "ev",
+  "truth_home": "ev",
+  "asked": [],
+  "kwh": 5879,
+  "true_kwh": 6000,
+  "kwh_err": -2.0,
+  "headline": {
+   "best": "EI-SST",
+   "bill": 1810,
+   "gap": 50
+  },
+  "best": "EI-SST",
+  "true_best": "FL-EV",
+  "plan_gap": 50,
+  "bill": 1810,
+  "true_bill_same_plan": 1835,
+  "bill_err": -1.3,
+  "price_gap": 1.6,
+  "saving": 956,
+  "true_saving": 934,
+  "saving_err": 2.4,
+  "payback": 6.3,
+  "true_payback": 6.43,
+  "payback_err": -0.1,
+  "accuracy_shown": 6,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [
+   "plan"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 10,
+   "bill": 10,
+   "payback": 0.75,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 13,104 readings\nJan-Feb: 1,044 kWh \u00b7 Mar-Apr: 988 kWh \u00b7 May-Jun: 903 kWh \u00b7 Jul-Aug: 892 kWh* \u00b7 Sep-Oct: 1,013 kWh \u00b7 Nov-Dec: 1,039 kWh\nTotal: 5,879 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\nPartial year: 273 days across 5 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nYour file runs 1 Sept 2025 to 31 May 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-09-01",
+   "to": "2026-05-31",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A4-gas",
+  "group": "A",
+  "title": "This year so far, 1 January to 8 October 2026",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 4023,
+  "true_kwh": 4000,
+  "kwh_err": 0.6,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1460,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1460,
+  "true_bill_same_plan": 1453,
+  "bill_err": 0.5,
+  "price_gap": 0.4,
+  "saving": 907,
+  "true_saving": 880,
+  "saving_err": 3.1,
+  "payback": 6.6,
+  "true_payback": 6.82,
+  "payback_err": -0.2,
+  "accuracy_shown": 5,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 10,
+   "bill": 10,
+   "payback": 0.75,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 13,486 readings\nJan-Feb: 697 kWh \u00b7 Mar-Apr: 664 kWh \u00b7 May-Jun: 588 kWh \u00b7 Jul-Aug: 638 kWh \u00b7 Sep-Oct: 686 kWh \u00b7 Nov-Dec: 750 kWh*\nTotal: 4,023 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\nPartial year: 281 days across 5 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nYour file runs 1 Jan 2026 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2026-01-01",
+   "to": "2026-10-08",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A4-heatpump",
+  "group": "A",
+  "title": "This year so far, 1 January to 8 October 2026",
+  "home": "heatpump",
+  "truth_home": "heatpump",
+  "asked": [],
+  "kwh": 7284,
+  "true_kwh": 7500,
+  "kwh_err": -2.9,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 2413,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 2413,
+  "true_bill_same_plan": 2476,
+  "bill_err": -2.6,
+  "price_gap": 2.4,
+  "saving": 1043,
+  "true_saving": 1037,
+  "saving_err": 0.6,
+  "payback": 5.8,
+  "true_payback": 5.78,
+  "payback_err": 0.0,
+  "accuracy_shown": 15,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 10,
+   "bill": 10,
+   "payback": 0.75,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 13,486 readings\nJan-Feb: 2,048 kWh \u00b7 Mar-Apr: 1,367 kWh \u00b7 May-Jun: 856 kWh \u00b7 Jul-Aug: 721 kWh \u00b7 Sep-Oct: 934 kWh \u00b7 Nov-Dec: 1,358 kWh*\nTotal: 7,284 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\nPartial year: 281 days across 5 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nYour file runs 1 Jan 2026 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2026-01-01",
+   "to": "2026-10-08",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A4-ev",
+  "group": "A",
+  "title": "This year so far, 1 January to 8 October 2026",
+  "home": "ev",
+  "truth_home": "ev",
+  "asked": [],
+  "kwh": 6066,
+  "true_kwh": 6000,
+  "kwh_err": 1.1,
+  "headline": {
+   "best": "EI-SST",
+   "bill": 1857,
+   "gap": 50
+  },
+  "best": "EI-SST",
+  "true_best": "FL-EV",
+  "plan_gap": 50,
+  "bill": 1857,
+  "true_bill_same_plan": 1835,
+  "bill_err": 1.2,
+  "price_gap": 1.7,
+  "saving": 965,
+  "true_saving": 934,
+  "saving_err": 3.3,
+  "payback": 6.2,
+  "true_payback": 6.43,
+  "payback_err": -0.2,
+  "accuracy_shown": 5,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [
+   "plan"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 10,
+   "bill": 10,
+   "payback": 0.75,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 13,486 readings\nJan-Feb: 1,044 kWh \u00b7 Mar-Apr: 988 kWh \u00b7 May-Jun: 942 kWh \u00b7 Jul-Aug: 984 kWh \u00b7 Sep-Oct: 977 kWh \u00b7 Nov-Dec: 1,131 kWh*\nTotal: 6,066 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\nPartial year: 281 days across 5 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nYour file runs 1 Jan 2026 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2026-01-01",
+   "to": "2026-10-08",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A5a-gas",
+  "group": "A",
+  "title": "Four summer weeks, July 2026",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 3853,
+  "true_kwh": 4000,
+  "kwh_err": -3.7,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1411,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1411,
+  "true_bill_same_plan": 1453,
+  "bill_err": -2.9,
+  "price_gap": 3.1,
+  "saving": 887,
+  "true_saving": 880,
+  "saving_err": 0.8,
+  "payback": 6.8,
+  "true_payback": 6.82,
+  "payback_err": -0.0,
+  "accuracy_shown": 15,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 15,
+   "bill": 15,
+   "payback": 1.0,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 1,344 readings\nJan-Feb: 667 kWh* \u00b7 Mar-Apr: 657 kWh* \u00b7 May-Jun: 578 kWh* \u00b7 Jul-Aug: 631 kWh \u00b7 Sep-Oct: 597 kWh* \u00b7 Nov-Dec: 723 kWh*\nTotal: 3,853 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\n\u26a0 Only 28 days of data . That\u2019s well short of a year, so the seasons are a guess. Treat these figures as rough, and add a full year when you can.\nYour file runs 1 Jul 2026 to 28 Jul 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in be",
+  "basis": {
+   "mode": "gross",
+   "from": "2026-07-01",
+   "to": "2026-07-28",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A5a-heatpump",
+  "group": "A",
+  "title": "Four summer weeks, July 2026",
+  "home": "heatpump",
+  "truth_home": "heatpump",
+  "asked": [],
+  "kwh": 4256,
+  "true_kwh": 7500,
+  "kwh_err": -43.3,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1528,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1528,
+  "true_bill_same_plan": 2476,
+  "bill_err": -38.3,
+  "price_gap": 37.3,
+  "saving": 941,
+  "true_saving": 1037,
+  "saving_err": -9.3,
+  "payback": 6.4,
+  "true_payback": 5.78,
+  "payback_err": 0.6,
+  "accuracy_shown": 55,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [
+   "consumption",
+   "bill"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 15,
+   "bill": 15,
+   "payback": 1.0,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 1,344 readings\nJan-Feb: 737 kWh* \u00b7 Mar-Apr: 725 kWh* \u00b7 May-Jun: 638 kWh* \u00b7 Jul-Aug: 697 kWh \u00b7 Sep-Oct: 660 kWh* \u00b7 Nov-Dec: 799 kWh*\nTotal: 4,256 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\n\u26a0 Only 28 days of data . That\u2019s well short of a year, so the seasons are a guess. Treat these figures as rough, and add a full year when you can.\nYour file runs 1 Jul 2026 to 28 Jul 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in be",
+  "basis": {
+   "mode": "gross",
+   "from": "2026-07-01",
+   "to": "2026-07-28",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A5a-ev",
+  "group": "A",
+  "title": "Four summer weeks, July 2026",
+  "home": "ev",
+  "truth_home": "ev",
+  "asked": [],
+  "kwh": 5649,
+  "true_kwh": 6000,
+  "kwh_err": -5.9,
+  "headline": {
+   "best": "EI-SST",
+   "bill": 1753,
+   "gap": 50
+  },
+  "best": "EI-SST",
+  "true_best": "FL-EV",
+  "plan_gap": 50,
+  "bill": 1753,
+  "true_bill_same_plan": 1835,
+  "bill_err": -4.4,
+  "price_gap": 4.1,
+  "saving": 960,
+  "true_saving": 934,
+  "saving_err": 2.8,
+  "payback": 6.3,
+  "true_payback": 6.43,
+  "payback_err": -0.1,
+  "accuracy_shown": 15,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [
+   "plan"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 15,
+   "bill": 15,
+   "payback": 1.0,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 1,344 readings\nJan-Feb: 978 kWh* \u00b7 Mar-Apr: 963 kWh* \u00b7 May-Jun: 847 kWh* \u00b7 Jul-Aug: 925 kWh \u00b7 Sep-Oct: 876 kWh* \u00b7 Nov-Dec: 1,060 kWh*\nTotal: 5,649 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\n\u26a0 Only 28 days of data . That\u2019s well short of a year, so the seasons are a guess. Treat these figures as rough, and add a full year when you can.\nYour file runs 1 Jul 2026 to 28 Jul 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in ",
+  "basis": {
+   "mode": "gross",
+   "from": "2026-07-01",
+   "to": "2026-07-28",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A5b-gas",
+  "group": "A",
+  "title": "Four winter weeks, January 2026",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 4142,
+  "true_kwh": 4000,
+  "kwh_err": 3.5,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1495,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1495,
+  "true_bill_same_plan": 1453,
+  "bill_err": 2.9,
+  "price_gap": 2.7,
+  "saving": 897,
+  "true_saving": 880,
+  "saving_err": 1.9,
+  "payback": 6.7,
+  "true_payback": 6.82,
+  "payback_err": -0.1,
+  "accuracy_shown": 15,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 15,
+   "bill": 15,
+   "payback": 1.0,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 1,344 readings\nJan-Feb: 697 kWh \u00b7 Mar-Apr: 725 kWh* \u00b7 May-Jun: 638 kWh* \u00b7 Jul-Aug: 623 kWh* \u00b7 Sep-Oct: 660 kWh* \u00b7 Nov-Dec: 799 kWh*\nTotal: 4,142 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\n\u26a0 Only 28 days of data . That\u2019s well short of a year, so the seasons are a guess. Treat these figures as rough, and add a full year when you can.\nYour file runs 5 Jan 2026 to 1 Feb 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in bef",
+  "basis": {
+   "mode": "gross",
+   "from": "2026-01-05",
+   "to": "2026-02-01",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A5b-heatpump",
+  "group": "A",
+  "title": "Four winter weeks, January 2026",
+  "home": "heatpump",
+  "truth_home": "heatpump",
+  "asked": [],
+  "kwh": 13491,
+  "true_kwh": 7500,
+  "kwh_err": 79.9,
+  "headline": {
+   "best": "EN-SMART",
+   "bill": 4213,
+   "gap": 15
+  },
+  "best": "EN-SMART",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 15,
+  "bill": 4213,
+  "true_bill_same_plan": 2491,
+  "bill_err": 69.1,
+  "price_gap": 70.4,
+  "saving": 1198,
+  "true_saving": 1037,
+  "saving_err": 15.5,
+  "payback": 5.0,
+  "true_payback": 5.78,
+  "payback_err": -0.8,
+  "accuracy_shown": 55,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [
+   "consumption",
+   "bill"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 15,
+   "bill": 15,
+   "payback": 1.0,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 1,344 readings\nJan-Feb: 2,270 kWh \u00b7 Mar-Apr: 2,363 kWh* \u00b7 May-Jun: 2,079 kWh* \u00b7 Jul-Aug: 2,029 kWh* \u00b7 Sep-Oct: 2,149 kWh* \u00b7 Nov-Dec: 2,601 kWh*\nTotal: 13,491 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\n\u26a0 Only 28 days of data . That\u2019s well short of a year, so the seasons are a guess. Treat these figures as rough, and add a full year when you can.\nYour file runs 5 Jan 2026 to 1 Feb 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I",
+  "basis": {
+   "mode": "gross",
+   "from": "2026-01-05",
+   "to": "2026-02-01",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A5b-ev",
+  "group": "A",
+  "title": "Four winter weeks, January 2026",
+  "home": "ev",
+  "truth_home": "ev",
+  "asked": [],
+  "kwh": 6086,
+  "true_kwh": 6000,
+  "kwh_err": 1.4,
+  "headline": {
+   "best": "EI-SST",
+   "bill": 1865,
+   "gap": 50
+  },
+  "best": "EI-SST",
+  "true_best": "FL-EV",
+  "plan_gap": 50,
+  "bill": 1865,
+  "true_bill_same_plan": 1835,
+  "bill_err": 1.7,
+  "price_gap": 2.2,
+  "saving": 957,
+  "true_saving": 934,
+  "saving_err": 2.5,
+  "payback": 6.3,
+  "true_payback": 6.43,
+  "payback_err": -0.1,
+  "accuracy_shown": 15,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [
+   "plan"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 15,
+   "bill": 15,
+   "payback": 1.0,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 1,344 readings\nJan-Feb: 1,024 kWh \u00b7 Mar-Apr: 1,066 kWh* \u00b7 May-Jun: 938 kWh* \u00b7 Jul-Aug: 915 kWh* \u00b7 Sep-Oct: 970 kWh* \u00b7 Nov-Dec: 1,173 kWh*\nTotal: 6,086 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\n\u26a0 Only 28 days of data . That\u2019s well short of a year, so the seasons are a guess. Treat these figures as rough, and add a full year when you can.\nYour file runs 5 Jan 2026 to 1 Feb 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived ",
+  "basis": {
+   "mode": "gross",
+   "from": "2026-01-05",
+   "to": "2026-02-01",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A5c-gas",
+  "group": "A",
+  "title": "Two summer weeks, August 2026",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 3927,
+  "true_kwh": 4000,
+  "kwh_err": -1.8,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1432,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1432,
+  "true_bill_same_plan": 1453,
+  "bill_err": -1.5,
+  "price_gap": 1.7,
+  "saving": 919,
+  "true_saving": 880,
+  "saving_err": 4.5,
+  "payback": 6.5,
+  "true_payback": 6.82,
+  "payback_err": -0.3,
+  "accuracy_shown": 15,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 15,
+   "bill": 15,
+   "payback": 1.0,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 672 readings\nJan-Feb: 680 kWh* \u00b7 Mar-Apr: 669 kWh* \u00b7 May-Jun: 589 kWh* \u00b7 Jul-Aug: 643 kWh \u00b7 Sep-Oct: 609 kWh* \u00b7 Nov-Dec: 737 kWh*\nTotal: 3,927 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\n\u26a0 Only 14 days of data . That\u2019s well short of a year, so the seasons are a guess. Treat these figures as rough, and add a full year when you can.\nYour file runs 10 Aug 2026 to 23 Aug 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in bef",
+  "basis": {
+   "mode": "gross",
+   "from": "2026-08-10",
+   "to": "2026-08-23",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A5c-heatpump",
+  "group": "A",
+  "title": "Two summer weeks, August 2026",
+  "home": "heatpump",
+  "truth_home": "heatpump",
+  "asked": [],
+  "kwh": 4695,
+  "true_kwh": 7500,
+  "kwh_err": -37.4,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1657,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1657,
+  "true_bill_same_plan": 2476,
+  "bill_err": -33.1,
+  "price_gap": 32.4,
+  "saving": 960,
+  "true_saving": 1037,
+  "saving_err": -7.5,
+  "payback": 6.3,
+  "true_payback": 5.78,
+  "payback_err": 0.5,
+  "accuracy_shown": 58,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [
+   "consumption",
+   "bill"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 15,
+   "bill": 15,
+   "payback": 1.0,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 672 readings\nJan-Feb: 813 kWh* \u00b7 Mar-Apr: 800 kWh* \u00b7 May-Jun: 704 kWh* \u00b7 Jul-Aug: 769 kWh \u00b7 Sep-Oct: 728 kWh* \u00b7 Nov-Dec: 881 kWh*\nTotal: 4,695 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\n\u26a0 Only 14 days of data . That\u2019s well short of a year, so the seasons are a guess. Treat these figures as rough, and add a full year when you can.\nYour file runs 10 Aug 2026 to 23 Aug 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in bef",
+  "basis": {
+   "mode": "gross",
+   "from": "2026-08-10",
+   "to": "2026-08-23",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A5c-ev",
+  "group": "A",
+  "title": "Two summer weeks, August 2026",
+  "home": "ev",
+  "truth_home": "ev",
+  "asked": [],
+  "kwh": 5643,
+  "true_kwh": 6000,
+  "kwh_err": -5.9,
+  "headline": {
+   "best": "EI-SST",
+   "bill": 1767,
+   "gap": 50
+  },
+  "best": "EI-SST",
+  "true_best": "FL-EV",
+  "plan_gap": 50,
+  "bill": 1767,
+  "true_bill_same_plan": 1835,
+  "bill_err": -3.7,
+  "price_gap": 3.8,
+  "saving": 971,
+  "true_saving": 934,
+  "saving_err": 4.0,
+  "payback": 6.2,
+  "true_payback": 6.43,
+  "payback_err": -0.2,
+  "accuracy_shown": 15,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [
+   "plan"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 15,
+   "bill": 15,
+   "payback": 1.0,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 672 readings\nJan-Feb: 977 kWh* \u00b7 Mar-Apr: 962 kWh* \u00b7 May-Jun: 846 kWh* \u00b7 Jul-Aug: 924 kWh \u00b7 Sep-Oct: 875 kWh* \u00b7 Nov-Dec: 1,059 kWh*\nTotal: 5,643 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\n\u26a0 Only 14 days of data . That\u2019s well short of a year, so the seasons are a guess. Treat these figures as rough, and add a full year when you can.\nYour file runs 10 Aug 2026 to 23 Aug 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in b",
+  "basis": {
+   "mode": "gross",
+   "from": "2026-08-10",
+   "to": "2026-08-23",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A6-gas",
+  "group": "A",
+  "title": "An old year, July 2024 to June 2025",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 3946,
+  "true_kwh": 4000,
+  "kwh_err": -1.4,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1436,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1436,
+  "true_bill_same_plan": 1453,
+  "bill_err": -1.2,
+  "price_gap": 1.2,
+  "saving": 875,
+  "true_saving": 880,
+  "saving_err": -0.6,
+  "payback": 6.9,
+  "true_payback": 6.82,
+  "payback_err": 0.1,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 686 kWh \u00b7 Mar-Apr: 644 kWh \u00b7 May-Jun: 586 kWh \u00b7 Jul-Aug: 638 kWh \u00b7 Sep-Oct: 675 kWh \u00b7 Nov-Dec: 717 kWh\nTotal: 3,946 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 1 Jul 2024 to 30 Jun 2025. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2024-07-01",
+   "to": "2025-06-30",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A6-heatpump",
+  "group": "A",
+  "title": "An old year, July 2024 to June 2025",
+  "home": "heatpump",
+  "truth_home": "heatpump",
+  "asked": [],
+  "kwh": 7198,
+  "true_kwh": 7500,
+  "kwh_err": -4.0,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 2384,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 2384,
+  "true_bill_same_plan": 2476,
+  "bill_err": -3.7,
+  "price_gap": 3.7,
+  "saving": 1030,
+  "true_saving": 1037,
+  "saving_err": -0.7,
+  "payback": 5.8,
+  "true_payback": 5.78,
+  "payback_err": 0.0,
+  "accuracy_shown": 4,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 1,622 kWh \u00b7 Mar-Apr: 1,335 kWh \u00b7 May-Jun: 907 kWh \u00b7 Jul-Aug: 766 kWh \u00b7 Sep-Oct: 972 kWh \u00b7 Nov-Dec: 1,596 kWh\nTotal: 7,198 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 1 Jul 2024 to 30 Jun 2025. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2024-07-01",
+   "to": "2025-06-30",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A6-ev",
+  "group": "A",
+  "title": "An old year, July 2024 to June 2025",
+  "home": "ev",
+  "truth_home": "ev",
+  "asked": [],
+  "kwh": 6009,
+  "true_kwh": 6000,
+  "kwh_err": 0.1,
+  "headline": {
+   "best": "FL-EV",
+   "bill": 1780,
+   "gap": 0
+  },
+  "best": "FL-EV",
+  "true_best": "FL-EV",
+  "plan_gap": 0,
+  "bill": 1780,
+  "true_bill_same_plan": 1785,
+  "bill_err": -0.3,
+  "price_gap": 0.2,
+  "saving": 926,
+  "true_saving": 934,
+  "saving_err": -0.8,
+  "payback": 6.5,
+  "true_payback": 6.43,
+  "payback_err": 0.1,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 902 kWh \u00b7 Mar-Apr: 1,030 kWh \u00b7 May-Jun: 1,023 kWh \u00b7 Jul-Aug: 903 kWh \u00b7 Sep-Oct: 998 kWh \u00b7 Nov-Dec: 1,153 kWh\nTotal: 6,009 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 1 Jul 2024 to 30 Jun 2025. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2024-07-01",
+   "to": "2025-06-30",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A7-gas",
+  "group": "A",
+  "title": "Two years, October 2024 to October 2026",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 3974,
+  "true_kwh": 4000,
+  "kwh_err": -0.7,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1453,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1453,
+  "true_bill_same_plan": 1453,
+  "bill_err": -0.0,
+  "price_gap": 0.2,
+  "saving": 878,
+  "true_saving": 880,
+  "saving_err": -0.2,
+  "payback": 6.8,
+  "true_payback": 6.82,
+  "payback_err": -0.0,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 35,040 readings\nJan-Feb: 686 kWh \u00b7 Mar-Apr: 654 kWh \u00b7 May-Jun: 587 kWh \u00b7 Jul-Aug: 636 kWh \u00b7 Sep-Oct: 692 kWh \u00b7 Nov-Dec: 719 kWh\nTotal: 3,974 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings (file spans ~2 years \u2014 averaged per day, so the result is one typical year).\nYour file runs 4 Sept 2025 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-09-04",
+   "to": "2026-10-08",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A7-heatpump",
+  "group": "A",
+  "title": "Two years, October 2024 to October 2026",
+  "home": "heatpump",
+  "truth_home": "heatpump",
+  "asked": [],
+  "kwh": 7358,
+  "true_kwh": 7500,
+  "kwh_err": -1.9,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 2478,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 2478,
+  "true_bill_same_plan": 2476,
+  "bill_err": 0.1,
+  "price_gap": 0.2,
+  "saving": 1026,
+  "true_saving": 1037,
+  "saving_err": -1.1,
+  "payback": 5.9,
+  "true_payback": 5.78,
+  "payback_err": 0.1,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 35,040 readings\nJan-Feb: 1,821 kWh \u00b7 Mar-Apr: 1,351 kWh \u00b7 May-Jun: 882 kWh \u00b7 Jul-Aug: 733 kWh \u00b7 Sep-Oct: 1,001 kWh \u00b7 Nov-Dec: 1,570 kWh\nTotal: 7,358 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings (file spans ~2 years \u2014 averaged per day, so the result is one typical year).\nYour file runs 4 Sept 2025 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-09-04",
+   "to": "2026-10-08",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "A7-ev",
+  "group": "A",
+  "title": "Two years, October 2024 to October 2026",
+  "home": "ev",
+  "truth_home": "ev",
+  "asked": [],
+  "kwh": 6044,
+  "true_kwh": 6000,
+  "kwh_err": 0.7,
+  "headline": {
+   "best": "FL-EV",
+   "bill": 1785,
+   "gap": 0
+  },
+  "best": "FL-EV",
+  "true_best": "FL-EV",
+  "plan_gap": 0,
+  "bill": 1785,
+  "true_bill_same_plan": 1785,
+  "bill_err": 0.0,
+  "price_gap": 0.1,
+  "saving": 931,
+  "true_saving": 934,
+  "saving_err": -0.3,
+  "payback": 6.4,
+  "true_payback": 6.43,
+  "payback_err": -0.0,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 35,040 readings\nJan-Feb: 965 kWh \u00b7 Mar-Apr: 1,009 kWh \u00b7 May-Jun: 982 kWh \u00b7 Jul-Aug: 981 kWh \u00b7 Sep-Oct: 1,011 kWh \u00b7 Nov-Dec: 1,096 kWh\nTotal: 6,044 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings (file spans ~2 years \u2014 averaged per day, so the result is one typical year).\nYour file runs 4 Sept 2025 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-09-04",
+   "to": "2026-10-08",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "B1a-friend",
+  "group": "B",
+  "title": "Full year before the panels",
+  "home": "friend",
+  "truth_home": "friend",
+  "asked": [
+   "Is your meter file from before the panels went up? \u2014 It shows no solar going to the grid, which panels usually do."
+  ],
+  "kwh": 6219,
+  "true_kwh": 6500,
+  "kwh_err": -4.3,
+  "headline": {
+   "best": "EI-NB",
+   "bill": 66,
+   "gap": 118
+  },
+  "scored_on": "solar-only answer",
+  "best": "EI-SST",
+  "true_best": "EI-SST",
+  "plan_gap": 0,
+  "bill": 216,
+  "true_bill_same_plan": 332,
+  "bill_err": -34.8,
+  "price_gap": 22.2,
+  "saving": 2038,
+  "true_saving": 1852,
+  "saving_err": 10.0,
+  "payback": 5.2,
+  "true_payback": 5.72,
+  "payback_err": -0.5,
+  "accuracy_shown": 4,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome",
+   "filewhen"
+  ],
+  "fails": [
+   "bill"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "asked",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 1,348 kWh \u00b7 Mar-Apr: 1,151 kWh \u00b7 May-Jun: 812 kWh \u00b7 Jul-Aug: 665 kWh \u00b7 Sep-Oct: 865 kWh \u00b7 Nov-Dec: 1,378 kWh\nTotal: 6,219 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 20 Oct 2024 to 19 Oct 2025. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2024-10-20",
+   "to": "2025-10-19",
+   "ask": null
+  }
+ },
+ {
+  "id": "B1b-friend",
+  "group": "B",
+  "title": "Half year before the panels",
+  "home": "friend",
+  "truth_home": "friend",
+  "asked": [
+   "Is your meter file from before the panels went up? \u2014 It shows no solar going to the grid, which panels usually do."
+  ],
+  "kwh": 4985,
+  "true_kwh": 6500,
+  "kwh_err": -23.3,
+  "headline": {
+   "best": "EI-NB",
+   "bill": -206,
+   "gap": 118
+  },
+  "scored_on": "solar-only answer",
+  "best": "EI-SST",
+  "true_best": "EI-SST",
+  "plan_gap": 0,
+  "bill": -109,
+  "true_bill_same_plan": 332,
+  "bill_err": -132.9,
+  "price_gap": 91.9,
+  "saving": 1947,
+  "true_saving": 1852,
+  "saving_err": 5.1,
+  "payback": 5.4,
+  "true_payback": 5.72,
+  "payback_err": -0.3,
+  "accuracy_shown": 30,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome",
+   "filewhen"
+  ],
+  "fails": [
+   "consumption",
+   "bill"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "asked",
+  "import_message": "\u2713 Imported 8,784 readings\nJan-Feb: 849 kWh* \u00b7 Mar-Apr: 924 kWh \u00b7 May-Jun: 812 kWh \u00b7 Jul-Aug: 665 kWh \u00b7 Sep-Oct: 814 kWh \u00b7 Nov-Dec: 921 kWh*\nTotal: 4,985 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\nPartial year: 183 days across 4 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nYour file runs 20 Apr 2025 to 19 Oct 2025. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-04-20",
+   "to": "2025-10-19",
+   "ask": null
+  }
+ },
+ {
+  "id": "B1c-friend",
+  "group": "B",
+  "title": "Summer before the panels",
+  "home": "friend",
+  "truth_home": "friend",
+  "asked": [
+   "Is your meter file from before the panels went up? \u2014 It shows no solar going to the grid, which panels usually do."
+  ],
+  "kwh": 4264,
+  "true_kwh": 6500,
+  "kwh_err": -34.4,
+  "headline": {
+   "best": "PIN-FAM",
+   "bill": -342,
+   "gap": 245
+  },
+  "scored_on": "solar-only answer",
+  "best": "PIN-FAM",
+  "true_best": "EI-SST",
+  "plan_gap": 245,
+  "bill": -281,
+  "true_bill_same_plan": 577,
+  "bill_err": -148.7,
+  "price_gap": 122.5,
+  "saving": 1872,
+  "true_saving": 1852,
+  "saving_err": 1.1,
+  "payback": 5.7,
+  "true_payback": 5.72,
+  "payback_err": -0.0,
+  "accuracy_shown": 45,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome",
+   "filewhen"
+  ],
+  "fails": [
+   "consumption",
+   "bill",
+   "plan"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "asked",
+  "import_message": "\u2713 Imported 4,416 readings\nJan-Feb: 728 kWh* \u00b7 Mar-Apr: 717 kWh* \u00b7 May-Jun: 713 kWh \u00b7 Jul-Aug: 665 kWh \u00b7 Sep-Oct: 652 kWh* \u00b7 Nov-Dec: 789 kWh*\nTotal: 4,264 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\nPartial year: 92 days across 2 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nYour file runs 1 Jun 2025 to 31 Aug 2025. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-06-01",
+   "to": "2025-08-31",
+   "ask": null
+  }
+ },
+ {
+  "id": "B1d-friend",
+  "group": "B",
+  "title": "Winter before the panels",
+  "home": "friend",
+  "truth_home": "friend",
+  "asked": [
+   "Is your meter file from before the panels went up? \u2014 It shows no solar going to the grid, which panels usually do."
+  ],
+  "kwh": 8304,
+  "true_kwh": 6500,
+  "kwh_err": 27.8,
+  "headline": {
+   "best": "EI-NB",
+   "bill": 376,
+   "gap": 118
+  },
+  "scored_on": "solar-only answer",
+  "best": "EI-SST",
+  "true_best": "EI-SST",
+  "plan_gap": 0,
+  "bill": 607,
+  "true_bill_same_plan": 332,
+  "bill_err": 83.1,
+  "price_gap": 61.7,
+  "saving": 2323,
+  "true_saving": 1852,
+  "saving_err": 25.4,
+  "payback": 4.6,
+  "true_payback": 5.72,
+  "payback_err": -1.1,
+  "accuracy_shown": 45,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome",
+   "filewhen"
+  ],
+  "fails": [
+   "consumption",
+   "bill",
+   "payback"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "asked",
+  "import_message": "\u2713 Imported 4,320 readings\nJan-Feb: 1,348 kWh \u00b7 Mar-Apr: 1,491 kWh* \u00b7 May-Jun: 1,312 kWh* \u00b7 Jul-Aug: 1,280 kWh* \u00b7 Sep-Oct: 1,356 kWh* \u00b7 Nov-Dec: 1,517 kWh\nTotal: 8,304 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\nPartial year: 90 days across 2 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nYour file runs 1 Dec 2024 to 28 Feb 2025. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in ",
+  "basis": {
+   "mode": "gross",
+   "from": "2024-12-01",
+   "to": "2025-02-28",
+   "ask": null
+  }
+ },
+ {
+  "id": "B2-gas_solar",
+  "group": "B",
+  "title": "A year after the panels, exports recorded",
+  "home": "gas_solar",
+  "truth_home": "gas_solar",
+  "asked": [],
+  "kwh": 3998,
+  "true_kwh": 4000,
+  "kwh_err": -0.1,
+  "headline": {
+   "best": "EI-SST",
+   "bill": 567,
+   "gap": 0
+  },
+  "best": "EI-SST",
+  "true_best": "EI-SST",
+  "plan_gap": 0,
+  "bill": 567,
+  "true_bill_same_plan": 567,
+  "bill_err": 0.0,
+  "price_gap": 0.3,
+  "saving": 886,
+  "true_saving": 887,
+  "saving_err": -0.1,
+  "payback": 6.8,
+  "true_payback": 6.77,
+  "payback_err": 0.0,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 574 kWh \u00b7 Mar-Apr: 409 kWh \u00b7 May-Jun: 263 kWh \u00b7 Jul-Aug: 317 kWh \u00b7 Sep-Oct: 468 kWh \u00b7 Nov-Dec: 608 kWh\nTotal: 2,639 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. Panels show from 9 Oct 2025, sending 2,586 kWh to the grid.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "net",
+   "from": "2025-10-09",
+   "to": "2026-10-08",
+   "start": "2025-10-09",
+   "since": "2025-10-09"
+  }
+ },
+ {
+  "id": "B3-gas_solar",
+  "group": "B",
+  "title": "A year after the panels, no export rows",
+  "home": "gas_solar",
+  "truth_home": "gas_solar",
+  "asked": [
+   "Did the panels go up around 22 Jan 2026? \u2014 Your meter file shows daytime buying dropping from then, with nothing sent to the grid."
+  ],
+  "kwh": 2639,
+  "true_kwh": 4000,
+  "kwh_err": -34.0,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1057,
+   "gap": 11
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EI-SST",
+  "plan_gap": 11,
+  "bill": 1057,
+  "true_bill_same_plan": 577,
+  "bill_err": 83.0,
+  "price_gap": 62.8,
+  "payback": null,
+  "true_payback": 6.77,
+  "payback_err": null,
+  "accuracy_shown": 4,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome",
+   "filewhen"
+  ],
+  "fails": [
+   "consumption",
+   "bill",
+   "no payback shown"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "asked",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 574 kWh \u00b7 Mar-Apr: 409 kWh \u00b7 May-Jun: 263 kWh \u00b7 Jul-Aug: 317 kWh \u00b7 Sep-Oct: 468 kWh \u00b7 Nov-Dec: 608 kWh\nTotal: 2,639 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "net",
+   "from": "2025-10-09",
+   "to": "2026-10-08"
+  }
+ },
+ {
+  "id": "B2-hp_solar_batt",
+  "group": "B",
+  "title": "A year after the panels, exports recorded",
+  "home": "hp_solar_batt",
+  "truth_home": "hp_solar_batt",
+  "asked": [],
+  "kwh": 7435,
+  "true_kwh": 7500,
+  "kwh_err": -0.9,
+  "headline": {
+   "best": "EI-SST",
+   "bill": 847,
+   "gap": 0
+  },
+  "scored_on": "solar-only answer",
+  "best": "EI-SST",
+  "true_best": "EI-SST",
+  "plan_gap": 0,
+  "bill": 847,
+  "true_bill_same_plan": 846,
+  "bill_err": 0.1,
+  "price_gap": 0.2,
+  "saving": 1609,
+  "true_saving": 1630,
+  "saving_err": -1.3,
+  "payback": 6.3,
+  "true_payback": 6.2,
+  "payback_err": 0.1,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome",
+   "hotwater"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 1,565 kWh \u00b7 Mar-Apr: 464 kWh \u00b7 May-Jun: 30 kWh \u00b7 Jul-Aug: 8 kWh \u00b7 Sep-Oct: 233 kWh \u00b7 Nov-Dec: 1,086 kWh\nTotal: 3,386 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. Panels show from 9 Oct 2025, sending 1,693 kWh to the grid.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "net",
+   "from": "2025-10-09",
+   "to": "2026-10-08",
+   "start": "2025-10-09",
+   "since": "2025-10-09"
+  }
+ },
+ {
+  "id": "B3-hp_solar_batt",
+  "group": "B",
+  "title": "A year after the panels, no export rows",
+  "home": "hp_solar_batt",
+  "truth_home": "hp_solar_batt",
+  "asked": [
+   "Did the panels go up around 5 Feb 2026? \u2014 Your meter file shows daytime buying dropping from then, with nothing sent to the grid."
+  ],
+  "kwh": 3386,
+  "true_kwh": 7500,
+  "kwh_err": -54.9,
+  "headline": {
+   "best": "EI-SST",
+   "bill": 1177,
+   "gap": 0
+  },
+  "scored_on": "solar-only answer",
+  "best": "EI-SST",
+  "true_best": "EI-SST",
+  "plan_gap": 0,
+  "bill": 1177,
+  "true_bill_same_plan": 846,
+  "bill_err": 39.1,
+  "price_gap": 27.1,
+  "payback": null,
+  "true_payback": 6.2,
+  "payback_err": null,
+  "accuracy_shown": 4,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome",
+   "filewhen",
+   "hotwater"
+  ],
+  "fails": [
+   "consumption",
+   "bill",
+   "no payback shown"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "asked",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 1,565 kWh \u00b7 Mar-Apr: 464 kWh \u00b7 May-Jun: 30 kWh \u00b7 Jul-Aug: 8 kWh \u00b7 Sep-Oct: 233 kWh \u00b7 Nov-Dec: 1,086 kWh\nTotal: 3,386 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "net",
+   "from": "2025-10-09",
+   "to": "2026-10-08"
+  }
+ },
+ {
+  "id": "B3-friend",
+  "group": "B",
+  "title": "Panels from 20 Oct 2025, exports recorded only from 1 Dec 2025 (the tester's case)",
+  "home": "friend",
+  "truth_home": "friend",
+  "asked": [
+   "Did the panels go up around 27 Feb 2026? \u2014 Your meter file shows power sent to the grid from then. A battery can hold winter\u2019s spare solar, so the panels may have been up before."
+  ],
+  "kwh": 6649,
+  "true_kwh": 6500,
+  "kwh_err": 2.3,
+  "headline": {
+   "best": "EI-SST",
+   "bill": 333,
+   "gap": 0
+  },
+  "scored_on": "solar-only answer",
+  "best": "EI-SST",
+  "true_best": "EI-SST",
+  "plan_gap": 0,
+  "bill": 333,
+  "true_bill_same_plan": 332,
+  "bill_err": 0.5,
+  "price_gap": 0.5,
+  "saving": 1892,
+  "true_saving": 1852,
+  "saving_err": 2.1,
+  "payback": 5.6,
+  "true_payback": 5.72,
+  "payback_err": -0.1,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome",
+   "filewhen",
+   "hotwater"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "asked",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 1,281 kWh \u00b7 Mar-Apr: 229 kWh \u00b7 May-Jun: 615 kWh \u00b7 Jul-Aug: 600 kWh \u00b7 Sep-Oct: 252 kWh \u00b7 Nov-Dec: 924 kWh\nTotal: 3,901 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. Panels show from 27 Feb 2026, sending 3,484 kWh to the grid. We use 9 Oct 2025 to 26 Feb 2026, before the panels, and add them on top.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "net",
+   "from": "2025-10-09",
+   "to": "2026-10-08",
+   "start": "2025-10-09",
+   "since": "2025-10-09"
+  }
+ },
+ {
+  "id": "B4a-gas_solar",
+  "group": "B",
+  "title": "Before and after the panels (12 May 2025), exports recorded; user confirms the date",
+  "home": "gas_solar",
+  "truth_home": "gas_solar",
+  "asked": [
+   "Did the panels go up around 12 May 2025? \u2014 Your meter file shows power sent to the grid from then. A battery can hold winter\u2019s spare solar, so the panels may have been up before."
+  ],
+  "kwh": 3892,
+  "true_kwh": 4000,
+  "kwh_err": -2.7,
+  "headline": {
+   "best": "EI-SST",
+   "bill": 529,
+   "gap": 0
+  },
+  "best": "EI-SST",
+  "true_best": "EI-SST",
+  "plan_gap": 0,
+  "bill": 529,
+  "true_bill_same_plan": 567,
+  "bill_err": -6.7,
+  "price_gap": 6.2,
+  "saving": 893,
+  "true_saving": 887,
+  "saving_err": 0.8,
+  "payback": 6.7,
+  "true_payback": 6.77,
+  "payback_err": -0.1,
+  "accuracy_shown": 5,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome",
+   "filewhen"
+  ],
+  "fails": [
+   "bill"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "asked",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 675 kWh \u00b7 Mar-Apr: 644 kWh \u00b7 May-Jun: 326 kWh \u00b7 Jul-Aug: 320 kWh \u00b7 Sep-Oct: 524 kWh \u00b7 Nov-Dec: 717 kWh\nTotal: 3,206 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2024 to 8 Oct 2025. Panels show from 12 May 2025, sending 1,392 kWh to the grid. We use 9 Oct 2024 to 11 May 2025, before the panels, and add them on top.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2024-10-09",
+   "to": "2025-10-08",
+   "start": "2025-05-12",
+   "since": "2025-05-12",
+   "rebuilt": "2025-05-12",
+   "ask": null
+  }
+ },
+ {
+  "id": "B4b-gas_solar",
+  "group": "B",
+  "title": "Same file; user says the panels were up the whole time",
+  "home": "gas_solar",
+  "truth_home": "gas_solar",
+  "asked": [
+   "Did the panels go up around 12 May 2025? \u2014 Your meter file shows power sent to the grid from then. A battery can hold winter\u2019s spare solar, so the panels may have been up before."
+  ],
+  "kwh": 5756,
+  "true_kwh": 4000,
+  "kwh_err": 43.9,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 965,
+   "gap": 11
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EI-SST",
+  "plan_gap": 11,
+  "bill": 965,
+  "true_bill_same_plan": 577,
+  "bill_err": 67.1,
+  "price_gap": 56.5,
+  "saving": 1001,
+  "true_saving": 887,
+  "saving_err": 12.9,
+  "payback": 6.0,
+  "true_payback": 6.77,
+  "payback_err": -0.8,
+  "accuracy_shown": 4,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome",
+   "filewhen"
+  ],
+  "fails": [
+   "consumption",
+   "bill",
+   "payback"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "asked",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 675 kWh \u00b7 Mar-Apr: 644 kWh \u00b7 May-Jun: 326 kWh \u00b7 Jul-Aug: 320 kWh \u00b7 Sep-Oct: 524 kWh \u00b7 Nov-Dec: 717 kWh\nTotal: 3,206 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2024 to 8 Oct 2025. Panels show from 12 May 2025, sending 1,392 kWh to the grid. We use 9 Oct 2024 to 11 May 2025, before the panels, and add them on top.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "net",
+   "from": "2024-10-09",
+   "to": "2025-10-08",
+   "start": "2024-10-09",
+   "since": "2024-10-09"
+  }
+ },
+ {
+  "id": "B4c-gas_solar",
+  "group": "B",
+  "title": "Before and after the panels, no export rows; user confirms the date shown",
+  "home": "gas_solar",
+  "truth_home": "gas_solar",
+  "asked": [
+   "Did the panels go up around 14 May 2025? \u2014 Your meter file shows daytime buying dropping from then, with nothing sent to the grid."
+  ],
+  "kwh": 3878,
+  "true_kwh": 4000,
+  "kwh_err": -3.0,
+  "headline": {
+   "best": "EI-SST",
+   "bill": 522,
+   "gap": 0
+  },
+  "best": "EI-SST",
+  "true_best": "EI-SST",
+  "plan_gap": 0,
+  "bill": 522,
+  "true_bill_same_plan": 567,
+  "bill_err": -7.9,
+  "price_gap": 6.3,
+  "saving": 896,
+  "true_saving": 887,
+  "saving_err": 1.0,
+  "payback": 6.7,
+  "true_payback": 6.77,
+  "payback_err": -0.1,
+  "accuracy_shown": 7,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome",
+   "filewhen"
+  ],
+  "fails": [
+   "bill"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "asked",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 675 kWh \u00b7 Mar-Apr: 644 kWh \u00b7 May-Jun: 326 kWh \u00b7 Jul-Aug: 320 kWh \u00b7 Sep-Oct: 524 kWh \u00b7 Nov-Dec: 717 kWh\nTotal: 3,206 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2024 to 8 Oct 2025. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2024-10-09",
+   "to": "2025-05-13",
+   "start": "2025-05-14"
+  }
+ },
+ {
+  "id": "B4d-hp_solar_batt",
+  "group": "B",
+  "title": "Before and after a battery system (3 Mar 2025), exports recorded; user confirms the date shown",
+  "home": "hp_solar_batt",
+  "truth_home": "hp_solar_batt",
+  "asked": [
+   "Did the panels go up around 5 Mar 2025? \u2014 Your meter file shows power sent to the grid from then. A battery can hold winter\u2019s spare solar, so the panels may have been up before."
+  ],
+  "kwh": 7215,
+  "true_kwh": 7500,
+  "kwh_err": -3.8,
+  "headline": {
+   "best": "EI-NB",
+   "bill": 526,
+   "gap": 127
+  },
+  "scored_on": "solar-only answer",
+  "best": "EI-SST",
+  "true_best": "EI-SST",
+  "plan_gap": 0,
+  "bill": 772,
+  "true_bill_same_plan": 846,
+  "bill_err": -8.8,
+  "price_gap": 4.1,
+  "saving": 1867,
+  "true_saving": 1630,
+  "saving_err": 14.5,
+  "payback": 5.4,
+  "true_payback": 6.2,
+  "payback_err": -0.8,
+  "accuracy_shown": 5,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome",
+   "filewhen"
+  ],
+  "fails": [
+   "bill",
+   "payback"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "asked",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 1,595 kWh \u00b7 Mar-Apr: 435 kWh \u00b7 May-Jun: 54 kWh \u00b7 Jul-Aug: 42 kWh \u00b7 Sep-Oct: 972 kWh \u00b7 Nov-Dec: 1,596 kWh\nTotal: 4,694 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 1 Sept 2024 to 31 Aug 2025. Panels show from 5 Mar 2025, sending 1,297 kWh to the grid. We use 1 Sept 2024 to 4 Mar 2025, before the panels, and add them on top.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2024-09-01",
+   "to": "2025-08-31",
+   "start": "2025-03-05",
+   "since": "2025-03-05",
+   "rebuilt": "2025-03-05",
+   "ask": null
+  }
+ },
+ {
+  "id": "B5-hp_solar_gridfill",
+  "group": "B",
+  "title": "Battery filled from the grid at night in winter",
+  "home": "hp_solar_gridfill",
+  "truth_home": "hp_solar_gridfill",
+  "asked": [],
+  "kwh": 7487,
+  "true_kwh": 7500,
+  "kwh_err": -0.2,
+  "headline": {
+   "best": "EI-SST",
+   "bill": 785,
+   "gap": 0
+  },
+  "best": "EI-SST",
+  "true_best": "EI-SST",
+  "plan_gap": 0,
+  "bill": 785,
+  "true_bill_same_plan": 784,
+  "bill_err": 0.2,
+  "price_gap": 0.2,
+  "saving": 1687,
+  "true_saving": 1692,
+  "saving_err": -0.3,
+  "payback": 6.0,
+  "true_payback": 5.97,
+  "payback_err": 0.0,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome",
+   "hotwater"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 1,602 kWh \u00b7 Mar-Apr: 464 kWh \u00b7 May-Jun: 30 kWh \u00b7 Jul-Aug: 8 kWh \u00b7 Sep-Oct: 233 kWh \u00b7 Nov-Dec: 1,154 kWh\nTotal: 3,491 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. Panels show from 9 Oct 2025, sending 1,746 kWh to the grid.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "net",
+   "from": "2025-10-09",
+   "to": "2026-10-08",
+   "start": "2025-10-09",
+   "since": "2025-10-09"
+  }
+ },
+ {
+  "id": "B6-gas_solar",
+  "group": "B",
+  "title": "User says no solar; the file shows exports",
+  "home": "gas_solar",
+  "truth_home": "gas_solar",
+  "asked": [],
+  "kwh": 3998,
+  "true_kwh": 4000,
+  "kwh_err": -0.1,
+  "headline": {
+   "best": "EI-SST",
+   "bill": 567,
+   "gap": 0
+  },
+  "best": "EI-SST",
+  "true_best": "EI-SST",
+  "plan_gap": 0,
+  "bill": 567,
+  "true_bill_same_plan": 567,
+  "bill_err": 0.0,
+  "price_gap": 0.3,
+  "saving": 886,
+  "true_saving": 887,
+  "saving_err": -0.1,
+  "payback": 6.8,
+  "true_payback": 6.77,
+  "payback_err": 0.0,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "fileexp",
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 574 kWh \u00b7 Mar-Apr: 409 kWh \u00b7 May-Jun: 263 kWh \u00b7 Jul-Aug: 317 kWh \u00b7 Sep-Oct: 468 kWh \u00b7 Nov-Dec: 608 kWh\nTotal: 2,639 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. Panels show from 9 Oct 2025, sending 2,586 kWh to the grid.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "net",
+   "from": "2025-10-09",
+   "to": "2026-10-08",
+   "start": "2025-10-09",
+   "since": "2025-10-09"
+  }
+ },
+ {
+  "id": "B7a-gas",
+  "group": "B",
+  "title": "User says they have 9 panels; the file shows a home without them (they have none)",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [
+   "Is your meter file from before the panels went up? \u2014 It shows no solar going to the grid, which panels usually do."
+  ],
+  "kwh": 4001,
+  "true_kwh": 4000,
+  "kwh_err": 0.0,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1453,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1453,
+  "true_bill_same_plan": 1453,
+  "bill_err": -0.0,
+  "price_gap": 0.2,
+  "payback": null,
+  "true_payback": 6.82,
+  "payback_err": null,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome",
+   "filewhen"
+  ],
+  "fails": [
+   "no payback shown"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "asked",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 697 kWh \u00b7 Mar-Apr: 664 kWh \u00b7 May-Jun: 588 kWh \u00b7 Jul-Aug: 638 kWh \u00b7 Sep-Oct: 693 kWh \u00b7 Nov-Dec: 721 kWh\nTotal: 4,001 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "net",
+   "from": "2025-10-09",
+   "to": "2026-10-08"
+  }
+ },
+ {
+  "id": "B7b-gas",
+  "group": "B",
+  "title": "Same; user answers that the file is from before the panels",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [
+   "Is your meter file from before the panels went up? \u2014 It shows no solar going to the grid, which panels usually do."
+  ],
+  "kwh": 4001,
+  "true_kwh": 4000,
+  "kwh_err": 0.0,
+  "headline": {
+   "best": "EI-SST",
+   "bill": 576,
+   "gap": 79
+  },
+  "best": "EI-SST",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 79,
+  "bill": 576,
+  "true_bill_same_plan": 1532,
+  "bill_err": -62.4,
+  "price_gap": 54.4,
+  "saving": 878,
+  "true_saving": 880,
+  "saving_err": -0.2,
+  "payback": 6.8,
+  "true_payback": 6.82,
+  "payback_err": -0.0,
+  "accuracy_shown": 4,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome",
+   "filewhen"
+  ],
+  "fails": [
+   "bill",
+   "plan"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "asked",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 697 kWh \u00b7 Mar-Apr: 664 kWh \u00b7 May-Jun: 588 kWh \u00b7 Jul-Aug: 638 kWh \u00b7 Sep-Oct: 693 kWh \u00b7 Nov-Dec: 721 kWh\nTotal: 4,001 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-10-09",
+   "to": "2026-10-08",
+   "ask": null
+  }
+ },
+ {
+  "id": "B8-gas_solar",
+  "group": "B",
+  "title": "User says 14 panels; the home has 9",
+  "home": "gas_solar",
+  "truth_home": "gas_solar",
+  "asked": [],
+  "kwh": 6149,
+  "true_kwh": 4000,
+  "kwh_err": 53.7,
+  "headline": {
+   "best": "EI-SST",
+   "bill": 567,
+   "gap": 0
+  },
+  "best": "EI-SST",
+  "true_best": "EI-SST",
+  "plan_gap": 0,
+  "bill": 567,
+  "true_bill_same_plan": 567,
+  "bill_err": 0.0,
+  "price_gap": 0.3,
+  "saving": 1515,
+  "true_saving": 887,
+  "saving_err": 70.9,
+  "payback": 4.0,
+  "true_payback": 6.77,
+  "payback_err": -2.8,
+  "accuracy_shown": 4,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [
+   "consumption",
+   "payback"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 574 kWh \u00b7 Mar-Apr: 409 kWh \u00b7 May-Jun: 263 kWh \u00b7 Jul-Aug: 317 kWh \u00b7 Sep-Oct: 468 kWh \u00b7 Nov-Dec: 608 kWh\nTotal: 2,639 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. Panels show from 9 Oct 2025, sending 2,586 kWh to the grid.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "net",
+   "from": "2025-10-09",
+   "to": "2026-10-08",
+   "start": "2025-10-09",
+   "since": "2025-10-09"
+  }
+ },
+ {
+  "id": "C1-gas_ev_now",
+  "group": "C",
+  "title": "EV bought on 1 Apr 2026, halfway through the file",
+  "home": "gas_ev_now",
+  "truth_home": "gas_ev_now",
+  "asked": [],
+  "kwh": 5316,
+  "true_kwh": 6400,
+  "kwh_err": -16.9,
+  "headline": {
+   "best": "EI-SST",
+   "bill": 1764,
+   "gap": 51
+  },
+  "best": "EI-SST",
+  "true_best": "FL-EV",
+  "plan_gap": 51,
+  "bill": 1764,
+  "true_bill_same_plan": 1961,
+  "bill_err": -10.1,
+  "price_gap": 11.7,
+  "saving": 956,
+  "true_saving": 939,
+  "saving_err": 1.8,
+  "payback": 6.3,
+  "true_payback": 6.39,
+  "payback_err": -0.1,
+  "accuracy_shown": 4,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [
+   "consumption",
+   "bill",
+   "plan"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 697 kWh \u00b7 Mar-Apr: 817 kWh \u00b7 May-Jun: 1,034 kWh \u00b7 Jul-Aug: 1,106 kWh \u00b7 Sep-Oct: 941 kWh \u00b7 Nov-Dec: 721 kWh\nTotal: 5,316 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-10-09",
+   "to": "2026-10-08",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "C2-gas_to_hp",
+  "group": "C",
+  "title": "Heat pump put in on 15 Jan 2026 (was gas)",
+  "home": "gas_to_hp",
+  "truth_home": "gas_to_hp",
+  "asked": [],
+  "kwh": 6541,
+  "true_kwh": 7900,
+  "kwh_err": -17.2,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 2194,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 2194,
+  "true_bill_same_plan": 2593,
+  "bill_err": -15.4,
+  "price_gap": 14.9,
+  "saving": 986,
+  "true_saving": 1036,
+  "saving_err": -4.8,
+  "payback": 6.1,
+  "true_payback": 5.79,
+  "payback_err": 0.3,
+  "accuracy_shown": 4,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [
+   "consumption",
+   "bill"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 1,812 kWh \u00b7 Mar-Apr: 1,442 kWh \u00b7 May-Jun: 879 kWh \u00b7 Jul-Aug: 773 kWh \u00b7 Sep-Oct: 914 kWh \u00b7 Nov-Dec: 721 kWh\nTotal: 6,541 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-10-09",
+   "to": "2026-10-08",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "C4-gas_holiday",
+  "group": "C",
+  "title": "Away for four weeks in August 2026",
+  "home": "gas_holiday",
+  "truth_home": "gas_holiday",
+  "asked": [],
+  "kwh": 3802,
+  "true_kwh": 4000,
+  "kwh_err": -5.0,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1395,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1395,
+  "true_bill_same_plan": 1453,
+  "bill_err": -4.0,
+  "price_gap": 4.0,
+  "saving": 874,
+  "true_saving": 880,
+  "saving_err": -0.7,
+  "payback": 6.9,
+  "true_payback": 6.82,
+  "payback_err": 0.1,
+  "accuracy_shown": 4,
+  "acc_covers": false,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 697 kWh \u00b7 Mar-Apr: 664 kWh \u00b7 May-Jun: 588 kWh \u00b7 Jul-Aug: 439 kWh \u00b7 Sep-Oct: 693 kWh \u00b7 Nov-Dec: 721 kWh\nTotal: 3,802 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-10-09",
+   "to": "2026-10-08",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "C3-moved",
+  "group": "C",
+  "title": "Moved house: the file is the old (heat pump) home; the new home is gas-heated",
+  "home": "heatpump",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 4201,
+  "true_kwh": 4000,
+  "kwh_err": 5.0,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1512,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1512,
+  "true_bill_same_plan": 1453,
+  "bill_err": 4.0,
+  "price_gap": 2.4,
+  "saving": 976,
+  "true_saving": 880,
+  "saving_err": 11.0,
+  "payback": 6.1,
+  "true_payback": 6.82,
+  "payback_err": -0.7,
+  "accuracy_shown": 6,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [
+   "payback"
+  ],
+  "pass": false,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 2,048 kWh \u00b7 Mar-Apr: 1,367 kWh \u00b7 May-Jun: 856 kWh \u00b7 Jul-Aug: 721 kWh \u00b7 Sep-Oct: 963 kWh \u00b7 Nov-Dec: 1,545 kWh\nTotal: 7,500 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": null
+ },
+ {
+  "id": "D1a-gas",
+  "group": "D",
+  "title": "Daily register file instead of half-hourly",
+  "home": "gas",
+  "truth_home": "gas",
+  "outcome": "rejected",
+  "message": "\u2717 Parse error\nThis is one of ESB\u2019s daily files: a reading a day, without the hours that decide most plans. In your ESB Networks account, open My Meter, then Downloads, and choose \u201c30-minute readings in kW\u201d (the kWh version works too)."
+ },
+ {
+  "id": "D1b-gas",
+  "group": "D",
+  "title": "Half-hourly file in kWh, not kW",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 4001,
+  "true_kwh": 4000,
+  "kwh_err": 0.0,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1453,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1453,
+  "true_bill_same_plan": 1453,
+  "bill_err": -0.0,
+  "price_gap": 0.2,
+  "saving": 877,
+  "true_saving": 880,
+  "saving_err": -0.2,
+  "payback": 6.8,
+  "true_payback": 6.82,
+  "payback_err": -0.0,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 697 kWh \u00b7 Mar-Apr: 664 kWh \u00b7 May-Jun: 588 kWh \u00b7 Jul-Aug: 638 kWh \u00b7 Sep-Oct: 693 kWh \u00b7 Nov-Dec: 721 kWh\nTotal: 4,001 kWh/yr \u2014 anticipated full-year profile\nReadings in kWh \u2014 used as-is\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-10-09",
+   "to": "2026-10-08",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "D1c-gas",
+  "group": "D",
+  "title": "Day and night register file (24-hour or night-storage meter)",
+  "home": "gas",
+  "truth_home": "gas",
+  "outcome": "rejected",
+  "message": "\u2717 Parse error\nThis is one of ESB\u2019s daily files: a reading a day, without the hours that decide most plans. In your ESB Networks account, open My Meter, then Downloads, and choose \u201c30-minute readings in kW\u201d (the kWh version works too)."
+ },
+ {
+  "id": "D2a-gas",
+  "group": "D",
+  "title": "Edited in Excel: US dates (MM/DD)",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 3953,
+  "true_kwh": 4000,
+  "kwh_err": -1.2,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1440,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1440,
+  "true_bill_same_plan": 1453,
+  "bill_err": -0.9,
+  "price_gap": 1.3,
+  "saving": 910,
+  "true_saving": 880,
+  "saving_err": 3.4,
+  "payback": 6.6,
+  "true_payback": 6.82,
+  "payback_err": -0.2,
+  "accuracy_shown": 17,
+  "acc_covers": true,
+  "lost_pct": 60.5,
+  "repeat_pct": 0.0,
+  "warns": [
+   "dupes",
+   "unread"
+  ],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 6,912 readings\nJan-Feb: 623 kWh \u00b7 Mar-Apr: 701 kWh \u00b7 May-Jun: 628 kWh \u00b7 Jul-Aug: 676 kWh \u00b7 Sep-Oct: 671 kWh \u00b7 Nov-Dec: 654 kWh\nTotal: 3,953 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\nPartial year: 144 days across 6 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nWe couldn\u2019t read 10,606 of your 17,518 readings. Their dates aren\u2019t written the way ESB writes them. Excel often changes them when a file is opened and saved. Download it again from ESB Networks and add it a",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-01-10",
+   "to": "2026-12-09",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "D2b-gas",
+  "group": "D",
+  "title": "Edited in Excel: semicolons and comma decimals",
+  "home": "gas",
+  "truth_home": "gas",
+  "outcome": "rejected",
+  "message": "\u2717 Parse error\nOnly 0 readings found. Is this the file from ESB Networks?"
+ },
+ {
+  "id": "D2c-gas",
+  "group": "D",
+  "title": "Header row renamed",
+  "home": "gas",
+  "truth_home": "gas",
+  "outcome": "rejected",
+  "message": "\u2717 Parse error\nOnly 0 readings found. Is this the file from ESB Networks?"
+ },
+ {
+  "id": "D2d-gas",
+  "group": "D",
+  "title": "Saved by Excel with Irish short dates (d/m/yyyy h:mm)",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 4001,
+  "true_kwh": 4000,
+  "kwh_err": 0.0,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1453,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1453,
+  "true_bill_same_plan": 1453,
+  "bill_err": -0.0,
+  "price_gap": 0.2,
+  "saving": 878,
+  "true_saving": 880,
+  "saving_err": -0.2,
+  "payback": 6.8,
+  "true_payback": 6.82,
+  "payback_err": -0.0,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 697 kWh \u00b7 Mar-Apr: 664 kWh \u00b7 May-Jun: 588 kWh \u00b7 Jul-Aug: 638 kWh \u00b7 Sep-Oct: 693 kWh \u00b7 Nov-Dec: 721 kWh\nTotal: 4,001 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-10-09",
+   "to": "2026-10-08",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "D3a-gas",
+  "group": "D",
+  "title": "Missing days: ten single days and a three-week gap",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 3976,
+  "true_kwh": 4000,
+  "kwh_err": -0.6,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1415,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1415,
+  "true_bill_same_plan": 1453,
+  "bill_err": -2.6,
+  "price_gap": 2.6,
+  "saving": 875,
+  "true_saving": 880,
+  "saving_err": -0.6,
+  "payback": 6.9,
+  "true_payback": 6.82,
+  "payback_err": 0.1,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 16,032 readings\nJan-Feb: 689 kWh \u00b7 Mar-Apr: 645 kWh \u00b7 May-Jun: 591 kWh \u00b7 Jul-Aug: 640 kWh \u00b7 Sep-Oct: 690 kWh \u00b7 Nov-Dec: 721 kWh\nTotal: 3,976 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-10-09",
+   "to": "2026-10-08",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "D3b-gas",
+  "group": "D",
+  "title": "Every row twice",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 4001,
+  "true_kwh": 4000,
+  "kwh_err": 0.0,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1453,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1453,
+  "true_bill_same_plan": 1453,
+  "bill_err": -0.0,
+  "price_gap": 0.2,
+  "saving": 878,
+  "true_saving": 880,
+  "saving_err": -0.2,
+  "payback": 6.8,
+  "true_payback": 6.82,
+  "payback_err": -0.0,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 50.0,
+  "warns": [
+   "dupes"
+  ],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 697 kWh \u00b7 Mar-Apr: 664 kWh \u00b7 May-Jun: 588 kWh \u00b7 Jul-Aug: 638 kWh \u00b7 Sep-Oct: 693 kWh \u00b7 Nov-Dec: 721 kWh\nTotal: 4,001 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\n17,520 readings were repeats of others in the file. We count each half hour once.\nYour file runs 9 Oct 2025 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-10-09",
+   "to": "2026-10-08",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "D3c-gas",
+  "group": "D",
+  "title": "Two overlapping files uploaded one after the other",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 3995,
+  "true_kwh": 4000,
+  "kwh_err": -0.1,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1453,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1453,
+  "true_bill_same_plan": 1453,
+  "bill_err": -0.0,
+  "price_gap": 0.2,
+  "saving": 878,
+  "true_saving": 880,
+  "saving_err": -0.2,
+  "payback": 6.8,
+  "true_payback": 6.82,
+  "payback_err": -0.0,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 11,280 readings\nJan-Feb: 697 kWh \u00b7 Mar-Apr: 664 kWh \u00b7 May-Jun: 608 kWh \u00b7 Jul-Aug: 607 kWh* \u00b7 Sep-Oct: 704 kWh \u00b7 Nov-Dec: 721 kWh\nTotal: 4,001 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n* estimated, no readings for this period\nPartial year: 235 days across 5 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nYour file runs 9 Oct 2025 to 31 May 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before | \u2713 Im",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-10-09",
+   "to": "2026-10-08",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "D3d-gas",
+  "group": "D",
+  "title": "Meter replaced in March: two serial numbers in one file",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 4001,
+  "true_kwh": 4000,
+  "kwh_err": 0.0,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1453,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1453,
+  "true_bill_same_plan": 1453,
+  "bill_err": -0.0,
+  "price_gap": 0.2,
+  "saving": 878,
+  "true_saving": 880,
+  "saving_err": -0.2,
+  "payback": 6.8,
+  "true_payback": 6.82,
+  "payback_err": -0.0,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 697 kWh \u00b7 Mar-Apr: 664 kWh \u00b7 May-Jun: 588 kWh \u00b7 Jul-Aug: 638 kWh \u00b7 Sep-Oct: 693 kWh \u00b7 Nov-Dec: 721 kWh\nTotal: 4,001 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-10-09",
+   "to": "2026-10-08",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "D4-gas",
+  "group": "D",
+  "title": "Calendar 2024: 29 February and both clock changes",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 3962,
+  "true_kwh": 4000,
+  "kwh_err": -0.9,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1439,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1439,
+  "true_bill_same_plan": 1453,
+  "bill_err": -1.0,
+  "price_gap": 1.0,
+  "saving": 875,
+  "true_saving": 880,
+  "saving_err": -0.5,
+  "payback": 6.9,
+  "true_payback": 6.82,
+  "payback_err": 0.1,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,568 readings\nJan-Feb: 700 kWh \u00b7 Mar-Apr: 617 kWh \u00b7 May-Jun: 615 kWh \u00b7 Jul-Aug: 638 kWh \u00b7 Sep-Oct: 675 kWh \u00b7 Nov-Dec: 717 kWh\nTotal: 3,962 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 1 Jan 2024 to 31 Dec 2024. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2024-01-01",
+   "to": "2024-12-31",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "D5a-gas",
+  "group": "D",
+  "title": "Empty file",
+  "home": "gas",
+  "truth_home": "gas",
+  "outcome": "rejected",
+  "message": "\u2717 Parse error\nFile appears empty or invalid"
+ },
+ {
+  "id": "D5b-gas",
+  "group": "D",
+  "title": "Header only",
+  "home": "gas",
+  "truth_home": "gas",
+  "outcome": "rejected",
+  "message": "\u2717 Parse error\nFile appears empty or invalid"
+ },
+ {
+  "id": "D5c-gas",
+  "group": "D",
+  "title": "A bank statement CSV",
+  "home": "gas",
+  "truth_home": "gas",
+  "outcome": "rejected",
+  "message": "\u2717 Parse error\nThis is one of ESB\u2019s daily files: a reading a day, without the hours that decide most plans. In your ESB Networks account, open My Meter, then Downloads, and choose \u201c30-minute readings in kW\u201d (the kWh version works too)."
+ },
+ {
+  "id": "D5d-gas",
+  "group": "D",
+  "title": "A gas meter file",
+  "home": "gas",
+  "truth_home": "gas",
+  "outcome": "rejected",
+  "message": "\u2717 Parse error\nThis is one of ESB\u2019s daily files: a reading a day, without the hours that decide most plans. In your ESB Networks account, open My Meter, then Downloads, and choose \u201c30-minute readings in kW\u201d (the kWh version works too)."
+ },
+ {
+  "id": "D5e-gas",
+  "group": "D",
+  "title": "A PDF bill renamed .csv",
+  "home": "gas",
+  "truth_home": "gas",
+  "outcome": "rejected",
+  "message": "\u2717 Parse error\nOnly 0 readings found. Is this the file from ESB Networks?"
+ },
+ {
+  "id": "D5f-gas",
+  "group": "D",
+  "title": "A very large file (the same 33 months five times, about 14 MB)",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 3976,
+  "true_kwh": 4000,
+  "kwh_err": -0.6,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1453,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1453,
+  "true_bill_same_plan": 1453,
+  "bill_err": -0.0,
+  "price_gap": 0.2,
+  "saving": 878,
+  "true_saving": 880,
+  "saving_err": -0.2,
+  "payback": 6.8,
+  "true_payback": 6.82,
+  "payback_err": -0.0,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 80.0,
+  "warns": [
+   "dupes"
+  ],
+  "asked_ids": [
+   "filehome"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 48,574 readings\nJan-Feb: 698 kWh \u00b7 Mar-Apr: 641 kWh \u00b7 May-Jun: 597 kWh \u00b7 Jul-Aug: 637 kWh \u00b7 Sep-Oct: 684 kWh \u00b7 Nov-Dec: 719 kWh\nTotal: 3,976 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings (file spans ~2.8 years \u2014 averaged per day, so the result is one typical year).\n388,596 readings were repeats of others in the file. We count each half hour once.\nYour file runs 4 Sept 2025 to 8 Oct 2026. No solar shows in it.\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in befor",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-09-04",
+   "to": "2026-10-08",
+   "start": null,
+   "contradicts": false
+  }
+ },
+ {
+  "id": "D6-gas",
+  "group": "D",
+  "title": "Typed 5,600 kWh in setup, then uploaded a file showing 4,000",
+  "home": "gas",
+  "truth_home": "gas",
+  "asked": [],
+  "kwh": 4001,
+  "true_kwh": 4000,
+  "kwh_err": 0.0,
+  "headline": {
+   "best": "EN-SMART-24-HOUR",
+   "bill": 1453,
+   "gap": 0
+  },
+  "best": "EN-SMART-24-HOUR",
+  "true_best": "EN-SMART-24-HOUR",
+  "plan_gap": 0,
+  "bill": 1453,
+  "true_bill_same_plan": 1453,
+  "bill_err": -0.0,
+  "price_gap": 0.2,
+  "saving": 878,
+  "true_saving": 880,
+  "saving_err": -0.2,
+  "payback": 6.8,
+  "true_payback": 6.82,
+  "payback_err": -0.0,
+  "accuracy_shown": 4,
+  "acc_covers": true,
+  "lost_pct": 0.0,
+  "repeat_pct": 0.0,
+  "warns": [
+   "typed"
+  ],
+  "asked_ids": [
+   "filehome",
+   "typed"
+  ],
+  "fails": [],
+  "pass": true,
+  "tolerance": {
+   "kwh": 5,
+   "bill": 5,
+   "payback": 0.5,
+   "plan": 25
+  },
+  "outcome": "accepted",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 697 kWh \u00b7 Mar-Apr: 664 kWh \u00b7 May-Jun: 588 kWh \u00b7 Jul-Aug: 638 kWh \u00b7 Sep-Oct: 693 kWh \u00b7 Nov-Dec: 721 kWh\nTotal: 4,001 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. No solar shows in it.\nYou told us 5,600 kWh a year. This file says 4,001. We\u2019ll use the file unless you\u2019d rather keep yours.\nKeep my 5,600 kWh\nIs this file from the home you live in now?\nYes, use this data \u2192\nNo, a home I lived in before",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-10-09",
+   "to": "2026-10-08",
+   "start": null,
+   "contradicts": false
+  }
+ }
+]

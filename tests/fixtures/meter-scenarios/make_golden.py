@@ -31,7 +31,7 @@ REFERENCE = ['A1-gas', 'A2-heatpump', 'A7-ev', 'A3a-gas', 'A5b-heatpump', 'B2-ga
 # The solar saving is held to 3% (added with fix 12, 9 October): the app's
 # solar on winter time all summer had made every saving 2-2.6% low.
 TOL = dict(kwh=5.0, bill=5.0, plan=25, payback=0.5, saving=3.0)
-ASKS = ('filewhen', 'fileexp', 'typed', 'filehome')
+ASKS = ('filewhen', 'fileexp', 'typed', 'filehome', 'hotwater')
 
 def limit(err, tol, step):
     if err is None: return tol
@@ -78,6 +78,7 @@ if __name__ == '__main__':
         else:
             lim['acc_min'] = max(r['accuracy_shown'] or 0, p.get('acc_min') or 0); gaps.append('accuracy')
         if gaps: lim['known_gap'] = ', '.join(gaps)
+        elif lim.get('loosened'): del lim['loosened']   # back within the tolerance: the note has served
         lim['today'] = dict(kwh_err=r['kwh_err'], bill_err=r['bill_err'], plan_gap=r['plan_gap'], payback=r.get('payback'), true_payback=r.get('true_payback'), saving_err=r.get('saving_err'),
                             accuracy=r['accuracy_shown'], lost_pct=r.get('lost_pct'))
         out['scenarios'][sid] = lim

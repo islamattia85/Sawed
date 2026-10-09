@@ -91,7 +91,7 @@ def score(r):
         got = int(m.group(1).replace(',', '')) if m else 0
         lost.append(round(max(0.0, 1 - got / have) * 100, 1) if have else 0.0)
     out['lost_pct'] = max(lost); out['repeat_pct'] = max(rep); out['warns'] = sorted({w for ws in warns for w in ws})
-    out['asked_ids'] = sorted({q['q'] for q in r['seen']['questions'] if q['q'] in ('filewhen', 'fileexp', 'filehome', 'typed')})
+    out['asked_ids'] = sorted({q['q'] for q in r['seen']['questions'] if q['q'] in ('filewhen', 'fileexp', 'filehome', 'typed', 'hotwater')})
     fails = []
     if out['kwh_err'] is not None and abs(out['kwh_err']) > tol['kwh']: fails.append('consumption')
     if out['bill_err'] is None or abs(out['bill_err']) > tol['bill']: fails.append('bill')
