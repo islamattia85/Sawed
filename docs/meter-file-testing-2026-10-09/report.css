@@ -1,0 +1,21 @@
+@page { size: A4 landscape; margin: 12mm 12mm; }
+:root { --ink: #15201a; --soft: #48574f; --dim: #74827a; --line: #d8e0db; --well: #eef3f0; --good: #17734a; --bad: #b0322a; }
+body { font: 10pt/1.45 "Helvetica Neue", Arial, sans-serif; color: var(--ink); margin: 0; background: #fff; }
+main { max-width: 1180px; margin: 0 auto; padding: 0 4px; }
+h1 { font-size: 22pt; margin: 0 0 4mm; letter-spacing: -.01em; }
+h2 { font-size: 14pt; margin: 8mm 0 2mm; padding-top: 2mm; border-top: 1px solid var(--line); break-after: avoid; }
+h3 { font-size: 11pt; margin: 4mm 0 1.5mm; break-after: avoid; }
+p, li { max-width: 175mm; margin: 0 0 2mm; }
+ul, ol { padding-left: 6mm; margin: 0 0 3mm; }
+code { font: 8.5pt ui-monospace, Menlo, monospace; background: var(--well); padding: 0 3px; border-radius: 3px; }
+.tw { margin: 2mm 0 4mm; }
+table { width: 100%; border-collapse: collapse; font-size: 8pt; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 1.4mm 1.6mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { background: var(--well); font-weight: 700; }
+tr { break-inside: avoid; }
+table.results { font-size: 7pt; } table.results td:nth-child(2) { min-width: 40mm; } table.results td:nth-child(3) { min-width: 42mm; }
+table.step0 { font-size: 7.6pt; }
+td.good { color: var(--good); font-weight: 700; } td.bad { color: var(--bad); font-weight: 700; }
+figure { display: inline-block; vertical-align: top; width: 31%; margin: 0 1.5% 4mm 0; break-inside: avoid; }
+figure img { width: 100%; border: 1px solid var(--line); border-radius: 2mm; }
+figcaption { font-size: 8pt; color: var(--soft); margin-top: 1mm; }

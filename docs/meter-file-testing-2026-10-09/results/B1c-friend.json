@@ -1,0 +1,445 @@
+{
+ "id": "B1c-friend",
+ "seen": {
+  "import": [
+   "✓ Imported 4,416 readings\nJan-Feb: 488 kWh* · Mar-Apr: 481 kWh* · May-Jun: 713 kWh · Jul-Aug: 665 kWh · Sep-Oct: 8 kWh · Nov-Dec: 529 kWh*\nTotal: 2,884 kWh/yr — anticipated full-year profile\nReadings in kW (avg per 30-min interval) — converted ×0.5 to kWh\n* estimated, no readings for this period\nPartial year: 93 days across 3 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nYour file runs 1 Jun 2025 to 31 Aug 2025. No solar shows in it.\nUse this data →"
+  ],
+  "questions": [
+   {
+    "q": "meter",
+    "text": "Which electricity meter do you have? — It decides which plans you can switch to.",
+    "answer": "smart",
+    "offered": [
+     "smart"
+    ],
+    "fits": true
+   },
+   {
+    "q": "area",
+    "text": "Urban or rural? — It’s on your bill. Rural standing charges are about €70 a year higher.",
+    "answer": "urban",
+    "offered": [
+     "urban"
+    ],
+    "fits": true
+   },
+   {
+    "q": "plan",
+    "text": "Who do you pay now? — Not sure? We’ll estimate.",
+    "answer": "EI-24",
+    "offered": [
+     "unsure"
+    ],
+    "fits": false
+   },
+   {
+    "q": "disc",
+    "text": "Any discount on top of the 16%? — Your plan’s 16% is already in its prices. Only add a discount your bill shows beyond it.",
+    "answer": 0,
+    "offered": [
+     "Math.max(0, Math.min(60, Math.round(+v"
+    ],
+    "fits": true
+   },
+   {
+    "q": "heat",
+    "text": "How is the home heated? — ",
+    "answer": "heatpump",
+    "offered": [],
+    "fits": true
+   },
+   {
+    "q": "solar",
+    "text": "Solar panels? — ",
+    "answer": "have",
+    "offered": [],
+    "fits": true
+   },
+   {
+    "q": "where",
+    "text": "Where in Ireland is the home? — The sunshine, and how cold it gets, differ by region.",
+    "answer": "south",
+    "offered": [],
+    "fits": true
+   },
+   {
+    "q": "roof",
+    "text": "Which way does the roof face? — The side that gets the sun.",
+    "answer": "S",
+    "offered": [
+     "Math.max(0, Math.min(359, Math.round(+v",
+     "unsure"
+    ],
+    "fits": false
+   },
+   {
+    "q": "tilt",
+    "text": "How steep is the roof? — Most Irish roofs are 30–40°.",
+    "answer": 35,
+    "offered": [
+     "Math.max(0, Math.min(90, Math.round(+v",
+     "35"
+    ],
+    "fits": true
+   },
+   {
+    "q": "panels",
+    "text": "How many panels? — For your usage we suggest 6.",
+    "answer": 22,
+    "offered": [
+     "Math.max(0, Math.min(60, Math.round(+v"
+    ],
+    "fits": true
+   },
+   {
+    "q": "battery",
+    "text": "A battery? — It stores the day’s solar for the evening.",
+    "answer": 9,
+    "offered": [
+     "Math.max(0, Math.min(40, Math.round(+v"
+    ],
+    "fits": true
+   },
+   {
+    "q": "filewhen",
+    "text": "Is your meter file from before the panels went up? — It shows no solar going to the grid, which panels usually do.",
+    "answer": "before",
+    "offered": [],
+    "fits": true
+   },
+   {
+    "q": "price",
+    "text": "What did the panels cost? — Roughly is fine. Including VAT, before any grant.",
+    "answer": 0,
+    "offered": [
+     "Math.max(0, Math.min(60000, Math.round(+v"
+    ],
+    "fits": true
+   },
+   {
+    "q": "grant",
+    "text": "Did you get the SEAI grant for them? — Up to €1,800 for the panels.",
+    "answer": "no",
+    "offered": [],
+    "fits": true
+   },
+   {
+    "q": "ev",
+    "text": "An electric car? — ",
+    "answer": "no",
+    "offered": [],
+    "fits": true
+   }
+  ],
+  "rejected": null
+ },
+ "kwh": 2884,
+ "bills": {
+  "Jan-Feb": 488,
+  "Mar-Apr": 481,
+  "May-Jun": 713,
+  "Jul-Aug": 665,
+  "Sep-Oct": 8,
+  "Nov-Dec": 529
+ },
+ "best": "PIN-FAM",
+ "bestNet": -710,
+ "today": null,
+ "solarOnly": [
+  {
+   "id": "PIN-FAM",
+   "net": -693
+  },
+  {
+   "id": "PIN-LF",
+   "net": -688
+  },
+  {
+   "id": "PIN-WFH",
+   "net": -678
+  },
+  {
+   "id": "EI-SST",
+   "net": -554
+  },
+  {
+   "id": "EI-24",
+   "net": -544
+  },
+  {
+   "id": "EI-WKND",
+   "net": -529
+  },
+  {
+   "id": "SSE-DNP",
+   "net": -522
+  },
+  {
+   "id": "SSE-EVDAY",
+   "net": -514
+  },
+  {
+   "id": "BG-TOU",
+   "net": -494
+  },
+  {
+   "id": "BG-TOU-PLUS",
+   "net": -494
+  },
+  {
+   "id": "BG-24",
+   "net": -491
+  },
+  {
+   "id": "BG-WKND",
+   "net": -490
+  },
+  {
+   "id": "EN-SMART-24-HOUR",
+   "net": -485
+  },
+  {
+   "id": "EI-NB",
+   "net": -480
+  },
+  {
+   "id": "YN-24",
+   "net": -479
+  },
+  {
+   "id": "YN-DNP",
+   "net": -472
+  },
+  {
+   "id": "EN-SMART",
+   "net": -470
+  },
+  {
+   "id": "FL-DNP",
+   "net": -464
+  },
+  {
+   "id": "FL-24",
+   "net": -462
+  },
+  {
+   "id": "BG-STANDARD-VARIABLE-SMART-ALL-DAY-ELECTRICITY",
+   "net": -459
+  },
+  {
+   "id": "EN-EV",
+   "net": -418
+  },
+  {
+   "id": "SSE-EVMAX",
+   "net": -415
+  },
+  {
+   "id": "SSE-WKND",
+   "net": -409
+  },
+  {
+   "id": "EN-SMART-DAY-NIGHT",
+   "net": -397
+  },
+  {
+   "id": "FL-EV",
+   "net": -389
+  },
+  {
+   "id": "YN-EV",
+   "net": -378
+  },
+  {
+   "id": "BG-EV",
+   "net": -373
+  },
+  {
+   "id": "YN-EV-DNP",
+   "net": -366
+  },
+  {
+   "id": "EP-SST",
+   "net": -324
+  },
+  {
+   "id": "EP-24",
+   "net": -316
+  },
+  {
+   "id": "WP-SST",
+   "net": 327
+  },
+  {
+   "id": "CP-SST",
+   "net": 399
+  },
+  {
+   "id": "PPP-TOU",
+   "net": 600
+  }
+ ],
+ "ranked": [
+  {
+   "id": "PIN-FAM",
+   "net": -710
+  },
+  {
+   "id": "PIN-LF",
+   "net": -701
+  },
+  {
+   "id": "PIN-WFH",
+   "net": -678
+  },
+  {
+   "id": "EI-SST",
+   "net": -554
+  },
+  {
+   "id": "EI-24",
+   "net": -544
+  },
+  {
+   "id": "SSE-DNP",
+   "net": -540
+  },
+  {
+   "id": "EI-NB",
+   "net": -538
+  },
+  {
+   "id": "EI-WKND",
+   "net": -529
+  },
+  {
+   "id": "SSE-EVDAY",
+   "net": -514
+  },
+  {
+   "id": "BG-TOU",
+   "net": -506
+  },
+  {
+   "id": "BG-TOU-PLUS",
+   "net": -506
+  },
+  {
+   "id": "BG-WKND",
+   "net": -493
+  },
+  {
+   "id": "BG-24",
+   "net": -491
+  },
+  {
+   "id": "YN-DNP",
+   "net": -491
+  },
+  {
+   "id": "EN-SMART-24-HOUR",
+   "net": -485
+  },
+  {
+   "id": "EN-EV",
+   "net": -481
+  },
+  {
+   "id": "YN-24",
+   "net": -479
+  },
+  {
+   "id": "FL-DNP",
+   "net": -476
+  },
+  {
+   "id": "EN-SMART",
+   "net": -470
+  },
+  {
+   "id": "FL-24",
+   "net": -462
+  },
+  {
+   "id": "FL-EV",
+   "net": -462
+  },
+  {
+   "id": "BG-STANDARD-VARIABLE-SMART-ALL-DAY-ELECTRICITY",
+   "net": -459
+  },
+  {
+   "id": "SSE-EVMAX",
+   "net": -455
+  },
+  {
+   "id": "YN-EV-DNP",
+   "net": -451
+  },
+  {
+   "id": "SSE-WKND",
+   "net": -433
+  },
+  {
+   "id": "EN-SMART-DAY-NIGHT",
+   "net": -431
+  },
+  {
+   "id": "YN-EV",
+   "net": -427
+  },
+  {
+   "id": "BG-EV",
+   "net": -409
+  },
+  {
+   "id": "EP-SST",
+   "net": -345
+  },
+  {
+   "id": "EP-24",
+   "net": -316
+  },
+  {
+   "id": "WP-SST",
+   "net": 315
+  },
+  {
+   "id": "CP-SST",
+   "net": 378
+  },
+  {
+   "id": "PPP-TOU",
+   "net": 573
+  }
+ ],
+ "solar": {
+  "payback": 5.769020008549193,
+  "saving": 1837.4004569739245,
+  "costNoSolar": 1127.4378802474457,
+  "costWithSolar": -709.9625767264789,
+  "sysCost": 10600
+ },
+ "basis": {
+  "mode": "gross",
+  "from": "2025-06-01",
+  "to": "2025-08-31",
+  "ask": null
+ },
+ "accuracy": {
+  "pct": 4,
+  "parts": [
+   "Weather and our estimates ±3%",
+   "Your meter data ±1%",
+   "Roof direction and tilt confirmed ±1%",
+   "Typical panel spec assumed ±2%",
+   "Typical battery spec assumed ±2%"
+  ]
+ },
+ "csvDays": 93,
+ "periods": 3,
+ "fileWhen": "before",
+ "hasSolar": true,
+ "planned": false,
+ "hero": "Switching plan saves, with your solar\n€166\nless a year\nBest for your home: Pinergy Lifestyle Family Time\nThis needs your battery to charge from the grid at night. Set it in your inverter app. If it only takes solar, this plan is still the best, at −€693 a year.\nWhat you’d pay a year\nNow, Electric Ireland Home Electric+ Saver 16%, with your solar\npaid €544\nOn Pinergy Lifestyle Family Time, with your solar\npaid €710"
+}

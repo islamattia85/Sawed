@@ -1,0 +1,411 @@
+{
+ "id": "A4-ev",
+ "seen": {
+  "import": [
+   "✓ Imported 13,486 readings\nJan-Feb: 1,044 kWh · Mar-Apr: 988 kWh · May-Jun: 942 kWh · Jul-Aug: 984 kWh · Sep-Oct: 952 kWh · Nov-Dec: 1,125 kWh*\nTotal: 6,035 kWh/yr — anticipated full-year profile\nReadings in kW (avg per 30-min interval) — converted ×0.5 to kWh\n* estimated, no readings for this period\nPartial year: 282 days across 5 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nYour file runs 1 Jan 2026 to 8 Oct 2026. No solar shows in it.\nUse this data →"
+  ],
+  "questions": [
+   {
+    "q": "meter",
+    "text": "Which electricity meter do you have? — It decides which plans you can switch to.",
+    "answer": "smart",
+    "offered": [
+     "smart"
+    ],
+    "fits": true
+   },
+   {
+    "q": "area",
+    "text": "Urban or rural? — It’s on your bill. Rural standing charges are about €70 a year higher.",
+    "answer": "urban",
+    "offered": [
+     "urban"
+    ],
+    "fits": true
+   },
+   {
+    "q": "plan",
+    "text": "Who do you pay now? — Not sure? We’ll estimate.",
+    "answer": "EI-24",
+    "offered": [
+     "unsure"
+    ],
+    "fits": false
+   },
+   {
+    "q": "disc",
+    "text": "Any discount on top of the 16%? — Your plan’s 16% is already in its prices. Only add a discount your bill shows beyond it.",
+    "answer": 0,
+    "offered": [
+     "Math.max(0, Math.min(60, Math.round(+v"
+    ],
+    "fits": true
+   },
+   {
+    "q": "heat",
+    "text": "How is the home heated? — ",
+    "answer": "gas",
+    "offered": [],
+    "fits": true
+   },
+   {
+    "q": "gas",
+    "text": "Is your gas with Electric Ireland too? — It changes what a switch is worth.",
+    "answer": "no",
+    "offered": [],
+    "fits": true
+   },
+   {
+    "q": "solar",
+    "text": "Solar panels? — ",
+    "answer": "thinking",
+    "offered": [],
+    "fits": true
+   },
+   {
+    "q": "where",
+    "text": "Where in Ireland is the home? — The sunshine, and how cold it gets, differ by region.",
+    "answer": "south",
+    "offered": [],
+    "fits": true
+   },
+   {
+    "q": "house",
+    "text": "What kind of house is it? — It tells us how many panels the roof can take.",
+    "answer": "semi",
+    "offered": [],
+    "fits": true
+   },
+   {
+    "q": "roof",
+    "text": "Which way does the roof face? — The side that gets the sun.",
+    "answer": "S",
+    "offered": [
+     "Math.max(0, Math.min(359, Math.round(+v",
+     "unsure"
+    ],
+    "fits": false
+   },
+   {
+    "q": "tilt",
+    "text": "How steep is the roof? — Most Irish roofs are 30–40°.",
+    "answer": 35,
+    "offered": [
+     "Math.max(0, Math.min(90, Math.round(+v",
+     "35"
+    ],
+    "fits": true
+   }
+  ],
+  "rejected": null
+ },
+ "kwh": 6035,
+ "bills": {
+  "Jan-Feb": 1044,
+  "Mar-Apr": 988,
+  "May-Jun": 942,
+  "Jul-Aug": 984,
+  "Sep-Oct": 952,
+  "Nov-Dec": 1125
+ },
+ "best": "EI-NB",
+ "bestNet": 925,
+ "today": [
+  {
+   "id": "EI-SST",
+   "net": 1849
+  },
+  {
+   "id": "FL-EV",
+   "net": 1853
+  },
+  {
+   "id": "EI-NB",
+   "net": 1888
+  },
+  {
+   "id": "EN-SMART",
+   "net": 1931
+  },
+  {
+   "id": "WP-SST",
+   "net": 1950
+  },
+  {
+   "id": "SSE-DNP",
+   "net": 1963
+  },
+  {
+   "id": "YN-EV-DNP",
+   "net": 1984
+  },
+  {
+   "id": "YN-EV",
+   "net": 1995
+  },
+  {
+   "id": "FL-DNP",
+   "net": 2013
+  },
+  {
+   "id": "BG-EV",
+   "net": 2030
+  },
+  {
+   "id": "EN-SMART-24-HOUR",
+   "net": 2048
+  },
+  {
+   "id": "FL-24",
+   "net": 2076
+  },
+  {
+   "id": "EN-SMART-DAY-NIGHT",
+   "net": 2076
+  },
+  {
+   "id": "YN-DNP",
+   "net": 2099
+  },
+  {
+   "id": "EN-EV",
+   "net": 2132
+  },
+  {
+   "id": "BG-TOU",
+   "net": 2144
+  },
+  {
+   "id": "BG-TOU-PLUS",
+   "net": 2144
+  },
+  {
+   "id": "EI-24",
+   "net": 2146
+  },
+  {
+   "id": "SSE-EVDAY",
+   "net": 2188
+  },
+  {
+   "id": "SSE-EVMAX",
+   "net": 2235
+  },
+  {
+   "id": "BG-24",
+   "net": 2241
+  },
+  {
+   "id": "BG-WKND",
+   "net": 2245
+  },
+  {
+   "id": "YN-24",
+   "net": 2329
+  },
+  {
+   "id": "SSE-WKND",
+   "net": 2354
+  },
+  {
+   "id": "EP-SST",
+   "net": 2368
+  },
+  {
+   "id": "CP-SST",
+   "net": 2370
+  },
+  {
+   "id": "EI-WKND",
+   "net": 2426
+  },
+  {
+   "id": "PPP-TOU",
+   "net": 2469
+  },
+  {
+   "id": "EP-24",
+   "net": 2598
+  },
+  {
+   "id": "PIN-LF",
+   "net": 2752
+  },
+  {
+   "id": "PIN-FAM",
+   "net": 2814
+  },
+  {
+   "id": "PIN-WFH",
+   "net": 2952
+  },
+  {
+   "id": "BG-STANDARD-VARIABLE-SMART-ALL-DAY-ELECTRICITY",
+   "net": 3007
+  }
+ ],
+ "solarOnly": null,
+ "ranked": [
+  {
+   "id": "EI-NB",
+   "net": 925
+  },
+  {
+   "id": "EI-SST",
+   "net": 925
+  },
+  {
+   "id": "FL-EV",
+   "net": 962
+  },
+  {
+   "id": "SSE-DNP",
+   "net": 1036
+  },
+  {
+   "id": "YN-EV-DNP",
+   "net": 1037
+  },
+  {
+   "id": "EN-SMART",
+   "net": 1052
+  },
+  {
+   "id": "YN-EV",
+   "net": 1081
+  },
+  {
+   "id": "BG-EV",
+   "net": 1104
+  },
+  {
+   "id": "FL-DNP",
+   "net": 1127
+  },
+  {
+   "id": "EN-EV",
+   "net": 1139
+  },
+  {
+   "id": "EN-SMART-DAY-NIGHT",
+   "net": 1163
+  },
+  {
+   "id": "SSE-EVMAX",
+   "net": 1181
+  },
+  {
+   "id": "YN-DNP",
+   "net": 1185
+  },
+  {
+   "id": "EN-SMART-24-HOUR",
+   "net": 1196
+  },
+  {
+   "id": "BG-TOU",
+   "net": 1221
+  },
+  {
+   "id": "BG-TOU-PLUS",
+   "net": 1221
+  },
+  {
+   "id": "FL-24",
+   "net": 1222
+  },
+  {
+   "id": "EI-24",
+   "net": 1242
+  },
+  {
+   "id": "SSE-EVDAY",
+   "net": 1280
+  },
+  {
+   "id": "BG-WKND",
+   "net": 1333
+  },
+  {
+   "id": "BG-24",
+   "net": 1343
+  },
+  {
+   "id": "SSE-WKND",
+   "net": 1365
+  },
+  {
+   "id": "YN-24",
+   "net": 1436
+  },
+  {
+   "id": "EP-SST",
+   "net": 1454
+  },
+  {
+   "id": "EI-WKND",
+   "net": 1490
+  },
+  {
+   "id": "WP-SST",
+   "net": 1531
+  },
+  {
+   "id": "PIN-LF",
+   "net": 1535
+  },
+  {
+   "id": "PIN-FAM",
+   "net": 1589
+  },
+  {
+   "id": "EP-24",
+   "net": 1714
+  },
+  {
+   "id": "PIN-WFH",
+   "net": 1815
+  },
+  {
+   "id": "CP-SST",
+   "net": 1835
+  },
+  {
+   "id": "PPP-TOU",
+   "net": 1938
+  },
+  {
+   "id": "BG-STANDARD-VARIABLE-SMART-ALL-DAY-ELECTRICITY",
+   "net": 1942
+  }
+ ],
+ "solar": {
+  "payback": 6.499059495376114,
+  "saving": 923.2105051921467,
+  "costNoSolar": 1848.557818851024,
+  "costWithSolar": 925.3473136588773,
+  "sysCost": 6000
+ },
+ "basis": {
+  "mode": "gross",
+  "from": "2026-01-01",
+  "to": "2026-10-08",
+  "start": null,
+  "contradicts": false
+ },
+ "accuracy": {
+  "pct": 4,
+  "parts": [
+   "Weather and our estimates ±3%",
+   "Your meter data ±1%",
+   "Roof direction and tilt confirmed ±1%",
+   "Typical panel spec assumed ±2%"
+  ]
+ },
+ "csvDays": 282,
+ "periods": 5,
+ "fileWhen": null,
+ "hasSolar": true,
+ "planned": true,
+ "hero": "Switch plan and add your planned solar to save\n€1,221\nless a year\nWhat you’d pay a year\nCurrent plan\nElectric Ireland · Home Electric+ Saver 16%\n€2,146\nBest plan\nElectric Ireland · Home Electric+ SST Saver 16%\n€1,849\nCurrent plan +\nplanned panels\nElectric Ireland · Home Electric+ Saver 16%\n€1,242\nBest plan +\nplanned panels\nElectric Ireland · Home Electric+ Night Boost\n€925\n€298 from switching plan, today\n€923 more from the panels, once they're in\n Planned solar\n9 panels · €6,000 after grant · pays back in 6.5 yrs\nLeave out\nSolar analysis"
+}

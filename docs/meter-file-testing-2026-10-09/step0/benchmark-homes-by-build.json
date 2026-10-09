@@ -1,0 +1,1652 @@
+[
+ {
+  "home": "small",
+  "mode": "kwh",
+  "label": "Small flat, 2,000 kWh",
+  "ad1de59": {
+   "err": 0.08,
+   "pick": "WP-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 2005,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.08,
+   "pick": "WP-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 2005,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.08,
+   "pick": "WP-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 2005,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.08,
+   "pick": "WP-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 2005,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.08,
+   "pick": "WP-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 2005,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "small",
+  "mode": "file",
+  "label": "Small flat, 2,000 kWh",
+  "ad1de59": {
+   "err": 0.19,
+   "pick": "WP-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 2000,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.19,
+   "pick": "WP-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 2000,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.19,
+   "pick": "WP-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 2000,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.19,
+   "pick": "WP-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 2000,
+   "basis": "gross",
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.19,
+   "pick": "WP-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 2000,
+   "basis": "gross",
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "typical",
+  "mode": "kwh",
+  "label": "Typical home, 4,200 kWh",
+  "ad1de59": {
+   "err": 0.09,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4193,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.09,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4193,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.09,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4193,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.09,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4193,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.09,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4193,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "typical",
+  "mode": "file",
+  "label": "Typical home, 4,200 kWh",
+  "ad1de59": {
+   "err": 0.12,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4181,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.12,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4181,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.12,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4181,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.12,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4181,
+   "basis": "gross",
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.12,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4181,
+   "basis": "gross",
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "large",
+  "mode": "kwh",
+  "label": "Large family, 7,500 kWh",
+  "ad1de59": {
+   "err": 0.08,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 7511,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.08,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 7511,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.08,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 7511,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.08,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 7511,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.08,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 7511,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "large",
+  "mode": "file",
+  "label": "Large family, 7,500 kWh",
+  "ad1de59": {
+   "err": 0.15,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 7491,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.15,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 7491,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.15,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 7491,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.15,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 7491,
+   "basis": "gross",
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.15,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 7491,
+   "basis": "gross",
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "wfh",
+  "mode": "kwh",
+  "label": "Two working from home, 5,100 kWh",
+  "ad1de59": {
+   "err": 0.95,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 5113,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.95,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 5113,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.95,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 5113,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.95,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 5113,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.95,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 5113,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "wfh",
+  "mode": "file",
+  "label": "Two working from home, 5,100 kWh",
+  "ad1de59": {
+   "err": 0.26,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 5099,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.26,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 5099,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.26,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 5099,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.26,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 5099,
+   "basis": "gross",
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.26,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 5099,
+   "basis": "gross",
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "night",
+  "mode": "kwh",
+  "label": "Night-heavy (immersion on a night timer), 5,000 kWh",
+  "ad1de59": {
+   "err": 0.8,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 5001,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.8,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 5001,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.8,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 5001,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.8,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 5001,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.8,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 5001,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "night",
+  "mode": "file",
+  "label": "Night-heavy (immersion on a night timer), 5,000 kWh",
+  "ad1de59": {
+   "err": 0.09,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4987,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.09,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4987,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.09,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4987,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.09,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4987,
+   "basis": "gross",
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.09,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4987,
+   "basis": "gross",
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "heatpump",
+  "mode": "kwh",
+  "label": "Heat pump, 9,000 kWh",
+  "ad1de59": {
+   "err": 4.94,
+   "pick": "EI-SST",
+   "lost": 37,
+   "g_lost": null,
+   "kwh": 8666,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 4.94,
+   "pick": "EI-SST",
+   "lost": 37,
+   "g_lost": null,
+   "kwh": 8666,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 4.94,
+   "pick": "EI-SST",
+   "lost": 37,
+   "g_lost": null,
+   "kwh": 8666,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 4.94,
+   "pick": "EI-SST",
+   "lost": 37,
+   "g_lost": null,
+   "kwh": 8666,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 4.94,
+   "pick": "EI-SST",
+   "lost": 37,
+   "g_lost": null,
+   "kwh": 8666,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "heatpump",
+  "mode": "file",
+  "label": "Heat pump, 9,000 kWh",
+  "ad1de59": {
+   "err": 0.31,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 8649,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.31,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 8649,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.31,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 8649,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.31,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 8649,
+   "basis": "gross",
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.31,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 8649,
+   "basis": "gross",
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "storage",
+  "mode": "kwh",
+  "label": "Night storage heaters, 11,000 kWh",
+  "ad1de59": {
+   "err": 3.65,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 10536,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 3.65,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 10536,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 3.65,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 10536,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 3.65,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 10536,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 3.65,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 10536,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "storage",
+  "mode": "file",
+  "label": "Night storage heaters, 11,000 kWh",
+  "ad1de59": {
+   "err": 0.34,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 10516,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.34,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 10516,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.34,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 10516,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.34,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 10516,
+   "basis": "gross",
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.34,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 10516,
+   "basis": "gross",
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "ev_night",
+  "mode": "kwh",
+  "label": "EV charged 2am-5am, 6,700 kWh",
+  "ad1de59": {
+   "err": 0.24,
+   "pick": "FL-EV",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6677,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.24,
+   "pick": "FL-EV",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6677,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.34,
+   "pick": "FL-EV",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6677,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.34,
+   "pick": "FL-EV",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6677,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.34,
+   "pick": "FL-EV",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6677,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "ev_night",
+  "mode": "file",
+  "label": "EV charged 2am-5am, 6,700 kWh",
+  "ad1de59": {
+   "err": 6.88,
+   "pick": "FL-EV",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6658,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 6.88,
+   "pick": "FL-EV",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6658,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.09,
+   "pick": "FL-EV",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6658,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.09,
+   "pick": "FL-EV",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6658,
+   "basis": "gross",
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.09,
+   "pick": "FL-EV",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6658,
+   "basis": "gross",
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "ev_evening",
+  "mode": "kwh",
+  "label": "EV charged at teatime, 6,700 kWh",
+  "ad1de59": {
+   "err": 0.1,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6681,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.1,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6681,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 2.04,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6681,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 2.04,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6681,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 2.04,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6681,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "ev_evening",
+  "mode": "file",
+  "label": "EV charged at teatime, 6,700 kWh",
+  "ad1de59": {
+   "err": 1.7,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6662,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 1.7,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6662,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.05,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6662,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.05,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6662,
+   "basis": "gross",
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.05,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 6662,
+   "basis": "gross",
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "solar",
+  "mode": "kwh",
+  "label": "4 kWp solar, no battery",
+  "ad1de59": {
+   "err": 66.04,
+   "pick": "PIN-FAM",
+   "lost": 150,
+   "g_lost": null,
+   "kwh": 2330,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 66.04,
+   "pick": "PIN-FAM",
+   "lost": 150,
+   "g_lost": null,
+   "kwh": 2330,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 6.53,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 3905,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 6.53,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 3905,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 6.53,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 3905,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "solar",
+  "mode": "file",
+  "label": "4 kWp solar, no battery",
+  "ad1de59": {
+   "err": 0.32,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 2323,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.32,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 2323,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.32,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 2323,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 5.1,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4220,
+   "basis": "gross",
+   "rebuilt": "2025-10-09"
+  },
+  "e22e94a": {
+   "err": 0.32,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4220,
+   "basis": "net",
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "solar",
+  "mode": "before",
+  "label": "4 kWp solar, no battery",
+  "ad1de59": {
+   "err": 5.28,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4201,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 5.28,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4201,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 5.28,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4201,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 5.28,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4201,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 5.28,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4201,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "solar_batt",
+  "mode": "kwh",
+  "label": "4 kWp solar + 10 kWh battery",
+  "ad1de59": {
+   "err": 115.21,
+   "pick": "PIN-FAM",
+   "lost": 131,
+   "g_lost": 202,
+   "kwh": 1402,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 115.21,
+   "pick": "PIN-FAM",
+   "lost": 131,
+   "g_lost": 202,
+   "kwh": 1402,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 18.32,
+   "pick": "YN-EV-DNP",
+   "lost": 184,
+   "g_lost": 0,
+   "kwh": 4180,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 18.32,
+   "pick": "YN-EV-DNP",
+   "lost": 184,
+   "g_lost": 0,
+   "kwh": 4180,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 18.32,
+   "pick": "YN-EV-DNP",
+   "lost": 184,
+   "g_lost": 0,
+   "kwh": 4180,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "solar_batt",
+  "mode": "file",
+  "label": "4 kWp solar + 10 kWh battery",
+  "ad1de59": {
+   "err": 0.39,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": 57,
+   "kwh": 1398,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 81.31,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": 57,
+   "kwh": 2294,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 83.62,
+   "pick": "EI-NB",
+   "lost": 101,
+   "g_lost": 58,
+   "kwh": 2294,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 61.23,
+   "pick": "EI-NB",
+   "lost": 101,
+   "g_lost": 58,
+   "kwh": 2960,
+   "basis": "gross",
+   "rebuilt": "2026-04-02"
+  },
+  "e22e94a": {
+   "err": 0.39,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": 57,
+   "kwh": 4043,
+   "basis": "net",
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "solar_batt",
+  "mode": "before",
+  "label": "4 kWp solar + 10 kWh battery",
+  "ad1de59": {
+   "err": 12.28,
+   "pick": "YN-EV-DNP",
+   "lost": 184,
+   "g_lost": 0,
+   "kwh": 4201,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 12.28,
+   "pick": "YN-EV-DNP",
+   "lost": 184,
+   "g_lost": 0,
+   "kwh": 4201,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 18.08,
+   "pick": "YN-EV-DNP",
+   "lost": 184,
+   "g_lost": 0,
+   "kwh": 4201,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 18.08,
+   "pick": "YN-EV-DNP",
+   "lost": 184,
+   "g_lost": 0,
+   "kwh": 4201,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 18.08,
+   "pick": "YN-EV-DNP",
+   "lost": 184,
+   "g_lost": 0,
+   "kwh": 4201,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "rural",
+  "mode": "kwh",
+  "label": "Rural typical home, 4,200 kWh",
+  "ad1de59": {
+   "err": 0.08,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4176,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.08,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4176,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.08,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4176,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.08,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4176,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.08,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4176,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "rural",
+  "mode": "file",
+  "label": "Rural typical home, 4,200 kWh",
+  "ad1de59": {
+   "err": 0.19,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4164,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.19,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4164,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.19,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4164,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.19,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4164,
+   "basis": "gross",
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.19,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4164,
+   "basis": "gross",
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "legacy24",
+  "mode": "kwh",
+  "label": "Typical home, older 24-hour meter",
+  "ad1de59": {
+   "err": 0.02,
+   "pick": "EN-24",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4251,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 0.02,
+   "pick": "EN-24",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4251,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 0.02,
+   "pick": "EN-24",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4251,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 0.02,
+   "pick": "EN-24",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4251,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 0.02,
+   "pick": "EN-24",
+   "lost": 0,
+   "g_lost": null,
+   "kwh": 4251,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "solar_mid",
+  "mode": "kwh",
+  "label": "6 kWp + 9 kWh battery, put in mid-April (file part before, part after)",
+  "ad1de59": {
+   "err": 116.16,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": 46,
+   "kwh": 3085,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 116.16,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": 46,
+   "kwh": 3085,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 81.11,
+   "pick": "EI-NB",
+   "lost": 101,
+   "g_lost": 56,
+   "kwh": 7105,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 81.11,
+   "pick": "EI-NB",
+   "lost": 101,
+   "g_lost": 56,
+   "kwh": 7105,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 81.11,
+   "pick": "EI-NB",
+   "lost": 101,
+   "g_lost": 56,
+   "kwh": 7105,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "solar_mid",
+  "mode": "file",
+  "label": "6 kWp + 9 kWh battery, put in mid-April (file part before, part after)",
+  "ad1de59": {
+   "err": 120.79,
+   "pick": "EN-SMART-24-HOUR",
+   "lost": 58,
+   "g_lost": 263,
+   "kwh": 3639,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 26.76,
+   "pick": "YN-EV-DNP",
+   "lost": 202,
+   "g_lost": 0,
+   "kwh": 5550,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 21.93,
+   "pick": "EI-NB",
+   "lost": 101,
+   "g_lost": 56,
+   "kwh": 5550,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 24.09,
+   "pick": "EI-NB",
+   "lost": 101,
+   "g_lost": 56,
+   "kwh": 5048,
+   "basis": "gross",
+   "rebuilt": "2026-04-15"
+  },
+  "e22e94a": {
+   "err": 24.09,
+   "pick": "EI-NB",
+   "lost": 101,
+   "g_lost": 56,
+   "kwh": 5048,
+   "basis": "gross",
+   "rebuilt": "2026-04-15"
+  }
+ },
+ {
+  "home": "solar_mid",
+  "mode": "before",
+  "label": "6 kWp + 9 kWh battery, put in mid-April (file part before, part after)",
+  "ad1de59": {
+   "err": 25.16,
+   "pick": "YN-EV-DNP",
+   "lost": 202,
+   "g_lost": 0,
+   "kwh": 5501,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 25.16,
+   "pick": "YN-EV-DNP",
+   "lost": 202,
+   "g_lost": 0,
+   "kwh": 5501,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 20.92,
+   "pick": "EI-NB",
+   "lost": 101,
+   "g_lost": 56,
+   "kwh": 5501,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 20.92,
+   "pick": "EI-NB",
+   "lost": 101,
+   "g_lost": 56,
+   "kwh": 5501,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 20.92,
+   "pick": "EI-NB",
+   "lost": 101,
+   "g_lost": 56,
+   "kwh": 5501,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "solar_ev",
+  "mode": "kwh",
+  "label": "6 kWp + 10 kWh battery + EV charged 2am-5am",
+  "ad1de59": {
+   "err": 109.84,
+   "pick": "FL-EV",
+   "lost": 43,
+   "g_lost": 60,
+   "kwh": 2503,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 109.84,
+   "pick": "FL-EV",
+   "lost": 43,
+   "g_lost": 60,
+   "kwh": 2503,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 17.99,
+   "pick": "YN-EV-DNP",
+   "lost": 32,
+   "g_lost": 0,
+   "kwh": 6443,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 17.99,
+   "pick": "YN-EV-DNP",
+   "lost": 32,
+   "g_lost": 0,
+   "kwh": 6443,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 17.99,
+   "pick": "YN-EV-DNP",
+   "lost": 32,
+   "g_lost": 0,
+   "kwh": 6443,
+   "basis": null,
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "solar_ev",
+  "mode": "file",
+  "label": "6 kWp + 10 kWh battery + EV charged 2am-5am",
+  "ad1de59": {
+   "err": 17.36,
+   "pick": "YN-EV-DNP",
+   "lost": 32,
+   "g_lost": 0,
+   "kwh": 2497,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 75.63,
+   "pick": "YN-EV-DNP",
+   "lost": 32,
+   "g_lost": 0,
+   "kwh": 4313,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 73.44,
+   "pick": "YN-EV-DNP",
+   "lost": 32,
+   "g_lost": 0,
+   "kwh": 4313,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 36.34,
+   "pick": "YN-EV-DNP",
+   "lost": 32,
+   "g_lost": 0,
+   "kwh": 5577,
+   "basis": "gross",
+   "rebuilt": "2026-02-18"
+  },
+  "e22e94a": {
+   "err": 0.38,
+   "pick": "EI-SST",
+   "lost": 0,
+   "g_lost": 234,
+   "kwh": 6621,
+   "basis": "net",
+   "rebuilt": null
+  }
+ },
+ {
+  "home": "solar_ev",
+  "mode": "before",
+  "label": "6 kWp + 10 kWh battery + EV charged 2am-5am",
+  "ad1de59": {
+   "err": 18.11,
+   "pick": "YN-EV-DNP",
+   "lost": 32,
+   "g_lost": 0,
+   "kwh": 6700,
+   "basis": null,
+   "rebuilt": null
+  },
+  "123f0ba": {
+   "err": 18.11,
+   "pick": "YN-EV-DNP",
+   "lost": 32,
+   "g_lost": 0,
+   "kwh": 6700,
+   "basis": null,
+   "rebuilt": null
+  },
+  "5179c9f": {
+   "err": 16.97,
+   "pick": "YN-EV-DNP",
+   "lost": 32,
+   "g_lost": 0,
+   "kwh": 6700,
+   "basis": null,
+   "rebuilt": null
+  },
+  "3a8346b": {
+   "err": 16.97,
+   "pick": "YN-EV-DNP",
+   "lost": 32,
+   "g_lost": 0,
+   "kwh": 6700,
+   "basis": null,
+   "rebuilt": null
+  },
+  "e22e94a": {
+   "err": 16.97,
+   "pick": "YN-EV-DNP",
+   "lost": 32,
+   "g_lost": 0,
+   "kwh": 6700,
+   "basis": null,
+   "rebuilt": null
+  }
+ }
+]

@@ -1,0 +1,10 @@
+{
+ "id": "D5e-gas",
+ "seen": {
+  "import": [
+   "✗ Parse error\nOnly 0 readings found. Is this the file from ESB Networks?"
+  ],
+  "questions": [],
+  "rejected": "✗ Parse error\nOnly 0 readings found. Is this the file from ESB Networks?"
+ }
+}

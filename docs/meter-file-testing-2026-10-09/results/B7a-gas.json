@@ -1,0 +1,311 @@
+{
+ "id": "B7a-gas",
+ "seen": {
+  "import": [
+   "✓ Imported 17,520 readings\nJan-Feb: 697 kWh · Mar-Apr: 664 kWh · May-Jun: 588 kWh · Jul-Aug: 638 kWh · Sep-Oct: 682 kWh · Nov-Dec: 721 kWh\nTotal: 3,990 kWh/yr — anticipated full-year profile\nReadings in kW (avg per 30-min interval) — converted ×0.5 to kWh\n✓ A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. No solar shows in it.\nUse this data →"
+  ],
+  "questions": [
+   {
+    "q": "meter",
+    "text": "Which electricity meter do you have? — It decides which plans you can switch to.",
+    "answer": "smart",
+    "offered": [
+     "smart"
+    ],
+    "fits": true
+   },
+   {
+    "q": "area",
+    "text": "Urban or rural? — It’s on your bill. Rural standing charges are about €70 a year higher.",
+    "answer": "urban",
+    "offered": [
+     "urban"
+    ],
+    "fits": true
+   },
+   {
+    "q": "plan",
+    "text": "Who do you pay now? — Not sure? We’ll estimate.",
+    "answer": "EI-24",
+    "offered": [
+     "unsure"
+    ],
+    "fits": false
+   },
+   {
+    "q": "disc",
+    "text": "Any discount on top of the 16%? — Your plan’s 16% is already in its prices. Only add a discount your bill shows beyond it.",
+    "answer": 0,
+    "offered": [
+     "Math.max(0, Math.min(60, Math.round(+v"
+    ],
+    "fits": true
+   },
+   {
+    "q": "heat",
+    "text": "How is the home heated? — ",
+    "answer": "gas",
+    "offered": [],
+    "fits": true
+   },
+   {
+    "q": "gas",
+    "text": "Is your gas with Electric Ireland too? — It changes what a switch is worth.",
+    "answer": "no",
+    "offered": [],
+    "fits": true
+   },
+   {
+    "q": "solar",
+    "text": "Solar panels? — ",
+    "answer": "have",
+    "offered": [],
+    "fits": true
+   },
+   {
+    "q": "where",
+    "text": "Where in Ireland is the home? — The sunshine, and how cold it gets, differ by region.",
+    "answer": "south",
+    "offered": [],
+    "fits": true
+   },
+   {
+    "q": "roof",
+    "text": "Which way does the roof face? — The side that gets the sun.",
+    "answer": "S",
+    "offered": [
+     "Math.max(0, Math.min(359, Math.round(+v",
+     "unsure"
+    ],
+    "fits": false
+   },
+   {
+    "q": "tilt",
+    "text": "How steep is the roof? — Most Irish roofs are 30–40°.",
+    "answer": 35,
+    "offered": [
+     "Math.max(0, Math.min(90, Math.round(+v",
+     "35"
+    ],
+    "fits": true
+   },
+   {
+    "q": "panels",
+    "text": "How many panels? — For your usage we suggest 9.",
+    "answer": 9,
+    "offered": [
+     "Math.max(0, Math.min(60, Math.round(+v"
+    ],
+    "fits": true
+   },
+   {
+    "q": "battery",
+    "text": "A battery? — It stores the day’s solar for the evening.",
+    "answer": 0,
+    "offered": [
+     "Math.max(0, Math.min(40, Math.round(+v"
+    ],
+    "fits": true
+   },
+   {
+    "q": "filewhen",
+    "text": "Is your meter file from before the panels went up? — It shows no solar going to the grid, which panels usually do.",
+    "answer": "noexport",
+    "offered": [],
+    "fits": true
+   },
+   {
+    "q": "price",
+    "text": "What did the panels cost? — Roughly is fine. Including VAT, before any grant.",
+    "answer": 0,
+    "offered": [
+     "Math.max(0, Math.min(60000, Math.round(+v"
+    ],
+    "fits": true
+   },
+   {
+    "q": "grant",
+    "text": "Did you get the SEAI grant for them? — Up to €1,800 for the panels.",
+    "answer": "no",
+    "offered": [],
+    "fits": true
+   },
+   {
+    "q": "ev",
+    "text": "An electric car? — ",
+    "answer": "no",
+    "offered": [],
+    "fits": true
+   }
+  ],
+  "rejected": null
+ },
+ "kwh": 3990,
+ "bills": {
+  "Jan-Feb": 697,
+  "Mar-Apr": 664,
+  "May-Jun": 588,
+  "Jul-Aug": 638,
+  "Sep-Oct": 682,
+  "Nov-Dec": 721
+ },
+ "best": "EN-SMART-24-HOUR",
+ "bestNet": 1453,
+ "today": null,
+ "solarOnly": null,
+ "ranked": [
+  {
+   "id": "EN-SMART-24-HOUR",
+   "net": 1453
+  },
+  {
+   "id": "FL-24",
+   "net": 1479
+  },
+  {
+   "id": "EI-24",
+   "net": 1509
+  },
+  {
+   "id": "WP-SST",
+   "net": 1516
+  },
+  {
+   "id": "EN-SMART",
+   "net": 1523
+  },
+  {
+   "id": "EI-SST",
+   "net": 1532
+  },
+  {
+   "id": "SSE-EVDAY",
+   "net": 1547
+  },
+  {
+   "id": "FL-DNP",
+   "net": 1574
+  },
+  {
+   "id": "BG-24",
+   "net": 1576
+  },
+  {
+   "id": "SSE-DNP",
+   "net": 1585
+  },
+  {
+   "id": "YN-24",
+   "net": 1620
+  },
+  {
+   "id": "BG-WKND",
+   "net": 1628
+  },
+  {
+   "id": "EI-WKND",
+   "net": 1640
+  },
+  {
+   "id": "BG-TOU",
+   "net": 1650
+  },
+  {
+   "id": "BG-TOU-PLUS",
+   "net": 1650
+  },
+  {
+   "id": "FL-EV",
+   "net": 1671
+  },
+  {
+   "id": "EN-SMART-DAY-NIGHT",
+   "net": 1673
+  },
+  {
+   "id": "YN-DNP",
+   "net": 1675
+  },
+  {
+   "id": "EI-NB",
+   "net": 1706
+  },
+  {
+   "id": "YN-EV",
+   "net": 1759
+  },
+  {
+   "id": "BG-EV",
+   "net": 1775
+  },
+  {
+   "id": "EP-24",
+   "net": 1826
+  },
+  {
+   "id": "SSE-WKND",
+   "net": 1865
+  },
+  {
+   "id": "YN-EV-DNP",
+   "net": 1873
+  },
+  {
+   "id": "PIN-FAM",
+   "net": 1886
+  },
+  {
+   "id": "EN-EV",
+   "net": 1895
+  },
+  {
+   "id": "CP-SST",
+   "net": 1896
+  },
+  {
+   "id": "EP-SST",
+   "net": 1901
+  },
+  {
+   "id": "SSE-EVMAX",
+   "net": 1999
+  },
+  {
+   "id": "PIN-WFH",
+   "net": 2014
+  },
+  {
+   "id": "PIN-LF",
+   "net": 2077
+  },
+  {
+   "id": "BG-STANDARD-VARIABLE-SMART-ALL-DAY-ELECTRICITY",
+   "net": 2084
+  },
+  {
+   "id": "PPP-TOU",
+   "net": 2090
+  }
+ ],
+ "solar": null,
+ "basis": {
+  "mode": "net",
+  "from": "2025-10-09",
+  "to": "2026-10-08"
+ },
+ "accuracy": {
+  "pct": 4,
+  "parts": [
+   "Weather and our estimates ±3%",
+   "Your meter data ±1%",
+   "Roof direction and tilt confirmed ±1%",
+   "Typical panel spec assumed ±2%"
+  ]
+ },
+ "csvDays": 366,
+ "periods": 6,
+ "fileWhen": "noexport",
+ "hasSolar": true,
+ "planned": false,
+ "hero": "Switching plan saves, with your solar\n€56\nless a year\nBest for your home: Energia Smart 24 Hour\nWhat you’d pay a year\nNow, Electric Ireland Home Electric+ Saver 16%, with your solar\n€1,509\nOn Energia Smart 24 Hour, with your solar\n€1,453"
+}

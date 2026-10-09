@@ -1,0 +1,10 @@
+{
+ "id": "D5c-gas",
+ "seen": {
+  "import": [
+   "✗ Parse error\nThis is one of ESB’s daily files: a reading a day, without the hours that decide most plans. In your ESB Networks account, open My Meter, then Downloads, and choose “30-minute readings in kW” (the kWh version works too)."
+  ],
+  "questions": [],
+  "rejected": "✗ Parse error\nThis is one of ESB’s daily files: a reading a day, without the hours that decide most plans. In your ESB Networks account, open My Meter, then Downloads, and choose “30-minute readings in kW” (the kWh version works too)."
+ }
+}

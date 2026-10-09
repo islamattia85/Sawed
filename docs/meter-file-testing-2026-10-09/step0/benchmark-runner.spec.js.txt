@@ -1,0 +1,94 @@
+import { test } from '@playwright/test';
+import { isolate } from './support.js';
+import fs from 'fs';
+const D = '/tmp/claude-0/-home-user-Sawed/74c17acb-5048-514f-a9cb-512d72f36e1c/scratchpad/five/';
+const meta = JSON.parse(fs.readFileSync(D + 'meta.json', 'utf8'));
+const OUT = process.env.FIVE_OUT || D;
+const H = {
+  heatpump: { heat: 'heatpump', heattime: 'day' }, storage: { heat: 'storage', heattime: 'night' }, night: { night: 'immersion' },
+  ev_night: { ev: 'have', evtime: 'night' }, ev_evening: { ev: 'have', evtime: 'evening' }, rural: { area: 'rural' }, legacy24: { meter: '24hr', plan: 'EI-ES' },
+  // Panel size set so the system is exactly the home's kWp (4.0 or 6.0), as each other site was told.
+  solar: { solar: 'have', panels: 9, w: 4000 / 9, battery: 0 }, solar_batt: { solar: 'have', panels: 9, w: 4000 / 9, battery: 10, filewhen: 'allyear' },
+  solar_mid: { solar: 'have', panels: 13, w: 6000 / 13, battery: 9, filewhen: 'sinceyes' }, solar_ev: { solar: 'have', panels: 13, w: 6000 / 13, battery: 10, ev: 'have', evtime: 'night', filewhen: 'allyear' },
+};
+const fresh = async (page, a = {}) => { await isolate(page); await page.goto('/?fresh'); await page.waitForFunction(() => window.__bootSettled === true);
+  if (a.w) await page.evaluate((w) => { window.state.panel_w = w; }, a.w); };
+const ranked = (page) => page.evaluate(() => window.getRecommendation().ranked.map((x) => ({ id: x.plan.id, net: Math.round(x.net) })));
+// What the Plans page also shows for a battery: the ranking if it only takes solar.
+const solarOnly = (page) => page.evaluate(() => (window.state.battery_kwh > 0 ? window.withSimState({ strategy_mode: 'self-consume', charge_from_grid: false },
+  () => window.getRecommendation().ranked.map((x) => ({ id: x.plan.id, net: Math.round(x.net) }))) : null));
+/** Answer whatever setup asks, from the home's facts, until the answer shows. */
+async function answerAll(page, a, log) {
+  for (let i = 0; i < 40; i++) {
+    const q = await page.evaluate(() => { const o = document.querySelector('.fl-q [data-q]'); if (o) return o.dataset.q; const own = document.querySelector('.fl-q [id^=flow-own-]'); if (own) return own.id.slice(9); if (document.querySelector('.fl-sups, .fl-sup')) return 'plan'; if (document.querySelector('#flow-bill')) return 'bill'; return null; });
+    if (!q) break;
+    const v = ({ meter: a.meter || 'smart', area: a.area || 'urban', plan: a.plan || 'EI-24', disc: 0, heat: a.heat || 'gas', heattime: a.heattime || 'day',
+      night: a.night || 'no', gas: 'no', gasbill: 0, solar: a.solar || 'no', where: 'east', house: 'semi', roof: 'S', tilt: 35, system: 'custom', panels: a.panels || 9,
+      battery: a.battery ?? 0, gridnow: 'no', price: 0, grant: 'no', ev: a.ev || 'no', km: 15000, car: 17, evtime: a.evtime || 'night',
+      billwhen: a.billwhen || 'after', billmonths: 'average', filewhen: a.filewhen || 'allyear', bill: a.bill })[q];
+    if (v === undefined) { log.push('unanswered ' + q); break; }
+    log.push(q + '=' + v);
+    await page.evaluate(([q, v]) => window.flowAnswer(q, v), [q, v]);
+    await page.waitForTimeout(120);
+  }
+  await page.evaluate(() => { if (window.state.current_screen === 'flow') window.flowFinish(); });
+}
+for (const h of Object.keys(meta)) {
+  const a = H[h] || {};
+  test('typed ' + h, async ({ page }) => {
+    test.setTimeout(120000);
+    await fresh(page, a); const log = [];
+    await page.evaluate(() => window.startFlow('full'));
+    await answerAll(page, { ...a, bill: 'kwh:' + meta[h].import }, log);
+    const info = await page.evaluate(() => ({ kwh: Math.round(Object.values(window.state.bills).reduce((x, y) => x + y, 0)), kwp: (window.state.count_A + (window.state.count_B || 0)) * window.state.panel_w / 1000, batt: window.state.battery_kwh, has: window.state.has_solar }));
+    fs.writeFileSync(OUT + 'pk_' + h + '_kwh.json', JSON.stringify({ log, info, ranked: await ranked(page), solar_only: await solarOnly(page) }));
+  });
+  if (h !== 'legacy24') test('file ' + h, async ({ page }) => {
+    test.setTimeout(120000);
+    await fresh(page, a); const log = [];
+    await page.evaluate(() => window.startFlow('full'));
+    await page.locator('.fl-upload input[type=file]').first().setInputFiles(D + h + '.csv').catch(async () => {
+      await page.evaluate(() => window.startFlow('quick', 'meter'));
+      await page.locator('.fl-upload input[type=file]').first().setInputFiles(D + h + '.csv');
+    });
+    await page.getByRole('button', { name: /Use this data/ }).click();
+    await page.waitForTimeout(1200);
+    await answerAll(page, a, log);
+    const info = await page.evaluate(() => ({ kwh: Math.round(Object.values(window.state.bills).reduce((x, y) => x + y, 0)), basis: window.fileBasis && window.fileBasis(), kwp: (window.state.count_A + (window.state.count_B || 0)) * window.state.panel_w / 1000, batt: window.state.battery_kwh, has: window.state.has_solar }));
+    fs.writeFileSync(OUT + 'pk_' + h + '_file.json', JSON.stringify({ log, info, ranked: await ranked(page), solar_only: await solarOnly(page) }));
+  });
+}
+
+// Typed usage from before the panels, with the system added (what kilowatt.ie asks for).
+const BEFORE = { solar: 4200, solar_batt: 4200, solar_mid: 5500, solar_ev: 6700 };
+for (const [h, kwh] of Object.entries(BEFORE)) {
+  test('before ' + h, async ({ page }) => {
+    test.setTimeout(120000);
+    const a = { ...H[h], billwhen: 'before' };
+    await fresh(page, a); const log = [];
+    await page.evaluate(() => window.startFlow('full'));
+    await answerAll(page, { ...a, bill: 'kwh:' + kwh }, log);
+    const info = await page.evaluate(() => ({ kwh: Math.round(Object.values(window.state.bills).reduce((x, y) => x + y, 0)), kwp: (window.state.count_A + (window.state.count_B || 0)) * window.state.panel_w / 1000, batt: window.state.battery_kwh, has: window.state.has_solar }));
+    fs.writeFileSync(OUT + 'pk_' + h + '_before.json', JSON.stringify({ log, info, ranked: await ranked(page), solar_only: await solarOnly(page) }));
+  });
+}
+// Planning solar: the meter file from before the panels, and the system the home then put in.
+const PLAN = { plan_solar: ['solar_pre', { solar: 'thinking', panels: 9, w: 4000 / 9, battery: 0 }],
+  plan_solar_batt: ['solar_pre', { solar: 'thinking', panels: 9, w: 4000 / 9, battery: 10 }],
+  plan_solar_ev: ['solar_ev_pre', { solar: 'thinking', panels: 13, w: 6000 / 13, battery: 10, ev: 'have', evtime: 'night' }] };
+for (const [tag, [file, a]] of Object.entries(PLAN)) {
+  test('plan ' + tag, async ({ page }) => {
+    test.setTimeout(120000);
+    await fresh(page, a); const log = [];
+    await page.evaluate(() => window.startFlow('full'));
+    await page.locator('.fl-upload input[type=file]').first().setInputFiles(D + file + '.csv');
+    await page.getByRole('button', { name: /Use this data/ }).click();
+    await page.waitForTimeout(1200);
+    await answerAll(page, a, log);
+    // Setup sizes a system itself; put in the one this home is quoted, as in My system.
+    await page.evaluate((a) => { Object.assign(window.state, { count_A: a.panels, count_B: 0, panel_w: a.w, battery_kwh: a.battery }); window.invalidate(); }, a);
+    const info = await page.evaluate(() => ({ kwh: Math.round(Object.values(window.state.bills).reduce((x, y) => x + y, 0)), basis: window.fileBasis && window.fileBasis(),
+      kwp: (window.state.count_A + (window.state.count_B || 0)) * window.state.panel_w / 1000, batt: window.state.battery_kwh, az: window.state.azimuth_A, tilt: window.state.tilt_A, planned: window.state.solar_planned }));
+    fs.writeFileSync(OUT + 'pk_' + tag + '.json', JSON.stringify({ log, info, ranked: await ranked(page), solar_only: await solarOnly(page) }));
+  });
+}
