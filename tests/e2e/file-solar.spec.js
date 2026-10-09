@@ -29,7 +29,7 @@ function esbFile({ exportFrom = null, dropFrom = null } = {}) {
 const upload = async (page, file) => {
   await page.getByRole('button', { name: /Am I paying too much/ }).click();
   await page.locator('.fl-upload input[type=file]').setInputFiles(file);
-  await page.getByRole('button', { name: /Use this data/ }).click();
+  await page.getByRole('button', { name: /use this data/i }).click();
 };
 const havePanels = (page) => page.evaluate(() => { flowAnswer('meter', 'smart'); flowAnswer('area', 'urban'); flowAnswer('plan', 'EI-24'); flowAnswer('disc', 0); flowAnswer('heat', 'heatpump'); flowAnswer('heattime', 'day'); state._flow_mode = 'full'; flowAnswer('solar', 'have'); flowAnswer('where', 'east'); flowAnswer('roof', 'S'); flowAnswer('tilt', 35); flowAnswer('panels', 10); flowAnswer('battery', 0); });
 const read = (page) => page.evaluate(() => ({ basis: window.V7 ? null : null, q: document.querySelector('.fl-q h2')?.textContent || '', kwh: Object.values(state.bills).reduce((a, b) => a + b, 0) }));

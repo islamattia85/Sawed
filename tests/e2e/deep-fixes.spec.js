@@ -45,7 +45,7 @@ test('a meter file’s export is paid for at each plan’s export rate', async (
     rows.push(`1,2,${h >= 11 && h <= 15 ? 2 : 0},Active Export Interval (kW),${t}`);
   }
   await page.locator('.fl-upload input[type=file]').setInputFiles({ name: 'esb.csv', mimeType: 'text/csv', buffer: Buffer.from(rows.join('\n')) });
-  await page.getByRole('button', { name: /Use this data/ }).click();
+  await page.getByRole('button', { name: /use this data/i }).click();
   const r = await page.evaluate(() => { const x = window.getRecommendation().ranked.find((y) => y.plan.export_rate > 0.15); return { exp: window.state._csv_export_kwh, rev: x.export_revenue, rate: x.plan.export_rate }; });
   expect(r.exp).toBeGreaterThan(1000);
   expect(r.rev).toBeCloseTo(r.exp * r.rate, 0);
@@ -98,7 +98,7 @@ test('a meter file from a home with panels up is not given the panels twice', as
     rows.push(`1,2,${h >= 11 && h <= 15 ? 2 : 0},Active Export Interval (kW),${t}`);
   }
   await page.locator('.fl-upload input[type=file]').setInputFiles({ name: 'esb.csv', mimeType: 'text/csv', buffer: Buffer.from(rows.join('\n')) });
-  await page.getByRole('button', { name: /Use this data/ }).click();
+  await page.getByRole('button', { name: /use this data/i }).click();
   await page.evaluate(() => { flowAnswer('solar', 'have'); flowAnswer('where', 'east'); flowAnswer('roof', 'S'); flowAnswer('tilt', 35); flowAnswer('panels', 9); flowAnswer('battery', 10); });
   // The panels are in the readings: plans are priced on what was bought and
   // sold, with no panel output added on top. The home's own use, shown as its

@@ -25,9 +25,11 @@ REFERENCE = ['A1-gas', 'A2-heatpump', 'A7-ev', 'A3a-gas', 'A5b-heatpump', 'B2-ga
              # Added 9 October: the user errors with the largest errors, as known gaps until fixed.
              'B3-gas_solar', 'B6-gas_solar', 'B8-gas_solar', 'C3-moved',
              # A file read less than 95% must say so (fix 2, 9 October).
-             'D2a-gas']
+             'D2a-gas',
+             # A typed figure the file disagrees with is said, with the choice to keep it (fix 4, 9 October).
+             'D6-gas']
 TOL = dict(kwh=5.0, bill=5.0, plan=25, payback=0.5)
-ASKS = ('filewhen', 'fileexp', 'typed')
+ASKS = ('filewhen', 'fileexp', 'typed', 'filehome')
 
 def limit(err, tol, step):
     if err is None: return tol

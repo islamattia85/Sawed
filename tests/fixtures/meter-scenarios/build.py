@@ -185,7 +185,8 @@ def scenarios(hs):
     g = hs['hp_solar_gridfill']
     name = 'B5_hp_solar_gridfill.csv'; put(name, esb_text(g['imp'], g['exp'], *YEAR_NOW))
     out.append(S('B5-hp_solar_gridfill', 'B', 'Battery filled from the grid at night in winter', 'hp_solar_gridfill', 'hp_solar_gridfill', name, dict(HAVE(g['system']), heat='heatpump', gridnow='yes', filewhen='allyear'), window=[str(x) for x in YEAR_NOW]))
-    out.append(S('B6-gas_solar', 'B', 'User says no solar; the file shows exports', 'gas_solar', 'gas_solar', 'B2_gas_solar.csv', dict(heat='gas', solar='no'), window=[str(x) for x in YEAR_NOW]))
+    # Asked about the power sold (fileexp, from 9 Oct 2026), they say yes: the truth.
+    out.append(S('B6-gas_solar', 'B', 'User says no solar; the file shows exports', 'gas_solar', 'gas_solar', 'B2_gas_solar.csv', dict(heat='gas', solar='no', fileexp='have'), window=[str(x) for x in YEAR_NOW]))
     name = 'B7_gas.csv'; put(name, esb_text(hs['gas']['imp'], hs['gas']['exp'], *YEAR_NOW, export=False))
     out.append(S('B7a-gas', 'B', 'User says they have 9 panels; the file shows a home without them (they have none)', 'gas', 'gas', name, dict(HAVE(hs['gas_solar']['system']), heat='gas', filewhen=['noexport', 'allyear']), window=[str(x) for x in YEAR_NOW]))
     out.append(S('B7b-gas', 'B', 'Same; user answers that the file is from before the panels', 'gas', 'gas', name, dict(HAVE(hs['gas_solar']['system']), heat='gas', filewhen='before'), window=[str(x) for x in YEAR_NOW]))
@@ -197,7 +198,9 @@ def scenarios(hs):
         h = hs[hk]; name = f'{sid}_{hk}.csv'; put(name, esb_text(h['file_imp'], h['exp'], *YEAR_NOW, export=False))
         out.append(S(f'{sid}-{hk}', 'C', title, hk, hk, name, ans, window=[str(x) for x in YEAR_NOW]))
     name = 'C3_previous_home.csv'; put(name, esb_text(hs['heatpump']['imp'], hs['heatpump']['exp'], *YEAR_NOW, export=False))
-    out.append(S('C3-moved', 'C', 'Moved house: the file is the old (heat pump) home; the new home is gas-heated', 'heatpump', 'gas', name, NO_SOLAR('gas'), window=[str(x) for x in YEAR_NOW]))
+    # Asked whether the file is from the home they live in now (from 9 Oct 2026), they say no; with no
+    # bill for the new home yet, they take the typical 4,200 kWh the app suggests.
+    out.append(S('C3-moved', 'C', 'Moved house: the file is the old (heat pump) home; the new home is gas-heated', 'heatpump', 'gas', name, dict(NO_SOLAR('gas'), filehome='no', bill='kwh:4200'), window=[str(x) for x in YEAR_NOW]))
     # D: file and data problems, on the gas home.
     a = hs['gas']; base = esb_text(a['imp'], a['exp'], *YEAR_NOW, export=False)
     put('D1a_daily_register.csv', daily_register(a['imp'], *YEAR_NOW))

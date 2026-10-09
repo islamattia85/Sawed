@@ -63,7 +63,7 @@ export async function runScenario(page, sc, shots) {
     seen.warns.push(await page.evaluate(() => [...document.querySelectorAll('#csv-parse-result [data-warn]')].map((e) => e.dataset.warn)));
     await shot(res, `import${n + 1}`);
   }
-  const use = page.getByRole('button', { name: /Use this data/ });
+  const use = page.getByRole('button', { name: /use this data/i });
   if (!(await use.count())) {
     seen.rejected = seen.rejected || seen.import[seen.import.length - 1] || 'no result shown';
     return { id: sc.id, seen };

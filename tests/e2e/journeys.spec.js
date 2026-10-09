@@ -132,7 +132,7 @@ test('a file uploaded from the challenge is applied, and you are still on My Pea
   for (let d = 1; d <= 28; d++) for (let h = 0; h < 24; h++)
     rows.push(`1,2,${h >= 17 && h < 19 ? 2 : 0.6},Active Import Interval (kW),${String(d).padStart(2, '0')}-09-2026 ${String(h).padStart(2, '0')}:30`);
   await page.locator('#csv-file-input').setInputFiles({ name: 'esb.csv', mimeType: 'text/csv', buffer: Buffer.from(rows.join('\n')) });
-  await page.getByRole('button', { name: /Use this data/ }).click();
+  await page.getByRole('button', { name: /use this data/i }).click();
   await expect.poll(() => page.evaluate(() => [window.state.current_screen, !!window.state._sheet, !!window.state._csv_imported])).toEqual(['updates', false, true]);
 });
 

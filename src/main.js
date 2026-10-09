@@ -5897,6 +5897,10 @@ function flowSteps(f = state._flow || {}, fbIn){
     if (q === 'heat' && f.heat === 'gas' && f.bill !== 'meter') out.push('night');
     if (q === 'heat' && (f.heat === 'heatpump' || f.heat === 'storage') && f.bill !== 'meter') out.push('heattime');
     // Where in Ireland: sunshine for panels, and temperature for a heat pump.
+    // No panels said (or only planned), and the meter file shows power sold:
+    // a meter records that only when something at the home makes it. Asked,
+    // where the file's readings used to be taken as a home without panels.
+    if (q === 'solar' && (f.solar === 'no' || f.solar === 'thinking') && state._csv_imported){ const fs = fileSolar(); if (fs && fs.exportFrom) out.push('fileexp'); }
     if (q === 'solar' && (f.solar === 'have' || f.solar === 'thinking' || f.heat === 'heatpump')) out.push('where');
     // Panels already on the roof: say what they are. Panels planned: the house
     // type sets how many the roof takes, then three ready-made systems to pick
@@ -6127,6 +6131,8 @@ function flowPick(el, q, v){
 window.flowPick = flowPick;
 
 function flowAnswer(q, v){
+  // "Yes, I have panels" to what the meter file showed: as if solar had been answered so.
+  if (q === 'fileexp' && v === 'have'){ (state._flow = state._flow || {}).fileexp = v; return flowAnswer('solar', 'have'); }
   const f = state._flow = state._flow || {};
   const was = f[q]; f[q] = v;
   const clear = (keys) => keys.forEach((k) => delete f[k]);
@@ -6333,6 +6339,7 @@ function renderFlow(){
       : fb && fb.ask === 'drop'
       ? [`Did the panels go up around ${fmtDay(fb.dropFrom)}?`, 'Your meter file shows daytime buying dropping from then, with nothing sent to the grid.']
       : ['Is your meter file from before the panels went up?', 'It shows no solar going to the grid, which panels usually do.']; })(),
+    fileexp: (() => { const fs = state._csv_imported ? fileSolar() : null; return [`Your meter file shows power sold from ${fs && fs.exportFrom ? fmtDay(fs.exportFrom) : 'partway'}. Do you have solar panels?`, 'A meter only records power sold when something at the home makes it.']; })(),
     billwhen: ['Is the bill you entered from before or after the panels went up?', 'A bill from after them is already lower.'],
     billmonths: ['Which months is that bill for?', 'Bills after solar swing a lot with the seasons.'],
     gridnow: ['Does the battery charge from the grid at night now?', 'Some are set to top up on cheap night power. It changes what your plan costs you today.'],
@@ -6361,6 +6368,7 @@ function renderFlow(){
     roof: (v) => ({ S: 'South', SE: 'South-east', SW: 'South-west', E: 'East', W: 'West', N: 'North', NE: 'North-east', NW: 'North-west', EW: 'East and west', SESW: 'South-east and south-west', unsure: 'Not sure, south assumed' })[v] || `Facing ${v}°`,
     panels: (v) => `${v} panels`, battery: (v) => +v ? `${v} kWh` : 'No battery',
     gridnow: (v) => v === 'yes' ? 'Tops up at night' : v === 'no' ? 'Solar only' : 'Not sure how it charges',
+    fileexp: (v) => v === 'have' ? 'Panels up' : 'No panels',
     filewhen: (v) => v === 'before' ? 'File from before the panels' : v === 'noexport' ? 'System never exports' : v === 'dropyes' || v === 'sinceyes' ? 'Panels from that date' : v === 'allyear' ? 'Panels up all the file' : 'File checked',
     billwhen: (v) => v === 'before' ? 'Bill from before the panels' : 'Bill from after the panels',
     billmonths: (v) => ({ winter: 'Winter bill', shoulder: 'Spring or autumn bill', summer: 'Summer bill', average: 'An average month' })[v] || v,
@@ -6471,6 +6479,7 @@ function renderFlow(){
       <button class="sg-link" onclick="flowAnswer('disc', 0)">Not sure</button>`;
     if (q === 'panels' && state._flow_intent === 'quote') return `<div class="fl-opts fl-three">${[8, 10, 12, 14, 16, 20].map((n) => opt('panels', n, `${n}`)).join('')}</div>${own('panels', 'panels', 60, 'e.g. 13')}`;
     if (q === 'panels'){ const s = _flowSuggest(); return `<div class="fl-opts fl-three">${[Math.max(4, s - 4), s, s + 4].filter((n, i, a) => a.indexOf(n) === i).map((n) => opt('panels', n, `${n}`, n === s ? 'suggested' : '')).join('')}</div>${own('panels', 'panels', 60, 'e.g. 12')}`; }
+    if (q === 'fileexp') return `<div class="fl-opts">${opt('fileexp', 'have', 'Yes, I have panels', 'We’ll ask about them next')}${opt('fileexp', 'no', f.solar === 'thinking' ? 'No, not yet' : 'No', 'We’ll go by your answer')}</div>`;
     if (q === 'filewhen'){ const fb = fileBasis();
       if (fb && fb.ask === 'since' || ['sinceyes', 'allyear'].includes(f.filewhen)) return `<div class="fl-opts">${opt('filewhen', 'sinceyes', 'Yes, around then', 'The days before are your home without panels')}${opt('filewhen', 'allyear', 'No, they were up for the whole file', 'We’ll use your readings as they are')}</div>`;
       return fb && fb.ask === 'drop'
@@ -6586,7 +6595,7 @@ function renderFlow(){
 const FLOW_CHAPTER = { bill: 'Your usage', meter: 'Your usage', area: 'Your usage', filewhen: 'Your usage', billwhen: 'Your usage', billmonths: 'Your usage',
   plan: 'Your plan', disc: 'Your plan', heat: 'Heating', heattime: 'Heating', night: 'Heating', gas: 'Heating', gasbill: 'Heating',
   where: 'Your home', house: 'Your home', solar: 'Solar', roof: 'Solar', tilt: 'Solar', panels: 'Solar', battery: 'Solar', system: 'Solar',
-  price: 'Solar', grant: 'Solar', gridnow: 'Solar', ev: 'Car', evtime: 'Car', km: 'Car', car: 'Car' };
+  price: 'Solar', grant: 'Solar', gridnow: 'Solar', fileexp: 'Solar', ev: 'Car', evtime: 'Car', km: 'Car', car: 'Car' };
 function flowChapters(steps, f, open){
   const names = [];
   steps.forEach((k) => { const c = flowChap(k); if (!names.includes(c)) names.push(c); });
@@ -6602,7 +6611,7 @@ function flowChapters(steps, f, open){
 const FLOW_SHORT = { bill: 'Usage', plan: 'Plan now', disc: 'Discount', house: 'House', system: 'System', where: 'Region',
   meter: 'Meter', area: 'Area', heat: 'Heating', evtime: 'Car charging', heattime: 'Heating hours', night: 'Water at night',
   gas: 'Gas', gasbill: 'Gas bill', solar: 'Solar', tilt: 'Roof pitch', price: 'Price', grant: 'SEAI grant', roof: 'Roof faces',
-  panels: 'Panels', battery: 'Battery', filewhen: 'Meter file date', billwhen: 'Bill date', billmonths: 'Bill months',
+  panels: 'Panels', battery: 'Battery', filewhen: 'Meter file date', fileexp: 'Power sold in the file', billwhen: 'Bill date', billmonths: 'Bill months',
   gridnow: 'Battery charging', km: 'Driving', car: 'Car' };
 function flowSide(steps, f, open, shown){
   const got = steps.filter((k) => k in f && k !== open);
@@ -13519,8 +13528,46 @@ function handleCsvFile(evt){
   reader.readAsText(file);
 }
 
+/*
+ * The figures as they were before a meter file, so the import card can put
+ * them back: when the file turns out to be from another home, or the person
+ * would rather keep the yearly figure they typed. Kept in memory only, for
+ * the card on screen.
+ */
+const CSV_FIELDS = ['bills', '_csv_imported', 'meter', '_csv_export_kwh', '_csv_hourly_shape', '_shape_buckets', '_csv_days', '_csv_periods',
+  '_csv_filename', '_file_split', '_csv_unread_pct', '_csv_dupes', 'usage_input_mode', 'annual_kwh', 'bimonthly_bill_eur', 'file_when', '_file_bills', '_file_bills_key'];
+let _csvBefore = null;
+function csvRestore(){
+  if (!_csvBefore) return;
+  for (const k of CSV_FIELDS){ if (_csvBefore[k] === undefined) delete state[k]; else state[k] = _csvBefore[k]; }
+  _csvBefore = null;
+  invalidate(); saveState();
+}
+/** "No, a home I lived in before": the file is not used, and nothing it set stays. */
+function csvNotMyHome(){
+  csvRestore();
+  const el = document.getElementById('csv-parse-result');
+  if (el) el.innerHTML = `<div class="card" style="font-size:13px;line-height:1.6;color:var(--ink-soft)">We haven’t used that file. ${state.current_screen === 'flow' ? 'Enter your bill above, or add a file from the home you live in now.' : 'Your figures are as they were. Add a file from the home you live in now when you have one.'}</div>`;
+  renderApp();
+}
+/** "Keep my figure": the yearly figure typed earlier stands, and the file is not used. */
+function csvKeepTyped(){
+  const kwh = _csvBefore && _csvBefore.bills ? Math.round(Object.values(_csvBefore.bills).reduce((a, b) => a + b, 0)) : 0;
+  csvRestore();
+  showToast(`Kept your ${kwh.toLocaleString('en-IE')} kWh a year. The file isn’t used.`);
+  if (state._sheet && state._sheet.kind === 'meter') state._sheet = null;
+  renderApp();
+}
+window.csvNotMyHome = csvNotMyHome; window.csvKeepTyped = csvKeepTyped;
+
 function parseCsvHdf(text, filename){
   const resultEl = document.getElementById('csv-parse-result');
+  // What the person had before this file: to put back if they say so, and to
+  // compare a figure they typed with the file's.
+  const before = {};
+  for (const k of CSV_FIELDS) before[k] = state[k] === undefined ? undefined : structuredClone(state[k]);
+  const typedIn = !state._csv_imported && (state.current_screen === 'flow' ? !!(state._flow && state._flow.bill && state._flow.bill !== 'meter') : !!state.onboarding_complete);
+  const typedKwh = typedIn ? Math.round(Object.values(state.bills || {}).reduce((a, b) => a + b, 0)) : 0;
   try {
     const lines = text.split(/\r?\n/).filter(Boolean);
     if (lines.length < 2){
@@ -13885,8 +13932,15 @@ function parseCsvHdf(text, filename){
     state._csv_filename = filename;
     invalidate();
     saveState();
+    _csvBefore = before;
 
     const total = Object.values(bills).reduce((a,b)=>a+b,0);
+    // A yearly figure typed earlier that the file disagrees with by more than
+    // 15%: said, with the choice to keep it. Replacing it without a word left
+    // people wondering where their figure went.
+    const typedOff = typedKwh > 0 && Math.abs(total - typedKwh) / typedKwh > 0.15;
+    const typedHtml = typedOff ? `<div data-warn="typed" style="margin-top:10px;padding:10px 12px;background:var(--amber-soft);border:1px solid var(--amber);border-radius:8px;font-size:12px;color:var(--ink);line-height:1.6">${before.usage_input_mode === 'kwh' ? `You told us ${fmtN(typedKwh)} kWh a year.` : `Your bill worked out at about ${fmtN(typedKwh)} kWh a year.`} This file says ${fmtN(Math.round(total))}. We’ll use the file unless you’d rather keep yours.
+          <div style="margin-top:6px"><button class="pk-link" data-keep-typed="yes" onclick="csvKeepTyped()">Keep my ${fmtN(typedKwh)} kWh</button></div></div>` : '';
     if (resultEl) resultEl.innerHTML = `
       <div class="card" style="background:var(--accent-faint);border-color:var(--accent)">
         <div class="card-label" style="color:var(--accent)">✓ Imported ${rowsRead.toLocaleString()} readings</div>
@@ -13899,7 +13953,10 @@ function parseCsvHdf(text, filename){
         ${coverageHtml}
         ${readHtml}
         ${(() => { try { const t = fileSummary(); return t ? `<div style="margin-top:8px;font-size:12px;color:var(--ink-soft);line-height:1.6">${esc(t)}</div>` : ''; } catch (e) { return ''; } })()}
-        <button class="switch-cta" style="margin-top:12px;font-size:13px;padding:12px 16px" onclick="applyImportedBills()">Use this data →</button>
+        ${typedHtml}
+        <div style="margin-top:12px;font-size:13px;font-weight:600;color:var(--ink)">Is this file from the home you live in now?</div>
+        <button class="switch-cta" style="margin-top:8px;font-size:13px;padding:12px 16px" data-filehome="yes"${typedOff ? ' data-keep-typed="no"' : ''} onclick="applyImportedBills()">Yes, use this data →</button>
+        <button class="pk-link" style="margin-top:8px;display:block" data-filehome="no" onclick="csvNotMyHome()">No, a home I lived in before</button>
       </div>`;
     fireEvent('csv_imported', { rows: rowsRead, total_kwh: Math.round(total), region: state.region });
   } catch(e){
@@ -13912,6 +13969,7 @@ function parseCsvHdf(text, filename){
 }
 
 function applyImportedBills(){
+  _csvBefore = null;   // the file is accepted: nothing to put back
   invalidate();
   saveState();
   if (state.current_screen === 'onboarding' || state.current_screen === 'fastpath'){

@@ -840,7 +840,8 @@
   "file": "B2_gas_solar.csv",
   "answers": {
    "heat": "gas",
-   "solar": "no"
+   "solar": "no",
+   "fileexp": "have"
   },
   "window": [
    "2025-10-09",
@@ -975,7 +976,9 @@
   "answers": {
    "heat": "gas",
    "ev": "no",
-   "solar": "thinking"
+   "solar": "thinking",
+   "filehome": "no",
+   "bill": "kwh:4200"
   },
   "window": [
    "2025-10-09",

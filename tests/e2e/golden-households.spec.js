@@ -35,11 +35,13 @@ for (const [id, lim] of Object.entries(GOLDEN.scenarios)) {
     if (r.solarOnly && sc.truth !== 'hp_solar_gridfill') ranked = r.solarOnly;
     r.best = ranked[0].id; r.bestNet = ranked[0].net;
     if (lim.payback != null && t.payback) expect(r.solar, `${id}: the app shows a payback`).toBeTruthy();
+    // Rounded to a tenth, as score.py reports them and as the limits were set.
+    const tenth = (x) => Math.round(x * 10) / 10;
     const err = {
-      kwh: Math.abs(r.kwh - t.use_kwh) / t.use_kwh * 100,
-      bill: Math.abs(r.bestNet - t.costs[r.best]) / t.costs[r.best] * 100,
+      kwh: tenth(Math.abs(r.kwh - t.use_kwh) / t.use_kwh * 100),
+      bill: tenth(Math.abs(r.bestNet - t.costs[r.best]) / t.costs[r.best] * 100),
       plan: t.costs[r.best] - t.best_cost,
-      payback: r.solar && t.payback ? Math.abs(r.solar.payback - t.payback) : null,
+      payback: r.solar && t.payback ? tenth(Math.abs(tenth(r.solar.payback) - t.payback)) : null,
     };
     const say = `${id}: use ${r.kwh} kWh (true ${t.use_kwh}), best ${r.best} €${r.bestNet} (true €${Math.round(t.costs[r.best])}; cheapest ${t.best} €${Math.round(t.best_cost)})` +
       (r.solar ? `, payback ${r.solar.payback.toFixed(1)} (true ${t.payback})` : '') + `, accuracy shown ±${r.accuracy.pct}%`;
