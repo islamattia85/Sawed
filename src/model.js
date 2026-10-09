@@ -525,7 +525,8 @@ function rebuiltDays(days, from, unsold){
 export function syncFileBills(){
   const b = state._csv_imported && fileBasis();
   const from = b && (b.rebuilt || b.since);
-  if (!from || !state.meter || !state.meter.days) return false;
+  if (!from) return syncYearBills();
+  if (!state.meter || !state.meter.days) return false;
   const all = rebuiltDays(state.meter.days, from, b.unsold), days = {};
   for (const k of Object.keys(all)) if (k >= b.from && k <= b.to) days[k] = all[k];
   // The importer's figures, kept once per file, so this can run again and again.
@@ -550,6 +551,38 @@ export function syncFileBills(){
     const len = DAYS_IN_MONTH[B.months[0]] + DAYS_IN_MONTH[B.months[1]];
     const v = n[B.key] >= 10 ? Math.round(sum[B.key] / n[B.key] * len) : raw[B.key] != null ? Math.round(raw[B.key] * grow) : bills[B.key];
     if (v != null && bills[B.key] !== v){ bills[B.key] = v; changed = true; }
+  }
+  if (changed) state.bills = bills;
+  return changed;
+}
+/**
+ * A file with most of a year in it is priced on its own days (meterYearDays:
+ * the most recent of each date). The yearly use the app shows is that year,
+ * two months at a time, not the importer's figures: from a file of more than
+ * a year those averaged its years, and from one partly before planned panels
+ * they took in the days after them. Profile showed "Home uses 5,943 kWh"
+ * over "5,344 kWh a year" for one home.
+ */
+function syncYearBills(){
+  const year = state._csv_imported && meterYearDays();
+  if (!year) return false;
+  const sum = {}, n = {};
+  let doy = 0;
+  for (let m = 0; m < 12; m++){
+    const key = bimonthlyFor(m).key;
+    for (let d = 0; d < DAYS_IN_MONTH[m]; d++, doy++){
+      const row = year[doy];
+      if (!row) continue;
+      sum[key] = (sum[key] || 0) + row.reduce((a, x) => a + x, 0); n[key] = (n[key] || 0) + 1;
+    }
+  }
+  const bills = { ...(state.bills || {}) };
+  let changed = false;
+  for (const B of BIMONTHLY){
+    if (!n[B.key]) continue;
+    const len = DAYS_IN_MONTH[B.months[0]] + DAYS_IN_MONTH[B.months[1]];
+    const v = Math.round(sum[B.key] / n[B.key] * len);
+    if (bills[B.key] !== v){ bills[B.key] = v; changed = true; }
   }
   if (changed) state.bills = bills;
   return changed;

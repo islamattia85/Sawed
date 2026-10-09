@@ -21,7 +21,7 @@ import { BRAND, CONTROLLER, MARK_PATHS, iconDataUri, wordmarkHtml } from './bran
 import { IC, ic } from './icons';
 import FIG from './data/front-figures.json';
 import {
-  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileDays, fileOwnShape, shapeBuckets, seasonalShape, SEASONAL_SHAPE, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, tidyNames, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
+  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileIsNet, fileDays, fileOwnShape, shapeBuckets, seasonalShape, SEASONAL_SHAPE, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, tidyNames, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
   outcomeAgainst, sweepSetup, evaluateDesign, finishSweep,
 } from './model';
 
@@ -10888,16 +10888,29 @@ function householdScene(){
   const batt = sys && (state.battery_kwh || 0) > 0;
   const ev = !!state.ev_active;
   const hp = state.heating_type === 'heatpump';
+  const evKwh = ev ? (state.ev_km_per_year || 0) * (state.ev_kwh_per_100km || 17) / 100 : 0;
   let gen = 0, use = 0, imp = 0, exp = 0, cyc = 0;
   try {
     const s = sim(state.baseline);
-    gen = sys ? sumF(CACHE.solar.total) : 0;
-    use = sumF(CACHE.cons);
     imp = sumF(s.grid_import);
-    exp = sumF(s.grid_export);
-    cyc = batt && s.battery_discharge ? sumF(s.battery_discharge) : 0;
+    if (fileIsNet()){
+      // A meter file of this home with its panels up is priced as it reads:
+      // bought and sold are the readings, its own use is worked back (the
+      // yearly figure), and the panels made the difference. The model's
+      // panels and battery are not run, so they cannot be read from it (the
+      // picture said "Solar makes 0 kWh" and "Home uses" what was bought).
+      exp = +state._csv_export_kwh || 0;
+      use = v7AnnualKwh();
+      gen = sys ? Math.max(0, use - imp + exp) : 0;
+    } else {
+      gen = sys ? sumF(CACHE.solar.total) : 0;
+      // The home's own use, as its yearly figure counts it: a car still being
+      // planned is shown beside it.
+      use = sumF(CACHE.cons) - (ev && !state.ev_in_bill ? evKwh : 0);
+      exp = sumF(s.grid_export);
+      cyc = batt && s.battery_discharge ? sumF(s.battery_discharge) : 0;
+    }
   } catch (e) {}
-  const evKwh = ev ? (state.ev_km_per_year || 0) * (state.ev_kwh_per_100km || 17) / 100 : 0;
   const k = (v) => `${Math.round(v).toLocaleString('en-IE')} kWh`;
   const hw = { smart: 'Hot water heated 2–5am', legacy: 'Hot water on an immersion timer', none: hp ? 'Hot water from the heat pump' : 'Hot water from the boiler' }[state.hot_water_strategy] || 'Hot water';
   const planned = sys && (state.solar_planned || state.solar_is_estimate);
@@ -10946,7 +10959,7 @@ function householdScene(){
       ${sys ? `<text class="hs-val" x="190" y="30" text-anchor="middle">Solar makes ${k(gen)}</text>
         <text class="hs-sub" x="190" y="46" text-anchor="middle">${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp</text>` : ''}
       ${batt ? `<text class="hs-sub" x="309" y="214" text-anchor="middle">${state.battery_kwh} kWh</text>
-        <text class="hs-sub" x="309" y="229" text-anchor="middle">gives ${Math.round(cyc).toLocaleString("en-IE")} kWh</text>` : ''}
+        ${cyc > 0 ? `<text class="hs-sub" x="309" y="229" text-anchor="middle">gives ${Math.round(cyc).toLocaleString("en-IE")} kWh</text>` : ''}` : ''}
       ${ev ? `<text class="hs-sub" x="304" y="296" text-anchor="middle">EV ${k(evKwh)}</text>` : ''}
 
       ${tap('openMySystem()', 'My system', 100, 56, 180, 70)}
