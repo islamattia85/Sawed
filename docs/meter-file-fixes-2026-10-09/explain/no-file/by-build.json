@@ -1,0 +1,222 @@
+{
+ "before fix 12": {
+  "commit": "d08af36",
+  "homes": {
+   "gas": {
+    "use": 4001,
+    "true_use": 4000,
+    "plan": "EN-SMART-24-HOUR",
+    "plan_gap": 0,
+    "bill_err": 0.0,
+    "saving": 937,
+    "true_saving": 880,
+    "saving_err": 6.5,
+    "payback": 6.4,
+    "true_payback": 6.82,
+    "accuracy": 6
+   },
+   "heatpump": {
+    "use": 7502,
+    "true_use": 7500,
+    "plan": "EI-SST",
+    "plan_gap": 13,
+    "bill_err": -6.7,
+    "saving": 1024,
+    "true_saving": 1037,
+    "saving_err": -1.2,
+    "payback": 5.86,
+    "true_payback": 5.78,
+    "accuracy": 6
+   },
+   "ev": {
+    "use": 6001,
+    "true_use": 6000,
+    "plan": "FL-EV",
+    "plan_gap": 0,
+    "bill_err": -4.8,
+    "saving": 938,
+    "true_saving": 934,
+    "saving_err": 0.5,
+    "payback": 6.4,
+    "true_payback": 6.43,
+    "accuracy": 6
+   }
+  }
+ },
+ "fix 12": {
+  "commit": "e8339ca",
+  "homes": {
+   "gas": {
+    "use": 4001,
+    "true_use": 4000,
+    "plan": "EN-SMART-24-HOUR",
+    "plan_gap": 0,
+    "bill_err": 0.0,
+    "saving": 955,
+    "true_saving": 880,
+    "saving_err": 8.6,
+    "payback": 6.28,
+    "true_payback": 6.82,
+    "accuracy": 6
+   },
+   "heatpump": {
+    "use": 7502,
+    "true_use": 7500,
+    "plan": "EI-SST",
+    "plan_gap": 13,
+    "bill_err": -6.7,
+    "saving": 1048,
+    "true_saving": 1037,
+    "saving_err": 1.0,
+    "payback": 5.73,
+    "true_payback": 5.78,
+    "accuracy": 6
+   },
+   "ev": {
+    "use": 6001,
+    "true_use": 6000,
+    "plan": "FL-EV",
+    "plan_gap": 0,
+    "bill_err": -4.8,
+    "saving": 956,
+    "true_saving": 934,
+    "saving_err": 2.4,
+    "payback": 6.27,
+    "true_payback": 6.43,
+    "accuracy": 6
+   }
+  }
+ },
+ "fix 13": {
+  "commit": "c3354e4",
+  "homes": {
+   "gas": {
+    "use": 4001,
+    "true_use": 4000,
+    "plan": "EN-SMART-24-HOUR",
+    "plan_gap": 0,
+    "bill_err": 0.0,
+    "saving": 955,
+    "true_saving": 880,
+    "saving_err": 8.6,
+    "payback": 6.28,
+    "true_payback": 6.82,
+    "accuracy": 6
+   },
+   "heatpump": {
+    "use": 7502,
+    "true_use": 7500,
+    "plan": "EI-SST",
+    "plan_gap": 13,
+    "bill_err": -6.7,
+    "saving": 1048,
+    "true_saving": 1037,
+    "saving_err": 1.0,
+    "payback": 5.73,
+    "true_payback": 5.78,
+    "accuracy": 6
+   },
+   "ev": {
+    "use": 6001,
+    "true_use": 6000,
+    "plan": "FL-EV",
+    "plan_gap": 0,
+    "bill_err": -4.8,
+    "saving": 956,
+    "true_saving": 934,
+    "saving_err": 2.4,
+    "payback": 6.27,
+    "true_payback": 6.43,
+    "accuracy": 6
+   }
+  }
+ },
+ "fix 14": {
+  "commit": "1437f12",
+  "homes": {
+   "gas": {
+    "use": 4001,
+    "true_use": 4000,
+    "plan": "EN-SMART-24-HOUR",
+    "plan_gap": 0,
+    "bill_err": 0.0,
+    "saving": 955,
+    "true_saving": 880,
+    "saving_err": 8.6,
+    "payback": 6.28,
+    "true_payback": 6.82,
+    "accuracy": 6
+   },
+   "heatpump": {
+    "use": 7502,
+    "true_use": 7500,
+    "plan": "EI-SST",
+    "plan_gap": 13,
+    "bill_err": -6.7,
+    "saving": 1048,
+    "true_saving": 1037,
+    "saving_err": 1.0,
+    "payback": 5.73,
+    "true_payback": 5.78,
+    "accuracy": 6
+   },
+   "ev": {
+    "use": 6001,
+    "true_use": 6000,
+    "plan": "FL-EV",
+    "plan_gap": 0,
+    "bill_err": -4.8,
+    "saving": 956,
+    "true_saving": 934,
+    "saving_err": 2.4,
+    "payback": 6.27,
+    "true_payback": 6.43,
+    "accuracy": 6
+   }
+  }
+ },
+ "fix 15": {
+  "commit": "35eae5c",
+  "homes": {
+   "gas": {
+    "use": 4001,
+    "true_use": 4000,
+    "plan": "EN-SMART-24-HOUR",
+    "plan_gap": 0,
+    "bill_err": 0.0,
+    "saving": 970,
+    "true_saving": 880,
+    "saving_err": 10.3,
+    "payback": 6.18,
+    "true_payback": 6.82,
+    "accuracy": 6
+   },
+   "heatpump": {
+    "use": 7502,
+    "true_use": 7500,
+    "plan": "EI-SST",
+    "plan_gap": 13,
+    "bill_err": -6.7,
+    "saving": 1064,
+    "true_saving": 1037,
+    "saving_err": 2.6,
+    "payback": 5.64,
+    "true_payback": 5.78,
+    "accuracy": 6
+   },
+   "ev": {
+    "use": 6001,
+    "true_use": 6000,
+    "plan": "FL-EV",
+    "plan_gap": 0,
+    "bill_err": -4.8,
+    "saving": 971,
+    "true_saving": 934,
+    "saving_err": 4.1,
+    "payback": 6.18,
+    "true_payback": 6.43,
+    "accuracy": 6
+   }
+  }
+ }
+}

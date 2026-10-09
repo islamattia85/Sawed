@@ -1,0 +1,13 @@
+// Scratch probe (not committed): the path without a meter file. The person types the home's true yearly kWh.
+import { test } from '@playwright/test';
+import { writeFileSync } from 'node:fs';
+import { SCENARIOS, TRUTH, runScenario } from './run-scenario.js';
+for (const home of ['gas', 'heatpump', 'ev']) {
+  test(`nofile ${home}`, async ({ page }) => {
+    test.setTimeout(180_000);
+    const base = SCENARIOS.find((s) => s.id === `A1-${home}`);
+    const sc = { ...base, id: `E-${home}`, file: null, files: [], answers: { ...base.answers, typed: TRUTH[home].use_kwh } };
+    const r = await runScenario(page, sc);
+    writeFileSync(`${process.env.PROBE_OUT}/E-${home}.json`, JSON.stringify(r, null, 1));
+  });
+}
