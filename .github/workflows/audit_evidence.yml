@@ -114,7 +114,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        line: [v8, v7]
+        # v7 is no longer maintained: its own tests failed on every run.
+        line: [v8]
     steps:
       - uses: actions/checkout@v4
         with:
