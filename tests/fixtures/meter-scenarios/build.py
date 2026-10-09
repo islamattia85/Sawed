@@ -170,7 +170,8 @@ def scenarios(hs):
         name = f'B2_{hk}.csv'; put(name, esb_text(h['imp'], h['exp'], *YEAR_NOW))
         out.append(S(f'B2-{hk}', 'B', 'A year after the panels, exports recorded', hk, hk, name, dict(HAVE(sy), heat=heat, filewhen='allyear'), window=[str(x) for x in YEAR_NOW]))
         name = f'B3_{hk}.csv'; put(name, esb_text(h['imp'], h['exp'], *YEAR_NOW, export=False))
-        out.append(S(f'B3-{hk}', 'B', 'A year after the panels, no export rows', hk, hk, name, dict(HAVE(sy), heat=heat, filewhen=['noexport', 'allyear', 'before']), window=[str(x) for x in YEAR_NOW]))
+        # Offered from 9 Oct 2026 (fix 5), the true answer: up all along, sales not on the file yet.
+        out.append(S(f'B3-{hk}', 'B', 'A year after the panels, no export rows', hk, hk, name, dict(HAVE(sy), heat=heat, filewhen=['notrecorded', 'noexport', 'allyear', 'before']), window=[str(x) for x in YEAR_NOW]))
     name = 'B3_friend.csv'; put(name, esb_text(f['imp'], f['exp'], *YEAR_NOW, export_from=D(2025, 12, 1)))
     out.append(S('B3-friend', 'B', 'Panels from 20 Oct 2025, exports recorded only from 1 Dec 2025 (the tester\'s case)', 'friend', 'friend', name, dict(HAVE(fs), heat='heatpump', filewhen=['allyear', 'noexport', 'before']), window=[str(x) for x in YEAR_NOW]))
     h = hs['gas_solar']; sy = h['system']; span = (D(2024, 10, 9), D(2025, 10, 8))

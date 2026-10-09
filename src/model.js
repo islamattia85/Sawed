@@ -7,7 +7,7 @@
  * main.js changes them through the setters at the end, as an imported binding
  * cannot be assigned from outside its module.
  */
-import { SLP_URBAN_HOURLY, SLP_RURAL_HOURLY } from './slp-2026.js';
+import { SLP_URBAN_HOURLY, SLP_RURAL_HOURLY, SLP_URBAN_BIMONTHLY, SLP_RURAL_BIMONTHLY } from './slp-2026.js';
 import { HOURS_IN_YEAR, DAYS_IN_MONTH, LOCATION_BASE, dayOfYear, PSO_LEVY } from './engine/constants';
 import { buildHourlyGhi, buildPoa, buildPvGeneration } from './engine/solar';
 import { bandAt, rateAt as engineRateAt, staticRateAt, simulateBaseline as engineSimulateBaseline, annualCost as engineAnnualCost, sumF, WHOLESALE_CAP } from './engine/tariff-rules';
@@ -312,6 +312,12 @@ export function fileBasis(){
     return { mode: 'gross', ...all, start, contradicts: !!start };
   }
   if (!start){
+    // Panels up all along, but ESB not yet recording what they sell (it can
+    // take weeks after an install): the readings are what the home bought with
+    // the panels running. Its use is worked back from them and the stated
+    // system (rebuiltDays, `unsold`), and the panels' sales are the model's,
+    // not data: an estimate, and the accuracy figure says so.
+    if (state.file_when === 'notrecorded') return { mode: 'gross', ...all, start: fs.first, since: fs.first, rebuilt: fs.first, unsold: true };
     if (state.file_when === 'noexport') return { mode: 'net', ...all };
     if (fs.dropFrom && !state.file_when) return { mode: 'gross', ...all, ask: 'drop', dropFrom: fs.dropFrom };
     return { mode: 'gross', ...all, ask: state.file_when ? null : 'noexport' };
@@ -378,6 +384,51 @@ function solarBatteryDay(use, gen, cap, soc){
 }
 
 /**
+ * What the meter buys in a day for the home's use, with the stated panels and
+ * a battery storing only solar (run as solarBatteryDay runs it). Returns what
+ * was bought and how full the battery ends the day.
+ */
+function boughtInDay(use, gen, cap, soc){
+  if (!(cap > 0)){ let b = 0; for (let h = 0; h < 24; h++) b += Math.max(0, (use[h] || 0) - (gen[h] || 0)); return { bought: b, soc }; }
+  const minSoc = (state.battery_min || 0) * cap, maxSoc = (state.battery_max || 1) * cap;
+  const eff = Math.sqrt(state.battery_eff || 0.9);
+  const rate = Math.min(Math.max(2.5, Math.min(6, cap * 0.5)), +state.inverter_kw || 5);
+  let bought = 0;
+  for (let h = 0; h < 24; h++){
+    const net = (gen[h] || 0) - (use[h] || 0);
+    if (net > 0){ const c = Math.min(net, (maxSoc - soc) / eff, rate); if (c > 0) soc += c * eff; }
+    else if (net < 0){ const d = Math.min(Math.max(0, soc - minSoc), -net / eff, rate); soc -= d; bought += -net - d * eff; }
+  }
+  return { bought, soc };
+}
+
+/**
+ * A day's use from what the meter bought, when its sales are not on the file.
+ *
+ * The home's use is taken to follow its own shape at some level; the level is
+ * the one at which the stated panels (and a battery storing only solar) would
+ * make the meter buy what it bought that day. Without a battery, each hour then
+ * keeps what the meter bought in it (see below).
+ *
+ * `known` says whether the day can tell: if the panels and battery would cover
+ * most of any more use, what was bought hardly moves with the level (a summer
+ * day with a battery), and the day says nothing about how much the home used.
+ */
+function unsoldDay(r, gen, shape, cap, soc){
+  const bought = r.slice(0, 24).reduce((a, b) => a + b, 0), made = gen.reduce((a, b) => a + b, 0);
+  const buys = (T) => boughtInDay(shape.map((v) => v * T), gen, cap, soc).bought;
+  let lo = bought, hi = bought + made + 1;
+  for (let i = 0; i < 30; i++){ const mid = (lo + hi) / 2; if (buys(mid) < bought) lo = mid; else hi = mid; }
+  const T = (lo + hi) / 2;
+  const known = T > 0 && (buys(T * 1.3) - buys(T)) / (T * 0.3) >= 0.2;
+  // Without a battery each hour keeps what the meter bought in it: the home
+  // used its expected amount, if what was bought and the panels' output allow
+  // it; never less than it bought, never more than it bought plus all they made.
+  const row = cap > 0 ? shape.map((v) => v * T) : shape.map((v, h) => Math.max(r[h], Math.min(v * T, r[h] + gen[h])));
+  return { row, total: row.reduce((a, b) => a + b, 0), known, soc: boughtInDay(row, gen, cap, soc).soc };
+}
+
+/**
  * The home's own use, hour by hour, on the days its panels were running.
  *
  * The meter shows what was bought and sold. Over a month, what the home used
@@ -390,10 +441,10 @@ function solarBatteryDay(use, gen, cap, soc){
  * heating profile for the season.
  */
 let _grossMemo = { key: null, val: null };
-function rebuiltDays(days, from){
+function rebuiltDays(days, from, unsold){
   const sys = statedSystem();
   const keys = Object.keys(days).sort();
-  const key = [keys.length, keys[0], keys[keys.length - 1], from, JSON.stringify(sys), state.region, state.heating_type,
+  const key = [keys.length, keys[0], keys[keys.length - 1], from, !!unsold, JSON.stringify(sys), state.region, state.heating_type,
     state.heat_time, state.hot_water_strategy, state._shape_user ? JSON.stringify(state._shape_buckets || null) : '',
     state.battery_eff, state.battery_min, state.battery_max, state.inverter_kw].join('|');
   if (_grossMemo.key === key) return _grossMemo.val;
@@ -424,7 +475,13 @@ function rebuiltDays(days, from){
     const shape = heat.map((v, h) => (preShape ? 0.5 * preShape[h] : 0) + (preShape ? 0.5 : 1) * v / heatT);
     for (const k of M.keys){
       const r = days[k], row = new Array(48).fill(0);
-      if (batt > 0){
+      if (unsold){
+        const j = modelDay(k) * 24, g = gen.subarray ? gen.subarray(j, j + 24) : gen.slice(j, j + 24);
+        const day = unsoldDay(r, g, shape, batt, soc);
+        soc = day.soc;
+        for (let h = 0; h < 24; h++) row[h] = +day.row[h].toFixed(3);
+        (M.solved || (M.solved = [])).push({ k, total: day.total, known: day.known, shape });
+      } else if (batt > 0){
         // What the battery lost on the way: the stated battery run on the day
         // (the home's use in its own shape, the panels' hours), what it took
         // in times what a round trip loses. The 8% of all the solar used that
@@ -442,6 +499,20 @@ function rebuiltDays(days, from){
       out[k] = row;
     }
   }
+  // Months whose days cannot tell (the system would have covered most of any
+  // more use, as a battery does in summer) are filled as a missing period is:
+  // from the months that can, by the heating type's seasons.
+  if (unsold){
+    const season = seasonalShape(state.heating_type), mean = season.reduce((a, b) => a + b, 0) / 6;
+    const perDay = (M) => M.solved.filter((d) => d.known).reduce((a, d) => a + d.total, 0) / Math.max(1, M.solved.filter((d) => d.known).length);
+    const told = Object.values(months).filter((M) => M.solved && M.solved.filter((d) => d.known).length >= M.solved.length / 2);
+    const level = told.length ? told.reduce((a, M) => a + perDay(M) / (season[BIMONTHLY.findIndex((B) => B.months.includes(+M.keys[0].slice(5, 7) - 1))] / mean), 0) / told.length : null;
+    for (const M of Object.values(months)){
+      if (!M.solved || told.includes(M) || level == null) continue;
+      const f = season[BIMONTHLY.findIndex((B) => B.months.includes(+M.keys[0].slice(5, 7) - 1))] / mean;
+      for (const d of M.solved){ const row = new Array(48).fill(0); for (let h = 0; h < 24; h++) row[h] = +(d.shape[h] * level * f).toFixed(3); out[d.k] = row; }
+    }
+  }
   _grossMemo = { key, val: out };
   return out;
 }
@@ -455,7 +526,7 @@ export function syncFileBills(){
   const b = state._csv_imported && fileBasis();
   const from = b && (b.rebuilt || b.since);
   if (!from || !state.meter || !state.meter.days) return false;
-  const all = rebuiltDays(state.meter.days, from), days = {};
+  const all = rebuiltDays(state.meter.days, from, b.unsold), days = {};
   for (const k of Object.keys(all)) if (k >= b.from && k <= b.to) days[k] = all[k];
   // The importer's figures, kept once per file, so this can run again and again.
   const fk = (state.meter && state.meter.imported_at) || Object.keys(state.meter.days).length;
@@ -490,7 +561,7 @@ export function fileDays(){
   let days = state.meter && state.meter.days;
   const b = fileBasis();
   if (!days || !b) return null;
-  if (b.rebuilt) days = rebuiltDays(days, b.rebuilt);
+  if (b.rebuilt) days = rebuiltDays(days, b.rebuilt, b.unsold);
   const out = {};
   for (const k of Object.keys(days)) if (k >= b.from && k <= b.to) out[k] = days[k];
   return out;
@@ -551,6 +622,19 @@ export const BIMONTHLY = [
   {key:"Sep-Oct", months:[8,9]},
   {key:"Nov-Dec", months:[10,11]}
 ];
+
+/** Each two-month period's share of a year's use, against the average period, by heating. */
+export const SEASONAL_SHAPE = {
+  // No electric heating: ESB Networks' standard urban home (rural in seasonalShape()).
+  gas:      SLP_URBAN_BIMONTHLY,
+  heatpump: [1.35, 1.20, 0.75, 0.65, 0.95, 1.10],
+  storage:  [1.65, 1.30, 0.60, 0.45, 0.80, 1.20],
+  direct:   [1.45, 1.25, 0.70, 0.55, 0.90, 1.15]
+};
+export function seasonalShape(heating){
+  if (!SEASONAL_SHAPE[heating] || heating === 'gas') return state.area === 'rural' ? SLP_RURAL_BIMONTHLY : SLP_URBAN_BIMONTHLY;
+  return SEASONAL_SHAPE[heating];
+}
 
 export function bimonthlyFor(month){
   for (const b of BIMONTHLY) if (b.months.includes(month)) return b;

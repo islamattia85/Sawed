@@ -653,6 +653,7 @@
    "gridnow": "no",
    "heat": "gas",
    "filewhen": [
+    "notrecorded",
     "noexport",
     "allyear",
     "before"
@@ -697,6 +698,7 @@
    "gridnow": "no",
    "heat": "heatpump",
    "filewhen": [
+    "notrecorded",
     "noexport",
     "allyear",
     "before"
