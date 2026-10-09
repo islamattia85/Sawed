@@ -1,0 +1,1367 @@
+[
+ {
+  "id": "A1-gas",
+  "group": "A",
+  "title": "Calendar year 2025",
+  "home": "gas",
+  "truth": "gas",
+  "file": "A1_gas.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2025-01-01",
+   "2025-12-31"
+  ]
+ },
+ {
+  "id": "A1-heatpump",
+  "group": "A",
+  "title": "Calendar year 2025",
+  "home": "heatpump",
+  "truth": "heatpump",
+  "file": "A1_heatpump.csv",
+  "answers": {
+   "heat": "heatpump",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2025-01-01",
+   "2025-12-31"
+  ]
+ },
+ {
+  "id": "A1-ev",
+  "group": "A",
+  "title": "Calendar year 2025",
+  "home": "ev",
+  "truth": "ev",
+  "file": "A1_ev.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "have",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2025-01-01",
+   "2025-12-31"
+  ]
+ },
+ {
+  "id": "A2-gas",
+  "group": "A",
+  "title": "Twelve months, March 2025 to February 2026",
+  "home": "gas",
+  "truth": "gas",
+  "file": "A2_gas.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2025-03-01",
+   "2026-02-28"
+  ]
+ },
+ {
+  "id": "A2-heatpump",
+  "group": "A",
+  "title": "Twelve months, March 2025 to February 2026",
+  "home": "heatpump",
+  "truth": "heatpump",
+  "file": "A2_heatpump.csv",
+  "answers": {
+   "heat": "heatpump",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2025-03-01",
+   "2026-02-28"
+  ]
+ },
+ {
+  "id": "A2-ev",
+  "group": "A",
+  "title": "Twelve months, March 2025 to February 2026",
+  "home": "ev",
+  "truth": "ev",
+  "file": "A2_ev.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "have",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2025-03-01",
+   "2026-02-28"
+  ]
+ },
+ {
+  "id": "A3a-gas",
+  "group": "A",
+  "title": "Nine months, June 2025 to February 2026 (no spring)",
+  "home": "gas",
+  "truth": "gas",
+  "file": "A3a_gas.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2025-06-01",
+   "2026-02-28"
+  ]
+ },
+ {
+  "id": "A3a-heatpump",
+  "group": "A",
+  "title": "Nine months, June 2025 to February 2026 (no spring)",
+  "home": "heatpump",
+  "truth": "heatpump",
+  "file": "A3a_heatpump.csv",
+  "answers": {
+   "heat": "heatpump",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2025-06-01",
+   "2026-02-28"
+  ]
+ },
+ {
+  "id": "A3a-ev",
+  "group": "A",
+  "title": "Nine months, June 2025 to February 2026 (no spring)",
+  "home": "ev",
+  "truth": "ev",
+  "file": "A3a_ev.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "have",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2025-06-01",
+   "2026-02-28"
+  ]
+ },
+ {
+  "id": "A3b-gas",
+  "group": "A",
+  "title": "Nine months, September 2025 to May 2026 (no summer)",
+  "home": "gas",
+  "truth": "gas",
+  "file": "A3b_gas.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2025-09-01",
+   "2026-05-31"
+  ]
+ },
+ {
+  "id": "A3b-heatpump",
+  "group": "A",
+  "title": "Nine months, September 2025 to May 2026 (no summer)",
+  "home": "heatpump",
+  "truth": "heatpump",
+  "file": "A3b_heatpump.csv",
+  "answers": {
+   "heat": "heatpump",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2025-09-01",
+   "2026-05-31"
+  ]
+ },
+ {
+  "id": "A3b-ev",
+  "group": "A",
+  "title": "Nine months, September 2025 to May 2026 (no summer)",
+  "home": "ev",
+  "truth": "ev",
+  "file": "A3b_ev.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "have",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2025-09-01",
+   "2026-05-31"
+  ]
+ },
+ {
+  "id": "A4-gas",
+  "group": "A",
+  "title": "This year so far, 1 January to 8 October 2026",
+  "home": "gas",
+  "truth": "gas",
+  "file": "A4_gas.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2026-01-01",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "A4-heatpump",
+  "group": "A",
+  "title": "This year so far, 1 January to 8 October 2026",
+  "home": "heatpump",
+  "truth": "heatpump",
+  "file": "A4_heatpump.csv",
+  "answers": {
+   "heat": "heatpump",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2026-01-01",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "A4-ev",
+  "group": "A",
+  "title": "This year so far, 1 January to 8 October 2026",
+  "home": "ev",
+  "truth": "ev",
+  "file": "A4_ev.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "have",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2026-01-01",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "A5a-gas",
+  "group": "A",
+  "title": "Four summer weeks, July 2026",
+  "home": "gas",
+  "truth": "gas",
+  "file": "A5a_gas.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2026-07-01",
+   "2026-07-28"
+  ]
+ },
+ {
+  "id": "A5a-heatpump",
+  "group": "A",
+  "title": "Four summer weeks, July 2026",
+  "home": "heatpump",
+  "truth": "heatpump",
+  "file": "A5a_heatpump.csv",
+  "answers": {
+   "heat": "heatpump",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2026-07-01",
+   "2026-07-28"
+  ]
+ },
+ {
+  "id": "A5a-ev",
+  "group": "A",
+  "title": "Four summer weeks, July 2026",
+  "home": "ev",
+  "truth": "ev",
+  "file": "A5a_ev.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "have",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2026-07-01",
+   "2026-07-28"
+  ]
+ },
+ {
+  "id": "A5b-gas",
+  "group": "A",
+  "title": "Four winter weeks, January 2026",
+  "home": "gas",
+  "truth": "gas",
+  "file": "A5b_gas.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2026-01-05",
+   "2026-02-01"
+  ]
+ },
+ {
+  "id": "A5b-heatpump",
+  "group": "A",
+  "title": "Four winter weeks, January 2026",
+  "home": "heatpump",
+  "truth": "heatpump",
+  "file": "A5b_heatpump.csv",
+  "answers": {
+   "heat": "heatpump",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2026-01-05",
+   "2026-02-01"
+  ]
+ },
+ {
+  "id": "A5b-ev",
+  "group": "A",
+  "title": "Four winter weeks, January 2026",
+  "home": "ev",
+  "truth": "ev",
+  "file": "A5b_ev.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "have",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2026-01-05",
+   "2026-02-01"
+  ]
+ },
+ {
+  "id": "A5c-gas",
+  "group": "A",
+  "title": "Two summer weeks, August 2026",
+  "home": "gas",
+  "truth": "gas",
+  "file": "A5c_gas.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2026-08-10",
+   "2026-08-23"
+  ]
+ },
+ {
+  "id": "A5c-heatpump",
+  "group": "A",
+  "title": "Two summer weeks, August 2026",
+  "home": "heatpump",
+  "truth": "heatpump",
+  "file": "A5c_heatpump.csv",
+  "answers": {
+   "heat": "heatpump",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2026-08-10",
+   "2026-08-23"
+  ]
+ },
+ {
+  "id": "A5c-ev",
+  "group": "A",
+  "title": "Two summer weeks, August 2026",
+  "home": "ev",
+  "truth": "ev",
+  "file": "A5c_ev.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "have",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2026-08-10",
+   "2026-08-23"
+  ]
+ },
+ {
+  "id": "A6-gas",
+  "group": "A",
+  "title": "An old year, July 2024 to June 2025",
+  "home": "gas",
+  "truth": "gas",
+  "file": "A6_gas.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2024-07-01",
+   "2025-06-30"
+  ]
+ },
+ {
+  "id": "A6-heatpump",
+  "group": "A",
+  "title": "An old year, July 2024 to June 2025",
+  "home": "heatpump",
+  "truth": "heatpump",
+  "file": "A6_heatpump.csv",
+  "answers": {
+   "heat": "heatpump",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2024-07-01",
+   "2025-06-30"
+  ]
+ },
+ {
+  "id": "A6-ev",
+  "group": "A",
+  "title": "An old year, July 2024 to June 2025",
+  "home": "ev",
+  "truth": "ev",
+  "file": "A6_ev.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "have",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2024-07-01",
+   "2025-06-30"
+  ]
+ },
+ {
+  "id": "A7-gas",
+  "group": "A",
+  "title": "Two years, October 2024 to October 2026",
+  "home": "gas",
+  "truth": "gas",
+  "file": "A7_gas.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2024-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "A7-heatpump",
+  "group": "A",
+  "title": "Two years, October 2024 to October 2026",
+  "home": "heatpump",
+  "truth": "heatpump",
+  "file": "A7_heatpump.csv",
+  "answers": {
+   "heat": "heatpump",
+   "ev": "no",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2024-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "A7-ev",
+  "group": "A",
+  "title": "Two years, October 2024 to October 2026",
+  "home": "ev",
+  "truth": "ev",
+  "file": "A7_ev.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "have",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2024-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "B1a-friend",
+  "group": "B",
+  "title": "Full year before the panels",
+  "home": "friend",
+  "truth": "friend",
+  "file": "B1a_friend.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 22,
+   "battery": 9,
+   "gridnow": "no",
+   "heat": "heatpump",
+   "filewhen": "before"
+  },
+  "window": [
+   "2024-10-20",
+   "2025-10-19"
+  ]
+ },
+ {
+  "id": "B1b-friend",
+  "group": "B",
+  "title": "Half year before the panels",
+  "home": "friend",
+  "truth": "friend",
+  "file": "B1b_friend.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 22,
+   "battery": 9,
+   "gridnow": "no",
+   "heat": "heatpump",
+   "filewhen": "before"
+  },
+  "window": [
+   "2025-04-20",
+   "2025-10-19"
+  ]
+ },
+ {
+  "id": "B1c-friend",
+  "group": "B",
+  "title": "Summer before the panels",
+  "home": "friend",
+  "truth": "friend",
+  "file": "B1c_friend.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 22,
+   "battery": 9,
+   "gridnow": "no",
+   "heat": "heatpump",
+   "filewhen": "before"
+  },
+  "window": [
+   "2025-06-01",
+   "2025-08-31"
+  ]
+ },
+ {
+  "id": "B1d-friend",
+  "group": "B",
+  "title": "Winter before the panels",
+  "home": "friend",
+  "truth": "friend",
+  "file": "B1d_friend.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 22,
+   "battery": 9,
+   "gridnow": "no",
+   "heat": "heatpump",
+   "filewhen": "before"
+  },
+  "window": [
+   "2024-12-01",
+   "2025-02-28"
+  ]
+ },
+ {
+  "id": "B2-gas_solar",
+  "group": "B",
+  "title": "A year after the panels, exports recorded",
+  "home": "gas_solar",
+  "truth": "gas_solar",
+  "file": "B2_gas_solar.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 9,
+   "battery": 0,
+   "gridnow": "no",
+   "heat": "gas",
+   "filewhen": "allyear"
+  },
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "B3-gas_solar",
+  "group": "B",
+  "title": "A year after the panels, no export rows",
+  "home": "gas_solar",
+  "truth": "gas_solar",
+  "file": "B3_gas_solar.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 9,
+   "battery": 0,
+   "gridnow": "no",
+   "heat": "gas",
+   "filewhen": [
+    "noexport",
+    "allyear",
+    "before"
+   ]
+  },
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "B2-hp_solar_batt",
+  "group": "B",
+  "title": "A year after the panels, exports recorded",
+  "home": "hp_solar_batt",
+  "truth": "hp_solar_batt",
+  "file": "B2_hp_solar_batt.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 13,
+   "battery": 10,
+   "gridnow": "no",
+   "heat": "heatpump",
+   "filewhen": "allyear"
+  },
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "B3-hp_solar_batt",
+  "group": "B",
+  "title": "A year after the panels, no export rows",
+  "home": "hp_solar_batt",
+  "truth": "hp_solar_batt",
+  "file": "B3_hp_solar_batt.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 13,
+   "battery": 10,
+   "gridnow": "no",
+   "heat": "heatpump",
+   "filewhen": [
+    "noexport",
+    "allyear",
+    "before"
+   ]
+  },
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "B3-friend",
+  "group": "B",
+  "title": "Panels from 20 Oct 2025, exports recorded only from 1 Dec 2025 (the tester's case)",
+  "home": "friend",
+  "truth": "friend",
+  "file": "B3_friend.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 22,
+   "battery": 9,
+   "gridnow": "no",
+   "heat": "heatpump",
+   "filewhen": [
+    "allyear",
+    "noexport",
+    "before"
+   ]
+  },
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "B4a-gas_solar",
+  "group": "B",
+  "title": "Before and after the panels (12 May 2025), exports recorded; user confirms the date",
+  "home": "gas_solar",
+  "truth": "gas_solar",
+  "file": "B4_gas_solar.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 9,
+   "battery": 0,
+   "gridnow": "no",
+   "heat": "gas",
+   "filewhen": "sinceyes"
+  },
+  "window": [
+   "2024-10-09",
+   "2025-10-08"
+  ]
+ },
+ {
+  "id": "B4b-gas_solar",
+  "group": "B",
+  "title": "Same file; user says the panels were up the whole time",
+  "home": "gas_solar",
+  "truth": "gas_solar",
+  "file": "B4_gas_solar.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 9,
+   "battery": 0,
+   "gridnow": "no",
+   "heat": "gas",
+   "filewhen": "allyear"
+  },
+  "window": [
+   "2024-10-09",
+   "2025-10-08"
+  ]
+ },
+ {
+  "id": "B4c-gas_solar",
+  "group": "B",
+  "title": "Before and after the panels, no export rows; user confirms the date shown",
+  "home": "gas_solar",
+  "truth": "gas_solar",
+  "file": "B4c_gas_solar.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 9,
+   "battery": 0,
+   "gridnow": "no",
+   "heat": "gas",
+   "filewhen": "dropyes"
+  },
+  "window": [
+   "2024-10-09",
+   "2025-10-08"
+  ]
+ },
+ {
+  "id": "B4d-hp_solar_batt",
+  "group": "B",
+  "title": "Before and after a battery system (3 Mar 2025), exports recorded; user confirms the date shown",
+  "home": "hp_solar_batt",
+  "truth": "hp_solar_batt",
+  "file": "B4d_hp_solar_batt.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 13,
+   "battery": 10,
+   "gridnow": "no",
+   "heat": "heatpump",
+   "filewhen": "sinceyes"
+  },
+  "window": [
+   "2024-09-01",
+   "2025-08-31"
+  ]
+ },
+ {
+  "id": "B5-hp_solar_gridfill",
+  "group": "B",
+  "title": "Battery filled from the grid at night in winter",
+  "home": "hp_solar_gridfill",
+  "truth": "hp_solar_gridfill",
+  "file": "B5_hp_solar_gridfill.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 13,
+   "battery": 10,
+   "gridnow": "yes",
+   "heat": "heatpump",
+   "filewhen": "allyear"
+  },
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "B6-gas_solar",
+  "group": "B",
+  "title": "User says no solar; the file shows exports",
+  "home": "gas_solar",
+  "truth": "gas_solar",
+  "file": "B2_gas_solar.csv",
+  "answers": {
+   "heat": "gas",
+   "solar": "no"
+  },
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "B7a-gas",
+  "group": "B",
+  "title": "User says they have 9 panels; the file shows a home without them (they have none)",
+  "home": "gas",
+  "truth": "gas",
+  "file": "B7_gas.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 9,
+   "battery": 0,
+   "gridnow": "no",
+   "heat": "gas",
+   "filewhen": [
+    "noexport",
+    "allyear"
+   ]
+  },
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "B7b-gas",
+  "group": "B",
+  "title": "Same; user answers that the file is from before the panels",
+  "home": "gas",
+  "truth": "gas",
+  "file": "B7_gas.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 9,
+   "battery": 0,
+   "gridnow": "no",
+   "heat": "gas",
+   "filewhen": "before"
+  },
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "B8-gas_solar",
+  "group": "B",
+  "title": "User says 14 panels; the home has 9",
+  "home": "gas_solar",
+  "truth": "gas_solar",
+  "file": "B2_gas_solar.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 14,
+   "battery": 0,
+   "gridnow": "no",
+   "heat": "gas",
+   "filewhen": "allyear"
+  },
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ],
+  "override": {
+   "count_A": 14
+  }
+ },
+ {
+  "id": "C1-gas_ev_now",
+  "group": "C",
+  "title": "EV bought on 1 Apr 2026, halfway through the file",
+  "home": "gas_ev_now",
+  "truth": "gas_ev_now",
+  "file": "C1_gas_ev_now.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "have",
+   "solar": "thinking",
+   "evtime": "night"
+  },
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "C2-gas_to_hp",
+  "group": "C",
+  "title": "Heat pump put in on 15 Jan 2026 (was gas)",
+  "home": "gas_to_hp",
+  "truth": "gas_to_hp",
+  "file": "C2_gas_to_hp.csv",
+  "answers": {
+   "heat": "heatpump",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "C4-gas_holiday",
+  "group": "C",
+  "title": "Away for four weeks in August 2026",
+  "home": "gas_holiday",
+  "truth": "gas_holiday",
+  "file": "C4_gas_holiday.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "C3-moved",
+  "group": "C",
+  "title": "Moved house: the file is the old (heat pump) home; the new home is gas-heated",
+  "home": "heatpump",
+  "truth": "gas",
+  "file": "C3_previous_home.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D1a-gas",
+  "group": "D",
+  "title": "Daily register file instead of half-hourly",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D1a_daily_register.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D1a_daily_register.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D1b-gas",
+  "group": "D",
+  "title": "Half-hourly file in kWh, not kW",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D1b_calc_kwh.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D1b_calc_kwh.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D1c-gas",
+  "group": "D",
+  "title": "Day and night register file (24-hour or night-storage meter)",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D1c_day_night_register.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D1c_day_night_register.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D2a-gas",
+  "group": "D",
+  "title": "Edited in Excel: US dates (MM/DD)",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D2a_us_dates.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D2a_us_dates.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D2b-gas",
+  "group": "D",
+  "title": "Edited in Excel: semicolons and comma decimals",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D2b_semicolons.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D2b_semicolons.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D2c-gas",
+  "group": "D",
+  "title": "Header row renamed",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D2c_renamed_header.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D2c_renamed_header.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D2d-gas",
+  "group": "D",
+  "title": "Saved by Excel with Irish short dates (d/m/yyyy h:mm)",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D2d_excel_irish_dates.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D2d_excel_irish_dates.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D3a-gas",
+  "group": "D",
+  "title": "Missing days: ten single days and a three-week gap",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D3a_gaps.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D3a_gaps.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D3b-gas",
+  "group": "D",
+  "title": "Every row twice",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D3b_duplicated_rows.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D3b_duplicated_rows.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D3c-gas",
+  "group": "D",
+  "title": "Two overlapping files uploaded one after the other",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D3c_first_part.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D3c_first_part.csv",
+   "D3c_second_part.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D3d-gas",
+  "group": "D",
+  "title": "Meter replaced in March: two serial numbers in one file",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D3d_meter_replaced.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D3d_meter_replaced.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D4-gas",
+  "group": "D",
+  "title": "Calendar 2024: 29 February and both clock changes",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D4_leap_and_clock_changes.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D4_leap_and_clock_changes.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D5a-gas",
+  "group": "D",
+  "title": "Empty file",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D5a_empty.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D5a_empty.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D5b-gas",
+  "group": "D",
+  "title": "Header only",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D5b_header_only.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D5b_header_only.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D5c-gas",
+  "group": "D",
+  "title": "A bank statement CSV",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D5c_bank_statement.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D5c_bank_statement.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D5d-gas",
+  "group": "D",
+  "title": "A gas meter file",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D5d_gas_file.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D5d_gas_file.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D5e-gas",
+  "group": "D",
+  "title": "A PDF bill renamed .csv",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D5e_pdf_renamed.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D5e_pdf_renamed.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D5f-gas",
+  "group": "D",
+  "title": "A very large file (the same 33 months five times, about 14 MB)",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D5f_very_large.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking"
+  },
+  "files": [
+   "D5f_very_large.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "D6-gas",
+  "group": "D",
+  "title": "Typed 5,600 kWh in setup, then uploaded a file showing 4,000",
+  "home": "gas",
+  "truth": "gas",
+  "file": "D3d_meter_replaced.csv",
+  "answers": {
+   "heat": "gas",
+   "ev": "no",
+   "solar": "thinking",
+   "typed": 5600
+  },
+  "files": [
+   "D3d_meter_replaced.csv"
+  ],
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ }
+]

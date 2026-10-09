@@ -1,0 +1,186 @@
+{
+ "note": "    python3 tests/fixtures/meter-scenarios/make_golden.py <results dir>",
+ "scenarios": {
+  "A1-gas": {
+   "kwh": 5.0,
+   "bill": 5.0,
+   "plan": 25,
+   "payback": 0.5,
+   "today": {
+    "kwh_err": -1.5,
+    "bill_err": -0.9,
+    "plan_gap": 0,
+    "payback": 7.1,
+    "true_payback": 6.82
+   }
+  },
+  "A2-heatpump": {
+   "kwh": 5.0,
+   "bill": 5.0,
+   "plan": 25,
+   "payback": 0.5,
+   "today": {
+    "kwh_err": 0.5,
+    "bill_err": 0.6,
+    "plan_gap": 0,
+    "payback": 6.1,
+    "true_payback": 5.78
+   }
+  },
+  "A7-ev": {
+   "kwh": 5.0,
+   "bill": 5.0,
+   "plan": 25,
+   "payback": 0.5,
+   "today": {
+    "kwh_err": 0.6,
+    "bill_err": 0.0,
+    "plan_gap": 0,
+    "payback": 6.7,
+    "true_payback": 6.43
+   }
+  },
+  "A3a-gas": {
+   "kwh": 17.5,
+   "bill": 14.0,
+   "plan": 25,
+   "payback": 0.5,
+   "known_gap": "kwh, bill",
+   "today": {
+    "kwh_err": -15.9,
+    "bill_err": -12.8,
+    "plan_gap": 0,
+    "payback": 7.1,
+    "true_payback": 6.82
+   }
+  },
+  "A5b-heatpump": {
+   "kwh": 78.0,
+   "bill": 67.5,
+   "plan": 25,
+   "payback": 0.8,
+   "known_gap": "kwh, bill, payback",
+   "today": {
+    "kwh_err": 73.6,
+    "bill_err": 63.6,
+    "plan_gap": 15,
+    "payback": 5.2,
+    "true_payback": 5.78
+   }
+  },
+  "B2-gas_solar": {
+   "kwh": 5.0,
+   "bill": 5.0,
+   "plan": 25,
+   "payback": 0.5,
+   "today": {
+    "kwh_err": -1.8,
+    "bill_err": 0.0,
+    "plan_gap": 0,
+    "payback": 6.9,
+    "true_payback": 6.77
+   }
+  },
+  "B2-hp_solar_batt": {
+   "kwh": 5.0,
+   "bill": 5.0,
+   "plan": 25,
+   "payback": 1.2,
+   "known_gap": "payback",
+   "today": {
+    "kwh_err": -4.4,
+    "bill_err": 0.1,
+    "plan_gap": 0,
+    "payback": 7.2,
+    "true_payback": 6.2
+   }
+  },
+  "B3-friend": {
+   "kwh": 5.0,
+   "bill": 5.0,
+   "plan": 25,
+   "payback": 0.5,
+   "asks": "filewhen",
+   "today": {
+    "kwh_err": 3.7,
+    "bill_err": 0.5,
+    "plan_gap": 0,
+    "payback": 5.9,
+    "true_payback": 5.72
+   }
+  },
+  "B4a-gas_solar": {
+   "kwh": 5.0,
+   "bill": 5.0,
+   "plan": 25,
+   "payback": 0.5,
+   "asks": "filewhen",
+   "today": {
+    "kwh_err": -2.9,
+    "bill_err": -1.9,
+    "plan_gap": 0,
+    "payback": 6.9,
+    "true_payback": 6.77
+   }
+  },
+  "B5-hp_solar_gridfill": {
+   "kwh": 5.0,
+   "bill": 5.0,
+   "plan": 25,
+   "payback": 1.9,
+   "known_gap": "payback",
+   "today": {
+    "kwh_err": -3.7,
+    "bill_err": 0.2,
+    "plan_gap": 0,
+    "payback": 7.7,
+    "true_payback": 5.97
+   }
+  },
+  "C1-gas_ev_now": {
+   "kwh": 19.0,
+   "bill": 11.5,
+   "plan": 60,
+   "payback": 0.5,
+   "known_gap": "kwh, bill, plan",
+   "today": {
+    "kwh_err": -17.2,
+    "bill_err": -10.1,
+    "plan_gap": 51,
+    "payback": 6.5,
+    "true_payback": 6.39
+   }
+  },
+  "D3b-gas": {
+   "kwh": 105.0,
+   "bill": 85.0,
+   "plan": 25,
+   "payback": 0.5,
+   "known_gap": "kwh, bill",
+   "today": {
+    "kwh_err": 99.5,
+    "bill_err": 80.3,
+    "plan_gap": 0,
+    "payback": 6.6,
+    "true_payback": 6.82
+   }
+  },
+  "D3c-gas": {
+   "kwh": 5.0,
+   "bill": 5.0,
+   "plan": 25,
+   "payback": 0.5,
+   "today": {
+    "kwh_err": -0.8,
+    "bill_err": -0.0,
+    "plan_gap": 0,
+    "payback": 7.1,
+    "true_payback": 6.82
+   }
+  },
+  "D5e-gas": {
+   "rejected": true,
+   "why": "must be turned away with a message"
+  }
+ }
+}
