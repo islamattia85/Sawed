@@ -13552,7 +13552,8 @@ function csvNotMyHome(){
 }
 /** "Keep my figure": the yearly figure typed earlier stands, and the file is not used. */
 function csvKeepTyped(){
-  const kwh = _csvBefore && _csvBefore.bills ? Math.round(Object.values(_csvBefore.bills).reduce((a, b) => a + b, 0)) : 0;
+  const b = _csvBefore || {};
+  const kwh = b.usage_input_mode === 'kwh' && +b.annual_kwh > 0 ? Math.round(+b.annual_kwh) : b.bills ? Math.round(Object.values(b.bills).reduce((x, y) => x + y, 0)) : 0;
   csvRestore();
   showToast(`Kept your ${kwh.toLocaleString('en-IE')} kWh a year. The file isn’t used.`);
   if (state._sheet && state._sheet.kind === 'meter') state._sheet = null;
@@ -13567,7 +13568,9 @@ function parseCsvHdf(text, filename){
   const before = {};
   for (const k of CSV_FIELDS) before[k] = state[k] === undefined ? undefined : structuredClone(state[k]);
   const typedIn = !state._csv_imported && (state.current_screen === 'flow' ? !!(state._flow && state._flow.bill && state._flow.bill !== 'meter') : !!state.onboarding_complete);
-  const typedKwh = typedIn ? Math.round(Object.values(state.bills || {}).reduce((a, b) => a + b, 0)) : 0;
+  // The figure as typed, where it was typed in kWh; from a bill, the yearly use it worked out at.
+  const typedKwh = !typedIn ? 0 : state.usage_input_mode === 'kwh' && +state.annual_kwh > 0 ? Math.round(+state.annual_kwh)
+    : Math.round(Object.values(state.bills || {}).reduce((a, b) => a + b, 0));
   try {
     const lines = text.split(/\r?\n/).filter(Boolean);
     if (lines.length < 2){
@@ -13940,7 +13943,7 @@ function parseCsvHdf(text, filename){
     // people wondering where their figure went.
     const typedOff = typedKwh > 0 && Math.abs(total - typedKwh) / typedKwh > 0.15;
     const typedHtml = typedOff ? `<div data-warn="typed" style="margin-top:10px;padding:10px 12px;background:var(--amber-soft);border:1px solid var(--amber);border-radius:8px;font-size:12px;color:var(--ink);line-height:1.6">${before.usage_input_mode === 'kwh' ? `You told us ${fmtN(typedKwh)} kWh a year.` : `Your bill worked out at about ${fmtN(typedKwh)} kWh a year.`} This file says ${fmtN(Math.round(total))}. We’ll use the file unless you’d rather keep yours.
-          <div style="margin-top:6px"><button class="pk-link" data-keep-typed="yes" onclick="csvKeepTyped()">Keep my ${fmtN(typedKwh)} kWh</button></div></div>` : '';
+          <div style="margin-top:8px"><button class="btn-secondary" style="background:var(--surface,#fff)" data-keep-typed="yes" onclick="csvKeepTyped()">Keep my ${fmtN(typedKwh)} kWh</button></div></div>` : '';
     if (resultEl) resultEl.innerHTML = `
       <div class="card" style="background:var(--accent-faint);border-color:var(--accent)">
         <div class="card-label" style="color:var(--accent)">✓ Imported ${rowsRead.toLocaleString()} readings</div>
@@ -13956,7 +13959,7 @@ function parseCsvHdf(text, filename){
         ${typedHtml}
         <div style="margin-top:12px;font-size:13px;font-weight:600;color:var(--ink)">Is this file from the home you live in now?</div>
         <button class="switch-cta" style="margin-top:8px;font-size:13px;padding:12px 16px" data-filehome="yes"${typedOff ? ' data-keep-typed="no"' : ''} onclick="applyImportedBills()">Yes, use this data →</button>
-        <button class="pk-link" style="margin-top:8px;display:block" data-filehome="no" onclick="csvNotMyHome()">No, a home I lived in before</button>
+        <button class="btn-secondary" style="margin-top:8px;display:block;width:100%" data-filehome="no" onclick="csvNotMyHome()">No, a home I lived in before</button>
       </div>`;
     fireEvent('csv_imported', { rows: rowsRead, total_kwh: Math.round(total), region: state.region });
   } catch(e){
