@@ -310,6 +310,26 @@ function systemGeneration(sys){
 function modelDay(k){ const m = +k.slice(5, 7) - 1, d = Math.min(+k.slice(8, 10), DAYS_IN_MONTH[m]); return dayOfYear(m, d) - 1; }
 
 /**
+ * One day of the stated battery storing only solar, as simulate() runs it:
+ * usable between its floor and its top, at its rate each way, losing the
+ * square root of its round-trip efficiency going in and again coming out.
+ * `use` and `gen` are the day's 24 hours; returns what it took in and how
+ * full it ends the day.
+ */
+function solarBatteryDay(use, gen, cap, soc){
+  const minSoc = (state.battery_min || 0) * cap, maxSoc = (state.battery_max || 1) * cap;
+  const eff = Math.sqrt(state.battery_eff || 0.9);
+  const rate = Math.min(Math.max(2.5, Math.min(6, cap * 0.5)), +state.inverter_kw || 5);
+  let charged = 0;
+  for (let h = 0; h < 24; h++){
+    const net = (gen[h] || 0) - (use[h] || 0);
+    if (net > 0){ const c = Math.min(net, (maxSoc - soc) / eff, rate); if (c > 0){ soc += c * eff; charged += c; } }
+    else if (net < 0){ const d = Math.min(Math.max(0, soc - minSoc), -net / eff, rate); soc -= d; }
+  }
+  return { charged, soc };
+}
+
+/**
  * The home's own use, hour by hour, on the days its panels were running.
  *
  * The meter shows what was bought and sold. Over a month, what the home used
@@ -326,7 +346,8 @@ function rebuiltDays(days, from){
   const sys = statedSystem();
   const keys = Object.keys(days).sort();
   const key = [keys.length, keys[0], keys[keys.length - 1], from, JSON.stringify(sys), state.region, state.heating_type,
-    state.heat_time, state.hot_water_strategy, state._shape_user ? JSON.stringify(state._shape_buckets || null) : ''].join('|');
+    state.heat_time, state.hot_water_strategy, state._shape_user ? JSON.stringify(state._shape_buckets || null) : '',
+    state.battery_eff, state.battery_min, state.battery_max, state.inverter_kw].join('|');
   if (_grossMemo.key === key) return _grossMemo.val;
   const gen = systemGeneration(sys), batt = sys.battery_kwh;
   const pre = keys.filter((k) => k < from);
@@ -346,6 +367,7 @@ function rebuiltDays(days, from){
     for (let h = 0; h < 24; h++){ M.imp += r[h]; M.exp += r[24 + h]; M.gen += gen[j + h]; M.genH[h] += gen[j + h]; }
   }
   const out = { ...days };
+  let soc = batt > 0 ? (state.battery_min || 0) * batt : 0;
   for (const M of Object.values(months)){
     const n = M.keys.length, m = +M.keys[0].slice(5, 7) - 1;
     const used = Math.max(0, M.gen - M.exp) / n;                 // solar the home used, a day
@@ -355,8 +377,16 @@ function rebuiltDays(days, from){
     for (const k of M.keys){
       const r = days[k], row = new Array(48).fill(0);
       if (batt > 0){
+        // What the battery lost on the way: the stated battery run on the day
+        // (the home's use in its own shape, the panels' hours), what it took
+        // in times what a round trip loses. The 8% of all the solar used that
+        // stood here took 260 kWh a year off a heat pump home whose battery
+        // lost 93 (docs/meter-file-fixes-2026-10-09.md).
         const imp = r.slice(0, 24).reduce((a, b) => a + b, 0);
-        const total = imp + used - 0.08 * Math.min(batt, used);
+        const before = imp + used, j = modelDay(k) * 24;
+        const day = solarBatteryDay(shape.map((v) => v * before), gen.subarray ? gen.subarray(j, j + 24) : gen.slice(j, j + 24), batt, soc);
+        soc = day.soc;
+        const total = before - day.charged * (1 - (state.battery_eff || 0.9));
         for (let h = 0; h < 24; h++) row[h] = +(shape[h] * total).toFixed(3);
       } else {
         for (let h = 0; h < 24; h++) row[h] = +(r[h] + used * M.genH[h] / genT).toFixed(3);
