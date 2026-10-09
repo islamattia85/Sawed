@@ -6199,7 +6199,9 @@ function flowAnswer(q, v){
   if ((q === 'heat' && v !== 'gas') || q === 'plan'){ delete f.gas; delete f.gasbill; }
   if (q === 'plan'){ delete f.disc; state.baseline_discount_pct = 0; }
   if (q === 'gas' && v !== 'yes') delete f.gasbill;
-  if (q === 'heat'){ state.heating_type = v; state.hot_water_strategy = DEFAULT_HW_FOR_HEATING[v] || 'none'; delete f.night; delete f.heattime; state.heat_time = null; if (v !== 'gas') state.immersion_night = false; }
+  // A heating answer resets its hours and the hot water to that heating's
+  // own, so their questions are asked again where they apply.
+  if (q === 'heat'){ state.heating_type = v; state.hot_water_strategy = DEFAULT_HW_FOR_HEATING[v] || 'none'; delete f.night; delete f.heattime; delete f.hotwater; state.heat_time = null; if (v !== 'gas') state.immersion_night = false; }
   if (q === 'bill' || q === 'heat') applyUsageInput();
   if (q === 'solar'){
     if (was !== v) clear(['roof', 'panels', 'battery']);
