@@ -10,9 +10,11 @@ test('a gas home with gas from the same supplier is warned before switching elec
   test.skip(/Bord G/.test(best), 'best plan is with the same supplier');
   // Home tells one story: gas and electricity together.
   await expect(page.locator('.v7-hero .v7-eyebrow')).toContainText('Gas and electricity');
-  // The switch sheet gives the gas effect of moving only the electricity.
+  // The switch sheet says what happens to the gas: move it too where both
+  // together come cheapest, else what moving only the electricity does to it.
+  // Which one depends on the market (Flogas's 29% plan went on 7 Oct 2026).
   await page.evaluate(() => v7Sheet('switch', getRecommendation().best.plan.id));
-  await expect(page.locator('#v7-sheet .v7-evnote.is-warn')).toContainText('your gas goes up about');
+  await expect(page.locator('#v7-sheet .v7-evnote.is-warn')).toContainText(/Move your gas to .+ too|your gas goes up about|Its price won’t change/);
 });
 
 test('no warning when the gas is elsewhere, or not asked', async ({ page }) => {

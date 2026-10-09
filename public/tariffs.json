@@ -2122,9 +2122,75 @@
       "col": 2,
       "read": "2026-10-03"
     },
-    "notes": "Smart day/night/peak with a 02:00-06:00 EV rate. Yuno homepage price tables, 'Discount Tariff Details Valid from 14th September 2026', urban, inc VAT; standing excludes the PSO levy, which Yuno lists separately. Clean export 17.16c (same page).",
+    "notes": "No longer shown on Yuno's pages on 9 Oct 2026 (last read 3 Oct); Yuno's pricing page lists EV Standard Smart (YN-EV-STD), its undiscounted version. Kept for homes still on it. Smart day/night/peak with a 02:00-06:00 EV rate. Yuno homepage price tables, 'Discount Tariff Details Valid from 14th September 2026', urban, inc VAT; standing excludes the PSO levy, which Yuno lists separately. Clean export 17.16c (same page).",
     "standing_rural": 389.89,
-    "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"
+    "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026",
+    "discontinued": true
+  },
+  {
+    "id": "YN-EV-STD",
+    "supplier": "Yuno Energy",
+    "plan": "EV Standard Smart",
+    "type": "ev",
+    "meter": "smart",
+    "windows": {
+      "ev": [
+        2,
+        6
+      ],
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ]
+    },
+    "exit": 50,
+    "length": 12,
+    "green": false,
+    "export_rate": 0.1716,
+    "rates": {
+      "day": 0.4441,
+      "night": 0.2355,
+      "peak": 0.4979,
+      "ev": 0.0942
+    },
+    "standing": 358.07,
+    "verified_date": "2026-10-09",
+    "source": {
+      "url": "https://yunoenergy.ie/pricing-page",
+      "anchor": [
+        "EV Standard Smart",
+        "Urban"
+      ],
+      "col": 2,
+      "fields": {
+        "day": "Day Unit Rate",
+        "night": "Night Unit Rate",
+        "peak": "Peak Unit Rate",
+        "ev": "EV 2am - 6am",
+        "standing": "Urban Standing Charge"
+      },
+      "plus": [
+        {
+          "url": "https://yunoenergy.ie/pricing-page",
+          "anchor": [
+            "EV Standard Smart",
+            "Rural"
+          ],
+          "col": 2,
+          "fields": {
+            "standing_rural": "Urban Standing Charge"
+          }
+        }
+      ],
+      "read": "2026-10-09"
+    },
+    "notes": "Smart day/night/peak with a 02:00-06:00 EV rate, Yuno's standard (variable) price, no discount. yunoenergy.ie/pricing-page, read 9 Oct 2026, inc VAT; standing excludes the PSO levy. 12-month initial period. The discounted EV Variable Smart is no longer shown on Yuno's pages.",
+    "standing_rural": 389.89,
+    "standing_rural_source": "yunoenergy.ie/pricing-page, 9 Oct 2026 (checked daily)"
   },
   {
     "id": "FL-24",

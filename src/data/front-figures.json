@@ -49,21 +49,21 @@
     "battery": 10,
     "km": 16000,
     "net": 11700,
-    "payback": 5.5,
+    "payback": 5.6,
     "before_plan": "EI-24",
     "before": 2674,
     "stay_bill": 893,
     "stay_payback": 6.6,
-    "best_plan": "YN-EV-DNP",
-    "best_bill": 158,
+    "best_plan": "EI-NB",
+    "best_bill": 205,
     "best_payback": 4.7,
     "gone_plan": "PIN-EV",
     "gone_bill": -266,
     "gone_payback": 4,
     "stress": {
-      "today": 5.5,
-      "half": 6.1,
-      "both": 6.4
+      "today": 5.6,
+      "half": 6.3,
+      "both": 6.5
     },
     "ladder": {
       "plan": "EI-24",
@@ -71,7 +71,7 @@
       "switch_plan": "EI-SST",
       "switch": 2276,
       "solar_stay": 893,
-      "solar_best": 158,
+      "solar_best": 205,
       "stay_payback": 6.6,
       "best_payback": 4.7
     }
