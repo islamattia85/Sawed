@@ -76,15 +76,13 @@ test('no empty gap between the answer and what follows it', async ({ page }) => 
   expect(gap).toBeLessThan(120);
 });
 
-test('the front page gives a real sample report for an email, and leaves your own answers alone', async ({ page }) => {
+test('the front page gives a real sample report, asks for no email, and leaves your own answers alone', async ({ page }) => {
   const { boot } = await import('./support.js');
   await page.setViewportSize({ width: 1440, height: 900 });
   await boot(page, { current_screen: 'welcome', annual_kwh: 3100, usage_input_mode: 'kwh' }, '/');
   await page.evaluate(() => { window.state.current_screen = 'welcome'; window.renderApp(); });
   const before = await page.evaluate(() => JSON.stringify({ k: window.state.annual_kwh, b: window.state.baseline, s: window.state.has_solar }));
-  await page.locator('#wl-sample-go').click();
-  await expect(page.locator('#wl-sample-msg')).toContainText('Enter an email');
-  await page.fill('#wl-sample-email', 'test@example.ie');
+  await expect(page.locator('.wl-sample input')).toHaveCount(0);
   const dl = page.waitForEvent('download', { timeout: 30000 });
   await page.locator('#wl-sample-go').click();
   const file = await dl;
@@ -92,7 +90,6 @@ test('the front page gives a real sample report for an email, and leaves your ow
   await page.waitForFunction(() => window.state.annual_kwh === 3100);
   const after = await page.evaluate(() => JSON.stringify({ k: window.state.annual_kwh, b: window.state.baseline, s: window.state.has_solar }));
   expect(after).toBe(before);
-  expect(await page.evaluate(() => window.state.lead_queue.some((l) => l.source === 'sample_report'))).toBe(true);
 });
 
 test('Everything in Peakless lists every part, and each link goes somewhere', async ({ page }) => {

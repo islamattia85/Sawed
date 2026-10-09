@@ -1,7 +1,8 @@
 /**
  * Shared end-to-end helpers.
  *
- * The app requests Google Fonts and Vercel analytics at load. Neither affects
+ * The app can request Google Fonts and Vercel's page counter (the counter only
+ * after a yes to usage counts). Neither affects
  * behaviour, but both gate `load`, so on a network where they are unreachable
  * every page load stalls until the request times out — around 13 seconds each,
  * which pushed tests past their budget for reasons that had nothing to do with

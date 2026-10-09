@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { originAllowed } from '../../api/_server.js';
-import { validateLead } from '../../api/_lead.js';
+import eventHandler, { EVENT_NAMES } from '../../api/event.js';
 
 describe('who may call the server functions', () => {
   it('lets the app in, and nobody else on Vercel', () => {
@@ -14,12 +14,18 @@ describe('who may call the server functions', () => {
   });
 });
 
-describe('a quote request cannot carry database syntax', () => {
-  const ok = { county: 'Cork', consent_share: true };
-  it.each(['a@b.ie,phone.neq.0', 'a@b.ie)', 'x"@b.ie', 'a b@c.ie', 'a@b.ie;--'])('refuses %s', (email) => {
-    expect(validateLead({ ...ok, email }).error).toMatch(/email/);
+function call(handler: any, req: any) {
+  return new Promise<{ status: number; body: any }>((resolve) => {
+    const res: any = { status(c: number) { this.c = c; return this; }, json(b: any) { resolve({ status: this.c, body: b }); } };
+    handler({ ...req, headers: { origin: 'http://localhost:5173', ...req.headers } }, res);
   });
-  it('still takes ordinary addresses', () => {
-    for (const email of ['mary.o-brien+solar@eir.ie', 'Home@Example.co.uk']) expect(validateLead({ ...ok, email }).lead).toBeTruthy();
+}
+
+describe('usage events', () => {
+  it('only known event names are counted', async () => {
+    expect((await call(eventHandler, { method: 'POST', body: { name: 'anything' } })).status).toBe(400);
+  });
+  it('none of them is about quote requests', () => {
+    expect(EVENT_NAMES.some((n: string) => /lead/.test(n))).toBe(false);
   });
 });

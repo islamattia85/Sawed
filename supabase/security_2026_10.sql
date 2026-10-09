@@ -1,5 +1,7 @@
 -- Run once in the Supabase SQL Editor. Safe to run again.
--- Rate limiting for the paid and lead endpoints, and how long data is kept.
+-- Rate limiting for the paid endpoints, and how long data is kept.
+-- The quote-request tables are gone: see launch_2026_10.sql, which also
+-- creates purge_expired() on a project where this file's version is missing.
 
 create table if not exists public.api_hits (key text not null, at timestamptz not null default now());
 create index if not exists api_hits_key_at on public.api_hits (key, at);
@@ -23,8 +25,6 @@ declare r jsonb := '{}'; n int;
 begin
   delete from api_hits where at < now() - interval '1 day'; get diagnostics n = row_count; r := r || jsonb_build_object('api_hits', n);
   delete from client_errors where at < now() - interval '30 days'; get diagnostics n = row_count; r := r || jsonb_build_object('client_errors', n);
-  delete from lead_assignments where lead_id in (select id from leads where coalesce(updated_at, created_at) < now() - interval '24 months');
-  delete from leads where coalesce(updated_at, created_at) < now() - interval '24 months'; get diagnostics n = row_count; r := r || jsonb_build_object('leads', n);
   delete from events where created_at < now() - interval '26 months'; get diagnostics n = row_count; r := r || jsonb_build_object('events', n);
   delete from alert_log where sent_at < now() - interval '13 months'; get diagnostics n = row_count; r := r || jsonb_build_object('alert_log', n);
   delete from consents where created_at < now() - interval '36 months'; get diagnostics n = row_count; r := r || jsonb_build_object('consents', n);
