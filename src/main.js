@@ -5878,21 +5878,44 @@ function dualFuelNote(toPlan){
 function flowSteps(f = state._flow || {}, fbIn){
   const out = [];
   const quick = state._flow_mode === 'quick';
+  // A meter file's questions follow its upload, together: whether the home
+  // has panels, then what the file shows about them. They came a dozen
+  // questions later, after the roof and the battery, and a tester found the
+  // file's questions scattered through setup.
+  const fileIn = !!state._csv_imported && f.bill === 'meter' && !quick;
+  const fb = () => (fbIn !== undefined ? fbIn : fileBasis());
   for (const q of FLOW_Q){
     // The quick route is about the plan only: no solar or car questions.
     if (quick && (q === 'solar' || q === 'ev')) continue;
-    out.push(q);
+    if (!(q === 'solar' && fileIn)) out.push(q);
+    if (q === 'bill' && fileIn){
+      out.push('solar');
+      // No panels said (or only planned), and the file shows power sold: a
+      // meter records that only when something at the home makes it.
+      if (f.solar === 'no' || f.solar === 'thinking'){ const fs = fileSolar(); if (fs && fs.exportFrom) out.push('fileexp'); }
+      // Panels up: is the file from before them, after them, or both.
+      if (f.solar === 'have'){ const b = fb(); if ((b && b.ask) || f.filewhen !== undefined) out.push('filewhen'); }
+    }
     if (q === 'plan' && f.plan && f.plan !== 'unsure' && !String(f.plan).startsWith('guess:')) out.push('disc');
     if (q === 'heat' && f.heat === 'gas' && askGas()){ out.push('gas'); if (f.gas === 'yes') out.push('gasbill'); }
     // Without a meter file we assume a typical home's hours. One question
     // catches the commonest exception: water heated overnight on a timer.
     if (q === 'heat' && f.heat === 'gas' && f.bill !== 'meter') out.push('night');
     if (q === 'heat' && (f.heat === 'heatpump' || f.heat === 'storage') && f.bill !== 'meter') out.push('heattime');
+    // A heat pump home whose meter file has its panels in all of it: the
+    // file shows what was bought, not when the home used it, so it cannot
+    // say when the heating runs or the water is heated. Asked, not assumed:
+    // the heat pump profile's water at 2am-5am put 42% of such a home's day
+    // in the night hours, against 28.5% (docs/meter-file-fixes-2026-10-09.md).
+    if (q === 'heat' && fileIn && f.heat === 'heatpump' && f.solar === 'have'){
+      const b = fb(), own = (!(b && b.ask) || f.filewhen !== undefined) && fileOwnShape();
+      if (own && !own.buckets) out.push('heattime', 'hotwater');
+    }
     // Where in Ireland: sunshine for panels, and temperature for a heat pump.
     // No panels said (or only planned), and the meter file shows power sold:
     // a meter records that only when something at the home makes it. Asked,
     // where the file's readings used to be taken as a home without panels.
-    if (q === 'solar' && (f.solar === 'no' || f.solar === 'thinking') && state._csv_imported){ const fs = fileSolar(); if (fs && fs.exportFrom) out.push('fileexp'); }
+    if (q === 'solar' && !fileIn && (f.solar === 'no' || f.solar === 'thinking') && state._csv_imported){ const fs = fileSolar(); if (fs && fs.exportFrom) out.push('fileexp'); }
     if (q === 'solar' && (f.solar === 'have' || f.solar === 'thinking' || f.heat === 'heatpump')) out.push('where');
     // Panels already on the roof: say what they are. Panels planned: the house
     // type sets how many the roof takes, then three ready-made systems to pick
@@ -5903,19 +5926,19 @@ function flowSteps(f = state._flow || {}, fbIn){
       // A meter file already shows it, so the question is only for typed bills.
       if (+f.battery > 0 && !state._csv_imported) out.push('gridnow');
       // A meter file and a typed bill each need to be placed before or after
-      // the panels went up.
-      if (state._csv_imported){ const fb = fbIn !== undefined ? fbIn : fileBasis(); if ((fb && fb.ask) || f.filewhen !== undefined) out.push('filewhen'); }
-      // A heat pump home whose meter file has its panels in all of it: the
-      // file shows what was bought, not when the home used it, so it cannot
-      // say when the heating runs or the water is heated. Asked, not assumed:
-      // the heat pump profile's water at 2am-5am put 42% of such a home's day
-      // in the night hours, against 28.5% (docs/meter-file-fixes-2026-10-09.md).
-      if (state._csv_imported && f.heat === 'heatpump'){
-        const fb = fbIn !== undefined ? fbIn : fileBasis(), own = (!(fb && fb.ask) || f.filewhen !== undefined) && fileOwnShape();
-        if (own && !own.buckets){ if (!out.includes('heattime')) out.push('heattime'); out.push('hotwater'); }
+      // the panels went up: the file's question comes with the file (above).
+      // A meter file added after setup, with setup opened again, keeps it here.
+      if (state._csv_imported && !fileIn){
+        const b = fb(); if ((b && b.ask) || f.filewhen !== undefined) out.push('filewhen');
+        if (f.heat === 'heatpump'){
+          const own = (!(b && b.ask) || f.filewhen !== undefined) && fileOwnShape();
+          if (own && !own.buckets){ if (!out.includes('heattime')) out.push('heattime'); out.push('hotwater'); }
+        }
       }
-      // A yearly kWh figure covers every month: only a bill needs its months.
-      else { out.push('billwhen'); if (f.billwhen === 'after' && !String(f.bill || '').startsWith('kwh:')) out.push('billmonths'); }
+      // A typed bill needs placing too, and only a bill (not a yearly kWh
+      // figure) its months. With a meter file it was asked as well, for
+      // nothing: the file's own dates answer it.
+      if (!state._csv_imported){ out.push('billwhen'); if (f.billwhen === 'after' && !String(f.bill || '').startsWith('kwh:')) out.push('billmonths'); }
       out.push('price', 'grant');
     }
     if (q === 'solar' && f.solar === 'thinking'){
@@ -6035,7 +6058,10 @@ function flowMaxSteps(f){
   go(0, f);
   return best;
 }
-const flowChap = (k) => ((FLOW_INTENT[state._flow_intent] || {}).chap || {})[k] || FLOW_CHAPTER[k] || 'Your home';
+// With a meter file, whether the home has panels is asked with the file, in its stage.
+const flowChap = (k) => ((FLOW_INTENT[state._flow_intent] || {}).chap || {})[k]
+  || (k === 'solar' && state._csv_imported && (state._flow || {}).bill === 'meter' && state._flow_mode !== 'quick' ? 'Your usage' : null)
+  || FLOW_CHAPTER[k] || 'Your home';
 /**
  * Where each way in on the website leads. A new visitor starts setup on the
  * question the button promised. Someone with an answer already goes to the
@@ -6602,7 +6628,7 @@ function renderFlow(){
 const FLOW_CHAPTER = { bill: 'Your usage', meter: 'Your usage', area: 'Your usage', filewhen: 'Your usage', billwhen: 'Your usage', billmonths: 'Your usage',
   plan: 'Your plan', disc: 'Your plan', heat: 'Heating', heattime: 'Heating', hotwater: 'Heating', night: 'Heating', gas: 'Heating', gasbill: 'Heating',
   where: 'Your home', house: 'Your home', solar: 'Solar', roof: 'Solar', tilt: 'Solar', panels: 'Solar', battery: 'Solar', system: 'Solar',
-  price: 'Solar', grant: 'Solar', gridnow: 'Solar', fileexp: 'Solar', ev: 'Car', evtime: 'Car', km: 'Car', car: 'Car' };
+  price: 'Solar', grant: 'Solar', gridnow: 'Solar', fileexp: 'Your usage', ev: 'Car', evtime: 'Car', km: 'Car', car: 'Car' };
 function flowChapters(steps, f, open){
   const names = [];
   steps.forEach((k) => { const c = flowChap(k); if (!names.includes(c)) names.push(c); });
