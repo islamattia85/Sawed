@@ -12,6 +12,7 @@ import { HOURS_IN_YEAR, DAYS_IN_MONTH, LOCATION_BASE, dayOfYear, PSO_LEVY } from
 import { buildHourlyGhi, buildPoa, buildPvGeneration } from './engine/solar';
 import { bandAt, rateAt as engineRateAt, staticRateAt, simulateBaseline as engineSimulateBaseline, annualCost as engineAnnualCost, sumF, WHOLESALE_CAP } from './engine/tariff-rules';
 import { ic } from './icons';
+import PVGIS_IE from './data/pvgis-ie.json';
 
 
 /* ============================================================
@@ -117,6 +118,54 @@ export const buildPOA = (azimuthDeg, tiltDeg, ghi) => buildPoa(azimuthDeg, tiltD
 
 export const buildPVGeneration = (poa, countPanels, panelW, sysLoss, inverterKw) =>
   buildPvGeneration(poa, { countPanels, panelW, sysLoss, inverterKw }, currentLocation());
+
+/**
+ * What 1 kWp makes each month on a face, from PVGIS (src/data/pvgis-ie.json,
+ * scripts/pvgis.py), for the home's region, between the eight directions and
+ * seven pitches it holds. Azimuth in degrees clockwise from north.
+ */
+export function pvgisMonths(region, az, tilt){
+  const R = (PVGIS_IE.regions[region] || PVGIS_IE.regions.east).months, T = PVGIS_IE.tilts;
+  const t = Math.max(T[0], Math.min(T[T.length - 1], +tilt || 0));
+  let ti = 0; while (ti < T.length - 2 && t > T[ti + 1]) ti++;
+  const ft = (t - T[ti]) / (T[ti + 1] - T[ti]);
+  const a = (((+az || 0) % 360) + 360) % 360, ai = Math.floor(a / 45) % 8, fa = (a - ai * 45) / 45;
+  const at = (tt, aa) => R[`${T[tt]}|${(aa % 8) * 45}`];
+  const out = new Array(12);
+  for (let m = 0; m < 12; m++){
+    const lo = at(ti, ai)[m] * (1 - fa) + at(ti, ai + 1)[m] * fa, hi = at(ti + 1, ai)[m] * (1 - fa) + at(ti + 1, ai + 1)[m] * fa;
+    out[m] = lo * (1 - ft) + hi * ft;
+  }
+  return out;
+}
+
+/**
+ * One face's output, its hours from the app's own sky, its months from PVGIS.
+ *
+ * The hour-by-hour model sets when in the day and month the panels make power;
+ * how much a month makes is PVGIS's, the reference installers and SEAI work
+ * from. On its own the model came out 1.9% under PVGIS on a south roof in Cork
+ * and 1.9% over on a south-west and north-east pair: the saving and payback
+ * moved with it (docs/meter-file-fixes-2026-10-09.md). A bad or good year in
+ * the payback range (_ghi_override) moves PVGIS's months by the same ratio as
+ * it moves the sky.
+ */
+function anchorFace(gen, az, tilt, kwp){
+  if (!(kwp > 0)) return gen;
+  const target = pvgisMonths(state.region || 'east', az, tilt);
+  const o = state._ghi_override;
+  const scale = o !== undefined && o !== null ? o / ((IRISH_REGIONS[state.region] || IRISH_REGIONS.east).ghi_multiplier || 1) : 1;
+  let i = 0;
+  for (let m = 0; m < 12; m++){
+    const n = DAYS_IN_MONTH[m] * 24;
+    let sum = 0;
+    for (let k = i; k < i + n; k++) sum += gen[k];
+    const f = sum > 0 ? target[m] * kwp * scale / sum : 0;
+    for (let k = i; k < i + n; k++) gen[k] *= f;
+    i += n;
+  }
+  return gen;
+}
 
 /** Dynamic plans price against the cached wholesale curve. */
 export const rateAt = (hour, plan, hourIdx) => engineRateAt(hour, plan, hourIdx, CACHE.wholesale);
@@ -299,11 +348,10 @@ export function fileBasis(){
 /** The stated system's output over the typical year, kWh an hour (as buildSolar, for given panels). */
 function systemGeneration(sys){
   const ghi = buildHourlyGHI(), two = sys.count_B > 0, inv = sys.inverter_kw || 5;
-  const genA = buildPVGeneration(buildPOA(sys.azimuth_A, sys.tilt_A, ghi), sys.count_A, sys.panel_w, 0.86, two ? Infinity : inv);
-  if (!two) return genA;
-  const genB = buildPVGeneration(buildPOA(sys.azimuth_B, sys.tilt_B, ghi), sys.count_B, sys.panel_w, 0.86, Infinity);
+  const genA = anchorFace(buildPVGeneration(buildPOA(sys.azimuth_A, sys.tilt_A, ghi), sys.count_A, sys.panel_w, 0.86, Infinity), sys.azimuth_A, sys.tilt_A, sys.count_A * sys.panel_w / 1000);
+  const genB = two ? anchorFace(buildPVGeneration(buildPOA(sys.azimuth_B, sys.tilt_B, ghi), sys.count_B, sys.panel_w, 0.86, Infinity), sys.azimuth_B, sys.tilt_B, sys.count_B * sys.panel_w / 1000) : null;
   const out = new Float32Array(HOURS_IN_YEAR);
-  for (let i = 0; i < HOURS_IN_YEAR; i++){ const t = genA[i] + genB[i]; out[i] = t > inv ? inv : t; }
+  for (let i = 0; i < HOURS_IN_YEAR; i++){ const t = genA[i] + (genB ? genB[i] : 0); out[i] = t > inv ? inv : t; }
   return out;
 }
 /** Where a date falls in the model year (0-based day), 29 February on the 28th. */
@@ -463,23 +511,25 @@ export function buildSolar(){
   // Both faces feed one inverter, so the limit applies to their combined
   // output. Clipping each face on its own let an east-west roof make up to
   // twice the inverter's rating.
+  // Each face's months anchored to PVGIS (anchorFace); the inverter then
+  // limits what the faces make together.
   const poaA = buildPOA(state.azimuth_A, state.tilt_A, ghi);
   const invKw = state.inverter_kw || 5.0;
-  const genA = buildPVGeneration(poaA, nA, state.panel_w, 0.86, nB > 0 ? Infinity : invKw);
+  const genA = anchorFace(buildPVGeneration(poaA, nA, state.panel_w, 0.86, Infinity), state.azimuth_A, state.tilt_A, nA * state.panel_w / 1000);
 
   // Roof B — only compute if panels present, to save cycles
   let poaB = null, genB = null;
   if (nB > 0){
     poaB = buildPOA(state.azimuth_B, state.tilt_B, ghi);
-    genB = buildPVGeneration(poaB, nB, state.panel_w, 0.86, Infinity);
+    genB = anchorFace(buildPVGeneration(poaB, nB, state.panel_w, 0.86, Infinity), state.azimuth_B, state.tilt_B, nB * state.panel_w / 1000);
   }
 
   const total = new Float32Array(HOURS_IN_YEAR);
   for (let i=0;i<HOURS_IN_YEAR;i++){
     const sum = genA[i] + (genB ? genB[i] : 0);
-    if (genB && sum > invKw){
+    if (sum > invKw){
       // Clip the pair, each face keeping its share of what the inverter passes.
-      const k = invKw / sum; genA[i] *= k; genB[i] *= k; total[i] = invKw;
+      const k = invKw / sum; genA[i] *= k; if (genB) genB[i] *= k; total[i] = invKw;
     } else total[i] = sum;
   }
   return { ghi, poaA, poaB, genA, genB, total };

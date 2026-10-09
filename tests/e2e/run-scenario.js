@@ -25,6 +25,8 @@ const fileOf = (name) => ({ name: name.replace(/\.gz$/, '').replace(/^.*\//, '')
 const DEFAULTS = { meter: 'smart', area: 'urban', plan: 'EI-24', disc: 0, heat: 'gas', heattime: 'day', night: 'no', gas: 'no', solar: 'no',
   where: 'south', house: 'semi', roof: 'S', tilt: 35, system: 'custom', panels: 9, battery: 0, gridnow: 'no', price: 0, grant: 'no',
   ev: 'no', km: 15000, car: 17, evtime: 'night', billwhen: 'after', billmonths: 'average', filewhen: 'allyear',
+  // The made-up heat pumps heat their water at 13:00 and run through the day (homes.py).
+  hotwater: 'day',
   // Choices on the import card: the file is from this home; the file's figure over a typed one.
   filehome: 'yes', typed_keep: 'no' };
 
@@ -55,7 +57,7 @@ export async function runScenario(page, sc, shots) {
     // Typed a yearly figure first: the meter file comes later, from the Updates to-do.
     await answerAll(page, { ...a, bill: 'kwh:' + a.typed, filewhen: undefined }, seen, shot, ['bill']);
   }
-  const files = sc.files || [sc.file];
+  const files = sc.files || (sc.file ? [sc.file] : []);
   for (const [n, name] of files.entries()) {
     if (a.typed) { await page.evaluate(() => { window.flowFinish && window.state.current_screen === 'flow' && window.flowFinish(); window.v7Sheet('meter'); }); }
     const input = page.locator(a.typed ? 'input[type=file]' : '.fl-upload input[type=file]').first();
@@ -68,6 +70,8 @@ export async function runScenario(page, sc, shots) {
     await shot(res, `import${n + 1}`);
   }
   const use = page.getByRole('button', { name: /use this data/i });
+  // No meter file at all: the yearly figure typed in setup is all there is.
+  if (!files.length) return finishAndRead(page, sc, a, seen, shot);
   if (!(await use.count())) {
     seen.rejected = seen.rejected || seen.import[seen.import.length - 1] || 'no result shown';
     return { id: sc.id, seen };
@@ -89,6 +93,11 @@ export async function runScenario(page, sc, shots) {
   else await use.first().click();
   await page.waitForTimeout(400);
   if (!a.typed) await answerAll(page, a, seen, shot);
+  return finishAndRead(page, sc, a, seen, shot);
+}
+
+/** Setup finished, the stated system set as in My system; what the app concluded. */
+async function finishAndRead(page, sc, a, seen, shot) {
   await page.evaluate(() => { if (window.state.current_screen === 'flow') window.flowFinish(); });
   // The system the person states, set as they would in My system. Someone who
   // said no panels, then yes when the file showed sales, states theirs too.
@@ -130,7 +139,14 @@ export async function runScenario(page, sc, shots) {
 
 async function answerAll(page, a, seen, shot, stopAfter = []) {
   for (let i = 0; i < 40; i++) {
-    const q = await questionOn(page);
+    let q = await questionOn(page);
+    // The ready-made systems step works its options out first ("Working out
+    // systems for your roof"): wait for it, or setup stops there and every
+    // question after it (the car among them) goes unanswered.
+    if (!q && await page.locator('.fl-working').count()) {
+      await page.waitForFunction(() => !document.querySelector('.fl-working'), null, { timeout: 60_000 }).catch(() => {});
+      q = await questionOn(page);
+    }
     if (!q) break;
     // Only what is on the screen can be chosen. A scenario may list answers in order of
     // preference (the truthful one first); the first one offered is taken.
