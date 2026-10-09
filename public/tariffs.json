@@ -2157,9 +2157,49 @@
       },
       "read": "2026-10-03"
     },
-    "notes": " Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), new-customer offer, prices from 20 Jul 2026, urban, inc VAT; standing excludes the €19.10 PSO. Microgen export 18.5c (flogas.ie). Exit fee €50.",
+    "notes": "Withdrawn for new customers: on 7 Oct 2026 Flogas replaced its 29% and 28% loyalty offers with 10% ones (FL-24-10). Kept for homes still on it. Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), new-customer offer, prices from 20 Jul 2026, urban, inc VAT; standing excludes the €19.10 PSO. Microgen export 18.5c (flogas.ie). Exit fee €50.",
     "standing_rural": 366.08,
-    "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"
+    "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026",
+    "discontinued": true
+  },
+  {
+    "id": "FL-24-10",
+    "supplier": "Flogas",
+    "plan": "Smart 24hr 10%",
+    "type": "flat",
+    "meter": "smart",
+    "windows": {
+      "ev": null
+    },
+    "exit": 50,
+    "length": 12,
+    "green": true,
+    "export_rate": 0.185,
+    "rates": {
+      "day": 0.3715,
+      "night": 0.3715,
+      "peak": 0.3715,
+      "ev": 0.3715
+    },
+    "standing": 300.2,
+    "verified_date": "2026-10-09",
+    "source": {
+      "url": "https://www.flogas.ie/price-plans/?newCustomer=Yes&lookingFor=Electricity&meterType=Smart",
+      "api": "flogas",
+      "plan": "Smart 24Hr Electricity 10% Discount",
+      "fields": {
+        "day": "24hr",
+        "standing": "standing charge",
+        "standing_rural": {
+          "label": "standing charge",
+          "item": 2
+        }
+      },
+      "read": "2026-10-09"
+    },
+    "notes": "Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), read 9 Oct 2026: offer available from 7 Oct 2026 to new and existing customers paying by direct debit with paperless bills; 12-month minimum term, exit fee €50. Prices inc VAT, urban and rural standing charges from the same rows; standing excludes the PSO levy. Microgen export 18.5c (flogas.ie).",
+    "standing_rural": 366.1,
+    "standing_rural_source": "flogas.ie pricing API, 9 Oct 2026 (checked daily)"
   },
   {
     "id": "FL-DNP",
@@ -2202,9 +2242,59 @@
       },
       "read": "2026-10-03"
     },
-    "notes": " Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), new-customer offer, prices from 20 Jul 2026, urban, inc VAT; standing excludes the €19.10 PSO. Microgen export 18.5c (flogas.ie). Exit fee €50.",
+    "notes": "Withdrawn for new customers: on 7 Oct 2026 Flogas replaced its 29% and 28% loyalty offers with 10% ones (FL-DNP-10). Kept for homes still on it. Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), new-customer offer, prices from 20 Jul 2026, urban, inc VAT; standing excludes the €19.10 PSO. Microgen export 18.5c (flogas.ie). Exit fee €50.",
     "standing_rural": 366.08,
-    "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"
+    "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026",
+    "discontinued": true
+  },
+  {
+    "id": "FL-DNP-10",
+    "supplier": "Flogas",
+    "plan": "Smart Day/Night/Peak 10%",
+    "type": "tou",
+    "meter": "smart",
+    "windows": {
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
+    "exit": 50,
+    "length": 12,
+    "green": true,
+    "export_rate": 0.185,
+    "rates": {
+      "day": 0.4049,
+      "night": 0.2922,
+      "peak": 0.479,
+      "ev": 0.2922
+    },
+    "standing": 300.2,
+    "verified_date": "2026-10-09",
+    "source": {
+      "url": "https://www.flogas.ie/price-plans/?newCustomer=Yes&lookingFor=Electricity&meterType=Smart",
+      "api": "flogas",
+      "plan": "Smart Electricity 10% Discount",
+      "fields": {
+        "day": "day - 08:00",
+        "night": "night - 23:00",
+        "peak": "peak - 17:00",
+        "standing": "standing charge",
+        "standing_rural": {
+          "label": "standing charge",
+          "item": 2
+        }
+      },
+      "read": "2026-10-09"
+    },
+    "notes": "Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), read 9 Oct 2026: offer available from 7 Oct 2026 to new and existing customers paying by direct debit with paperless bills; 12-month minimum term, exit fee €50. Prices inc VAT, urban and rural standing charges from the same rows; standing excludes the PSO levy. Microgen export 18.5c (flogas.ie).",
+    "standing_rural": 366.1,
+    "standing_rural_source": "flogas.ie pricing API, 9 Oct 2026 (checked daily)"
   },
   {
     "id": "FL-EV",
@@ -2251,9 +2341,63 @@
       },
       "read": "2026-10-03"
     },
-    "notes": "EV Night Charge 02:00-05:00. Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), new-customer offer, prices from 20 Jul 2026, urban, inc VAT; standing excludes the €19.10 PSO. Microgen export 18.5c (flogas.ie). Exit fee €50.",
+    "notes": "Withdrawn for new customers: on 7 Oct 2026 Flogas replaced its 29% and 28% loyalty offers with 10% ones (FL-EV-10). Kept for homes still on it. EV Night Charge 02:00-05:00. Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), new-customer offer, prices from 20 Jul 2026, urban, inc VAT; standing excludes the €19.10 PSO. Microgen export 18.5c (flogas.ie). Exit fee €50.",
     "standing_rural": 472.34,
-    "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"
+    "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026",
+    "discontinued": true
+  },
+  {
+    "id": "FL-EV-10",
+    "supplier": "Flogas",
+    "plan": "Smart EV Night Charge 10%",
+    "type": "ev",
+    "meter": "smart",
+    "windows": {
+      "ev": [
+        2,
+        5
+      ],
+      "peak": [
+        17,
+        19
+      ],
+      "night": [
+        23,
+        8
+      ]
+    },
+    "exit": 50,
+    "length": 12,
+    "green": true,
+    "export_rate": 0.185,
+    "rates": {
+      "day": 0.4026,
+      "night": 0.3125,
+      "peak": 0.5191,
+      "ev": 0.1263
+    },
+    "standing": 387.16,
+    "verified_date": "2026-10-09",
+    "source": {
+      "url": "https://www.flogas.ie/price-plans/?newCustomer=Yes&lookingFor=Electricity&meterType=Smart",
+      "api": "flogas",
+      "plan": "Smart EV Night Charge Electricity 10% Discount",
+      "fields": {
+        "day": "day - 08:00",
+        "night": "night - 23:00",
+        "peak": "peak - 17:00",
+        "ev": "ev night charge - 02:00",
+        "standing": "standing charge",
+        "standing_rural": {
+          "label": "standing charge",
+          "item": 2
+        }
+      },
+      "read": "2026-10-09"
+    },
+    "notes": "EV Night Charge 02:00-05:00. Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), read 9 Oct 2026: offer available from 7 Oct 2026 to new and existing customers paying by direct debit with paperless bills; 12-month minimum term, exit fee €50. Prices inc VAT, urban and rural standing charges from the same rows; standing excludes the PSO levy. Microgen export 18.5c (flogas.ie).",
+    "standing_rural": 472.36,
+    "standing_rural_source": "flogas.ie pricing API, 9 Oct 2026 (checked daily)"
   },
   {
     "id": "FL-STD-24",
@@ -2286,9 +2430,49 @@
       },
       "read": "2026-10-03"
     },
-    "notes": "Standard (non-smart) 24-hour meter. Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), new-customer offer, prices from 20 Jul 2026, urban, inc VAT; standing excludes the €19.10 PSO. Microgen export 18.5c (flogas.ie). Exit fee €50.",
+    "notes": "Withdrawn for new customers: on 7 Oct 2026 Flogas replaced its 29% and 28% loyalty offers with 10% ones (FL-STD-24-10). Kept for homes still on it. Standard (non-smart) 24-hour meter. Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), new-customer offer, prices from 20 Jul 2026, urban, inc VAT; standing excludes the €19.10 PSO. Microgen export 18.5c (flogas.ie). Exit fee €50.",
     "standing_rural": 371.56,
-    "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found"
+    "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found",
+    "discontinued": true
+  },
+  {
+    "id": "FL-STD-24-10",
+    "supplier": "Flogas",
+    "plan": "Electricity 10% (24hr)",
+    "type": "flat",
+    "meter": "24hr",
+    "windows": {
+      "ev": null
+    },
+    "exit": 50,
+    "length": 12,
+    "green": true,
+    "export_rate": 0.185,
+    "rates": {
+      "day": 0.396,
+      "night": 0.396,
+      "peak": 0.396,
+      "ev": 0.396
+    },
+    "standing": 305.68,
+    "verified_date": "2026-10-09",
+    "source": {
+      "url": "https://www.flogas.ie/price-plans/?newCustomer=Yes&lookingFor=Electricity&meterType=Smart",
+      "api": "flogas",
+      "plan": "Electricity 10% Discount",
+      "fields": {
+        "day": "day - 08:00",
+        "standing": "standing charge",
+        "standing_rural": {
+          "label": "standing charge",
+          "item": 2
+        }
+      },
+      "read": "2026-10-09"
+    },
+    "notes": "Standard (non-smart) 24-hour meter: the 24hr Meter table. Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), read 9 Oct 2026: offer available from 7 Oct 2026 to new and existing customers paying by direct debit with paperless bills; 12-month minimum term, exit fee €50. Prices inc VAT, urban and rural standing charges from the same rows; standing excludes the PSO levy. Microgen export 18.5c (flogas.ie).",
+    "standing_rural": 370.96,
+    "standing_rural_source": "flogas.ie pricing API, 9 Oct 2026 (checked daily)"
   },
   {
     "id": "PIN-LF",
@@ -2779,11 +2963,26 @@
       },
       "col": 2,
       "unit": "eur",
-      "read": "2026-10-09"
+      "read": "2026-10-09",
+      "plus": [
+        {
+          "url": "https://www.waterpower.ie/current-electricity-rates/",
+          "anchor": [
+            "Waterpower Smart Tariff (SST) Rural"
+          ],
+          "fields": {
+            "standing_rural": {
+              "label": "Standing Charge Per Annum",
+              "col": 2
+            }
+          },
+          "col": 2
+        }
+      ]
     },
     "notes": "waterpower.ie/current-electricity-rates, urban, e-billing, inc VAT; standing excludes the €19.10 PSO, listed separately. The page carries no date. Waterpower does not publish a Clean Export Guarantee rate, so export is 0 here and a home with solar is understated on this plan. Exit fee and contract length not published.",
     "standing_rural": 322.26,
-    "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"
+    "standing_rural_source": "waterpower.ie/current-electricity-rates, 9 Oct 2026 (checked daily)"
   },
   {
     "id": "CP-24",

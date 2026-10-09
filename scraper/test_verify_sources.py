@@ -41,6 +41,19 @@ def test_flogas_api_prefers_the_price_in_force():
     assert vs.read_recipe(src, pages) == {"values": {"day": 0.2931, "standing": 300.2}}
 
 
+def test_flogas_rural_standing_is_the_rows_second_figure():
+    # As Flogas's feed carries it from 7 Oct 2026: one row, urban then rural.
+    body = {"value": [{"name": " Smart EV Night Charge Electricity 10% Discount", "pricing": [{"resource": "electricity", "tables": [{"rows": [
+        {"label": "EV Night Charge - 02:00 to 05:00", "items": [{"dates": [{"startDateTime": "2026-03-23T00:00:00Z", "incVATPrice": 12.63}]}]},
+        {"label": "Standing Charge", "items": [{"dates": [{"startDateTime": "2026-03-23T00:00:00Z", "incVATPrice": 387.16}]},
+                                               {"dates": [{"startDateTime": "2026-03-23T00:00:00Z", "incVATPrice": 472.36}]}]},
+    ]}]}]}]}
+    pages = {"x": {"url": "x", "json": [{"url": "https://webapi-prd.flogas.ie/pricing-plans/api/v1/plan", "body": json.dumps(body)}]}}
+    src = {"api": "flogas", "plan": "Smart EV Night Charge Electricity 10% Discount",
+           "fields": {"ev": "ev night charge - 02:00", "standing": "standing charge", "standing_rural": {"label": "standing charge", "item": 2}}}
+    assert vs.read_recipe(src, pages) == {"values": {"ev": 0.1263, "standing": 387.16, "standing_rural": 472.36}}
+
+
 CARDS = {"url": "https://example.ie/plans", "html": 'x"1 Year Electricity 30% plus €125 Welcome credit"y', "text": "\n".join([
     "Saver 16%", "16%", "More information", "€30 Welcome Bonus", "Smart Meter",
     "Green Electricity", "5.5%", "More information", "Standard meter",

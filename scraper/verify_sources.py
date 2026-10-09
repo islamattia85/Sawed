@@ -166,7 +166,8 @@ def read_flogas(src: dict, pages: dict[str, dict]) -> dict:
             for plan in body.get("value", []):
                 if plan.get("name", "").strip().lower() != src["plan"].strip().lower():
                     continue
-                rows = {}
+                rows: dict[str, list[float]] = {}
+                done: set[str] = set()
                 for block in plan.get("pricing", []):
                     if block.get("resource") not in ("electricity", None) and "lectric" not in block.get("label", ""):
                         continue
@@ -177,17 +178,22 @@ def read_flogas(src: dict, pages: dict[str, dict]) -> dict:
                                 for dt in it.get("dates", []) or []:
                                     if (dt.get("startDateTime") or "")[:10] <= today and dt.get("incVATPrice") is not None:
                                         price = dt["incVATPrice"]
-                                # First occurrence wins: urban is listed before
-                                # rural, and a 24hr table before a day/night one.
+                                # First occurrence wins: a 24hr table before a
+                                # day/night one. Within a row the items run
+                                # urban, then rural.
                                 key = " ".join(r.get("label", "").split()).lower()
-                                if price is not None and key not in rows:
-                                    rows[key] = float(price)
+                                if price is not None and key not in done:
+                                    rows.setdefault(key, []).append(float(price))
+                            done.update(rows)
                 out = {}
-                for field, label in src["fields"].items():
+                for field, spec in src["fields"].items():
+                    # A row label, or {"label": ..., "item": 2} for the rural figure.
+                    label, item = (spec["label"], int(spec.get("item", 1))) if isinstance(spec, dict) else (spec, 1)
                     key = next((k for k in rows if label.lower() in k), None)
-                    if key is None:
+                    if key is None or len(rows[key]) < item:
                         return {"error": f"{field}: row {label!r} not in Flogas plan {src['plan']!r}"}
-                    out[field] = round(rows[key], 2) if field == "standing" else round(rows[key] / 100, 4)
+                    val = rows[key][item - 1]
+                    out[field] = round(val, 2) if field in EURO else round(val / 100, 4)
                 return {"values": out}
     return {"error": f"Flogas plan not in captured API data: {src['plan']!r}"}
 

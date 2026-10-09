@@ -70,7 +70,9 @@ for (const seed of SEEDS) {
     expect(f.bestType, ctx).not.toBe('dynamic');                       // wholesale plans are never ranked
     expect(Math.min(...f.nets), ctx).toBeGreaterThanOrEqual(f.best - 0.5);   // best is the cheapest
     if (!f.hasSolar && !f.hasEv) {                                       // same house on both sides
-      expect(f.best, ctx).toBeLessThanOrEqual(f.base + 0.5);
+      // A plan no longer sold can beat everything on sale (Flogas's 29% EV
+      // plan, withdrawn 7 Oct 2026); Home then says so and that staying is best.
+      if (f.ownRankable) expect(f.best, ctx).toBeLessThanOrEqual(f.base + 0.5);
       if (f.own != null) expect(Math.abs(f.own - f.base), ctx).toBeLessThan(1);
     }
     if (!f.eligible) expect(f.grant, ctx).toBe(0);

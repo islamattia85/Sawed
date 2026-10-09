@@ -1,47 +1,47 @@
 {
-  "worked_out": "2026-10-08",
+  "worked_out": "2026-10-09",
   "typical": {
     "kwh": 5000,
     "panels": 12,
     "net": 6300,
-    "payback": 5.3,
+    "payback": 5,
     "best_plan": "EI-SST",
-    "best_bill": 560,
+    "best_bill": 489,
     "top": [
       [
         "EI-SST",
-        560
-      ],
-      [
-        "EN-SMART",
-        616
+        489
       ],
       [
         "SSE-DNP",
-        619
+        549
+      ],
+      [
+        "EN-SMART",
+        552
       ],
       [
         "EN-SMART-24-HOUR",
-        620
+        569
       ]
     ],
     "zero_plan": "WP-SST",
-    "zero_before": 1785,
-    "zero_bill": 1138,
-    "zero_payback": 9.7,
+    "zero_before": 2065,
+    "zero_bill": 1271,
+    "zero_payback": 7.9,
     "stress": {
-      "today": 5.3,
-      "half": 6.2,
-      "both": 7
+      "today": 5,
+      "half": 5.8,
+      "both": 6.5
     },
     "ladder": {
       "plan": "EI-24",
       "now": 1823,
       "switch_plan": "EN-SMART-24-HOUR",
       "switch": 1746,
-      "solar_stay": 626,
-      "solar_best": 560,
-      "stay_payback": 5.3
+      "solar_stay": 572,
+      "solar_best": 489,
+      "stay_payback": 5
     }
   },
   "big": {
@@ -49,30 +49,30 @@
     "battery": 10,
     "km": 16000,
     "net": 11700,
-    "payback": 5.9,
+    "payback": 5.5,
     "before_plan": "EI-24",
     "before": 2674,
-    "stay_bill": 984,
-    "stay_payback": 6.9,
+    "stay_bill": 893,
+    "stay_payback": 6.6,
     "best_plan": "YN-EV-DNP",
-    "best_bill": 205,
+    "best_bill": 158,
     "best_payback": 4.7,
     "gone_plan": "PIN-EV",
-    "gone_bill": -209,
-    "gone_payback": 4.1,
+    "gone_bill": -266,
+    "gone_payback": 4,
     "stress": {
-      "today": 5.9,
-      "half": 6.6,
-      "both": 6.9
+      "today": 5.5,
+      "half": 6.1,
+      "both": 6.4
     },
     "ladder": {
       "plan": "EI-24",
       "now": 2674,
-      "switch_plan": "FL-EV",
-      "switch": 2187,
-      "solar_stay": 984,
-      "solar_best": 205,
-      "stay_payback": 6.9,
+      "switch_plan": "EI-SST",
+      "switch": 2276,
+      "solar_stay": 893,
+      "solar_best": 158,
+      "stay_payback": 6.6,
       "best_payback": 4.7
     }
   }

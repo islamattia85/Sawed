@@ -2410,6 +2410,9 @@ const AFFILIATE_URLS = {
   // Flogas
   'FL-24':    'https://flogas.ie/electricity/residential?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=FL-24&utm_content=tariff_card',
   'FL-DNP':   'https://flogas.ie/electricity/residential?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=FL-DNP&utm_content=tariff_card',
+  'FL-24-10': 'https://flogas.ie/electricity/residential?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=FL-24-10&utm_content=tariff_card',
+  'FL-DNP-10':'https://flogas.ie/electricity/residential?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=FL-DNP-10&utm_content=tariff_card',
+  'FL-EV-10': 'https://flogas.ie/electricity/residential?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=FL-EV-10&utm_content=tariff_card',
   // SSE Airtricity
   'SSE-EVDAY':'https://www.sseairtricity.com/ie/home?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=SSE-EVDAY&utm_content=tariff_card',
   'SSE-DNP':  'https://www.sseairtricity.com/ie/home?utm_source=solaroptimiser&utm_medium=referral&utm_campaign=SSE-DNP&utm_content=tariff_card',
