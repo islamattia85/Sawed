@@ -137,6 +137,11 @@ test('a plan picked in Analytics changes every tab, not Home, and lapses when th
   expect(await page.evaluate(() => window.getBestPlan().plan.id)).toBe(homeBest);
   await page.locator('.ax-tab', { hasText: 'Solar' }).click();
   await expect(page.locator('.ax-ans')).toContainText('the plan picked above');
+  // The month-by-month sheet is on the picked plan too, not the best one.
+  const [supplier, plan] = (await page.locator('.ax-plan b').textContent()).split(' · ');
+  await page.locator('.v7-months-card [data-month="6"] rect').first().click();
+  await expect(page.locator('#v7-sheet .v7-sheet-head .v7-h')).toHaveText(`Your year on ${supplier} ${plan}`);
+  await page.evaluate(() => window.v7Sheet(null));
   // Leaving the panels out changes the home: back to its best plan, and it says so.
   await page.evaluate(() => { window.toggleSolarModel(); window.setScreen('plans'); });
   await page.locator('.v7-nav-item', { hasText: 'Analytics' }).click();

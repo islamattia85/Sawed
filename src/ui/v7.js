@@ -1757,7 +1757,9 @@ export function createV7(api) {
    * as the chart, so the twelve cards add up to the year.
    */
   function monthsSheet() {
-    const best = api.getBestPlan();
+    // The plan Analytics is worked out on, as the Solar tab's chart is: the one
+    // picked above, or the best for the home.
+    const best = api.solarDataFor(api.anPlan().plan.id).best;
     const months = api.monthDetail(best);
     const peak = Math.max(1, ...months.map((m) => Math.max(m.gen, m.cons)));
     const cards = months.map((m, i) => {
@@ -1785,7 +1787,7 @@ export function createV7(api) {
     const dots = MONTH.map((n, i) => `<button class="v7-month-dot" onclick="v7GoMonth(${i})" aria-label="${n}">${n[0]}</button>`).join('');
     return `<div class="v7-sheet-head">
         <div class="v7-eyebrow">Month by month · swipe</div>
-        <h2 class="v7-h">Your year on ${esc(best.plan.supplier)}</h2>
+        <h2 class="v7-h">Your year on ${esc(best.plan.supplier)} ${esc(best.plan.plan)}</h2>
       </div>
       <div class="v7-month-dots" role="group" aria-label="Months">${dots}</div>
       <div class="v7-months-track" onscroll="v7MonthScrolled(this)">${cards}</div>`;
