@@ -23,7 +23,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REFERENCE = ['A1-gas', 'A2-heatpump', 'A7-ev', 'A3a-gas', 'A5b-heatpump', 'B2-gas_solar', 'B2-hp_solar_batt', 'B3-friend',
              'B4a-gas_solar', 'B5-hp_solar_gridfill', 'C1-gas_ev_now', 'D3b-gas', 'D3c-gas', 'D5e-gas',
              # Added 9 October: the user errors with the largest errors, as known gaps until fixed.
-             'B3-gas_solar', 'B6-gas_solar', 'B8-gas_solar', 'C3-moved']
+             'B3-gas_solar', 'B6-gas_solar', 'B8-gas_solar', 'C3-moved',
+             # A file read less than 95% must say so (fix 2, 9 October).
+             'D2a-gas']
 TOL = dict(kwh=5.0, bill=5.0, plan=25, payback=0.5)
 ASKS = ('filewhen', 'fileexp', 'typed')
 
@@ -59,7 +61,8 @@ if __name__ == '__main__':
         gaps = [k for k in ('kwh', 'bill', 'plan', 'payback') if lim.get(k) is not None and lim[k] > TOL[k]]
         if 'payback' in lim and lim['payback'] is None: gaps.append('no payback shown')
         # Warnings and questions, once given, stay.
-        warns = sorted(set(r.get('warns') or []) | set(p.get('warns') or []))
+        # A note about repeated rows is held only where the file really repeats them.
+        warns = sorted({w for w in (r.get('warns') or []) if w != 'unread-few' and (w != 'dupes' or r.get('repeat_pct', 0) > 1)} | set(p.get('warns') or []))
         if warns: lim['warns'] = warns
         if r.get('lost_pct', 0) > 5: lim['warns'] = sorted(set(warns) | {'unread'})
         asks = sorted({q for q in (r.get('asked_ids') or []) if q in ASKS} | set(p.get('asks') or []))

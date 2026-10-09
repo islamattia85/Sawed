@@ -2921,12 +2921,13 @@
   "acc_covers": true,
   "lost_pct": 60.5,
   "repeat_pct": 0.0,
-  "warns": [],
-  "asked_ids": [],
-  "fails": [
-   "lost readings, no warning"
+  "warns": [
+   "dupes",
+   "unread"
   ],
-  "pass": false,
+  "asked_ids": [],
+  "fails": [],
+  "pass": true,
   "tolerance": {
    "kwh": 5,
    "bill": 5,
@@ -2934,8 +2935,14 @@
    "plan": 25
   },
   "outcome": "accepted",
-  "import_message": "\u2713 Imported 6,912 readings\nJan-Feb: 623 kWh \u00b7 Mar-Apr: 701 kWh \u00b7 May-Jun: 628 kWh \u00b7 Jul-Aug: 676 kWh \u00b7 Sep-Oct: 671 kWh \u00b7 Nov-Dec: 654 kWh\nTotal: 3,953 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\nPartial year: 144 days across 6 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nUse this data \u2192",
-  "basis": null
+  "import_message": "\u2713 Imported 6,912 readings\nJan-Feb: 623 kWh \u00b7 Mar-Apr: 701 kWh \u00b7 May-Jun: 628 kWh \u00b7 Jul-Aug: 676 kWh \u00b7 Sep-Oct: 671 kWh \u00b7 Nov-Dec: 654 kWh\nTotal: 3,953 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\nPartial year: 144 days across 6 of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.\nWe couldn\u2019t read 10,606 of your 17,518 readings. Their dates aren\u2019t written the way ESB writes them. Excel often changes them when a file is opened and saved. Download it again from ESB Networks and add it a",
+  "basis": {
+   "mode": "gross",
+   "from": "2025-01-10",
+   "to": "2026-12-09",
+   "start": null,
+   "contradicts": false
+  }
  },
  {
   "id": "D2b-gas",
@@ -3066,38 +3073,37 @@
   "home": "gas",
   "truth_home": "gas",
   "asked": [],
-  "kwh": 8000,
+  "kwh": 4001,
   "true_kwh": 4000,
-  "kwh_err": 100.0,
+  "kwh_err": 0.0,
   "headline": {
    "best": "EN-SMART-24-HOUR",
-   "bill": 2621,
+   "bill": 1453,
    "gap": 0
   },
   "best": "EN-SMART-24-HOUR",
   "true_best": "EN-SMART-24-HOUR",
   "plan_gap": 0,
-  "bill": 2621,
+  "bill": 1453,
   "true_bill_same_plan": 1453,
-  "bill_err": 80.3,
-  "price_gap": 82.3,
-  "saving": 916,
+  "bill_err": -0.0,
+  "price_gap": 0.2,
+  "saving": 847,
   "true_saving": 880,
-  "saving_err": 4.1,
-  "payback": 6.6,
+  "saving_err": -3.7,
+  "payback": 7.1,
   "true_payback": 6.82,
-  "payback_err": -0.2,
+  "payback_err": 0.3,
   "accuracy_shown": 4,
-  "acc_covers": false,
+  "acc_covers": true,
   "lost_pct": 0.0,
   "repeat_pct": 50.0,
-  "warns": [],
-  "asked_ids": [],
-  "fails": [
-   "consumption",
-   "bill"
+  "warns": [
+   "dupes"
   ],
-  "pass": false,
+  "asked_ids": [],
+  "fails": [],
+  "pass": true,
   "tolerance": {
    "kwh": 5,
    "bill": 5,
@@ -3105,7 +3111,7 @@
    "plan": 25
   },
   "outcome": "accepted",
-  "import_message": "\u2713 Imported 35,040 readings\nJan-Feb: 1,394 kWh \u00b7 Mar-Apr: 1,329 kWh \u00b7 May-Jun: 1,176 kWh \u00b7 Jul-Aug: 1,275 kWh \u00b7 Sep-Oct: 1,385 kWh \u00b7 Nov-Dec: 1,441 kWh\nTotal: 8,000 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\nYour file runs 9 Oct 2025 to 8 Oct 2026. No solar shows in it.\nUse this data \u2192",
+  "import_message": "\u2713 Imported 17,520 readings\nJan-Feb: 697 kWh \u00b7 Mar-Apr: 664 kWh \u00b7 May-Jun: 588 kWh \u00b7 Jul-Aug: 638 kWh \u00b7 Sep-Oct: 693 kWh \u00b7 Nov-Dec: 721 kWh\nTotal: 4,001 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings.\n17,520 readings were repeats of others in the file. We count each half hour once.\nYour file runs 9 Oct 2025 to 8 Oct 2026. No solar shows in it.\nUse this data \u2192",
   "basis": {
    "mode": "gross",
    "from": "2025-10-09",
@@ -3322,39 +3328,37 @@
   "home": "gas",
   "truth_home": "gas",
   "asked": [],
-  "kwh": 19880,
+  "kwh": 3976,
   "true_kwh": 4000,
-  "kwh_err": 397.0,
+  "kwh_err": -0.6,
   "headline": {
    "best": "EN-SMART-24-HOUR",
-   "bill": 6125,
+   "bill": 1453,
    "gap": 0
   },
   "best": "EN-SMART-24-HOUR",
   "true_best": "EN-SMART-24-HOUR",
   "plan_gap": 0,
-  "bill": 6125,
+  "bill": 1453,
   "true_bill_same_plan": 1453,
-  "bill_err": 321.4,
-  "price_gap": 328.9,
-  "saving": 1012,
+  "bill_err": -0.0,
+  "price_gap": 0.2,
+  "saving": 847,
   "true_saving": 880,
-  "saving_err": 15.0,
-  "payback": 5.9,
+  "saving_err": -3.7,
+  "payback": 7.1,
   "true_payback": 6.82,
-  "payback_err": -0.9,
+  "payback_err": 0.3,
   "accuracy_shown": 4,
-  "acc_covers": false,
+  "acc_covers": true,
   "lost_pct": 0.0,
   "repeat_pct": 80.0,
-  "warns": [],
-  "asked_ids": [],
-  "fails": [
-   "consumption",
-   "bill",
-   "payback"
+  "warns": [
+   "dupes"
   ],
-  "pass": false,
+  "asked_ids": [],
+  "fails": [],
+  "pass": true,
   "tolerance": {
    "kwh": 5,
    "bill": 5,
@@ -3362,7 +3366,7 @@
    "plan": 25
   },
   "outcome": "accepted",
-  "import_message": "\u2713 Imported 242,870 readings\nJan-Feb: 3,492 kWh \u00b7 Mar-Apr: 3,207 kWh \u00b7 May-Jun: 2,983 kWh \u00b7 Jul-Aug: 3,183 kWh \u00b7 Sep-Oct: 3,421 kWh \u00b7 Nov-Dec: 3,594 kWh\nTotal: 19,880 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings (file spans ~2.8 years \u2014 averaged per day, so the result is one typical year).\nYour file runs 4 Sept 2025 to 8 Oct 2026. No solar shows in it.\nUse this data \u2192",
+  "import_message": "\u2713 Imported 48,574 readings\nJan-Feb: 698 kWh \u00b7 Mar-Apr: 641 kWh \u00b7 May-Jun: 597 kWh \u00b7 Jul-Aug: 637 kWh \u00b7 Sep-Oct: 684 kWh \u00b7 Nov-Dec: 719 kWh\nTotal: 3,976 kWh/yr \u2014 anticipated full-year profile\nReadings in kW (avg per 30-min interval) \u2014 converted \u00d70.5 to kWh\n\u2713 A full year of readings (file spans ~2.8 years \u2014 averaged per day, so the result is one typical year).\n388,596 readings were repeats of others in the file. We count each half hour once.\nYour file runs 4 Sept 2025 to 8 Oct 2026. No solar shows in it.\nUse this data \u2192",
   "basis": {
    "mode": "gross",
    "from": "2025-09-04",

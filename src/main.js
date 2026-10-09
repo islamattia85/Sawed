@@ -13502,7 +13502,7 @@ function parseCsvHdf(text, filename){
     const headerRaw = lines[0];
     const headerLow = headerRaw.toLowerCase();
     const hasHeader = headerLow.includes('date') || headerLow.includes('mprn') || headerLow.includes('read');
-    const dataLines = hasHeader ? lines.slice(1) : lines;
+    const fileLines = hasHeader ? lines.slice(1) : lines;
 
     // Detect column layout from header.
     // New ESB format (5 cols): MPRN, Meter Serial Number, Read Value, Read Type, Read Date and End Time
@@ -13515,6 +13515,40 @@ function parseCsvHdf(text, filename){
     const _dateCol  = dateColIdx  >= 0 ? dateColIdx  : 1;
     const _valueCol = valueColIdx >= 0 ? valueColIdx : 2;
     const _typeCol  = typeColIdx  >= 0 ? typeColIdx  : 3;
+
+    // Each half hour once. A file joined in Excel, or the same download pasted
+    // in twice, repeats rows, and every repeat was counted: the year doubled,
+    // with nothing on screen to say so. The one real repeat is the hour the
+    // clocks go back on the last Sunday of October, which ESB lists twice.
+    const clockBack = (stamp) => {
+      const m = stamp.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})\s+(\d{1,2}):(\d{2})|(\d{4})-(\d{2})-(\d{2})[T\s](\d{1,2}):(\d{2})/);
+      if (!m) return false;
+      const [y, mo, d, h, mi] = m[1] ? [+m[3], +m[2], +m[1], +m[4], +m[5]] : [+m[6], +m[7], +m[8], +m[9], +m[10]];
+      const t = h * 60 + mi;
+      return mo === 10 && d >= 25 && new Date(Date.UTC(y, 9, d)).getUTCDay() === 0 && t >= 60 && t <= 120;
+    };
+    // In that October hour a file can hold two readings for the same time,
+    // often with the same value (nothing sold at night). They are both kept,
+    // unless the file repeats rows at other hours too: then the hour is
+    // treated like the rest, a row with a value already read being a repeat.
+    let dupes = 0;
+    const dataLines = [];
+    {
+      const seen = new Map(), late = [];
+      const take = (line, cols, strict) => {
+        const stamp = cols[_dateCol] || '', k = (cols[_typeCol] || '').toLowerCase() + '|' + stamp;
+        const vals = seen.get(k), v = cols[_valueCol] || '';
+        if (vals && (vals.length >= (clockBack(stamp) ? 2 : 1) || (strict && vals.includes(v)))){ dupes++; return; }
+        if (vals) vals.push(v); else seen.set(k, [v]);
+        dataLines.push(line);
+      };
+      for (const line of fileLines){
+        const cols = line.split(',').map((c) => c.replace(/^"|"$/g, '').trim());
+        if (clockBack(cols[_dateCol] || '')) late.push([line, cols]); else take(line, cols, false);
+      }
+      const strict = dupes > 0;
+      for (const [line, cols] of late) take(line, cols, strict);
+    }
 
     // ESB offers daily files too. They have a row or two a day where the
     // half-hour files have 48, so the shape of the file tells them apart,
@@ -13625,6 +13659,7 @@ function parseCsvHdf(text, filename){
     const daysIn = (m) => { let t = 0; m.forEach((n) => { t += Math.min(1, n / 46); }); return t; };
     let rowsRead = 0;
     let rowsSkipped = 0;
+    let rowsUnread = 0;   // import readings whose date or value cannot be read
 
     for (const line of dataLines){
       if (!line.trim()) continue;
@@ -13643,10 +13678,10 @@ function parseCsvHdf(text, filename){
       }
 
       const val = parseFloat(valueStr);
-      if (!isFinite(val) || val < 0 || val > 50) { rowsSkipped++; continue; }
+      if (!isFinite(val) || val < 0 || val > 50) { rowsSkipped++; rowsUnread++; continue; }
 
       const dk = halfHourDay(dateStr);
-      if (!dk) { rowsSkipped++; continue; }
+      if (!dk) { rowsSkipped++; rowsUnread++; continue; }
       const month = +dk.slice(5, 7);
 
       const bucketIdx = BIMONTHLY_MONTHS.findIndex(([m1,m2]) => month === m1 || month === m2);
@@ -13729,14 +13764,13 @@ function parseCsvHdf(text, filename){
         const val = parseFloat(cols[_valueCol] || '');
         if (!isFinite(val) || val < 0 || val > 50) continue;
         const ds = cols[_dateCol] || '';
-        let day = parseDateDayKey(ds);
+        // ESB stamps the END of each half hour: 00:30 is 00:00–00:30, and
+        // 00:00 is the last half hour of the day before (halfHourDay). A date
+        // that cannot be a day (13 as a month) is left out, not stored.
+        const day = halfHourDay(ds);
         const tm = ds.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*$/);
         if (!day || !tm) continue;
-        // ESB stamps the END of each half hour: 00:30 is 00:00–00:30, and
-        // 00:00 is the last half hour of the day before.
-        let start = (+tm[1]) * 60 + (+tm[2]) - 30;
-        if (start < 0){ const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 1); day = d.toISOString().slice(0, 10); start += 1440; }
-        const h = Math.floor(start / 60);
+        const h = Math.floor((((+tm[1]) * 60 + (+tm[2]) - 30 + 1440) % 1440) / 60);
         const row = ledger[day] || (ledger[day] = new Array(48).fill(0));
         row[(isExp ? 24 : 0) + h] += val * ENERGY_FACTOR;
       }
@@ -13795,6 +13829,17 @@ function parseCsvHdf(text, filename){
     }
     state._csv_days = totalDays;
     state._csv_periods = periodsCovered;
+    // What the file held that could not be used, said on the card, and kept
+    // for the accuracy figure.
+    const rowsAll = rowsRead + rowsUnread;
+    const unreadPct = rowsAll > 0 ? rowsUnread / rowsAll * 100 : 0;
+    state._csv_unread_pct = Math.round(unreadPct * 10) / 10;
+    state._csv_dupes = dupes;
+    const fmtN = (n) => n.toLocaleString('en-IE');
+    const readHtml = (unreadPct > 5
+      ? `<div data-warn="unread" style="margin-top:10px;padding:10px 12px;background:var(--amber-soft);border:1px solid var(--amber);border-radius:8px;font-size:12px;color:var(--ink);line-height:1.6"><b style="color:var(--amber)">We couldn’t read ${fmtN(rowsUnread)} of your ${fmtN(rowsAll)} readings.</b> Their dates aren’t written the way ESB writes them. Excel often changes them when a file is opened and saved. Download it again from ESB Networks and add it as it comes. Until then, these figures use the rest.</div>`
+      : rowsUnread > 0 ? `<div data-warn="unread-few" style="margin-top:8px;font-size:12px;color:var(--ink-soft)">We couldn’t read ${fmtN(rowsUnread)} reading${rowsUnread === 1 ? '' : 's'}, so ${rowsUnread === 1 ? 'it’s' : 'they’re'} left out.</div>` : '')
+      + (dupes > 0 ? `<div data-warn="dupes" style="margin-top:8px;padding:9px 12px;background:var(--blue-soft);border-radius:8px;font-size:12px;color:var(--ink)">${fmtN(dupes)} reading${dupes === 1 ? ' was a repeat' : 's were repeats'} of others in the file. We count each half hour once.</div>` : '');
 
     let coverageHtml;
     if (totalDays < 45){
@@ -13823,6 +13868,7 @@ function parseCsvHdf(text, filename){
           ${periodsCovered < 6 ? `<br><span style="color:var(--amber)">* estimated, no readings for this period</span>` : ''}
         </div>
         ${coverageHtml}
+        ${readHtml}
         ${(() => { try { const t = fileSummary(); return t ? `<div style="margin-top:8px;font-size:12px;color:var(--ink-soft);line-height:1.6">${esc(t)}</div>` : ''; } catch (e) { return ''; } })()}
         <button class="switch-cta" style="margin-top:12px;font-size:13px;padding:12px 16px" onclick="applyImportedBills()">Use this data →</button>
       </div>`;

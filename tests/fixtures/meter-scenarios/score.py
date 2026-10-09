@@ -23,14 +23,14 @@ SC = {s['id']: s for s in json.load(open(os.path.join(HERE, 'scenarios.json')))}
 
 _ROWS = {}
 def file_readings(name):
-    """Distinct half-hours of import in a scenario file (a repeated row counts once)."""
+    """Import readings in a scenario file: distinct half-hours (a repeated row counts once), and all rows."""
     if name not in _ROWS:
-        seen = set()
+        seen, n = set(), 0
         with gzip.open(os.path.join(HERE, 'files', name + '.gz'), 'rt', errors='replace') as f:
             for line in f:
                 c = line.rstrip('\n').split(',')
-                if len(c) >= 5 and 'import' in c[3].lower(): seen.add((c[1], c[4]))
-        _ROWS[name] = len(seen)
+                if len(c) >= 5 and 'import' in c[3].lower(): seen.add((c[1], c[4], c[2])); n += 1
+        _ROWS[name] = (len({k[:2] for k in seen}), n, len(seen))
     return _ROWS[name]
 
 def tolerance(sid):
@@ -77,13 +77,14 @@ def score(r):
     # Readings in the file the app did not read, and whether the card said so.
     files = sc.get('files') or [sc['file']]
     warns = r['seen'].get('warns') or [[] for _ in files]
-    lost = []
+    lost, rep = [], []
     for i, name in enumerate(files):
         m = re.search(r'Imported ([\d,]+) readings', r['seen']['import'][i] if i < len(r['seen']['import']) else '')
-        have = file_readings(name)
+        have, rows, distinct = file_readings(name)
+        rep.append(round((rows - distinct) / rows * 100, 1) if rows else 0.0)
         got = int(m.group(1).replace(',', '')) if m else 0
         lost.append(round(max(0.0, 1 - got / have) * 100, 1) if have else 0.0)
-    out['lost_pct'] = max(lost); out['warns'] = sorted({w for ws in warns for w in ws})
+    out['lost_pct'] = max(lost); out['repeat_pct'] = max(rep); out['warns'] = sorted({w for ws in warns for w in ws})
     out['asked_ids'] = sorted({q['q'] for q in r['seen']['questions'] if q['q'] in ('filewhen', 'fileexp', 'filehome', 'typed')})
     fails = []
     if abs(out['kwh_err']) > tol['kwh']: fails.append('consumption')
