@@ -1,0 +1,1 @@
+{"log":["bill=kwh:4250","meter=24hr","area=urban","plan=EI-ES","disc=0","heat=gas","gas=no","night=no","solar=no","ev=no"],"info":{"kwh":4251},"ranked":[{"id":"EN-24","net":1579},{"id":"WP-24","net":1589},{"id":"EI-ES","net":1616},{"id":"SSE-24","net":1626},{"id":"FL-STD-24","net":1659},{"id":"EI-GREEN","net":1793},{"id":"CP-24","net":2007},{"id":"PPP-24","net":2080}]}

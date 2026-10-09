@@ -44,7 +44,7 @@ test('a file from before the panels: asked, then the panels are added to it', as
   expect(after).toBeLessThan(before - 200);
 });
 
-test('a file with the panels running all year: no question, and the home’s own use worked back with the panels counted once', async ({ page }) => {
+test('a file with the panels running all year: no question, plans priced on the readings, and the home’s own use worked back once', async ({ page }) => {
   await fresh(page); await upload(page, esbFile({ exportFrom: 0 }));
   await havePanels(page);
   await expect(page.locator('.fl-q h2')).not.toContainText('before the panels');
@@ -54,13 +54,19 @@ test('a file with the panels running all year: no question, and the home’s own
     const sum = (a) => a.reduce((x, y) => x + y, 0);
     const bought = sum(rows.map((r) => sum(r.slice(0, 24)))) * k;
     const s = sim(state.baseline);
-    return { bought, used: sum(Array.from(CACHE.consNoEv)), gen: sum(Array.from(s.gen)), modelBought: sum(Array.from(s.grid_import)) };
+    // Without the panels, the same home: its use worked back from the file.
+    const without = withSimState({ has_solar: false, count_A: 0, battery_kwh: 0 }, () => sum(Array.from(sim(state.baseline).grid_import)));
+    return { mode: fileBasis().mode, bought, gen: sum(Array.from(s.gen)), modelBought: sum(Array.from(s.grid_import)), without,
+      used: Object.values(state.bills).reduce((a, b) => a + b, 0) };
   });
-  // The home used more than it bought (the panels covered some), less than bought plus all they made.
-  expect(r.used).toBeGreaterThan(r.bought * 1.02);
-  expect(r.used).toBeLessThan(r.bought + r.gen);
-  // With the panels added back once, the model buys about what the meter did.
-  expect(Math.abs(r.modelBought - r.bought) / r.bought, JSON.stringify(r)).toBeLessThan(0.2);
+  // The panels are in the readings: what each plan charges is what the meter recorded, nothing added on top.
+  expect(r.mode).toBe('net');
+  expect(r.gen).toBe(0);
+  expect(Math.abs(r.modelBought - r.bought) / r.bought, JSON.stringify(r)).toBeLessThan(0.02);
+  // The home used more than it bought (the panels covered some), counted once.
+  expect(r.used, JSON.stringify(r)).toBeGreaterThan(r.bought * 1.02);
+  expect(r.without, JSON.stringify(r)).toBeGreaterThan(r.bought * 1.02);
+  expect(r.without, JSON.stringify(r)).toBeLessThan(r.used * 1.1);
 });
 
 test('panels that start partway through: the part before them is the home’s usage', async ({ page }) => {

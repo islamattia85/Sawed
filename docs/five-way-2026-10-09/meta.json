@@ -1,0 +1,77 @@
+{
+ "small": {
+  "label": "Small flat, 2,000 kWh",
+  "import": 2005,
+  "export": 0
+ },
+ "typical": {
+  "label": "Typical home, 4,200 kWh",
+  "import": 4192,
+  "export": 0
+ },
+ "large": {
+  "label": "Large family, 7,500 kWh",
+  "import": 7510,
+  "export": 0
+ },
+ "wfh": {
+  "label": "Two working from home, 5,100 kWh",
+  "import": 5112,
+  "export": 0
+ },
+ "night": {
+  "label": "Night-heavy (immersion on a night timer), 5,000 kWh",
+  "import": 5000,
+  "export": 0
+ },
+ "heatpump": {
+  "label": "Heat pump, 9,000 kWh",
+  "import": 8665,
+  "export": 0
+ },
+ "storage": {
+  "label": "Night storage heaters, 11,000 kWh",
+  "import": 10535,
+  "export": 0
+ },
+ "ev_night": {
+  "label": "EV charged 2am-5am, 6,700 kWh",
+  "import": 6676,
+  "export": 0
+ },
+ "ev_evening": {
+  "label": "EV charged at teatime, 6,700 kWh",
+  "import": 6680,
+  "export": 0
+ },
+ "solar": {
+  "label": "4 kWp solar, no battery",
+  "import": 2329,
+  "export": 1827
+ },
+ "solar_batt": {
+  "label": "4 kWp solar + 10 kWh battery",
+  "import": 1401,
+  "export": 850
+ },
+ "rural": {
+  "label": "Rural typical home, 4,200 kWh",
+  "import": 4175,
+  "export": 0
+ },
+ "legacy24": {
+  "label": "Typical home, older 24-hour meter",
+  "import": 4250,
+  "export": 0
+ },
+ "solar_mid": {
+  "label": "6 kWp + 9 kWh battery, put in mid-April (file part before, part after)",
+  "import": 3084,
+  "export": 1425
+ },
+ "solar_ev": {
+  "label": "6 kWp + 10 kWh battery + EV charged 2am-5am",
+  "import": 2503,
+  "export": 1170
+ }
+}

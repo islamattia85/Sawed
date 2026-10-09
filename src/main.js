@@ -6328,7 +6328,9 @@ function renderFlow(){
       battery: ['Is there a battery on the quote?', 'Its size is in kWh.'],
       price: ['What’s the price on the quote?', 'The total including VAT, before the SEAI grant.'],
     } : {}),
-    filewhen: (() => { const fb = fileBasis(); return fb && fb.ask === 'drop'
+    filewhen: (() => { const fb = fileBasis(); return fb && fb.ask === 'since'
+      ? [`Did the panels go up around ${fmtDay(fb.since)}?`, 'Your meter file shows power sent to the grid from then. A battery can hold winter’s spare solar, so the panels may have been up before.']
+      : fb && fb.ask === 'drop'
       ? [`Did the panels go up around ${fmtDay(fb.dropFrom)}?`, 'Your meter file shows daytime buying dropping from then, with nothing sent to the grid.']
       : ['Is your meter file from before the panels went up?', 'It shows no solar going to the grid, which panels usually do.']; })(),
     billwhen: ['Is the bill you entered from before or after the panels went up?', 'A bill from after them is already lower.'],
@@ -6359,7 +6361,7 @@ function renderFlow(){
     roof: (v) => ({ S: 'South', SE: 'South-east', SW: 'South-west', E: 'East', W: 'West', N: 'North', NE: 'North-east', NW: 'North-west', EW: 'East and west', SESW: 'South-east and south-west', unsure: 'Not sure, south assumed' })[v] || `Facing ${v}°`,
     panels: (v) => `${v} panels`, battery: (v) => +v ? `${v} kWh` : 'No battery',
     gridnow: (v) => v === 'yes' ? 'Tops up at night' : v === 'no' ? 'Solar only' : 'Not sure how it charges',
-    filewhen: (v) => v === 'before' ? 'File from before the panels' : v === 'noexport' ? 'System never exports' : v === 'dropyes' ? 'Panels from that date' : 'File checked',
+    filewhen: (v) => v === 'before' ? 'File from before the panels' : v === 'noexport' ? 'System never exports' : v === 'dropyes' || v === 'sinceyes' ? 'Panels from that date' : v === 'allyear' ? 'Panels up all the file' : 'File checked',
     billwhen: (v) => v === 'before' ? 'Bill from before the panels' : 'Bill from after the panels',
     billmonths: (v) => ({ winter: 'Winter bill', shoulder: 'Spring or autumn bill', summer: 'Summer bill', average: 'An average month' })[v] || v,
     tilt: (v) => `${v}° roof`,
@@ -6470,6 +6472,7 @@ function renderFlow(){
     if (q === 'panels' && state._flow_intent === 'quote') return `<div class="fl-opts fl-three">${[8, 10, 12, 14, 16, 20].map((n) => opt('panels', n, `${n}`)).join('')}</div>${own('panels', 'panels', 60, 'e.g. 13')}`;
     if (q === 'panels'){ const s = _flowSuggest(); return `<div class="fl-opts fl-three">${[Math.max(4, s - 4), s, s + 4].filter((n, i, a) => a.indexOf(n) === i).map((n) => opt('panels', n, `${n}`, n === s ? 'suggested' : '')).join('')}</div>${own('panels', 'panels', 60, 'e.g. 12')}`; }
     if (q === 'filewhen'){ const fb = fileBasis();
+      if (fb && fb.ask === 'since' || ['sinceyes', 'allyear'].includes(f.filewhen)) return `<div class="fl-opts">${opt('filewhen', 'sinceyes', 'Yes, around then', 'The days before are your home without panels')}${opt('filewhen', 'allyear', 'No, they were up for the whole file', 'We’ll use your readings as they are')}</div>`;
       return fb && fb.ask === 'drop'
         ? `<div class="fl-opts">${opt('filewhen', 'dropyes', 'Yes, around then', 'We’ll use the readings after that date')}${opt('filewhen', 'before', 'No, it’s from before them', 'We’ll add the panels to it')}</div>`
         : `<div class="fl-opts">${opt('filewhen', 'before', 'Yes, from before them', 'We’ll add the panels to it')}${opt('filewhen', 'noexport', 'No, my system never sends power to the grid', 'We’ll use it as it is')}</div>`; }

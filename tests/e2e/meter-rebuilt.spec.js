@@ -49,6 +49,29 @@ for (const [battery, install] of [[9, '2025-10-20'], [0, '2026-04-01']]) {
   });
 }
 
+test('sales that start partway are asked about, not guessed: panels up all year are priced from the readings', async ({ page }) => {
+  test.setTimeout(120_000);
+  // Panels and a battery up for the whole file, the battery soaking up winter's
+  // spare solar, so nothing is sold until March.
+  await boot(page, { ...HOME, battery_kwh: 9 });
+  await page.evaluate(withFile('2025-01-01'));
+  const basis = await page.evaluate(() => {
+    const days = {};
+    for (const [k, row] of Object.entries(state.meter.days)) days[k] = k < '2026-03-01' ? row.slice(0, 24).concat(new Array(24).fill(0)) : row;
+    state.meter = { ...state.meter, days };
+    invalidate();
+    return fileBasis();
+  });
+  expect(basis.ask).toBe('since');
+  expect(basis.since >= '2026-03-01').toBe(true);
+  // "No, they were up for the whole file": the readings as they are.
+  expect(await page.evaluate(() => { state.file_when = 'allyear'; invalidate(); const b = fileBasis(); return [b.mode, !!b.ask]; })).toEqual(['net', false]);
+  // A what-if on another size still needs the home's use worked back.
+  expect(await page.evaluate(() => withSimState({ count_A: state.count_A + 4 }, () => fileBasis().mode))).toBe('gross');
+  // "Yes, around then": the days before are the home without panels.
+  expect(await page.evaluate(() => { state.file_when = 'sinceyes'; invalidate(); const b = fileBasis(); return [b.mode, b.rebuilt === b.since, b.ask]; })).toEqual(['gross', true, null]);
+});
+
 test('no size is called the fastest payback, or the cheapest that still pays off, unless it pays back', async ({ page }) => {
   // A tiny use and no grant: nothing pays for itself.
   const bills = { 'Jan-Feb': 120, 'Mar-Apr': 100, 'May-Jun': 80, 'Jul-Aug': 80, 'Sep-Oct': 100, 'Nov-Dec': 120 };

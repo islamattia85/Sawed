@@ -200,14 +200,16 @@ export function fileIsNet(){
  * for a system that never exports, the day daytime buying drops for good
  * against the evening. Null without a file.
  */
-let _fsMemo = { key: '', val: null };
+let _fsMemo = { key: '', days: null, val: null };
 export function fileSolar(){
   const days = state._csv_imported && state.meter && state.meter.days;
   if (!days) return null;
   const keys = Object.keys(days).sort();
   if (!keys.length) return null;
+  // Keyed on the file itself too: a second file over the same dates (another
+  // home, or a fresh download) is read again, not given the first one's answer.
   const key = keys.length + keys[0] + keys[keys.length - 1];
-  if (_fsMemo.key === key) return _fsMemo.val;
+  if (_fsMemo.key === key && _fsMemo.days === days) return _fsMemo.val;
   const exp = keys.map((k) => days[k].slice(24).reduce((a, b) => a + b, 0));
   const exporting = exp.map((e) => e > 0.3);
   let exportFrom = null;
@@ -234,7 +236,7 @@ export function fileSolar(){
   }
   const val = { first: keys[0], last: keys[keys.length - 1], days: keys.length, exportFrom, dropFrom,
     exportKwh: Math.round(exp.reduce((a, b) => a + b, 0)) };
-  _fsMemo = { key, val };
+  _fsMemo = { key, days, val };
   return val;
 }
 
@@ -272,7 +274,21 @@ export function fileBasis(){
   // Reading those days as the home's use, as before, counted only what was
   // left after the panels: a home of 6,500 kWh showed 2,500, and its panels
   // looked worthless.
-  if (fs.exportFrom) return { mode: 'gross', ...all, start, rebuilt: start > fs.first ? start : fs.first };
+  if (fs.exportFrom){
+    // A battery soaks up winter's spare solar, so sales can start in spring
+    // with the panels up all year: when they start partway, the household is
+    // asked, not guessed for.
+    const since = state.file_when === 'allyear' ? fs.first : fs.exportFrom;
+    const allYear = daysBetween(fs.first, since) <= 14;
+    const ask = !allYear && state.file_when !== 'sinceyes' ? 'since' : null;
+    // The home's own panels, up for the whole file: its readings are exactly
+    // what each plan would have charged and paid. Only a what-if (no panels,
+    // another size) needs the use worked back.
+    const cur = pickSystem(state);
+    const same = cur.has_solar && !cur.planned && ['count_A', 'count_B', 'battery_kwh', 'azimuth_A', 'azimuth_B', 'tilt_A', 'tilt_B'].every((k) => cur[k] === own[k]);
+    if (allYear && same) return { mode: 'net', ...all, start: since, since };
+    return { mode: 'gross', ...all, start: since, since, rebuilt: since, ask };
+  }
   if (daysBetween(fs.first, start) <= 14) return { mode: 'net', ...all, start };
   const post = daysBetween(start, fs.last), pre = daysBetween(fs.first, start) - 1;
   if (post >= 330) return { mode: 'net', from: start, to: fs.last, start };
@@ -358,9 +374,10 @@ function rebuiltDays(days, from){
  */
 export function syncFileBills(){
   const b = state._csv_imported && fileBasis();
-  if (!b || !b.rebuilt) return false;
-  const days = fileDays();
-  if (!days) return false;
+  const from = b && (b.rebuilt || b.since);
+  if (!from || !state.meter || !state.meter.days) return false;
+  const all = rebuiltDays(state.meter.days, from), days = {};
+  for (const k of Object.keys(all)) if (k >= b.from && k <= b.to) days[k] = all[k];
   // The importer's figures, kept once per file, so this can run again and again.
   const fk = (state.meter && state.meter.imported_at) || Object.keys(state.meter.days).length;
   if (state._file_bills_key !== fk){ state._file_bills = { ...(state.bills || {}) }; state._file_bills_key = fk; }
@@ -372,7 +389,7 @@ export function syncFileBills(){
     const bi = bimonthlyFor(+k.slice(5, 7) - 1).key;
     const u = days[k].slice(0, 24).reduce((a, x) => a + x, 0);
     sum[bi] = (sum[bi] || 0) + u; n[bi] = (n[bi] || 0) + 1;
-    if (k >= b.rebuilt){ used += u; bought += state.meter.days[k].slice(0, 24).reduce((a, x) => a + x, 0); }
+    if (k >= from){ used += u; bought += state.meter.days[k].slice(0, 24).reduce((a, x) => a + x, 0); }
   }
   // Periods the file does not cover were estimated from what was bought: grow
   // them as much as the worked-back days grew.
@@ -800,8 +817,8 @@ export const EMBEDDED_TARIFFS = [
   {"id": "BG-DYN", "supplier": "Bord Gáis", "plan": "Smart Dynamic", "type": "dynamic", "meter": "smart", "rates": {"day": 0.1902, "night": 0.1902, "peak": 0.1902, "ev": 0.1902}, "windows": {"ev": null}, "standing": 347.56, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "notes": "★ NEW (1 June 2026). Single base rate 16.73c + half-hourly wholesale. No discount on base. Day-ahead prices at bordgaisenergy.ie/day-ahead-market-prices. UNVERIFIED since launch — the base rate is not published on the plan-comparison page and was not re-checked on 25 Aug 2026. From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart Dynamic Electricity", "Electricity unit rates"], "fields": {"day": "Base"}, "read": "2026-10-03"}, "standing_rural": 417.7, "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found"},
   {"id": "EN-SMART-24-HOUR", "supplier": "Energia", "plan": "Smart 24 Hour", "type": "flat", "meter": "smart", "rates": {"day": 0.281, "night": 0.281, "peak": 0.281, "ev": 0.281}, "windows": {"ev": null}, "standing": 265.01, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.energia.ie/energy-plans/electricity", "anchor": ["Energy Plans Table", "Smart 24 Hour"], "fields": {"day": "Smart meter"}, "read": "2026-10-03"}, "notes": "Smart meter flat rate, 30% off. A dearer 28% version is also sold (bonkers.ie, kilowatt.ie); switcher.ie lists both for new customers on 5 Oct 2026, so the cheaper offer is the one priced. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €265.01 inc VAT urban (€255.29 ex VAT +5% from 12 Oct = €278.27 inc). CEG 18.5c.", "price_change": {"effective_date": "2026-10-12", "standing_pct": 0.05, "direction": "increase", "source": "energia.ie/about-energia/our-tariffs, standard rates from 12 Oct 2026 (ex VAT) with this plan's discount", "pct": 0.04, "note": "28.10c → 29.22c from 12 Oct 2026."}, "standing_rural": 340.54, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
   {"id": "EN-SMART", "supplier": "Energia", "plan": "Smart Data", "type": "tou", "meter": "smart", "rates": {"day": 0.3075, "night": 0.1691, "peak": 0.3454, "ev": 0.1691}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 265.01, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.energia.ie/energy-plans/electricity", "anchor": ["Energy Plans Table", "Smart Data"], "fields": {"night": {"label": "Smart meter", "col": 1}, "day": {"label": "Smart meter", "col": 2}, "peak": {"label": "Smart meter", "col": 3}}, "read": "2026-10-03"}, "notes": "Smart day/night/peak, 27% off. Energia also sells a dearer 23% version (shown by bonkers.ie and kilowatt.ie); switcher.ie lists both for new customers on 5 Oct 2026, with this 27% one running past 12 Oct, so the cheaper offer is the one priced. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €265.01 inc VAT urban (€255.29 ex VAT +5% from 12 Oct = €278.27 inc). CEG 18.5c.", "price_change": {"effective_date": "2026-10-12", "standing_pct": 0.05, "direction": "increase", "source": "energia.ie/about-energia/our-tariffs, standard rates from 12 Oct 2026 (ex VAT) with this plan's discount", "pct": 0.03, "pct_bands": {"day": 0.03, "night": 0.28, "peak": 0.05, "ev": 0.28}, "note": "From 12 Oct 2026: day 30.75 → 31.68c, night 16.91 → 21.64c, peak 34.54 → 36.26c."}, "standing_rural": 340.54, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
-  {"id": "EN-SMART-DAY-NIGHT", "supplier": "Energia", "plan": "Smart Day/Night", "type": "tou", "meter": "smart", "rates": {"day": 0.3519, "night": 0.1734, "ev": 0.1734}, "windows": {"peak": null, "night": [23, 8], "ev": null}, "standing": 265.01, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.energia.ie/energy-plans/electricity", "anchor": ["Energy Plans Table", "Smart Day/Night"], "fields": {"night": {"label": "Smart meter", "col": 1}, "day": {"label": "Smart meter", "col": 2}}, "read": "2026-10-03"}, "notes": "Smart day/night, no peak band, 20% off. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €265.01 inc VAT urban (€255.29 ex VAT +5% from 12 Oct = €278.27 inc). CEG 18.5c.", "price_change": {"effective_date": "2026-10-12", "standing_pct": 0.05, "direction": "increase", "source": "energia.ie/about-energia/our-tariffs, standard rates from 12 Oct 2026 (ex VAT) with this plan's discount", "pct": 0, "pct_bands": {"day": 0, "night": 0.25, "ev": 0.25}, "note": "From 12 Oct 2026: night 17.34 → 21.67c, day unchanged."}, "standing_rural": 359.31, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
-  {"id": "EN-EV", "supplier": "Energia", "plan": "EV Smart Drive", "type": "ev", "meter": "smart", "rates": {"day": 0.4016, "night": 0.4016, "peak": 0.4016, "ev": 0.0942}, "windows": {"ev": [2, 6], "peak": null, "night": null}, "standing": 265.01, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.energia.ie/energy-plans/electricity", "anchor": ["Energy Plans Table", "EV Smart Drive"], "fields": {"ev": {"label": "Smart meter", "col": 1}, "day": {"label": "Smart meter", "col": 2}}, "read": "2026-10-03"}, "notes": "Smart EV, charge window 02:00-06:00, 10% off. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €265.01 inc VAT urban (€255.29 ex VAT +5% from 12 Oct = €278.27 inc). CEG 18.5c.", "price_change": {"effective_date": "2026-10-12", "standing_pct": 0.05, "direction": "increase", "source": "energia.ie/about-energia/our-tariffs, standard rates from 12 Oct 2026 (ex VAT) with this plan's discount", "pct": 0, "pct_bands": {"ev": 0.3}, "note": "From 12 Oct 2026: EV charge 9.42 → 12.25c, other hours unchanged."}, "standing_rural": 357.36, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
+  {"id": "EN-SMART-DAY-NIGHT", "supplier": "Energia", "plan": "Smart Day/Night", "type": "tou", "meter": "smart", "rates": {"day": 0.3519, "night": 0.1734, "ev": 0.1734}, "windows": {"peak": null, "night": [23, 8], "ev": null}, "standing": 331.97, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.energia.ie/energy-plans/electricity", "anchor": ["Energy Plans Table", "Smart Day/Night"], "fields": {"night": {"label": "Smart meter", "col": 1}, "day": {"label": "Smart meter", "col": 2}}, "read": "2026-10-03"}, "notes": "Smart day/night, no peak band, 20% off. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €331.97 inc VAT urban, €422.31 rural, +5% from 12 Oct (€319.79 / €406.81 ex VAT = €348.57 / €443.42 inc), from energia.ie/about-energia/our-tariffs, read 9 Oct 2026; kilowatt.ie prints the same. CEG 18.5c.", "price_change": {"effective_date": "2026-10-12", "standing_pct": 0.05, "direction": "increase", "source": "energia.ie/about-energia/our-tariffs, standard rates from 12 Oct 2026 (ex VAT) with this plan's discount", "pct": 0, "pct_bands": {"day": 0, "night": 0.25, "ev": 0.25}, "note": "From 12 Oct 2026: night 17.34 → 21.67c, day unchanged."}, "standing_rural": 422.31, "standing_rural_source": "energia.ie/about-energia/our-tariffs, 9 Oct 2026"},
+  {"id": "EN-EV", "supplier": "Energia", "plan": "EV Smart Drive", "type": "ev", "meter": "smart", "rates": {"day": 0.4016, "night": 0.4016, "peak": 0.4016, "ev": 0.0942}, "windows": {"ev": [2, 6], "peak": null, "night": null}, "standing": 265.01, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.energia.ie/energy-plans/electricity", "anchor": ["Energy Plans Table", "EV Smart Drive"], "fields": {"ev": {"label": "Smart meter", "col": 1}, "day": {"label": "Smart meter", "col": 2}}, "read": "2026-10-03"}, "notes": "Smart EV, charge window 02:00-06:00, 10% off. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €265.01 inc VAT urban, €337.02 rural, +28% from 12 Oct (€311.21 / €395.76 ex VAT = €339.22 / €431.38 inc), from energia.ie/about-energia/our-tariffs, read 9 Oct 2026; kilowatt.ie prints the same. CEG 18.5c.", "price_change": {"effective_date": "2026-10-12", "standing_pct": 0.28, "direction": "increase", "source": "energia.ie/about-energia/our-tariffs, standard rates from 12 Oct 2026 (ex VAT) with this plan's discount", "pct": 0, "pct_bands": {"ev": 0.3}, "note": "From 12 Oct 2026: EV charge 9.42 → 12.25c, other hours unchanged."}, "standing_rural": 337.02, "standing_rural_source": "energia.ie/about-energia/our-tariffs, 9 Oct 2026"},
   {"id": "EN-24", "supplier": "Energia", "plan": "Standard Electricity", "type": "flat", "meter": "24hr", "rates": {"day": 0.2986, "night": 0.2986, "peak": 0.2986, "ev": 0.2986}, "windows": {"ev": null}, "standing": 265.01, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.energia.ie/energy-plans/electricity", "anchor": ["Energy Plans Table", "Standard Electricity"], "fields": {"day": "Standard 24hr meter"}, "read": "2026-10-03"}, "notes": "Standard (non-smart) 24-hour meter, 30% off. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €265.01 inc VAT urban (€255.29 ex VAT +5% from 12 Oct = €278.27 inc). CEG 18.5c.", "price_change": {"effective_date": "2026-10-12", "standing_pct": 0.05, "direction": "increase", "source": "energia.ie/about-energia/our-tariffs, standard rates from 12 Oct 2026 (ex VAT) with this plan's discount", "pct": 0.02, "note": "29.86c → 30.45c from 12 Oct 2026."}, "standing_rural": 340.54, "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found"},
   {"id": "EN-DYN", "supplier": "Energia", "plan": "Dynamic Rates", "type": "dynamic", "meter": "smart", "rates": {"day": 0.2197, "night": 0.1251, "peak": 0.2292, "ev": 0.1251}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 299.75, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "notes": "Smart Track: base rates inc VAT from energia.ie/about-energia/our-tariffs (rates from 2 June 2026), plus the half-hourly wholesale price. Standing €299.75 urban.", "source": {"url": "https://www.energia.ie/about-energia/our-tariffs", "anchor": ["Dynamic Base Unit Rate Prices"], "fields": {"day": "Dynamic Day Base Unit Rate", "night": "Dynamic Night Base Unit Rate", "peak": "Dynamic Peak Base Unit Rate"}, "col": 1, "read": "2026-10-03"}, "standing_rural": 375.28, "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found"},
   {"id": "EN-EV-PLUS", "supplier": "Energia", "plan": "EV Smart Drive Plus", "type": "ev", "meter": "smart", "rates": {"day": 0.3893, "night": 0.2399, "peak": 0.5108, "ev": 0.1103}, "windows": {"ev": [2, 6], "peak": [17, 19], "night": [23, 8]}, "standing": 265.01, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-06-02", "notes": "Not in Energia's new-customer plan table on 30 Sep 2026; still on its tariff list for existing customers.", "price_change": {"effective_date": "2026-10-12", "pct": 0.0, "pct_bands": {"day": 0.0, "night": 0.0, "peak": 0.0, "ev": 0.201}, "standing_pct": 0.28, "direction": "increase", "source": "Energia published tariff list effective 12 Oct 2026 (https://www.energia.ie/about-energia/our-tariffs)", "note": "Energia EV Smart Drive Plus from 12 Oct 2026: EV-window rate +20%, day/night/peak unchanged, standing charge +28%. From Energia's published price list."}, "discontinued": true, "standing_rural": 357.36, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
@@ -1103,7 +1120,11 @@ export function rebuildBase(){
  * at each plan's export rate (a flat rate, so the hours do not matter).
  */
 function creditFileExport(r, plan){
-  if ((state.has_solar && !fileIsNet()) || !state._csv_imported || !(state._csv_export_kwh > 0)) return r;
+  // Credited when the readings are priced as they are, or for a home that has
+  // not said it has panels. Not in a what-if without the home's panels: those
+  // sales were the panels'.
+  const own = statedSystem();
+  if (!(fileIsNet() || !(own.has_solar && !own.planned)) || !state._csv_imported || !(state._csv_export_kwh > 0)) return r;
   const n = r.cost.length, per = state._csv_export_kwh * (plan.export_rate || 0) / n;
   const rev = new Float32Array(n);
   for (let i = 0; i < n; i++) rev[i] = per + (r.revenue ? r.revenue[i] : 0);

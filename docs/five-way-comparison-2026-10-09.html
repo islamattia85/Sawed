@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en-IE"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peakless and four comparison sites</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>/* Layout: one reading column for prose, tables allowed to run wider and scroll on their own. */
+:root {
+  --paper: #fbfcfb; --ink: #15201a; --soft: #48574f; --dim: #74827a; --line: #d8e0db; --well: #eef3f0;
+  --accent: #17734a; --accent-soft: #d9efe3; --good: #17734a; --mid: #9a5b00; --bad: #b0322a; --bar: #a9b8b0;
+  --display: "Public Sans", "Helvetica Neue", Arial, sans-serif; --body: "Public Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #111814; --ink: #e5ece8; --soft: #b2c0b8; --dim: #8b9a92; --line: #2c3a33; --well: #1a241f;
+  --accent: #5cc792; --accent-soft: #1d3a2b; --good: #5cc792; --mid: #e3a64a; --bad: #f08a80; --bar: #56665e; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --paper: #111814; --ink: #e5ece8; --soft: #b2c0b8; --dim: #8b9a92; --line: #2c3a33; --well: #1a241f;
+  --accent: #5cc792; --accent-soft: #1d3a2b; --good: #5cc792; --mid: #e3a64a; --bad: #f08a80; --bar: #56665e; color-scheme: dark; }
+body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--body); margin: 0; }
+.doc { max-width: 1060px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 56px; }
+.doc > section, .top { max-width: 1060px; }
+.doc p, .doc li { max-width: 70ch; }
+.kicker { font: 500 12px/1.4 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 0 0 6px; }
+h1 { font: 800 clamp(26px, 4vw, 38px)/1.1 var(--display); letter-spacing: -.02em; margin: 0 0 10px; text-wrap: balance; }
+h2 { font: 700 20px/1.25 var(--display); margin: 40px 0 10px; padding-top: 14px; border-top: 1px solid var(--line); text-wrap: balance; }
+p { margin: 0 0 12px; }
+.sub { color: var(--soft); font-size: 16px; margin-bottom: 22px; }
+.note { color: var(--soft); font-size: 13.5px; }
+.dim { color: var(--dim); white-space: nowrap; }
+code { font: 13px var(--mono); background: var(--well); padding: 1px 5px; border-radius: 4px; }
+ul { padding-left: 20px; margin: 0 0 12px; display: grid; gap: 8px; }
+
+.verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 6px 0 8px; }
+.verdicts > div { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: var(--paper); min-width: 0; }
+.verdicts > div:first-child { background: var(--accent-soft); border-color: transparent; }
+.verdicts b { display: block; font: 500 11.5px/1.3 var(--mono); letter-spacing: .07em; text-transform: uppercase; color: var(--soft); }
+.verdicts span { display: block; font: 800 22px/1.2 var(--display); margin: 6px 0 6px; letter-spacing: -.01em; }
+.verdicts p { font-size: 13.5px; color: var(--soft); margin: 0; }
+
+.tw { overflow-x: auto; margin: 10px 0 14px; border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+thead th { background: var(--well); font-weight: 700; font-size: 12.5px; white-space: nowrap; }
+tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
+tbody th { font-weight: 600; min-width: 180px; }
+td.n, th.n { text-align: right; }
+td small { display: block; color: var(--dim); font-size: 12px; margin-top: 2px; }
+.e, .l { font-weight: 700; white-space: nowrap; }
+.good { color: var(--good); } .mid { color: var(--mid); } .bad { color: var(--bad); } .na { color: var(--dim); }
+td.good, td.mid, td.bad { font-weight: 700; }
+table.cc th:first-child { min-width: 260px; }
+table.feat td { min-width: 140px; }
+
+figure { margin: 18px 0 8px; }
+.chart { width: 100%; max-width: 680px; height: auto; display: block; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .tick { fill: var(--dim); font: 11px var(--mono); }
+.chart .lab { fill: var(--ink); font: 600 13px var(--body); }
+.chart .val { fill: var(--soft); font: 12px var(--mono); }
+.chart .bar { fill: var(--bar); } .chart .bar-pk { fill: var(--accent); }
+.chart .brk { stroke: var(--paper); stroke-width: 3; fill: none; }
+figcaption { color: var(--dim); font-size: 12.5px; margin-top: 4px; }
+.method p { font-size: 14px; }
+
+@media (max-width: 560px) { .doc { padding-inline: 16px; } tbody th { min-width: 130px; } table.cc th:first-child { min-width: 180px; } }
+@media print {
+  @page { size: A4; margin: 14mm 12mm; }
+  :root { --paper: #ffffff; --ink: #15201a; --soft: #48574f; --dim: #74827a; --line: #d8e0db; --well: #eef3f0; --accent: #17734a; --accent-soft: #d9efe3; --good: #17734a; --mid: #9a5b00; --bad: #b0322a; --bar: #a9b8b0; color-scheme: light; }
+  body { font-size: 10pt; } .doc { max-width: none; padding: 0; }
+  h2 { break-after: avoid; margin-top: 22px; } .tw { overflow: visible; border: 0; } table { font-size: 8.6pt; } th, td { padding: 4px 5px; }
+  tr, .verdicts > div, figure { break-inside: avoid; } tbody th { min-width: 0; } table.cc th:first-child, table.feat td { min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head><body><main class="doc">
+<header class="top">
+  <p class="kicker">Comparison run 9 October 2026</p>
+  <h1>Peakless and four comparison sites</h1>
+  <p class="sub">Peakless, bonkers.ie, kilowatt.ie, switcher.ie and EnergyPal. Fifteen homes, each typed in and uploaded as a half-hourly meter file, plus three homes planning solar. 143 runs, every plan scored against its true cost for the year ahead.</p>
+</header>
+
+<section class="verdicts" aria-label="Summary">
+  <div><b>Right plan from a meter file</b><span>Peakless 10 of 10</span><p>EnergyPal 4, bonkers.ie 4, kilowatt.ie 2, switcher.ie 1. If Energia’s 30% offer is not open to new customers, EnergyPal gets 10 of 10 and Peakless 4.</p></div>
+  <div><b>Right plan from typed usage</b><span>Peakless 10 of 11</span><p>bonkers.ie 3, kilowatt.ie 2, switcher.ie 2. EnergyPal only takes meter files.</p></div>
+  <div><b>Price gap from a meter file</b><span>EnergyPal 0.12%</span><p>Peakless 0.35% as tested, 0.18% after today’s fix. bonkers.ie 2.5%, kilowatt.ie 1.6%, switcher.ie 42%.</p></div>
+  <div><b>The surprise</b><span>EnergyPal</span><p>A small, file-only site that prices plans almost exactly, simulates solar, batteries and EVs, and takes your own plan’s rates. It had two Energia standing charges right that Peakless had wrong, and its sums were closer than Peakless’s this morning.</p></div>
+</section>
+
+<section>
+<h2>What was tested</h2>
+<p>Each home is a year of half-hour readings built from the national load profiles, with heat pumps, storage heaters, EVs, panels and batteries added where the home has them. Every site got the same home in two ways: the yearly kWh typed in (with export for solar homes where the site asks for it), and the half-hourly file uploaded in ESB Networks’ format. EnergyPal only takes files.</p>
+<p>The true cost of each plan is its published unit rates applied to every half hour of the year ahead, with announced price changes from their date, the standing charge pro rata, the PSO levy, export paid at the plan’s rate, and no cashback. A site is scored on three things: how far its yearly figures are from the true costs across the plans it prices (the price gap), what following its top plan costs against the truly cheapest plan (€ lost), and whether its top plan is the cheapest one (right plan). Only plans a household switching supplier can take are counted as a site’s top plan.</p>
+<p>Plans were matched by name to the 33 smart-meter plans Peakless carries. Where a site lists a version Peakless doesn’t carry (a smaller discount, a free Sunday instead of a free Saturday), that version was priced separately from the same published rates, so no site is marked down for listing a different offer.</p>
+</section>
+
+<section>
+<h2>The surprise: EnergyPal</h2>
+<p>energypal.ie is a small site built on a low-code app platform. It only takes a meter file: there is no box for a yearly figure or a bill. Upload the file, choose urban or rural, and it lists 36 plans with the standing charge, import cost, export credit and discount in separate columns. It reads the file exactly (4,192 kWh for our typical home, 1,827 kWh exported for the solar home), says how many days the file covers, and lets you price only the last 12 months.</p>
+<p>Its sums are the closest of the four rivals by a wide margin. Across the ten homes, EnergyPal’s yearly figure was within 0.5% of the true cost for 260 of 280 plan prices, using its own engine, not ours. That makes it the best independent check we have on Peakless’s prices (see “Do the sites agree on prices?”).</p>
+<p>It goes further than a plan list. A solar and battery simulator takes two roof faces with size and direction, a usable battery size, and whether the battery charges from the grid (it defaults to never). An EV simulator takes mileage, efficiency, charger size and charging window. A custom-plan tab prices a plan you type in, including one you have negotiated. It also shows a 24-hour usage chart with the day, night and peak bands behind it.</p>
+<p>Where it falls short: no typed route, so a home without its file can’t use it. It lists Energia’s and Bord Gáis’s plans at their new prices for the whole year (“From 12th Oct”), a small overstatement. Like the other three rivals, it lists Energia’s 28% and 23% versions, not the 30% and 27% offers on Energia’s own plans page.</p>
+</section>
+
+<section>
+<h2>Picking the plan from a meter file</h2>
+<p>Each cell shows the price gap, then € lost by following the site’s top plan. Green is the cheapest plan, amber costs under €50 a year more, red €50 or more.</p>
+<div class="tw"><table><thead><tr><th>Home</th><th>Cheapest plan, true cost</th><th>Peakless</th><th>bonkers.ie</th><th>kilowatt.ie</th><th>switcher.ie</th><th>EnergyPal</th></tr></thead><tbody>
+<tr><th scope="row">Small flat, 2,000 kWh</th><td>Waterpower Smart Tariff (SST) <span class="dim">€867</span></td><td><span class="e good">0.6%</span> <span class="l good">€0</span></td><td><span class="e good">0.9%</span> <span class="l good">€0</span></td><td><span class="e mid">1.4%</span> <span class="l mid">€4</span></td><td><span class="e bad">35.4%</span> <span class="l mid">€4</span></td><td><span class="e good">0.1%</span> <span class="l good">€0</span></td></tr>
+<tr><th scope="row">Typical home, 4,200 kWh</th><td>Energia Smart 24 Hour <span class="dim">€1,510</span></td><td><span class="e good">0.3%</span> <span class="l good">€0</span></td><td><span class="e good">0.9%</span> <span class="l mid">€26</span></td><td><span class="e mid">1.3%</span> <span class="l mid">€32</span></td><td><span class="e bad">42.0%</span> <span class="l mid">€32</span></td><td><span class="e good">0.1%</span> <span class="l mid">€26</span></td></tr>
+<tr><th scope="row">Large family, 7,500 kWh</th><td>Energia Smart 24 Hour <span class="dim">€2,479</span></td><td><span class="e good">0.3%</span> <span class="l good">€0</span></td><td><span class="e good">0.9%</span> <span class="l mid">€29</span></td><td><span class="e mid">1.2%</span> <span class="l bad">€63</span></td><td><span class="e bad">45.5%</span> <span class="l bad">€80</span></td><td><span class="e good">0.1%</span> <span class="l mid">€29</span></td></tr>
+<tr><th scope="row">Two working from home, 5,100 kWh</th><td>Energia Smart 24 Hour <span class="dim">€1,778</span></td><td><span class="e good">0.4%</span> <span class="l good">€0</span></td><td><span class="e good">0.9%</span> <span class="l mid">€27</span></td><td><span class="e mid">1.2%</span> <span class="l mid">€43</span></td><td><span class="e bad">43.6%</span> <span class="l bad">€76</span></td><td><span class="e good">0.1%</span> <span class="l mid">€27</span></td></tr>
+<tr><th scope="row">Night-heavy (immersion on a night timer), 5,000 kWh</th><td>Electric Ireland Home Electric+ SST Saver 16% <span class="dim">€1,674</span></td><td><span class="e good">0.3%</span> <span class="l good">€0</span></td><td><span class="e good">0.9%</span> <span class="l good">€0</span></td><td><span class="e mid">1.3%</span> <span class="l good">€0</span></td><td><span class="e bad">42.0%</span> <span class="l good">€0</span></td><td><span class="e good">0.1%</span> <span class="l good">€0</span></td></tr>
+<tr><th scope="row">Heat pump, 9,000 kWh</th><td>Energia Smart 24 Hour <span class="dim">€2,816</span></td><td><span class="e good">0.4%</span> <span class="l good">€0</span></td><td><span class="e mid">1.0%</span> <span class="l mid">€30</span></td><td><span class="e mid">1.2%</span> <span class="l mid">€37</span></td><td><span class="e bad">45.8%</span> <span class="l mid">€37</span></td><td><span class="e good">0.1%</span> <span class="l mid">€30</span></td></tr>
+<tr><th scope="row">Night storage heaters, 11,000 kWh</th><td>Electric Ireland Home Electric+ SST Saver 16% <span class="dim">€2,524</span></td><td><span class="e good">0.4%</span> <span class="l good">€0</span></td><td><span class="e mid">1.1%</span> <span class="l good">€0</span></td><td><span class="e mid">3.9%</span> <span class="l good">€0</span></td><td><span class="e bad">41.2%</span> <span class="l bad">€67</span></td><td><span class="e good">0.3%</span> <span class="l good">€0</span></td></tr>
+<tr><th scope="row">EV charged 2am-5am, 6,700 kWh</th><td>Flogas Smart EV Night Charge 29% <span class="dim">€1,915</span></td><td><span class="e good">0.3%</span> <span class="l good">€0</span></td><td><span class="e bad">7.5%</span> <span class="l good">€0</span></td><td><span class="e mid">1.4%</span> <span class="l bad">€70</span></td><td><span class="e bad">42.1%</span> <span class="l bad">€131</span></td><td><span class="e good">0.2%</span> <span class="l good">€0</span></td></tr>
+<tr><th scope="row">EV charged at teatime, 6,700 kWh</th><td>Energia Smart 24 Hour <span class="dim">€2,236</span></td><td><span class="e good">0.2%</span> <span class="l good">€0</span></td><td><span class="e bad">10.1%</span> <span class="l bad">€172</span></td><td><span class="e mid">1.2%</span> <span class="l bad">€56</span></td><td><span class="e bad">45.7%</span> <span class="l bad">€172</span></td><td><span class="e good">0.1%</span> <span class="l mid">€28</span></td></tr>
+<tr><th scope="row">Rural typical home, 4,200 kWh</th><td>Energia Smart 24 Hour <span class="dim">€1,584</span></td><td><span class="e good">0.4%</span> <span class="l good">€0</span></td><td><span class="e good">0.9%</span> <span class="l mid">€13</span></td><td><span class="e mid">1.2%</span> <span class="l mid">€18</span></td><td><span class="e bad">40.2%</span> <span class="l mid">€18</span></td><td><span class="e good">0.2%</span> <span class="l mid">€13</span></td></tr>
+</tbody></table></div>
+<p class="note">EnergyPal and bonkers.ie miss the cheapest plan for six homes for the same reason: neither lists Energia Smart 24 Hour at 30% off. They pick Flogas Smart 24Hr at 29% instead, €13 to €30 a year dearer. switcher.ie still reads half of every file (on 5 October its own calculation showed 2,096 of the typical home’s 4,192 kWh) and spreads it on a standard day, night and peak split, so all its bills are 35–50% too low. bonkers.ie’s list for the work-from-home file stopped at 45 of its 49 plans.</p>
+</section>
+
+<section>
+<h2>Picking the plan from typed usage</h2>
+<div class="tw"><table><thead><tr><th>Home</th><th>Cheapest plan, true cost</th><th>Peakless</th><th>bonkers.ie</th><th>kilowatt.ie</th><th>switcher.ie</th></tr></thead><tbody>
+<tr><th scope="row">Small flat, 2,000 kWh</th><td>Waterpower Smart Tariff (SST) <span class="dim">€867</span></td><td><span class="e good">0.5%</span> <span class="l good">€0</span></td><td><span class="e mid">3.4%</span> <span class="l mid">€4</span></td><td><span class="e mid">2.6%</span> <span class="l mid">€4</span></td><td><span class="e mid">3.0%</span> <span class="l mid">€4</span></td></tr>
+<tr><th scope="row">Typical home, 4,200 kWh</th><td>Energia Smart 24 Hour <span class="dim">€1,510</span></td><td><span class="e good">0.3%</span> <span class="l good">€0</span></td><td><span class="e mid">3.9%</span> <span class="l mid">€32</span></td><td><span class="e mid">2.8%</span> <span class="l mid">€32</span></td><td><span class="e mid">3.6%</span> <span class="l mid">€32</span></td></tr>
+<tr><th scope="row">Large family, 7,500 kWh</th><td>Energia Smart 24 Hour <span class="dim">€2,479</span></td><td><span class="e good">0.2%</span> <span class="l good">€0</span></td><td><span class="e mid">4.2%</span> <span class="l bad">€80</span></td><td><span class="e mid">2.8%</span> <span class="l bad">€80</span></td><td><span class="e mid">3.9%</span> <span class="l bad">€80</span></td></tr>
+<tr><th scope="row">Two working from home, 5,100 kWh</th><td>Energia Smart 24 Hour <span class="dim">€1,778</span></td><td><span class="e mid">1.1%</span> <span class="l good">€0</span></td><td><span class="e mid">4.7%</span> <span class="l bad">€76</span></td><td><span class="e mid">3.4%</span> <span class="l bad">€76</span></td><td><span class="e mid">4.3%</span> <span class="l bad">€76</span></td></tr>
+<tr><th scope="row">Night-heavy (immersion on a night timer), 5,000 kWh</th><td>Electric Ireland Home Electric+ SST Saver 16% <span class="dim">€1,674</span></td><td><span class="e good">1.0%</span> <span class="l good">€0</span></td><td><span class="e good">0.9%</span> <span class="l good">€0</span></td><td><span class="e mid">2.3%</span> <span class="l good">€0</span></td><td><span class="e good">0.8%</span> <span class="l good">€0</span></td></tr>
+<tr><th scope="row">Heat pump, 9,000 kWh</th><td>Energia Smart 24 Hour <span class="dim">€2,816</span></td><td><span class="e bad">5.0%</span> <span class="l mid">€37</span></td><td><span class="e mid">3.5%</span> <span class="l mid">€37</span></td><td><span class="e mid">3.1%</span> <span class="l mid">€37</span></td><td><span class="e mid">3.3%</span> <span class="l mid">€37</span></td></tr>
+<tr><th scope="row">Night storage heaters, 11,000 kWh</th><td>Electric Ireland Home Electric+ SST Saver 16% <span class="dim">€2,524</span></td><td><span class="e mid">3.5%</span> <span class="l good">€0</span></td><td><span class="e bad">12.6%</span> <span class="l good">€0</span></td><td><span class="e bad">15.2%</span> <span class="l good">€0</span></td><td><span class="e bad">13.9%</span> <span class="l good">€0</span></td></tr>
+<tr><th scope="row">EV charged 2am-5am, 6,700 kWh</th><td>Flogas Smart EV Night Charge 29% <span class="dim">€1,915</span></td><td><span class="e good">0.5%</span> <span class="l good">€0</span></td><td><span class="e mid">3.6%</span> <span class="l good">€0</span></td><td><span class="e bad">5.7%</span> <span class="l bad">€733</span></td><td><span class="e bad">6.9%</span> <span class="l bad">€70</span></td></tr>
+<tr><th scope="row">EV charged at teatime, 6,700 kWh</th><td>Energia Smart 24 Hour <span class="dim">€2,236</span></td><td><span class="e mid">2.2%</span> <span class="l good">€0</span></td><td><span class="e bad">13.7%</span> <span class="l bad">€301</span></td><td><span class="e bad">13.2%</span> <span class="l bad">€279</span></td><td><span class="e bad">5.8%</span> <span class="l bad">€172</span></td></tr>
+<tr><th scope="row">Rural typical home, 4,200 kWh</th><td>Energia Smart 24 Hour <span class="dim">€1,584</span></td><td><span class="e good">0.3%</span> <span class="l good">€0</span></td><td><span class="e mid">3.8%</span> <span class="l mid">€18</span></td><td><span class="e mid">2.6%</span> <span class="l mid">€18</span></td><td><span class="e mid">2.7%</span> <span class="l mid">€18</span></td></tr>
+<tr><th scope="row">Typical home, older 24-hour meter</th><td>Energia Standard Electricity <span class="dim">€1,579</span></td><td><span class="e good">0.0%</span> <span class="l good">€0</span></td><td><span class="e good">0.9%</span> <span class="l mid">€10</span></td><td><span class="e mid">2.6%</span> <span class="l mid">€36</span></td><td><span class="e mid">3.1%</span> <span class="l mid">€46</span></td></tr>
+</tbody></table></div>
+<p class="note">With only a yearly figure, bonkers.ie and switcher.ie spread use on the standard smart-meter split (about 54% day, 37% night, 9% peak), which suits Electric Ireland’s SST plan; kilowatt.ie uses its own profile. Peakless asks how the home heats, whether there is an immersion on a night timer and whether there is an EV, and shapes the year from that. kilowatt.ie’s top plan for both EV homes is Electric Ireland’s Weekender with free Sundays, which only pays if the car is charged on Sundays. Our EV homes charge every night, and on that plan they would pay €733 and €279 a year more than on the cheapest plan. Peakless’s heat pump home is its one miss: €37, with a 4.9% price gap.</p>
+</section>
+
+<section>
+<h2>Totals for the homes without solar</h2>
+<div class="tw"><table><thead><tr><th>Site</th><th class="n">Typed: right plan</th><th class="n">Typed: € lost</th><th class="n">File: right plan</th><th class="n">File: € lost</th><th class="n">Price gap, file</th><th class="n">Plans listed</th></tr></thead><tbody>
+<tr><th scope="row">Peakless</th><td class="n">10 of 11</td><td class="n">€37</td><td class="n">10 of 10</td><td class="n">€0</td><td class="n">0.35%</td><td class="n">33</td></tr>
+<tr><th scope="row">bonkers.ie</th><td class="n">3 of 11</td><td class="n">€558</td><td class="n">4 of 10</td><td class="n">€297</td><td class="n">2.51%</td><td class="n">47</td></tr>
+<tr><th scope="row">kilowatt.ie</th><td class="n">2 of 11</td><td class="n">€1,295</td><td class="n">2 of 10</td><td class="n">€323</td><td class="n">1.56%</td><td class="n">113</td></tr>
+<tr><th scope="row">switcher.ie</th><td class="n">2 of 11</td><td class="n">€535</td><td class="n">1 of 10</td><td class="n">€617</td><td class="n">42.35%</td><td class="n">54</td></tr>
+<tr><th scope="row">EnergyPal</th><td class="n">no typed route</td><td class="n">—</td><td class="n">4 of 10</td><td class="n">€153</td><td class="n">0.12%</td><td class="n">36</td></tr>
+</tbody></table></div>
+<figure><svg viewBox="0 0 680 204" role="img" aria-labelledby="gapt gapd" class="chart"><title id="gapt">Price gap from a meter file, by site</title><desc id="gapd">Average gap between each site's yearly cost and the true cost, across the plans it prices, ten homes. EnergyPal 0.12%; Peakless 0.35%; kilowatt.ie 1.56%; bonkers.ie 2.51%; switcher.ie 42.35%</desc><line x1="120.0" y1="6" x2="120.0" y2="178" class="grid"/><text x="120.0" y="194" class="tick" text-anchor="middle">0%</text><line x1="202.0" y1="6" x2="202.0" y2="178" class="grid"/><text x="202.0" y="194" class="tick" text-anchor="middle">1%</text><line x1="284.0" y1="6" x2="284.0" y2="178" class="grid"/><text x="284.0" y="194" class="tick" text-anchor="middle">2%</text><line x1="366.0" y1="6" x2="366.0" y2="178" class="grid"/><text x="366.0" y="194" class="tick" text-anchor="middle">3%</text><line x1="448.0" y1="6" x2="448.0" y2="178" class="grid"/><text x="448.0" y="194" class="tick" text-anchor="middle">4%</text><line x1="530.0" y1="6" x2="530.0" y2="178" class="grid"/><text x="530.0" y="194" class="tick" text-anchor="middle">5%</text><text x="110" y="25" class="lab" text-anchor="end">EnergyPal</text><rect x="120" y="13" width="9.8" height="18" rx="3" class="bar"/><text x="137.8" y="26" class="val">0.12%</text><text x="110" y="59" class="lab" text-anchor="end">Peakless</text><rect x="120" y="47" width="28.7" height="18" rx="3" class="bar-pk"/><text x="156.7" y="60" class="val">0.35%</text><text x="110" y="93" class="lab" text-anchor="end">kilowatt.ie</text><rect x="120" y="81" width="127.9" height="18" rx="3" class="bar"/><text x="255.9" y="94" class="val">1.56%</text><text x="110" y="127" class="lab" text-anchor="end">bonkers.ie</text><rect x="120" y="115" width="205.8" height="18" rx="3" class="bar"/><text x="333.8" y="128" class="val">2.51%</text><text x="110" y="161" class="lab" text-anchor="end">switcher.ie</text><rect x="120" y="149" width="410.0" height="18" rx="3" class="bar"/><path d="M516.0 147 l8 22 M522.0 147 l8 22" class="brk"/><text x="538.0" y="162" class="val">42.35% (off scale)</text></svg><figcaption>Average price gap from a meter file, ten homes. Peakless as tested this morning.</figcaption></figure>
+</section>
+
+<section>
+<h2>The Energia question</h2>
+<p>Energia’s own plans page offers Smart 24 Hour at 30% off (28.10c a unit), Smart Data at 27% and the 24-hour meter plan at 30%, with a “Select Smart 24 Hour Plan” button. Its tariff page shows Smart Data at 23% and the 24-hour plan at 26%, and all four rival sites list Smart 24 Hour at 28% and Smart Data at 23%. On 5 October switcher.ie listed both; today it lists only the dearer ones. Energia’s sign-up page shows rates only after you enter a meter number, so we could not settle which a new customer gets. Peakless prices the 30% and 27% offers, and they decide the answer for six of the ten homes.</p>
+<div class="tw"><table><thead><tr><th>Site</th><th class="n" colspan="2">Energia’s 30% and 27% offers open to new customers</th><th class="n" colspan="2">Only the 28% and 23% versions open</th></tr><tr><th></th><th class="n">Right plan, file</th><th class="n">€ lost, file</th><th class="n">Right plan, file</th><th class="n">€ lost, file</th></tr></thead><tbody>
+<tr><th scope="row">Peakless</th><td class="n">10 of 10</td><td class="n">€0</td><td class="n">4 of 10</td><td class="n">€149</td></tr>
+<tr><th scope="row">bonkers.ie</th><td class="n">4 of 10</td><td class="n">€297</td><td class="n">9 of 10</td><td class="n">€144</td></tr>
+<tr><th scope="row">kilowatt.ie</th><td class="n">2 of 10</td><td class="n">€323</td><td class="n">2 of 10</td><td class="n">€168</td></tr>
+<tr><th scope="row">switcher.ie</th><td class="n">1 of 10</td><td class="n">€617</td><td class="n">1 of 10</td><td class="n">€463</td></tr>
+<tr><th scope="row">EnergyPal</th><td class="n">4 of 10</td><td class="n">€153</td><td class="n">10 of 10</td><td class="n">€0</td></tr>
+</tbody></table></div>
+<p class="note">If the dearer versions are all that is on offer, Peakless’s top plan for those six homes becomes the 28% version, €9 to €42 a year more than Flogas Smart 24Hr, and EnergyPal is right for all ten. This needs a person to check with Energia, or sign-up with a real meter number.</p>
+</section>
+
+<section>
+<h2>Do the sites agree on prices?</h2>
+<p>The true costs above use the published rates Peakless holds, so a mistake there would flatter Peakless. This table checks that. It shows each site’s typical gap from the true cost for each plan, across the ten meter-file homes (median). Rivals that price the same file independently should land close to zero if the rates are right.</p>
+<div class="tw"><table class="cc"><thead><tr><th>Plan</th><th class="n">Peakless</th><th class="n">bonkers.ie</th><th class="n">kilowatt.ie</th><th class="n">switcher.ie</th><th class="n">EnergyPal</th></tr></thead><tbody>
+<tr><th scope="row">Electric Ireland Home Electric+ SST Saver 16%</th><td class="n good">+0.1%</td><td class="n good">+0.0%</td><td class="n good">+0.0%</td><td class="n bad">-43.6%</td><td class="n good">+0.0%</td></tr>
+<tr><th scope="row">Electric Ireland Home Electric+ Saver 16%</th><td class="n good">+0.1%</td><td class="n good">+0.0%</td><td class="n good">+0.0%</td><td class="n bad">-43.8%</td><td class="n good">+0.0%</td></tr>
+<tr><th scope="row">Electric Ireland Home Electric+ Night Boost</th><td class="n good">+0.1%</td><td class="n good">+0.0%</td><td class="n good">+0.0%</td><td class="n bad">-41.8%</td><td class="n good">+0.0%</td></tr>
+<tr><th scope="row">Bord Gáis Energy Smart All Day Electricity Discount</th><td class="n good">+0.1%</td><td class="n good">+0.0%</td><td class="n mid">+2.4%</td><td class="n bad">-43.8%</td><td class="n good">+0.0%</td></tr>
+<tr><th scope="row">Bord Gáis Energy Smart Standard Electricity Discount</th><td class="n good">+0.1%</td><td class="n good">-0.4%</td><td class="n mid">+3.0%</td><td class="n bad">-43.1%</td><td class="n good">+0.0%</td></tr>
+<tr><th scope="row">Bord Gáis Energy Smart EV Plus Electricity Discount</th><td class="n good">+0.1%</td><td class="n mid">+0.6%</td><td class="n mid">+0.7%</td><td class="n bad">-40.6%</td><td class="n good">+0.0%</td></tr>
+<tr><th scope="row">Energia Smart 24 Hour (28% version)</th><td class="n na">own offer</td><td class="n good">+0.0%</td><td class="n good">+0.0%</td><td class="n bad">-43.0%</td><td class="n good">+0.0%</td></tr>
+<tr><th scope="row">Energia Smart Data (23% version)</th><td class="n na">own offer</td><td class="n good">+0.0%</td><td class="n good">+0.0%</td><td class="n bad">-42.7%</td><td class="n good">+0.1%</td></tr>
+<tr><th scope="row">Energia Smart Day/Night</th><td class="n mid">-3.2%</td><td class="n good">+0.0%</td><td class="n good">+0.0%</td><td class="n na">—</td><td class="n na">—</td></tr>
+<tr><th scope="row">Energia EV Smart Drive</th><td class="n mid">-2.5%</td><td class="n good">+0.0%</td><td class="n good">+0.0%</td><td class="n bad">-42.4%</td><td class="n good">+0.0%</td></tr>
+<tr><th scope="row">Flogas Smart 24hr 29%</th><td class="n good">+0.1%</td><td class="n good">+0.0%</td><td class="n na">—</td><td class="n na">—</td><td class="n good">+0.0%</td></tr>
+<tr><th scope="row">Flogas Smart Day/Night/Peak 29%</th><td class="n good">+0.1%</td><td class="n good">+0.0%</td><td class="n na">—</td><td class="n na">—</td><td class="n good">+0.0%</td></tr>
+<tr><th scope="row">Flogas Smart EV Night Charge 29%</th><td class="n good">+0.1%</td><td class="n mid">+2.2%</td><td class="n na">—</td><td class="n na">—</td><td class="n good">+0.0%</td></tr>
+<tr><th scope="row">SSE Airtricity Smart Day/Night/Peak 30%</th><td class="n good">+0.1%</td><td class="n good">+0.0%</td><td class="n na">—</td><td class="n bad">-42.8%</td><td class="n good">+0.0%</td></tr>
+<tr><th scope="row">SSE Airtricity Smart Everyday 30%</th><td class="n good">+0.1%</td><td class="n good">+0.0%</td><td class="n good">+0.0%</td><td class="n bad">-43.2%</td><td class="n good">+0.0%</td></tr>
+<tr><th scope="row">SSE Airtricity Smart Weekends</th><td class="n good">+0.5%</td><td class="n mid">-2.5%</td><td class="n good">+0.0%</td><td class="n bad">-42.1%</td><td class="n mid">-1.0%</td></tr>
+<tr><th scope="row">Waterpower Smart Tariff (SST)</th><td class="n good">+0.1%</td><td class="n good">+0.0%</td><td class="n bad">+15.9%</td><td class="n bad">-34.9%</td><td class="n good">+0.0%</td></tr>
+<tr><th scope="row">Yuno Energy Electricity Bonus 24hr</th><td class="n good">+0.1%</td><td class="n good">+0.0%</td><td class="n mid">-2.2%</td><td class="n bad">-45.0%</td><td class="n good">+0.0%</td></tr>
+<tr><th scope="row">Yuno Energy EV Variable</th><td class="n good">+0.1%</td><td class="n mid">-1.0%</td><td class="n good">+0.0%</td><td class="n bad">-41.9%</td><td class="n good">+0.0%</td></tr>
+<tr><th scope="row">Community Power Smart SST</th><td class="n good">+0.1%</td><td class="n mid">-4.6%</td><td class="n good">+0.0%</td><td class="n bad">-43.7%</td><td class="n good">+0.0%</td></tr>
+<tr><th scope="row">Ecopower Standard Smart Electricity 10%</th><td class="n good">+0.1%</td><td class="n bad">-5.7%</td><td class="n good">+0.0%</td><td class="n bad">-43.9%</td><td class="n good">+0.1%</td></tr>
+<tr><th scope="row">Pinergy Lifestyle Standard Smart Tariff</th><td class="n good">+0.1%</td><td class="n mid">+0.8%</td><td class="n good">+0.0%</td><td class="n na">—</td><td class="n mid">+1.0%</td></tr>
+</tbody></table></div>
+<p>EnergyPal is within 0.5% on 260 of 280 plan prices, bonkers.ie on 164 of 279, kilowatt.ie on 192 of 290. Where the rivals agree with each other and not with Peakless, Peakless was wrong. That happened for two Energia plans. From 12 October Energia’s Smart Day/Night standing charge is €348.57 a year (it is €331.97 now), and EV Smart Drive’s rises 28% to €339.22. Peakless had €265.01 rising 5% for both. bonkers.ie and kilowatt.ie had both right, EnergyPal had EV Smart Drive right (it doesn’t list Smart Day/Night), and Energia’s tariff page confirms them. Peakless’s figures for those two plans were about 3% low. Neither plan was anyone’s top pick, so no answer changed. Both are corrected today.</p>
+<p class="note">Where one rival disagrees with the rest, that rival is out of date or prices a different offer. kilowatt.ie has Waterpower about 16% dearer and Bord Gáis about 2–3% dearer than the other sites. bonkers.ie has Ecopower and Community Power about 5% cheaper than the other sites and the suppliers’ pages as Peakless last read them. kilowatt.ie’s Flogas plans are the 10% versions, not the 29% loyalty offer, so they are not compared. switcher.ie is 35–50% low on everything because of the half-read file.</p>
+</section>
+
+<section>
+<h2>Homes with panels already up: meter file</h2>
+<div class="tw"><table><thead><tr><th>Home</th><th>Cheapest plan, true cost</th><th>Peakless</th><th>bonkers.ie</th><th>kilowatt.ie</th><th>switcher.ie</th><th>EnergyPal</th></tr></thead><tbody>
+<tr><th scope="row">4 kWp solar, no battery</th><td>Electric Ireland Home Electric+ SST Saver 16% <span class="dim">€563</span></td><td><span class="e good">0.8%</span> <span class="l good">€0</span></td><td><span class="e mid">3.6%</span> <span class="l good">€0</span></td><td><span class="e bad">5.1%</span> <span class="l good">€0</span></td><td><span class="e bad">50.5%</span> <span class="l good">€0</span></td><td><span class="e mid">1.8%</span> <span class="l good">€0</span></td></tr>
+<tr><th scope="row">4 kWp solar + 10 kWh battery</th><td>Electric Ireland Home Electric+ SST Saver 16% <span class="dim">€491</span></td><td><span class="e good">0.9%</span> <span class="l good">€0</span></td><td><span class="e mid">2.4%</span> <span class="l good">€0</span></td><td><span class="e mid">3.8%</span> <span class="l good">€0</span></td><td><span class="e bad">37.4%</span> <span class="l good">€0</span></td><td><span class="e mid">1.1%</span> <span class="l good">€0</span></td></tr>
+<tr><th scope="row">6 kWp + 10 kWh battery + EV charged 2am-5am</th><td>Electric Ireland Home Electric+ SST Saver 16% <span class="dim">€571</span></td><td><span class="e good">0.9%</span> <span class="l good">€0</span></td><td><span class="e bad">75.7%</span> <span class="l mid">€43</span></td><td><span class="e mid">3.8%</span> <span class="l good">€0</span></td><td><span class="e bad">39.7%</span> <span class="l mid">€35</span></td><td><span class="e mid">1.4%</span> <span class="l good">€0</span></td></tr>
+<tr><th scope="row">6 kWp + 9 kWh battery, put in mid-April (file part before, part after)</th><td>Electric Ireland Home Electric+ SST Saver 16% <span class="dim">€363</span></td><td><span class="e bad">24.8%</span> <span class="l bad">€101</span></td><td><span class="e bad">118.7%</span> <span class="l good">€0</span></td><td><span class="e bad">120.8%</span> <span class="l good">€0</span></td><td><span class="e bad">16.6%</span> <span class="l good">€0</span></td><td><span class="e bad">119.4%</span> <span class="l good">€0</span></td></tr>
+</tbody></table></div>
+<p class="note">For three of the four homes the file is a year with the panels. Peakless, EnergyPal and bonkers.ie price it almost exactly. kilowatt.ie warned that 35–59% of the data was missing on the three battery files, and was 4–5% off. The fourth home put in 6 kWp and a 9 kWh battery in April, so its file is half before and half after. The other sites price that mixed year, and their bills come out more than double the year ahead with panels. Peakless asks when the panels went up and rebuilds the year with them: its gap is 25%, mostly from assuming the battery charges from the grid at night (next section).</p>
+</section>
+
+<section>
+<h2>Homes with panels already up: typed</h2>
+<p>bonkers.ie and switcher.ie ask for units bought and sold. kilowatt.ie asks for use before the panels plus the system. Peakless takes either.</p>
+<div class="tw"><table><thead><tr><th>Home</th><th>Peakless, units bought and sold</th><th>bonkers.ie, units bought and sold</th><th>switcher.ie, units bought and sold</th><th>Peakless, use before panels + system</th><th>kilowatt.ie, use before panels + system</th></tr></thead><tbody>
+<tr><th scope="row">4 kWp solar, no battery</th><td><span class="e bad">7.0%</span> <span class="l good">€0</span></td><td><span class="e mid">3.6%</span> <span class="l good">€0</span></td><td><span class="e bad">5.4%</span> <span class="l good">€0</span></td><td><span class="e bad">5.2%</span> <span class="l good">€0</span></td><td><span class="e bad">24.9%</span> <span class="l good">€0</span></td></tr>
+<tr><th scope="row">4 kWp solar + 10 kWh battery</th><td><span class="e bad">18.9%</span> <span class="l bad">€184</span></td><td><span class="e mid">2.6%</span> <span class="l good">€0</span></td><td><span class="e mid">3.6%</span> <span class="l good">€0</span></td><td><span class="e bad">18.7%</span> <span class="l bad">€184</span></td><td><span class="e bad">37.3%</span> <span class="l na">n/a</span><small>top: Yuno Energy EV Standard Smart</small></td></tr>
+<tr><th scope="row">6 kWp + 10 kWh battery + EV charged 2am-5am</th><td><span class="e bad">18.5%</span> <span class="l mid">€32</span></td><td><span class="e bad">92.5%</span> <span class="l mid">€43</span></td><td><span class="e bad">17.7%</span> <span class="l good">€0</span></td><td><span class="e bad">17.5%</span> <span class="l mid">€32</span></td><td><span class="e bad">41.1%</span> <span class="l na">n/a</span><small>top: Yuno Energy EV Standard Smart</small></td></tr>
+<tr><th scope="row">6 kWp + 9 kWh battery, put in mid-April (file part before, part after)</th><td><span class="e bad">80.4%</span> <span class="l bad">€101</span></td><td><span class="e bad">110.9%</span> <span class="l good">€0</span></td><td><span class="e bad">112.6%</span> <span class="l good">€0</span></td><td><span class="e bad">21.6%</span> <span class="l bad">€101</span></td><td><span class="e bad">65.6%</span> <span class="l bad">€101</span></td></tr>
+</tbody></table></div>
+<p class="note">The half-before, half-after home typed as one yearly figure can’t be priced well by anyone: the figure describes neither the old year nor the new. kilowatt.ie’s top plan for the two battery homes is Yuno’s “EV Standard Smart”, a plan Peakless doesn’t carry, so it isn’t scored. kilowatt.ie lists two Bord Gáis plans for existing customers above it.</p>
+</section>
+
+<section>
+<h2>Batteries: two true costs</h2>
+<p>A battery changes the answer more than anything else in this comparison, and the sites disagree about how it is run. A battery that only stores spare solar suits a flat-rate plan. One that also fills from the grid on cheap night hours suits an EV plan, and saves a lot more. So the true costs were worked out both ways. For the second, each plan’s cheap hours fill the battery to whatever level is cheapest that month: the best a fixed schedule could do on that plan.</p>
+<p>For the 4 kWp and 10 kWh home, the cheapest plan is <b>Electric Ireland Home Electric+ SST Saver 16%</b> at €491 a year if the battery only stores solar, and <b>Yuno Energy EV Variable Smart</b> at €277 if it also fills at night: €214 a year less.</p>
+<div class="tw"><table><thead><tr><th>Site and input</th><th>Top plan</th><th class="n">Site’s figure</th><th class="n">True cost, battery on solar only</th><th class="n">True cost, battery also filled at night</th><th>Second answer shown</th></tr></thead><tbody>
+<tr><th scope="row">Peakless, units bought and sold</th><td>Yuno Energy EV Variable Smart</td><td class="n">€266</td><td class="n ">€675</td><td class="n good">€277</td><td>If it only takes solar: Electric Ireland Home Electric+ SST Saver 16%, €468 (true €491)</td></tr>
+<tr><th scope="row">Peakless, use before panels + system</th><td>Yuno Energy EV Variable Smart</td><td class="n">€269</td><td class="n ">€675</td><td class="n good">€277</td><td>If it only takes solar: Electric Ireland Home Electric+ SST Saver 16%, €473 (true €491)</td></tr>
+<tr><th scope="row">Peakless, planning from a file</th><td>Yuno Energy EV Variable Smart</td><td class="n">€280</td><td class="n ">€675</td><td class="n good">€277</td><td>If it only takes solar: Electric Ireland Home Electric+ SST Saver 16%, €483 (true €491)</td></tr>
+<tr><th scope="row">Peakless, meter file</th><td>Electric Ireland Home Electric+ SST Saver 16%</td><td class="n">€493</td><td class="n good">€491</td><td class="n ">€334</td><td><span class="bad">None: the night-charging saving is not offered</span></td></tr>
+<tr><th scope="row">kilowatt.ie, use before panels + system</th><td>Yuno Energy EV Standard Smart</td><td class="n">€309</td><td class="n na">not in our list</td><td class="n na">—</td><td class="na">—</td></tr>
+<tr><th scope="row">kilowatt.ie, planning from a file</th><td>Yuno Energy EV Standard Smart</td><td class="n">€307</td><td class="n na">not in our list</td><td class="n na">—</td><td class="na">—</td></tr>
+<tr><th scope="row">EnergyPal, planning from a file</th><td>Electric Ireland Home Electric+ SST Saver 16%</td><td class="n">€423</td><td class="n good">€491</td><td class="n ">€334</td><td>—</td></tr>
+<tr><th scope="row">EnergyPal, meter file</th><td>Electric Ireland Home Electric+ SST Saver 16%</td><td class="n">€491</td><td class="n good">€491</td><td class="n ">€334</td><td>—</td></tr>
+<tr><th scope="row">bonkers.ie, meter file</th><td>Electric Ireland Home Electric+ SST Saver 16%</td><td class="n">€491</td><td class="n good">€491</td><td class="n ">€334</td><td>—</td></tr>
+<tr><th scope="row">switcher.ie, units bought and sold</th><td>Electric Ireland Home Electric+ SST Saver 16%</td><td class="n">€488</td><td class="n good">€491</td><td class="n ">€334</td><td>—</td></tr>
+</tbody></table></div>
+<p>Peakless and kilowatt.ie assume the battery is filled at night. Peakless says so on the Plans page (“This needs your battery to charge from the grid at night”) and gives the answer for a solar-only battery under it. Both of its answers are right for this home, and its figures are within 1–5% of the true costs. kilowatt.ie has no solar-only setting: its “Smart Control” switch changes how the night filling is scheduled, not whether it happens. EnergyPal defaults to solar only and lets you change it. bonkers.ie and switcher.ie price the readings as they are.</p>
+<p><b>The gap this found in Peakless:</b> when a home with a battery uploads its meter file, Peakless prices the readings exactly (right for the home as it runs) but never mentions the night-filling saving. For this home that is about €214 a year; for the home with a 6 kWp system and an EV it is about €371. The typed route shows it; the file route should too.</p>
+</section>
+
+<section>
+<h2>Planning solar</h2>
+<p>Three homes uploaded their meter file from before the panels and added the system they then put in: 4 kWp facing south at 35°, with or without a 10 kWh battery, and 6 kWp with a battery for the EV home. Only Peakless, kilowatt.ie and EnergyPal offer this. The true cost is the year with the panels.</p>
+<div class="tw"><table><thead><tr><th>System added to the before-panels file</th><th>Cheapest plan once built (battery on solar only)</th><th>Peakless</th><th>kilowatt.ie</th><th>EnergyPal</th></tr></thead><tbody>
+<tr><th scope="row">4 kWp, no battery</th><td>Electric Ireland Home Electric+ SST Saver 16% <span class="dim">€563</span></td><td><span class="e bad">6.3%</span> <span class="l good">€0</span><small>top: Electric Ireland Home Electric+ SST Saver 16%, says €605, true €563</small></td><td><span class="e bad">23.3%</span> <span class="l good">€0</span><small>top: Electric Ireland Home Electric+ SST Saver 16%, says €689, true €563</small></td><td><span class="e mid">4.8%</span> <span class="l good">€0</span><small>top: Electric Ireland Home Electric+ SST Saver 16%, says €527, true €563</small></td></tr>
+<tr><th scope="row">4 kWp + 10 kWh battery</th><td>Electric Ireland Home Electric+ SST Saver 16% <span class="dim">€491</span></td><td><span class="e bad">18.2%</span> <span class="l bad">€184</span><small>top: Yuno Energy EV Variable Smart, says €280, true €675 <small>if filled at night: true €277</small></small></td><td><span class="e bad">33.9%</span> <small>top: Yuno Energy EV Standard Smart €307, not in our list</small></td><td><span class="e bad">13.3%</span> <span class="l good">€0</span><small>top: Electric Ireland Home Electric+ SST Saver 16%, says €423, true €491 <small>if filled at night: true €334</small></small></td></tr>
+<tr><th scope="row">6 kWp + 10 kWh battery, EV at night</th><td>Electric Ireland Home Electric+ SST Saver 16% <span class="dim">€571</span></td><td><span class="e bad">16.9%</span> <span class="l mid">€32</span><small>top: Yuno Energy EV Variable Smart, says €183, true €603 <small>if filled at night: true €200</small></small></td><td><span class="e bad">37.8%</span> <small>top: Yuno Energy EV Standard Smart €230, not in our list</small></td><td><span class="e bad">11.4%</span> <span class="l good">€0</span><small>top: Electric Ireland Home Electric+ SST Saver 16%, says €479, true €571 <small>if filled at night: true €434</small></small></td></tr>
+</tbody></table></div>
+<p class="note">Price gaps here are mostly the solar model, not the plan prices. EnergyPal makes 4,018 kWh a year from 4 kWp (our test home makes 3,718) and so comes out low. kilowatt.ie keeps less of the solar in the home within each half hour, on purpose, and comes out high. Peakless lands between them. For batteries, the scored top plan is the solar-only one; see the table above for the night-filled case.</p>
+</section>
+
+<section>
+<h2>What each site offers</h2>
+<div class="tw"><table class="feat"><thead><tr><th></th><th>Peakless</th><th>bonkers.ie</th><th>kilowatt.ie</th><th>switcher.ie</th><th>EnergyPal</th></tr></thead><tbody>
+<tr><th scope="row">Typed yearly use or bill</th><td>Yes, kWh or €, by month too</td><td>Yes</td><td>Yes, yearly or two-monthly</td><td>Yes</td><td class="na">No</td></tr>
+<tr><th scope="row">Meter file</th><td>Yes, every day priced; asks when panels went up</td><td>Yes</td><td>Yes, warns on solar files</td><td>Reads half</td><td>Yes, exact, with a 12-month option</td></tr>
+<tr><th scope="row">Plans listed for a smart meter</th><td>33, plus dynamic on request</td><td>47 incl. every discount tier</td><td>113 incl. existing-customer and standard rates</td><td>54</td><td>36 incl. dynamic</td></tr>
+<tr><th scope="row">Price changes counted from their date</th><td>Yes</td><td>Yes</td><td>Yes, shown before and after</td><td>Yes</td><td>New price for the whole year</td></tr>
+<tr><th scope="row">EV</th><td>Yes, km and charging time</td><td>“Optimised for EV” filter</td><td>Yes, kWh a night, cheapest time</td><td>None found</td><td>Yes, mileage, charger, window</td></tr>
+<tr><th scope="row">Heat pump or storage heating</th><td>Yes</td><td>No</td><td>Heat pump, with floor area</td><td>No</td><td>No</td></tr>
+<tr><th scope="row">Add solar to a home</th><td>Yes, two roof faces, payback</td><td class="na">No</td><td>Yes, size and inverter</td><td class="na">No</td><td>Yes, two roof faces</td></tr>
+<tr><th scope="row">Battery: solar only or night filling</th><td>Both answers shown (typed and planning)</td><td class="na">—</td><td>Night filling only</td><td class="na">—</td><td>Your choice, solar only by default</td></tr>
+<tr><th scope="row">Your own plan’s rates</th><td>Your plan and discount</td><td>No</td><td>Edit a discount</td><td>No</td><td>Any plan you type in</td></tr>
+<tr><th scope="row">Gas and dual fuel</th><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+<tr><th scope="row">Beyond the plan list</th><td>Solar quote check, payback, price stress test, alerts</td><td>Switching service</td><td>Calculation per band</td><td>Switching service</td><td>Usage chart</td></tr>
+<tr><th scope="row">Effort in our runs</th><td>8–10 questions</td><td>13 clicks</td><td>7 clicks</td><td>7 clicks</td><td>5 clicks</td></tr>
+</tbody></table></div>
+</section>
+
+<section>
+<h2>What changed in Peakless today</h2>
+<ul>
+<li><b>Two Energia standing charges corrected.</b> Smart Day/Night: €331.97 now, €348.57 from 12 October. EV Smart Drive: €265.01 now, €339.22 from 12 October. Rural figures from the same page. Peakless’s meter-file gap across the ten homes drops from 0.35% to 0.18%, and the typed gap from 1.33% to 1.19%. No top plan changes.</li>
+<li><b>Meter files from a home whose own panels were up all year are priced from the readings.</b> They were being rebuilt from a solar model, which went wrong for battery homes whose winter exports are near zero (a 63% gap on one test home). Now 0.4%.</li>
+<li><b>Panels put in partway through the file.</b> Peakless asks whether that is when they went up, and rebuilds the year ahead with them.</li>
+</ul>
+</section>
+
+<section>
+<h2>Still open for Peakless</h2>
+<ul>
+<li><b>Meter file with a battery: show the night-filling saving.</b> Worth about €214 to €371 a year to the two test homes. Needs the battery simulated on the rebuilt year, beside the exact price of the readings.</li>
+<li><b>Energia’s 30% and 27% offers.</b> Confirm with Energia that new customers get them. If not, switch to the 28% and 23% versions.</li>
+<li><b>Heat pump typed in:</b> 4.9% gap and €37 lost. Needs real heat-pump meter files to improve.</li>
+<li><b>The half-before, half-after battery home:</b> the rebuild leans on the night-filling assumption and lands 24% low on a solar-only basis.</li>
+</ul>
+</section>
+
+<section class="method">
+<h2>How it was run</h2>
+<p>All four rival sites were driven through their public forms on 9 October 2026 in a headless browser, with electricity only, urban unless the home is rural, a smart meter, direct debit, online billing, all plans shown and cashback off. Results were read from the page. Typed runs entered the yearly kWh; for solar homes, bonkers.ie and switcher.ie got units bought and sold, and kilowatt.ie got use before the panels with the system size and battery. File runs uploaded the same ESB-format file to every site. EnergyPal’s solar simulator was given the same size and direction; kilowatt.ie’s was given the size. Peakless was run on this morning’s build, answering its setup questions from each home’s facts. The panel size was set so each system is exactly 4.0 or 6.0 kWp.</p>
+<p>Limits. The homes are synthetic: real homes are less regular, and our solar year is one weather year, so the planning figures depend on each site’s solar model as much as on its pricing. The true costs use the rates Peakless holds; the price check above is the guard against that, and it caught two errors. Matching plans by name can be wrong at the margins; plans we could not match with confidence were left out, not guessed.</p>
+<p class="note">The study’s scripts, mappings, raw site results and scores are in <code>docs/five-way-2026-10-09/</code>.</p>
+</section>
+</main>
+
+</body></html>

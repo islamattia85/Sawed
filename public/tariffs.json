@@ -898,7 +898,7 @@
       ],
       "ev": null
     },
-    "standing": 265.01,
+    "standing": 331.97,
     "exit": 50,
     "length": 12,
     "green": true,
@@ -922,7 +922,7 @@
       },
       "read": "2026-10-03"
     },
-    "notes": "Smart day/night, no peak band, 20% off. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €265.01 inc VAT urban (€255.29 ex VAT +5% from 12 Oct = €278.27 inc). CEG 18.5c.",
+    "notes": "Smart day/night, no peak band, 20% off. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €331.97 inc VAT urban, €422.31 rural, +5% from 12 Oct (€319.79 / €406.81 ex VAT = €348.57 / €443.42 inc), from energia.ie/about-energia/our-tariffs, read 9 Oct 2026; kilowatt.ie prints the same. CEG 18.5c.",
     "price_change": {
       "effective_date": "2026-10-12",
       "standing_pct": 0.05,
@@ -936,8 +936,8 @@
       },
       "note": "From 12 Oct 2026: night 17.34 → 21.67c, day unchanged."
     },
-    "standing_rural": 359.31,
-    "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"
+    "standing_rural": 422.31,
+    "standing_rural_source": "energia.ie/about-energia/our-tariffs, 9 Oct 2026"
   },
   {
     "id": "EN-EV",
@@ -983,10 +983,10 @@
       },
       "read": "2026-10-03"
     },
-    "notes": "Smart EV, charge window 02:00-06:00, 10% off. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €265.01 inc VAT urban (€255.29 ex VAT +5% from 12 Oct = €278.27 inc). CEG 18.5c.",
+    "notes": "Smart EV, charge window 02:00-06:00, 10% off. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €265.01 inc VAT urban, €337.02 rural, +28% from 12 Oct (€311.21 / €395.76 ex VAT = €339.22 / €431.38 inc), from energia.ie/about-energia/our-tariffs, read 9 Oct 2026; kilowatt.ie prints the same. CEG 18.5c.",
     "price_change": {
       "effective_date": "2026-10-12",
-      "standing_pct": 0.05,
+      "standing_pct": 0.28,
       "direction": "increase",
       "source": "energia.ie/about-energia/our-tariffs, standard rates from 12 Oct 2026 (ex VAT) with this plan's discount",
       "pct": 0,
@@ -995,8 +995,8 @@
       },
       "note": "From 12 Oct 2026: EV charge 9.42 → 12.25c, other hours unchanged."
     },
-    "standing_rural": 357.36,
-    "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"
+    "standing_rural": 337.02,
+    "standing_rural_source": "energia.ie/about-energia/our-tariffs, 9 Oct 2026"
   },
   {
     "id": "EN-24",

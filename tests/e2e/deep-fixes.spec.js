@@ -100,17 +100,19 @@ test('a meter file from a home with panels up is not given the panels twice', as
   await page.locator('.fl-upload input[type=file]').setInputFiles({ name: 'esb.csv', mimeType: 'text/csv', buffer: Buffer.from(rows.join('\n')) });
   await page.getByRole('button', { name: /Use this data/ }).click();
   await page.evaluate(() => { flowAnswer('solar', 'have'); flowAnswer('where', 'east'); flowAnswer('roof', 'S'); flowAnswer('tilt', 35); flowAnswer('panels', 9); flowAnswer('battery', 10); });
-  // The days with the panels running are the home's own use, worked back
-  // once: what it bought, plus what the panels made, less what it sold and a
-  // battery's losses. Not the readings with the panels added on top again.
+  // The panels are in the readings: plans are priced on what was bought and
+  // sold, with no panel output added on top. The home's own use, shown as its
+  // two-monthly figures, is worked back once: what it bought, plus what the
+  // panels made, less what it sold and a battery's losses.
   const r = await page.evaluate(() => {
     window.invalidate(); window.rebuildBase();
     const sum = (a) => a.reduce((x, y) => x + y, 0);
-    const days = window.state.meter.days, used = window.fileDays ? null : null;
+    const days = window.state.meter.days;
     let bought = 0, sold = 0; for (const r of Object.values(days)){ bought += sum(r.slice(0, 24)); sold += sum(r.slice(24)); }
-    return { basis: window.fileBasis(), bought, sold, sep: window.state.bills['Sep-Oct'] };
+    return { basis: window.fileBasis(), bought, sold, sep: window.state.bills['Sep-Oct'], gen: sum(Array.from(window.sim(window.state.baseline).gen)) };
   });
-  expect(r.basis.rebuilt, 'worked back from the first day').toBeTruthy();
+  expect(r.basis.mode, 'priced from the readings').toBe('net');
+  expect(r.gen, 'no panel output added to readings that already have it').toBe(0);
   // Sep-Oct's use, a whole two months, is more than the file's 28 days bought scaled up, never less.
   expect(r.sep).toBeGreaterThan(r.bought / 28 * 61);
 });
