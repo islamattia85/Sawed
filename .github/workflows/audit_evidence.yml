@@ -6,8 +6,11 @@ name: Capture supplier prices and verify the registry
 #
 #   * a price changed      -> a pull request with the new figures, for review
 #   * a plan can't be read,
-#     or a supplier lists a
-#     plan we don't carry  -> an issue (GitHub emails the owner), kept open
+#     a supplier lists a
+#     plan we don't carry,
+#     or its announced
+#     prices differ from
+#     the change we hold   -> an issue (GitHub emails the owner), kept open
 #                             until a run comes back clean
 #
 # Scheduled runs only fire from the repository's default branch.
@@ -170,11 +173,11 @@ jobs:
           script: |
             const fs = require('fs');
             const report = fs.readFileSync('verify_report.md', 'utf8');
-            const needsPerson = /UNREADABLE|NOT IN REGISTRY|not captured/.test(report);
+            const needsPerson = /UNREADABLE|NOT IN REGISTRY|not captured|ANNOUNCED DIFFERS/.test(report);
             if (!needsPerson) return;   // only price changes: the PR covers it
             const title = 'Tariff check needs a person';
             const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const body = `${report}\n\nRun: ${run}\n\nA plan UNREADABLE means its page or labels changed: fix its \`source\` recipe in public/tariffs.json. NOT IN REGISTRY means a supplier is selling a plan the app does not know: add it with a recipe.`;
+            const body = `${report}\n\nRun: ${run}\n\nA plan UNREADABLE means its page or labels changed: fix its \`source\` recipe in public/tariffs.json. NOT IN REGISTRY means a supplier is selling a plan the app does not know: add it with a recipe. ANNOUNCED DIFFERS means the supplier publishes prices for a coming date that the plan's \`price_change\` does not give: correct its percentages (or add the change) from that page.`;
             const { data: open } = await github.rest.issues.listForRepo({ owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: 'tariffs' });
             const existing = open.find(i => i.title === title);
             if (existing) await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body });

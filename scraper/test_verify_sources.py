@@ -63,3 +63,64 @@ def test_a_credit_drawn_by_script_is_read_from_the_page_code():
 
 def test_an_uncaptured_page_is_unreadable():
     assert "error" in vs.read_welcome({"url": "https://example.ie/gone", "anchor": []}, CPAGES)
+
+
+# A tariffs page as Energia prints it: today's standing charges under each
+# plan, and a table of the prices that start on the 12th.
+TARIFFS = {"url": "https://example.ie/tariffs", "text": "\n".join([
+    "Standard Rate c/kWh as of 12th Oct 2026 (Ex VAT)",
+    "Smart Data", "Day", "Electricity", "39.81", "Night", "Electricity", "27.20",
+    "Annual Standing Charge", "As of 12th Oct 2026 (Ex VAT)",
+    "Smart Data (Urban)", "Electricity", "€255.29", "Smart Data (Rural)", "Electricity", "€324.65",
+    "Smart Meter Tariff Rates", "Electricity Standard Smart Data",
+    "Standing charge MCC12 urban per year", "€ 265.01", "Standing charge MCC12 rural per year", "€ 337.02",
+])}
+# A tariffs page that draws its tables from data in the page, as Bord Gáis's does.
+ROWS = {"url": "https://example.ie/our-tariffs", "text": "", "html": "<script>var t=[" + ",".join([
+    '{"Product":"Smart","Price Plan":"Urban Smart All Day","Rate Type":"Day Rate","Annual Standing Charge (Inc VAT)":"262.38"}',
+    '{"Product":"Smart","Price Plan":"Rural Smart All Day ","Rate Type":"Day Rate","Annual Standing Charge (Inc VAT)":"329.42"}',
+]) + "]</script>"}
+MORE = {**PAGES, vs.norm_url(TARIFFS["url"]): TARIFFS, vs.norm_url(ROWS["url"]): ROWS}
+PLAN = {"id": "X", "rates": {"day": 0.3075, "night": 0.1691}, "standing": 265.01, "standing_rural": 337.02,
+        "price_change": {"effective_date": "2026-10-12", "pct": 0.03, "pct_bands": {"night": 0.28}, "standing_pct": 0.05}}
+
+
+def test_standing_charges_are_read_from_their_own_page():
+    src = {"url": TARIFFS["url"], "anchor": ["Smart Meter Tariff Rates", "Electricity Standard Smart Data"],
+           "fields": {"standing": "Standing charge MCC12 urban per year", "standing_rural": "Standing charge MCC12 rural per year"}}
+    assert vs.read_recipe(src, MORE) == {"values": {"standing": 265.01, "standing_rural": 337.02}}
+
+
+def test_a_row_the_page_carries_as_data_is_read_by_its_columns():
+    src = {"url": ROWS["url"], "in": "rows", "match": {"Price Plan": "Rural Smart All Day", "Rate Type": "Day Rate"},
+           "fields": {"standing_rural": "Annual Standing Charge (Inc VAT)"}}
+    assert vs.read_recipe(src, MORE) == {"values": {"standing_rural": 329.42}}
+    gone = {**src, "match": {"Price Plan": "Rural Smart EV"}}
+    assert "error" in vs.read_recipe(gone, MORE)
+
+
+FUTURE = [
+    {"url": TARIFFS["url"], "from": "2026-10-12", "anchor": ["Standard Rate c/kWh as of 12th Oct 2026", "Smart Data"],
+     "fields": {"day": "Day", "night": "Night"}, "vat": 1.09, "discount": 0.27},
+    {"url": TARIFFS["url"], "from": "2026-10-12", "anchor": ["Standard Rate c/kWh as of 12th Oct 2026", "Annual Standing Charge"],
+     "vat": 1.09, "fields": {"standing": "Smart Data (Urban)", "standing_rural": "Smart Data (Rural)"}},
+]
+
+
+def test_announced_prices_that_match_the_recorded_change_pass():
+    assert vs.check_future(PLAN, FUTURE, MORE, "2026-10-09") == []
+
+
+def test_an_announced_rise_recorded_wrong_is_reported():
+    wrong = {**PLAN, "price_change": {**PLAN["price_change"], "standing_pct": 0.28}}
+    rows = vs.check_future(wrong, FUTURE, MORE, "2026-10-09")
+    assert len(rows) == 2 and all("ANNOUNCED DIFFERS" in r and "standing" in r for r in rows)
+
+
+def test_an_announced_rise_not_recorded_at_all_says_so():
+    rows = vs.check_future({**PLAN, "price_change": None}, FUTURE, MORE, "2026-10-09")
+    assert rows and all("no change recorded for that date" in r for r in rows)
+
+
+def test_once_the_date_comes_the_ordinary_check_takes_over():
+    assert vs.check_future({**PLAN, "price_change": None}, FUTURE, MORE, "2026-10-12") == []

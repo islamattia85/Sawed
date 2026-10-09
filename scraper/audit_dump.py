@@ -42,7 +42,9 @@ SUPPLIERS = {
                          "https://www.electricireland.ie/residential/electricity-and-gas/smart-meter-price-plans",
                          "https://www.electricireland.ie/residential/price-changes",
                          "https://www.electricireland.ie/residential/products/electricity",
-                         "https://www.electricireland.ie/residential/help/micro-generation"],
+                         "https://www.electricireland.ie/residential/help/micro-generation",
+                         # the one page that prints the smart plans' standing charges
+                         "https://www.electricireland.ie/residential/products/smart-meters/24hour"],
     "Bord Gáis Energy": ["https://www.bordgaisenergy.ie/home/our-tariffs",
                          "https://www.bordgaisenergy.ie/home/ev-plan-comparison",
                          "https://www.bordgaisenergy.ie/home/price-change-info",
@@ -68,6 +70,10 @@ SUPPLIERS = {
     "Community Power": ["https://www.communitypower.ie/tariffs"],
     "Ecopower": ["https://www.ecopower.ie/"],
 }
+
+# A price row a page carries as data: a flat JSON object with a price in it
+# (the same pattern scraper/verify_sources.py reads).
+DATA_ROW = re.compile(r'\{"[^{}]{0,2000}?(?:Standing|Unit Rate)[^{}]{0,2000}?\}')
 
 PRICE_LINK = re.compile(
     r"tariff|price|pricing|rate|plan|smart|\bev\b|electric|standing|export|microgen|ceg|\.pdf", re.I)
@@ -182,6 +188,9 @@ def capture(supplier: str, entries: list[str], browser) -> dict:
             # The raw page too, so the scraper's parsers can be run offline
             # against exactly what was captured.
             rec["html"] = html[:600_000]
+            # Price rows the page carries as data, kept whole: Bord Gáis draws
+            # every tariff table from JSON that runs past the cut above.
+            rec["rows"] = list(dict.fromkeys(DATA_ROW.findall(html)))[:4000]
             rec["json"] = payloads
             for label, u in links_from_html(html, page.url):
                 h = urlparse(u).netloc.replace("www.", "")

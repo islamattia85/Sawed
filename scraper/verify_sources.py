@@ -33,6 +33,24 @@ A field may list several labels whose figures are summed (a prepay standing
 charge plus its service charge). `weekend.<band>` fields write into the plan's
 weekend rates. Flogas publishes through an API rather than a page; its recipes
 say `"api": "flogas"` and name the plan and row labels instead.
+
+Three more keys, for what one page cannot say:
+
+    "plus": [ {recipe}, ... ]     # more pages: Energia, Electric Ireland and
+                                  # Bord Gáis print standing charges on a page
+                                  # of their own, not beside the plan's rates
+    "future": [ {recipe, "from": "2026-10-12", "discount": 0.30}, ... ]
+                                  # prices the supplier publishes ahead of a
+                                  # change, checked against what the plan's
+                                  # `price_change` says each figure will be
+    {"in": "rows", "match": {...}, "fields": {...}}
+                                  # a row of a price table the page carries as
+                                  # data (Bord Gáis draws its tables from JSON
+                                  # in the page): the first row whose values
+                                  # match, its figures by column name
+
+`standing_rural` is read like `standing`. A future recipe's unit rates are the
+supplier's standard rates; `discount` takes the plan's discount off them.
 """
 
 from __future__ import annotations
@@ -51,6 +69,10 @@ MAIN_JS = ROOT / "src" / "model.js"   # the embedded tariff copy lives with the 
 # are times and counts ("8am to 11pm", "12 months"), never prices.
 NUM = re.compile(r"(?<![\d.])(\d{1,4}(?:,\d{3})*\.\d+)")
 TOLERANCE = 0.00005   # half a hundredth of a cent, in euro
+EURO = ("standing", "standing_rural", "welcome_credit")       # euro a year, two decimals
+PLAN_LEVEL = ("standing", "standing_rural", "export_rate", "welcome_credit")
+# A price row a page carries as data: a flat JSON object with a price in it.
+DATA_ROW = re.compile(r'\{"[^{}]{0,2000}?(?:Standing|Unit Rate)[^{}]{0,2000}?\}')
 
 
 def norm_url(u: str) -> str:
@@ -120,7 +142,7 @@ def read_page_recipe(src: dict, pages: dict[str, dict]) -> dict:
             if not found or len(found[1]) < fcol:
                 return {"error": f"{field}: label {label!r} not found or has no figure"}
             total += found[1][fcol - 1]
-        if field == "standing":
+        if field in EURO:
             out[field] = round(total * vat, 2)
         else:
             # Most pages print c/kWh; a few (Waterpower) print €/kWh.
@@ -205,10 +227,83 @@ def read_welcome(rec: dict, pages: dict[str, dict]) -> dict:
     return {"value": 0.0}
 
 
+def read_rows(src: dict, pages: dict[str, dict]) -> dict:
+    """A row of a price table the page carries as data: the first whose values
+    match `match`, and the figures `fields` names by column."""
+    page = pages.get(norm_url(src["url"]))
+    if not page:
+        return {"error": f"page not captured: {src['url']}"}
+    want = {k: str(v).strip().lower() for k, v in src["match"].items()}
+    # The capture keeps the rows apart from the page code, which it cuts short.
+    rows = page.get("rows") or DATA_ROW.findall(page.get("html") or "")
+    for raw in rows:
+        try:
+            row = json.loads(raw)
+        except Exception:
+            continue
+        if all(str(row.get(k, "")).strip().lower() == v for k, v in want.items()):
+            out: dict[str, float] = {}
+            for field, col in src["fields"].items():
+                try:
+                    val = float(str(row[col]).replace("€", "").replace(",", "").strip())
+                except Exception:
+                    return {"error": f"{field}: column {col!r} has no figure in {src['match']}"}
+                out[field] = round(val * float(src.get("vat", 1.0)), 2) if field in EURO \
+                    else round(val * float(src.get("vat", 1.0)) / 100, 4)
+            return {"values": out}
+    return {"error": f"no row {src['match']} on {src['url']}"}
+
+
 def read_recipe(src: dict, pages: dict[str, dict]) -> dict:
     if src.get("api") == "flogas":
         return read_flogas(src, pages)
+    if src.get("in") == "rows":
+        return read_rows(src, pages)
     return read_page_recipe(src, pages)
+
+
+def announced(plan: dict, field: str, when: str):
+    """What the registry says a figure will be from `when`: today's figure, with
+    the plan's announced change if it starts that day."""
+    base = current(plan, field)
+    if base is None:
+        return None
+    pc = plan.get("price_change") or {}
+    if pc.get("effective_date") != when:
+        return float(base)
+    if field in ("standing", "standing_rural"):
+        pct = pc.get("standing_pct") or 0
+    else:
+        pct = (pc.get("pct_bands") or {}).get(field, pc.get("pct") or 0)
+    return float(base) * (1 + pct)
+
+
+def check_future(plan: dict, recipes: list, pages: dict[str, dict], today: str) -> list[str]:
+    """Prices a supplier publishes ahead of a change, against the registry's
+    announced change. Once the date comes the figures are today's, and the
+    ordinary check reads them."""
+    out = []
+    for rec in recipes:
+        when = rec.get("from")
+        if not when or when <= today:
+            continue
+        res = read_recipe(rec, pages)
+        if "error" in res:
+            out.append(f"| {plan['id']} | UNREADABLE | prices from {when}: {res['error']} |")
+            continue
+        recorded = (plan.get("price_change") or {}).get("effective_date") == when
+        for field, val in res["values"].items():
+            if field not in EURO:
+                val = round(val * (1 - float(rec.get("discount", 0))), 4)
+            ours = announced(plan, field, when)
+            if ours is None:
+                continue
+            if abs(ours - val) > (0.05 if field in EURO else 0.0005):
+                unit = (lambda v: f"€{v:.2f}") if field in EURO else (lambda v: f"{v * 100:.2f}c")
+                out.append(f"| {plan['id']} | ANNOUNCED DIFFERS | {field} from {when}: the supplier publishes "
+                           f"{unit(val)}, the registry gives {unit(ours)}"
+                           f"{'' if recorded else ' (no change recorded for that date)'} |")
+    return out
 
 
 # Where each supplier lists its new-customer electricity plans, and how a plan
@@ -272,7 +367,7 @@ def coverage(tariffs: list, pages: dict[str, dict]) -> list[str]:
 def current(plan: dict, field: str):
     if field.startswith("weekend."):
         return ((plan.get("weekend") or {}).get("rates") or {}).get(field.split(".", 1)[1])
-    if field in ("standing", "export_rate", "welcome_credit"):
+    if field in PLAN_LEVEL:
         return plan.get(field, 0 if field == "welcome_credit" else None)
     return plan.get("rates", {}).get(field)
 
@@ -280,7 +375,7 @@ def current(plan: dict, field: str):
 def assign(plan: dict, field: str, value: float) -> None:
     if field.startswith("weekend."):
         plan.setdefault("weekend", {}).setdefault("rates", {})[field.split(".", 1)[1]] = value
-    elif field in ("standing", "export_rate", "welcome_credit"):
+    elif field in PLAN_LEVEL:
         plan[field] = value
     else:
         plan.setdefault("rates", {})[field] = value
@@ -330,7 +425,7 @@ def main(argv: list[str]) -> int:
     tariffs = json.loads(TARIFFS.read_text())
     today = date.today().isoformat()
 
-    rows, changed, unreadable, no_recipe = [], 0, 0, []
+    rows, changed, unreadable, no_recipe, announced_off = [], 0, 0, [], 0
     for plan in tariffs:
         if plan.get("id") == "__meta__" or plan.get("discontinued"):
             continue
@@ -344,6 +439,18 @@ def main(argv: list[str]) -> int:
             rows.append(f"| {plan['id']} | UNREADABLE | {res['error']} |")
             continue
         vals = dict(res["values"])
+        # Figures the supplier prints on another page (standing charges, mostly).
+        more_err = None
+        for more in src.get("plus") or []:
+            r2 = read_recipe(more, pages)
+            if "error" in r2:
+                more_err = r2["error"]
+                break
+            vals.update(r2["values"])
+        if more_err:
+            unreadable += 1
+            rows.append(f"| {plan['id']} | UNREADABLE | {more_err} |")
+            continue
         # Weekend bands that simply take another band's weekday rate
         # (Bord Gáis: no peak at weekends, so peak is charged at the day rate).
         for band, like in ((plan.get("weekend") or {}).get("same_as") or {}).items():
@@ -361,7 +468,7 @@ def main(argv: list[str]) -> int:
         diffs = []
         for field, val in vals.items():
             old = current(plan, field)
-            if old is None or abs(float(old) - val) > (0.005 if field in ("standing", "welcome_credit") else TOLERANCE):
+            if old is None or abs(float(old) - val) > (0.005 if field in EURO else TOLERANCE):
                 diffs.append(f"{field} {old} → {val}")
                 if apply:
                     assign(plan, field, val)
@@ -373,10 +480,16 @@ def main(argv: list[str]) -> int:
         if apply:
             plan["verified_date"] = today
             plan.setdefault("source", {})["read"] = today
+        ahead = check_future(plan, src.get("future") or [], pages, today)
+        if ahead:
+            announced_off += sum(1 for r in ahead if "DIFFERS" in r)
+            unreadable += sum(1 for r in ahead if "UNREADABLE" in r)
+            rows += ahead
 
     report = [f"# Registry check against supplier pages — {today}", "",
               f"{sum(1 for r in rows if 'MATCH' in r)} match, {changed} changed, "
-              f"{unreadable} unreadable, {len(no_recipe)} without a recipe.", "",
+              f"{unreadable} unreadable, {announced_off} announced prices that differ, "
+              f"{len(no_recipe)} without a recipe.", "",
               "| Plan | Result | Detail |", "|---|---|---|", *rows]
     if no_recipe:
         report += ["", "Plans with no recipe (checked by hand only): " + ", ".join(no_recipe)]
@@ -393,7 +506,7 @@ def main(argv: list[str]) -> int:
                 fill_unused_bands(t)
         TARIFFS.write_text(json.dumps(tariffs, ensure_ascii=False, indent=2) + "\n")
         write_embedded(tariffs)
-    return 1 if (changed or unreadable or gaps) else 0
+    return 1 if (changed or unreadable or gaps or announced_off) else 0
 
 
 if __name__ == "__main__":
