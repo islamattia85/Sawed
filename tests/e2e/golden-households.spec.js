@@ -8,7 +8,11 @@
 // the agreed tolerance today (use and bill 5%, payback half a year, best plan
 // or one within EUR 25), that tolerance; where it is not yet, today's error
 // plus a small margin, so it can only get better. A fix that improves a known
-// gap should tighten its limit in golden.json in the same change.
+// gap should tighten its limit in golden.json in the same change
+// (make_golden.py only ever tightens). The warnings the import card gives and
+// the questions asked are held too: once given, always given. And the
+// accuracy figure shown must cover the error found where it does today, and
+// may not shrink where it does not yet.
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { SCENARIOS, TRUTH, DIR, runScenario } from './run-scenario.js';
@@ -38,11 +42,15 @@ for (const [id, lim] of Object.entries(GOLDEN.scenarios)) {
       payback: r.solar && t.payback ? Math.abs(r.solar.payback - t.payback) : null,
     };
     const say = `${id}: use ${r.kwh} kWh (true ${t.use_kwh}), best ${r.best} €${r.bestNet} (true €${Math.round(t.costs[r.best])}; cheapest ${t.best} €${Math.round(t.best_cost)})` +
-      (r.solar ? `, payback ${r.solar.payback.toFixed(1)} (true ${t.payback})` : '');
+      (r.solar ? `, payback ${r.solar.payback.toFixed(1)} (true ${t.payback})` : '') + `, accuracy shown ±${r.accuracy.pct}%`;
     expect(err.kwh, say).toBeLessThanOrEqual(lim.kwh);
     expect(err.bill, say).toBeLessThanOrEqual(lim.bill);
     expect(err.plan, say).toBeLessThanOrEqual(lim.plan);
     if (lim.payback != null && err.payback != null) expect(err.payback, say).toBeLessThanOrEqual(lim.payback);
-    if (lim.asks) expect(r.seen.questions.map((q) => q.q), say).toContain(lim.asks);
+    const asked = r.seen.questions.map((q) => q.q), warned = r.seen.warns.flat();
+    for (const q of [].concat(lim.asks || [])) expect(asked, `${say}; asks ${q}`).toContain(q);
+    for (const w of lim.warns || []) expect(warned, `${say}; warns ${w}`).toContain(w);
+    if (lim.acc === 'covers') expect(r.accuracy.pct, `${say}; the accuracy shown covers the error`).toBeGreaterThanOrEqual(Math.max(err.kwh, err.bill));
+    if (lim.acc_min != null) expect(r.accuracy.pct, `${say}; the accuracy shown does not shrink`).toBeGreaterThanOrEqual(lim.acc_min);
   });
 }

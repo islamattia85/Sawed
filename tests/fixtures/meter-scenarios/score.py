@@ -9,12 +9,29 @@ within 0.5 years, and the same best plan or one within EUR 25 a year. For a
 partial or short file (A3-A5) the seasons are a guess, so the brief asks what
 error is acceptable: we use 10% for nine months and 15% for a few weeks, and
 say so in the report.
+
+Two checks besides the figures. A file the app reads less than 95% of must say
+so on the import card (data-warn="unread"): readings dropped without a word
+fail ("lost readings, no warning"). And whether the accuracy figure the app
+shows covers the error found (acc_covers) is recorded for every result.
 """
-import json, os, sys
+import gzip, json, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRUTH = json.load(open(os.path.join(HERE, 'truth.json')))
 SC = {s['id']: s for s in json.load(open(os.path.join(HERE, 'scenarios.json')))}
+
+_ROWS = {}
+def file_readings(name):
+    """Distinct half-hours of import in a scenario file (a repeated row counts once)."""
+    if name not in _ROWS:
+        seen = set()
+        with gzip.open(os.path.join(HERE, 'files', name + '.gz'), 'rt', errors='replace') as f:
+            for line in f:
+                c = line.rstrip('\n').split(',')
+                if len(c) >= 5 and 'import' in c[3].lower(): seen.add((c[1], c[4]))
+        _ROWS[name] = len(seen)
+    return _ROWS[name]
 
 def tolerance(sid):
     if sid.startswith(('A5',)): return dict(kwh=15, bill=15, payback=1.0, plan=25)
@@ -55,11 +72,25 @@ def score(r):
         out['true_payback'] = t['payback']
         out['payback_err'] = round(out['payback'] - t['payback'], 1) if out['payback'] is not None else None
     out['accuracy_shown'] = r['accuracy']['pct']
+    raw = max(abs(r['kwh'] - t['use_kwh']) / t['use_kwh'] * 100, abs(best_net - costs[best]) / costs[best] * 100 if best in costs else 0)
+    out['acc_covers'] = out['accuracy_shown'] is not None and out['accuracy_shown'] >= raw
+    # Readings in the file the app did not read, and whether the card said so.
+    files = sc.get('files') or [sc['file']]
+    warns = r['seen'].get('warns') or [[] for _ in files]
+    lost = []
+    for i, name in enumerate(files):
+        m = re.search(r'Imported ([\d,]+) readings', r['seen']['import'][i] if i < len(r['seen']['import']) else '')
+        have = file_readings(name)
+        got = int(m.group(1).replace(',', '')) if m else 0
+        lost.append(round(max(0.0, 1 - got / have) * 100, 1) if have else 0.0)
+    out['lost_pct'] = max(lost); out['warns'] = sorted({w for ws in warns for w in ws})
+    out['asked_ids'] = sorted({q['q'] for q in r['seen']['questions'] if q['q'] in ('filewhen', 'fileexp', 'filehome', 'typed')})
     fails = []
     if abs(out['kwh_err']) > tol['kwh']: fails.append('consumption')
     if out['bill_err'] is None or abs(out['bill_err']) > tol['bill']: fails.append('bill')
     if out['plan_gap'] is None or out['plan_gap'] > tol['plan']: fails.append('plan')
     if 'payback_err' in out and (out['payback_err'] is None or abs(out['payback_err']) > tol['payback']): fails.append('payback' if out['payback_err'] is not None else 'no payback shown')
+    if any(l > 5 and 'unread' not in (warns[i] if i < len(warns) else []) for i, l in enumerate(lost)): fails.append('lost readings, no warning')
     out['fails'] = fails; out['pass'] = not fails; out['tolerance'] = tol
     out['outcome'] = 'asked' if asked else 'accepted'
     out['import_message'] = ' | '.join(r['seen']['import'])[:600]

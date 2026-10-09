@@ -20,7 +20,9 @@ const fileOf = (name) => ({ name: name.replace(/\.gz$/, '').replace(/^.*\//, '')
 /** What each question gets when the scenario does not say: an ordinary urban home in Cork on Electric Ireland. */
 const DEFAULTS = { meter: 'smart', area: 'urban', plan: 'EI-24', disc: 0, heat: 'gas', heattime: 'day', night: 'no', gas: 'no', solar: 'no',
   where: 'south', house: 'semi', roof: 'S', tilt: 35, system: 'custom', panels: 9, battery: 0, gridnow: 'no', price: 0, grant: 'no',
-  ev: 'no', km: 15000, car: 17, evtime: 'night', billwhen: 'after', billmonths: 'average', filewhen: 'allyear' };
+  ev: 'no', km: 15000, car: 17, evtime: 'night', billwhen: 'after', billmonths: 'average', filewhen: 'allyear',
+  // Choices on the import card: the file is from this home; the file's figure over a typed one.
+  filehome: 'yes', typed_keep: 'no' };
 
 const questionOn = (page) => page.evaluate(() => {
   const o = document.querySelector('.fl-q [data-q]'); if (o) return o.dataset.q;
@@ -41,7 +43,7 @@ export async function runScenario(page, sc, shots) {
   await page.goto('/?fresh');
   await page.waitForFunction(() => window.__bootSettled === true);
   const a = { ...DEFAULTS, ...sc.answers };
-  const seen = { import: [], questions: [], rejected: null };
+  const seen = { import: [], warns: [], questions: [], rejected: null };
   const shot = async (loc, name) => { if (shots) await loc.screenshot({ path: `${shots}/${sc.id}-${name}.png` }).catch(() => {}); };
 
   await page.evaluate(() => window.startFlow('full'));
@@ -57,6 +59,8 @@ export async function runScenario(page, sc, shots) {
     const res = page.locator('#csv-parse-result');
     await page.waitForFunction(() => { const t = document.querySelector('#csv-parse-result')?.innerText || ''; return t && !/Parsing/.test(t); }, null, { timeout: 60_000 }).catch(() => {});
     seen.import.push((await res.innerText().catch(() => '')).trim());
+    // What the card warns about, by name (data-warn), so a run can check a warning is given.
+    seen.warns.push(await page.evaluate(() => [...document.querySelectorAll('#csv-parse-result [data-warn]')].map((e) => e.dataset.warn)));
     await shot(res, `import${n + 1}`);
   }
   const use = page.getByRole('button', { name: /Use this data/ });
@@ -64,12 +68,28 @@ export async function runScenario(page, sc, shots) {
     seen.rejected = seen.rejected || seen.import[seen.import.length - 1] || 'no result shown';
     return { id: sc.id, seen };
   }
-  await use.first().click();
+  // Choices the card offers before the file is used: keep a typed figure
+  // instead, and whether the file is from the home lived in now. Each is
+  // recorded as a question; the primary button ("Use this data") is the
+  // answer that goes on with the file.
+  const card = async (attr, q, want) => {
+    const offered = [...new Set(await page.evaluate((attr) => [...document.querySelectorAll(`#csv-parse-result [${attr}]`)].map((e) => e.getAttribute(attr)), attr))];
+    if (!offered.length) return null;
+    seen.questions.push({ q, text: (await page.locator('#csv-parse-result').innerText()).slice(0, 300), answer: want, offered, fits: offered.includes(want) });
+    return offered.includes(want) ? want : null;
+  };
+  const keep = await card('data-keep-typed', 'typed', a.typed_keep);
+  const home = keep === 'yes' ? null : await card('data-filehome', 'filehome', a.filehome);
+  const alt = keep === 'yes' ? '[data-keep-typed="yes"]' : home === 'no' ? '[data-filehome="no"]' : null;
+  if (alt) await page.locator('#csv-parse-result ' + alt).first().click();
+  else await use.first().click();
   await page.waitForTimeout(400);
   if (!a.typed) await answerAll(page, a, seen, shot);
   await page.evaluate(() => { if (window.state.current_screen === 'flow') window.flowFinish(); });
-  // The system the person states, set as they would in My system.
-  const sys = sc.system || (a.solar === 'have' || a.solar === 'thinking' ? (TRUTH[sc.truth].system) : null);
+  // The system the person states, set as they would in My system. Someone who
+  // said no panels, then yes when the file showed sales, states theirs too.
+  const solar = seen.questions.some((q) => q.q === 'fileexp' && q.answer === 'have') ? 'have' : a.solar;
+  const sys = sc.system || (solar === 'have' || solar === 'thinking' ? (TRUTH[sc.truth].system) : null);
   await page.evaluate(([sys, solar, ov]) => {
     const s = window.state;
     if (sys && solar !== 'no') {
@@ -79,7 +99,7 @@ export async function runScenario(page, sc, shots) {
     }
     if (ov) Object.assign(s, ov);
     window.invalidate();
-  }, [sys, a.solar, sc.override || null]);
+  }, [sys, solar, sc.override || null]);
   await page.evaluate(() => window.setScreen('result'));
   await page.waitForTimeout(300);
   await shot(page.locator('.screen').first(), 'home');
