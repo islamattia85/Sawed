@@ -814,7 +814,7 @@ export function createV7(api) {
     if (!cheapest || !shown || shown.net - cheapest.net < 1) return '';
     return `<div class="v7-note is-rise ax-dearer">${api.ic('warn', 16)}<div>This isn’t the cheapest plan for your home.
       ${esc(cheapest.plan.supplier)} ${esc(cheapest.plan.plan)} costs ${eur(shown.net - cheapest.net)} a year less.
-      <button class="ax-inline" onclick="anPick('${esc(cheapest.plan.id)}')">Show the cheapest</button></div></div>`;
+      <button class="ax-inline" onclick="anPick('${cheapest.plan.id}')">Show the cheapest</button></div></div>`;
   }
 
   /** Any plan, priced on this home, the best one marked. */
