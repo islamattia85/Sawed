@@ -96,7 +96,7 @@ test('a withdrawn plan can be picked in setup, marked as no longer on sale', asy
 });
 
 test('for planned panels, Updates gives the same switch-now plan and figure as Home', async ({ page }) => {
-  await boot(page, { solar_planned: true, has_solar: true, count_A: 12, battery_kwh: 0, baseline: 'BG-24', baseline_known: true, bimonthly_bill_eur: 320 }, '/');
+  await boot(page, { solar_planned: true, has_solar: true, count_A: 12, battery_kwh: 0, baseline: 'BG-24', baseline_known: true, bimonthly_bill_eur: 600, bills: null }, '/');
   const home = await page.evaluate(() => {
     window.setScreen('result');
     const t = document.querySelector('.screen').innerText;

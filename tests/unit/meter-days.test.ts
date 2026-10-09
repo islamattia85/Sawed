@@ -17,7 +17,7 @@ describe('a year of meter readings is priced day by day', () => {
     expect(out).not.toBeNull();
     for (let doy = 0; doy < 365; doy++) {
       const dow = new Date(Date.UTC(2025, 0, 1 + doy)).getUTCDay();
-      expect(out[doy][0]).toBe(dow === 0 || dow === 6 ? 2 : 1);
+      expect(out[doy]?.[0]).toBe(dow === 0 || dow === 6 ? 2 : 1);
     }
   });
   it('is used with panels already on the roof (the file is net of them), not with too few days', () => {

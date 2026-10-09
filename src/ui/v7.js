@@ -13,7 +13,7 @@
  * the same figure the engine tests already hold.
  */
 import {
-  savingsLadder, rateStrip, scoreRing, monthBars, paybackCurve, dayProfile, eur,
+  savingsLadder, rateStrip, scoreRing, monthBars, paybackCurve, dayProfile, eur, billAmt,
 } from './charts.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
@@ -199,7 +199,7 @@ export function createV7(api) {
     const max = Math.max(...stair.map((r) => r.value), 1);
     const sun = `<i class="g4-sun">${api.ic('sun', 14)}</i>`;
     const bar = (i, name, plan, solar, cls) => `<div class="g4-bar ${cls}" data-rung="${i}" data-label="${esc(stair[i].label)}" data-value="${stair[i].value}">
-        <div class="g4-k"><span><b>${name}${solar ? ` + ${sun} planned panels` : ''}</b><small>${esc(plan)}</small></span><em>${eur(stair[i].value)}</em></div>
+        <div class="g4-k"><span><b>${name}${solar ? ` + ${sun} planned panels` : ''}</b><small>${esc(plan)}</small></span><em>${billAmt(stair[i].value)}</em></div>
         <div class="g4-t"><i style="width:${Math.max(3, stair[i].value / max * 100).toFixed(1)}%"></i></div>
       </div>`;
     const full = (p) => (p ? `${p.supplier} · ${p.plan}` : '');
@@ -259,7 +259,7 @@ export function createV7(api) {
     const gap = next ? Math.round(next.net - mineNow) : 0;
     let hero = stay ? `
         <div class="v7-eyebrow">${gap >= 0 ? 'Your plan is already the best value' : 'Your plan is as good as any'}</div>
-        <div class="qr-value v7-figure"><span>${api.fmtCurrency(mineNow)}</span><span class="v7-figure-unit">a year where you are</span></div>
+        <div class="qr-value v7-figure"><span>${api.fmtCurrency(Math.abs(mineNow))}</span><span class="v7-figure-unit">${mineNow < -0.5 ? 'paid to you a year, where you are' : 'a year where you are'}</span></div>
         <div class="v7-headline">${!next ? 'No plan on the market costs less for this home.'
           : gap >= 0 ? `No plan on the market costs less for this home. The next best is <b>${esc(next.plan.supplier)}</b> ${esc(next.plan.plan)}, ${eur(gap)} a year more.`
           : `<b>${esc(next.plan.supplier)}</b> ${esc(next.plan.plan)} would save only ${eur(-gap)} a year: not worth a switch.`}</div>`

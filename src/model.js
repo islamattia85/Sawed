@@ -248,7 +248,8 @@ export function fileSolar(){
 export function fileBasis(){
   const fs = fileSolar();
   if (!fs) return null;
-  const installed = !!(state.has_solar && !state.solar_planned);
+  const own = statedSystem();
+  const installed = own.has_solar && !own.planned && own.count_A + own.count_B > 0;
   const all = { from: fs.first, to: fs.last };
   const start = fs.exportFrom || (state.file_when === 'dropyes' ? fs.dropFrom : null);
   const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000) + 1;
@@ -264,18 +265,136 @@ export function fileBasis(){
     if (fs.dropFrom && !state.file_when) return { mode: 'gross', ...all, ask: 'drop', dropFrom: fs.dropFrom };
     return { mode: 'gross', ...all, ask: state.file_when ? null : 'noexport' };
   }
+  // The meter records what is sold, so the day the panels began is known, and
+  // the home's own use on the days after it is worked back (fileDays): what
+  // it bought, plus what the panels made, less what it sold. Every plan, the
+  // home with no panels and every other size are then priced on the same use.
+  // Reading those days as the home's use, as before, counted only what was
+  // left after the panels: a home of 6,500 kWh showed 2,500, and its panels
+  // looked worthless.
+  if (fs.exportFrom) return { mode: 'gross', ...all, start, rebuilt: start > fs.first ? start : fs.first };
   if (daysBetween(fs.first, start) <= 14) return { mode: 'net', ...all, start };
   const post = daysBetween(start, fs.last), pre = daysBetween(fs.first, start) - 1;
   if (post >= 330) return { mode: 'net', from: start, to: fs.last, start };
   if (pre >= 60) return { mode: 'gross', from: fs.first, to: prevDay(start), start };
   return { mode: 'net', from: start, to: fs.last, start };
 }
+
+/** The stated system's output over the typical year, kWh an hour (as buildSolar, for given panels). */
+function systemGeneration(sys){
+  const ghi = buildHourlyGHI(), two = sys.count_B > 0, inv = sys.inverter_kw || 5;
+  const genA = buildPVGeneration(buildPOA(sys.azimuth_A, sys.tilt_A, ghi), sys.count_A, sys.panel_w, 0.86, two ? Infinity : inv);
+  if (!two) return genA;
+  const genB = buildPVGeneration(buildPOA(sys.azimuth_B, sys.tilt_B, ghi), sys.count_B, sys.panel_w, 0.86, Infinity);
+  const out = new Float32Array(HOURS_IN_YEAR);
+  for (let i = 0; i < HOURS_IN_YEAR; i++){ const t = genA[i] + genB[i]; out[i] = t > inv ? inv : t; }
+  return out;
+}
+/** Where a date falls in the model year (0-based day), 29 February on the 28th. */
+function modelDay(k){ const m = +k.slice(5, 7) - 1, d = Math.min(+k.slice(8, 10), DAYS_IN_MONTH[m]); return dayOfYear(m, d) - 1; }
+
+/**
+ * The home's own use, hour by hour, on the days its panels were running.
+ *
+ * The meter shows what was bought and sold. Over a month, what the home used
+ * is what it bought, plus what the panels made (the stated system on a typical
+ * year), less what it sold, less what a battery loses. Without a battery the
+ * night hours are the meter's own, and the solar the home used goes back into
+ * the hours the panels make it. With one, imports and exports are moved about
+ * by the battery, so each day's total is spread in the home's own shape: its
+ * days before the panels where there are three weeks of them, blended with the
+ * heating profile for the season.
+ */
+let _grossMemo = { key: null, val: null };
+function rebuiltDays(days, from){
+  const sys = statedSystem();
+  const keys = Object.keys(days).sort();
+  const key = [keys.length, keys[0], keys[keys.length - 1], from, JSON.stringify(sys), state.region, state.heating_type].join('|');
+  if (_grossMemo.key === key) return _grossMemo.val;
+  const gen = systemGeneration(sys), batt = sys.battery_kwh;
+  const pre = keys.filter((k) => k < from);
+  let preShape = null;
+  if (pre.length >= 21){
+    preShape = new Array(24).fill(0);
+    for (const k of pre) for (let h = 0; h < 24; h++) preShape[h] += days[k][h];
+    const t = preShape.reduce((a, b) => a + b, 0);
+    preShape = t > 0 ? preShape.map((v) => v / t) : null;
+  }
+  const months = {};
+  for (const k of keys){
+    if (k < from) continue;
+    const M = months[k.slice(0, 7)] || (months[k.slice(0, 7)] = { keys: [], imp: 0, exp: 0, gen: 0, genH: new Array(24).fill(0) });
+    const r = days[k], j = modelDay(k) * 24;
+    M.keys.push(k);
+    for (let h = 0; h < 24; h++){ M.imp += r[h]; M.exp += r[24 + h]; M.gen += gen[j + h]; M.genH[h] += gen[j + h]; }
+  }
+  const out = { ...days };
+  for (const M of Object.values(months)){
+    const n = M.keys.length, m = +M.keys[0].slice(5, 7) - 1;
+    const used = Math.max(0, M.gen - M.exp) / n;                 // solar the home used, a day
+    const genT = M.genH.reduce((a, b) => a + b, 0) || 1;
+    const heat = getShape(m), heatT = heat.reduce((a, b) => a + b, 0);
+    const shape = heat.map((v, h) => (preShape ? 0.5 * preShape[h] : 0) + (preShape ? 0.5 : 1) * v / heatT);
+    for (const k of M.keys){
+      const r = days[k], row = new Array(48).fill(0);
+      if (batt > 0){
+        const imp = r.slice(0, 24).reduce((a, b) => a + b, 0);
+        const total = imp + used - 0.08 * Math.min(batt, used);
+        for (let h = 0; h < 24; h++) row[h] = +(shape[h] * total).toFixed(3);
+      } else {
+        for (let h = 0; h < 24; h++) row[h] = +(r[h] + used * M.genH[h] / genT).toFixed(3);
+      }
+      out[k] = row;
+    }
+  }
+  _grossMemo = { key, val: out };
+  return out;
+}
+
+/**
+ * The yearly use by two-month period, from a meter file whose panel days were
+ * worked back. The importer's figures were what the meter bought; these are
+ * what the home used. Only periods the file covers are replaced.
+ */
+export function syncFileBills(){
+  const b = state._csv_imported && fileBasis();
+  if (!b || !b.rebuilt) return false;
+  const days = fileDays();
+  if (!days) return false;
+  // The importer's figures, kept once per file, so this can run again and again.
+  const fk = (state.meter && state.meter.imported_at) || Object.keys(state.meter.days).length;
+  if (state._file_bills_key !== fk){ state._file_bills = { ...(state.bills || {}) }; state._file_bills_key = fk; }
+  const raw = state._file_bills || {};
+  const keys = Object.keys(days).sort().slice(-365);
+  const sum = {}, n = {};
+  let used = 0, bought = 0;
+  for (const k of keys){
+    const bi = bimonthlyFor(+k.slice(5, 7) - 1).key;
+    const u = days[k].slice(0, 24).reduce((a, x) => a + x, 0);
+    sum[bi] = (sum[bi] || 0) + u; n[bi] = (n[bi] || 0) + 1;
+    if (k >= b.rebuilt){ used += u; bought += state.meter.days[k].slice(0, 24).reduce((a, x) => a + x, 0); }
+  }
+  // Periods the file does not cover were estimated from what was bought: grow
+  // them as much as the worked-back days grew.
+  const grow = bought > 0 ? Math.max(1, used / bought) : 1;
+  const bills = { ...(state.bills || {}) };
+  let changed = false;
+  for (const B of BIMONTHLY){
+    const len = DAYS_IN_MONTH[B.months[0]] + DAYS_IN_MONTH[B.months[1]];
+    const v = n[B.key] >= 10 ? Math.round(sum[B.key] / n[B.key] * len) : raw[B.key] != null ? Math.round(raw[B.key] * grow) : bills[B.key];
+    if (v != null && bills[B.key] !== v){ bills[B.key] = v; changed = true; }
+  }
+  if (changed) state.bills = bills;
+  return changed;
+}
 function prevDay(d){ const t = new Date(d + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() - 1); return t.toISOString().slice(0, 10); }
 
 /** The meter file's days inside the part being priced. */
 export function fileDays(){
-  const days = state.meter && state.meter.days, b = fileBasis();
+  let days = state.meter && state.meter.days;
+  const b = fileBasis();
   if (!days || !b) return null;
+  if (b.rebuilt) days = rebuiltDays(days, b.rebuilt);
   const out = {};
   for (const k of Object.keys(days)) if (k >= b.from && k <= b.to) out[k] = days[k];
   return out;
@@ -672,13 +791,13 @@ export const EMBEDDED_TARIFFS = [
   {"id": "EI-GREEN-NS", "supplier": "Electric Ireland", "plan": "Green Electricity NightSaver", "type": "tou", "meter": "nightsaver", "rates": {"day": 0.3862, "night": 0.1915}, "windows": {"peak": null, "night": [23, 8], "ev": null}, "standing": 328.58, "exit": 50, "length": 12, "green": true, "export_rate": 0.195, "verified_date": "2026-10-03", "source": {"url": "https://www.electricireland.ie/switch/new-customer/price-plans?priceType=E", "anchor": ["Green Electricity NightSaver", "Pricing"], "fields": {"day": "Day: 08.00 - 23.00", "night": "Night: 23.00 - 08.00"}, "read": "2026-10-03"}, "notes": "Day & night meter, 100% green electricity, 5.5% off. Nightsaver standing carried from the last full price list. Urban standing charge €250.77 inc VAT: Electric Ireland's plan cards do not print it; it is consistent with each card's Estimated Annual Bill (4,200 kWh + standing + €19.10 PSO). CEG 19.5c not re-read from electricireland.ie in this check.", "standing_rural": 392.76, "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found"},
   {"id": "EI-WKND", "supplier": "Electric Ireland", "plan": "Home Electric+ Weekender", "type": "flat", "meter": "smart", "rates": {"day": 0.3865, "night": 0.3865, "peak": 0.3865, "ev": 0.3865}, "windows": {"ev": null}, "standing": 250.77, "exit": 50, "length": 12, "green": false, "export_rate": 0.195, "verified_date": "2026-10-03", "source": {"url": "https://www.electricireland.ie/switch/new-customer/price-plans?priceType=E", "anchor": ["Home Electric+ Weekender", "Pricing"], "fields": {"day": "Electricity unit price"}, "read": "2026-10-03"}, "notes": "Smart meter, one flat rate, and free electricity 08:00-23:00 on Saturday or Sunday (the customer picks; modelled as Saturday). Urban standing charge €250.77 inc VAT: Electric Ireland's plan cards do not print it; it is consistent with each card's Estimated Annual Bill (4,200 kWh + standing + €19.10 PSO). CEG 19.5c not re-read from electricireland.ie in this check.", "weekend": {"days": [5], "window": [8, 23], "rates": {"day": 0, "night": 0, "peak": 0, "ev": 0}}, "standing_rural": 314.95, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
   {"id": "EI-DYN", "supplier": "Electric Ireland", "plan": "Dynamic Price Plan", "type": "dynamic", "meter": "smart", "rates": {"day": 0.1981, "night": 0.0852, "peak": 0.2255, "ev": 0.0852}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 328.58, "exit": 50, "length": 12, "green": false, "export_rate": 0.195, "verified_date": "2026-06-02", "notes": "Not in Electric Ireland's new-customer plan list on 30 Sep 2026, and its rates are not published there; held back rather than shown with unconfirmed figures.", "discontinued": true, "standing_rural": 392.76, "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found"},
-  {"id": "BG-24", "supplier": "Bord Gáis Energy", "plan": "Smart All Day Electricity Discount", "type": "flat", "meter": "smart", "rates": {"day": 0.2995, "night": 0.2995, "peak": 0.2995, "ev": 0.2995}, "windows": {"ev": null}, "standing": 244.77, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart All Day Electricity Discount", "Discounted electricity unit rates"], "fields": {"day": "Day"}, "read": "2026-10-03"}, "notes": "Smart meter, one flat rate, 26% off unit rates for 12 months. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).", "price_change": {"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)", "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."}, "standing_rural": 311.76, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
-  {"id": "BG-TOU", "supplier": "Bord Gáis Energy", "plan": "Smart Standard Electricity Discount", "type": "tou", "meter": "smart", "rates": {"day": 0.32, "night": 0.2362, "peak": 0.3896, "ev": 0.2362}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 244.77, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart Standard Electricity Discount", "Discounted electricity unit rates"], "fields": {"day": "Day", "peak": "Peak", "night": "Night"}, "read": "2026-10-03"}, "notes": "Smart day/night/peak, 26% off for 12 months. Peak 17:00-19:00 Monday to Friday only. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).", "weekend": {"days": [5, 6], "rates": {"peak": 0.32}, "same_as": {"peak": "day"}}, "price_change": {"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)", "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."}, "standing_rural": 311.76, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
-  {"id": "BG-TOU-PLUS", "supplier": "Bord Gáis Energy", "plan": "Smart Standard Plus Electricity Discount", "type": "tou", "meter": "smart", "rates": {"day": 0.32, "night": 0.2362, "peak": 0.3896, "ev": 0.2362}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 244.77, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart Standard Plus Electricity Discount", "Discounted electricity unit rates"], "fields": {"day": "Day", "peak": "Peak", "night": "Night"}, "read": "2026-10-03"}, "notes": "Same rates as Smart Standard with the Spend Goal feature. Peak Monday to Friday only. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).", "weekend": {"days": [5, 6], "rates": {"peak": 0.32}, "same_as": {"peak": "day"}}, "price_change": {"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)", "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."}, "standing_rural": 311.76, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
-  {"id": "BG-EV", "supplier": "Bord Gáis Energy", "plan": "Smart EV Plus Electricity Discount", "type": "ev", "meter": "smart", "rates": {"day": 0.32, "night": 0.2419, "peak": 0.4083, "ev": 0.1252}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": [2, 5]}, "standing": 364.89, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart EV Plus Electricity Discount", "Discounted electricity unit rates"], "fields": {"day": "Day", "peak": "Peak", "night": "Night", "ev": "EV"}, "read": "2026-10-03"}, "notes": "Smart EV plan, 15% off for 12 months; EV time 02:00-05:00 every day, peak Monday to Friday (Smart EV tariff terms, Aug 2026). UNVERIFIED standing: €364.89 is the Smart EV plan's standing charge; the EV Plus card does not print one. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).", "weekend": {"days": [5, 6], "rates": {"peak": 0.32}, "same_as": {"peak": "day"}}, "price_change": {"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)", "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."}, "standing_rural": 430.24, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
-  {"id": "BG-WKND", "supplier": "Bord Gáis Energy", "plan": "Smart Weekend Electricity Discount", "type": "tou", "meter": "smart", "rates": {"day": 0.3152, "night": 0.2818, "peak": 0.3845, "ev": 0.2818}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 244.77, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart Weekend Electricity Discount", "Discounted electricity unit rates"], "fields": {"day": "Day", "peak": "Peak", "night": "Night"}, "read": "2026-10-03"}, "notes": "Smart plan charged at the night rate all weekend, Friday 11pm to Monday 8am; 26% off for 12 months. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).", "weekend": {"span": [[4, 23], [0, 8]], "rates": {"day": 0.2818, "peak": 0.2818}, "same_as": {"day": "night", "peak": "night"}}, "price_change": {"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)", "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."}, "standing_rural": 311.76, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
-  {"id": "BG-STANDARD-VARIABLE-SMART-ALL-DAY-ELECTRICITY", "supplier": "Bord Gáis Energy", "plan": "Standard Variable Smart All Day Electricity", "type": "flat", "meter": "smart", "rates": {"day": 0.4159, "night": 0.4159, "peak": 0.4159, "ev": 0.4159}, "windows": {"ev": null}, "standing": 244.77, "exit": 0, "length": 0, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Standard Variable Smart All Day Electricity", "Electricity unit rates"], "fields": {"day": "Day"}, "read": "2026-10-03"}, "notes": "No discount, no fixed term. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).", "price_change": {"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)", "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."}, "standing_rural": 311.76, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
-  {"id": "BG-DYN", "supplier": "Bord Gáis", "plan": "Smart Dynamic", "type": "dynamic", "meter": "smart", "rates": {"day": 0.1673, "night": 0.1673, "peak": 0.1673, "ev": 0.1673}, "windows": {"ev": null}, "standing": 331.96, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "notes": "★ NEW (1 June 2026). Single base rate 16.73c + half-hourly wholesale. No discount on base. Day-ahead prices at bordgaisenergy.ie/day-ahead-market-prices. UNVERIFIED since launch — the base rate is not published on the plan-comparison page and was not re-checked on 25 Aug 2026.", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart Dynamic Electricity", "Electricity unit rates"], "fields": {"day": "Base"}, "read": "2026-10-03"}, "price_change": {"effective_date": "2026-10-09", "pct": 0.137, "standing_pct": 0.047, "direction": "increase", "source": "bordgaisenergy.ie/home/our-tariffs, Smart Dynamic table from 9 Oct 2026", "note": "Base rate 16.73c → 19.02c and standing €331.96 → €347.56 from 9 Oct 2026; the wholesale part is added hourly on top."}, "standing_rural": 398.95, "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found"},
+  {"id": "BG-24", "supplier": "Bord Gáis Energy", "plan": "Smart All Day Electricity Discount", "type": "flat", "meter": "smart", "rates": {"day": 0.3268, "night": 0.3268, "peak": 0.3268, "ev": 0.3268}, "windows": {"ev": null}, "standing": 262.38, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart All Day Electricity Discount", "Discounted electricity unit rates"], "fields": {"day": "Day"}, "read": "2026-10-03"}, "notes": "Smart meter, one flat rate, 26% off unit rates for 12 months. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration). From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.", "standing_rural": 334.21, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
+  {"id": "BG-TOU", "supplier": "Bord Gáis Energy", "plan": "Smart Standard Electricity Discount", "type": "tou", "meter": "smart", "rates": {"day": 0.3491, "night": 0.2577, "peak": 0.4251, "ev": 0.2577}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 262.38, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart Standard Electricity Discount", "Discounted electricity unit rates"], "fields": {"day": "Day", "peak": "Peak", "night": "Night"}, "read": "2026-10-03"}, "notes": "Smart day/night/peak, 26% off for 12 months. Peak 17:00-19:00 Monday to Friday only. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration). From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.", "weekend": {"days": [5, 6], "rates": {"peak": 0.3491}, "same_as": {"peak": "day"}}, "standing_rural": 334.21, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
+  {"id": "BG-TOU-PLUS", "supplier": "Bord Gáis Energy", "plan": "Smart Standard Plus Electricity Discount", "type": "tou", "meter": "smart", "rates": {"day": 0.3491, "night": 0.2577, "peak": 0.4251, "ev": 0.2577}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 262.38, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart Standard Plus Electricity Discount", "Discounted electricity unit rates"], "fields": {"day": "Day", "peak": "Peak", "night": "Night"}, "read": "2026-10-03"}, "notes": "Same rates as Smart Standard with the Spend Goal feature. Peak Monday to Friday only. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration). From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.", "weekend": {"days": [5, 6], "rates": {"peak": 0.3491}, "same_as": {"peak": "day"}}, "standing_rural": 334.21, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
+  {"id": "BG-EV", "supplier": "Bord Gáis Energy", "plan": "Smart EV Plus Electricity Discount", "type": "ev", "meter": "smart", "rates": {"day": 0.3491, "night": 0.2639, "peak": 0.4455, "ev": 0.1366}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": [2, 5]}, "standing": 391.16, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart EV Plus Electricity Discount", "Discounted electricity unit rates"], "fields": {"day": "Day", "peak": "Peak", "night": "Night", "ev": "EV"}, "read": "2026-10-03"}, "notes": "Smart EV plan, 15% off for 12 months; EV time 02:00-05:00 every day, peak Monday to Friday (Smart EV tariff terms, Aug 2026). UNVERIFIED standing: €364.89 is the Smart EV plan's standing charge; the EV Plus card does not print one. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration). From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.", "weekend": {"days": [5, 6], "rates": {"peak": 0.3491}, "same_as": {"peak": "day"}}, "standing_rural": 461.22, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
+  {"id": "BG-WKND", "supplier": "Bord Gáis Energy", "plan": "Smart Weekend Electricity Discount", "type": "tou", "meter": "smart", "rates": {"day": 0.3439, "night": 0.3074, "peak": 0.4195, "ev": 0.3074}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 262.38, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart Weekend Electricity Discount", "Discounted electricity unit rates"], "fields": {"day": "Day", "peak": "Peak", "night": "Night"}, "read": "2026-10-03"}, "notes": "Smart plan charged at the night rate all weekend, Friday 11pm to Monday 8am; 26% off for 12 months. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration). From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.", "weekend": {"span": [[4, 23], [0, 8]], "rates": {"day": 0.3074, "peak": 0.3074}, "same_as": {"day": "night", "peak": "night"}}, "standing_rural": 334.21, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
+  {"id": "BG-STANDARD-VARIABLE-SMART-ALL-DAY-ELECTRICITY", "supplier": "Bord Gáis Energy", "plan": "Standard Variable Smart All Day Electricity", "type": "flat", "meter": "smart", "rates": {"day": 0.4537, "night": 0.4537, "peak": 0.4537, "ev": 0.4537}, "windows": {"ev": null}, "standing": 262.38, "exit": 0, "length": 0, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Standard Variable Smart All Day Electricity", "Electricity unit rates"], "fields": {"day": "Day"}, "read": "2026-10-03"}, "notes": "No discount, no fixed term. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration). From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.", "standing_rural": 334.21, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
+  {"id": "BG-DYN", "supplier": "Bord Gáis", "plan": "Smart Dynamic", "type": "dynamic", "meter": "smart", "rates": {"day": 0.1902, "night": 0.1902, "peak": 0.1902, "ev": 0.1902}, "windows": {"ev": null}, "standing": 347.56, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "notes": "★ NEW (1 June 2026). Single base rate 16.73c + half-hourly wholesale. No discount on base. Day-ahead prices at bordgaisenergy.ie/day-ahead-market-prices. UNVERIFIED since launch — the base rate is not published on the plan-comparison page and was not re-checked on 25 Aug 2026. From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.", "source": {"url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true", "anchor": ["Smart Dynamic Electricity", "Electricity unit rates"], "fields": {"day": "Base"}, "read": "2026-10-03"}, "standing_rural": 417.7, "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found"},
   {"id": "EN-SMART-24-HOUR", "supplier": "Energia", "plan": "Smart 24 Hour", "type": "flat", "meter": "smart", "rates": {"day": 0.281, "night": 0.281, "peak": 0.281, "ev": 0.281}, "windows": {"ev": null}, "standing": 265.01, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.energia.ie/energy-plans/electricity", "anchor": ["Energy Plans Table", "Smart 24 Hour"], "fields": {"day": "Smart meter"}, "read": "2026-10-03"}, "notes": "Smart meter flat rate, 30% off. A dearer 28% version is also sold (bonkers.ie, kilowatt.ie); switcher.ie lists both for new customers on 5 Oct 2026, so the cheaper offer is the one priced. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €265.01 inc VAT urban (€255.29 ex VAT +5% from 12 Oct = €278.27 inc). CEG 18.5c.", "price_change": {"effective_date": "2026-10-12", "standing_pct": 0.05, "direction": "increase", "source": "energia.ie/about-energia/our-tariffs, standard rates from 12 Oct 2026 (ex VAT) with this plan's discount", "pct": 0.04, "note": "28.10c → 29.22c from 12 Oct 2026."}, "standing_rural": 340.54, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
   {"id": "EN-SMART", "supplier": "Energia", "plan": "Smart Data", "type": "tou", "meter": "smart", "rates": {"day": 0.3075, "night": 0.1691, "peak": 0.3454, "ev": 0.1691}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 265.01, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.energia.ie/energy-plans/electricity", "anchor": ["Energy Plans Table", "Smart Data"], "fields": {"night": {"label": "Smart meter", "col": 1}, "day": {"label": "Smart meter", "col": 2}, "peak": {"label": "Smart meter", "col": 3}}, "read": "2026-10-03"}, "notes": "Smart day/night/peak, 27% off. Energia also sells a dearer 23% version (shown by bonkers.ie and kilowatt.ie); switcher.ie lists both for new customers on 5 Oct 2026, with this 27% one running past 12 Oct, so the cheaper offer is the one priced. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €265.01 inc VAT urban (€255.29 ex VAT +5% from 12 Oct = €278.27 inc). CEG 18.5c.", "price_change": {"effective_date": "2026-10-12", "standing_pct": 0.05, "direction": "increase", "source": "energia.ie/about-energia/our-tariffs, standard rates from 12 Oct 2026 (ex VAT) with this plan's discount", "pct": 0.03, "pct_bands": {"day": 0.03, "night": 0.28, "peak": 0.05, "ev": 0.28}, "note": "From 12 Oct 2026: day 30.75 → 31.68c, night 16.91 → 21.64c, peak 34.54 → 36.26c."}, "standing_rural": 340.54, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
   {"id": "EN-SMART-DAY-NIGHT", "supplier": "Energia", "plan": "Smart Day/Night", "type": "tou", "meter": "smart", "rates": {"day": 0.3519, "night": 0.1734, "ev": 0.1734}, "windows": {"peak": null, "night": [23, 8], "ev": null}, "standing": 265.01, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-10-03", "source": {"url": "https://www.energia.ie/energy-plans/electricity", "anchor": ["Energy Plans Table", "Smart Day/Night"], "fields": {"night": {"label": "Smart meter", "col": 1}, "day": {"label": "Smart meter", "col": 2}}, "read": "2026-10-03"}, "notes": "Smart day/night, no peak band, 20% off. Rates inc VAT from Energia's plan table, valid to 11 Oct 2026. Standing €265.01 inc VAT urban (€255.29 ex VAT +5% from 12 Oct = €278.27 inc). CEG 18.5c.", "price_change": {"effective_date": "2026-10-12", "standing_pct": 0.05, "direction": "increase", "source": "energia.ie/about-energia/our-tariffs, standard rates from 12 Oct 2026 (ex VAT) with this plan's discount", "pct": 0, "pct_bands": {"day": 0, "night": 0.25, "ev": 0.25}, "note": "From 12 Oct 2026: night 17.34 → 21.67c, day unchanged."}, "standing_rural": 359.31, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
@@ -716,8 +835,8 @@ export const EMBEDDED_TARIFFS = [
   {"id": "CP-SST", "supplier": "Community Power", "plan": "Smart SST", "type": "tou", "meter": "smart", "rates": {"day": 0.4189, "night": 0.2564, "peak": 0.4412, "ev": 0.2564}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 302.01, "exit": 0, "length": 0, "green": true, "export_rate": 0, "verified_date": "2026-10-03", "source": {"url": "https://www.communitypower.ie/tariffs", "anchor": ["Smart SST"], "fields": {"day": "Day", "night": "Night", "peak": "Peak", "standing": {"label": "Total Per Year", "col": 2}}, "col": 2, "read": "2026-10-03"}, "notes": "communitypower.ie/tariffs, inc VAT, urban. UNVERIFIED from 1 Oct 2026: the page states these prices are effective 1 Oct 2025 to 30 Sep 2026 and no later list is published yet. Export not published.", "standing_rural": 353.73, "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"},
   {"id": "EP-SST", "supplier": "Ecopower", "plan": "Standard Smart Electricity 10%", "type": "tou", "meter": "smart", "rates": {"day": 0.4088, "night": 0.254, "peak": 0.4796, "ev": 0.254}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 302.37, "exit": 0, "length": 12, "green": true, "export_rate": 0.152, "verified_date": "2026-10-05", "source": {"url": "https://ecopower.ie/price-plan-26/", "anchor": ["Urban – SST Smart Meter – Domestic"], "read": "2026-10-05"}, "notes": "Ecopower's own price page, urban, 10% off for a 12-month fixed term, direct debit and email billing. The page prints prices excluding VAT (converted here at 9%) and says 'Standard Unit Rate Price valid as of the 8th October 2024'. bonkers.ie shows lower unit rates for these plans on 5 Oct 2026 (about 35.5c inc VAT on the 24-hour plan); the supplier's page is used. Export 15.2c inc VAT. Exit fee not published.", "standing_rural": 334.19, "standing_rural_source": "ecopower.ie price page, Rural Smart Meter €306.60 ex VAT"},
   {"id": "EP-24", "supplier": "Ecopower", "plan": "Smart 24hr Electricity 10%", "type": "flat", "meter": "smart", "rates": {"day": 0.3793, "night": 0.3793, "peak": 0.3793, "ev": 0.3793}, "windows": {"ev": null}, "standing": 302.37, "exit": 0, "length": 12, "green": true, "export_rate": 0.152, "verified_date": "2026-10-05", "source": {"url": "https://ecopower.ie/price-plan-26/", "anchor": ["Urban – 24 Hour Smart Meter – Domestic"], "read": "2026-10-05"}, "notes": "Ecopower's own price page, urban, 10% off for a 12-month fixed term, direct debit and email billing. The page prints prices excluding VAT (converted here at 9%) and says 'Standard Unit Rate Price valid as of the 8th October 2024'. bonkers.ie shows lower unit rates for these plans on 5 Oct 2026 (about 35.5c inc VAT on the 24-hour plan); the supplier's page is used. Export 15.2c inc VAT. Exit fee not published.", "standing_rural": 334.19, "standing_rural_source": "ecopower.ie price page, Rural Smart Meter €306.60 ex VAT"},
-  {"id": "BG-SMART-ALL-DAY-ELECTRICITY", "supplier": "Bord Gáis", "plan": "Smart All Day Electricity", "type": "flat", "meter": "smart", "rates": {"day": 0.3161, "night": 0.3161, "peak": 0.3161, "ev": 0.3161}, "windows": {"ev": null}, "standing": 244.76, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-15", "notes": "Not in Bord Gáis's new-customer plan list on 30 Sep 2026.", "price_change": {"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "Bord Gais price announcement, 9 Sep 2026", "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."}, "discontinued": true},
-  {"id": "BG-SMART-STANDARD-GREEN-ELECTRICITY-ONLY", "supplier": "Bord Gáis", "plan": "Smart Standard Green Electricity Only", "type": "tou", "meter": "smart", "rates": {"day": 0.3378, "night": 0.2493, "peak": 0.4112, "ev": 0.2493}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 244.76, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-15", "notes": "Not in Bord Gáis's new-customer plan list on 30 Sep 2026.", "price_change": {"effective_date": "2026-10-09", "pct": 0.091, "standing_pct": 0.072, "direction": "increase", "source": "Bord Gais price announcement, 9 Sep 2026", "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."}, "discontinued": true}
+  {"id": "BG-SMART-ALL-DAY-ELECTRICITY", "supplier": "Bord Gáis", "plan": "Smart All Day Electricity", "type": "flat", "meter": "smart", "rates": {"day": 0.3449, "night": 0.3449, "peak": 0.3449, "ev": 0.3449}, "windows": {"ev": null}, "standing": 262.38, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-15", "notes": "Not in Bord Gáis's new-customer plan list on 30 Sep 2026. From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.", "discontinued": true},
+  {"id": "BG-SMART-STANDARD-GREEN-ELECTRICITY-ONLY", "supplier": "Bord Gáis", "plan": "Smart Standard Green Electricity Only", "type": "tou", "meter": "smart", "rates": {"day": 0.3685, "night": 0.272, "peak": 0.4486, "ev": 0.272}, "windows": {"peak": [17, 19], "night": [23, 8], "ev": null}, "standing": 262.38, "exit": 50, "length": 12, "green": true, "export_rate": 0.185, "verified_date": "2026-09-15", "notes": "Not in Bord Gáis's new-customer plan list on 30 Sep 2026. From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.", "discontinued": true}
 ];
 
 /**
@@ -965,6 +1084,7 @@ export function simulate(plan, gen, cons, strategy){
 export const CACHE = { solar:null, cons:null, consNoEv:null, wholesale:null, dirty:true, sims:{}, baselines:{} };
 
 export function rebuildBase(){
+  if (_scenarioDepth === 0) syncFileBills();
   applyArea();
   CACHE.solar = buildSolar();
   const consResult = buildConsumption();
@@ -1103,6 +1223,19 @@ export function coerceNumericState(){
  * writes the final value itself against a checksum of the real inputs.
  */
 export let _scenarioDepth = 0;
+/*
+ * The home's system as the household states it. A what-if (no panels, another
+ * size) changes the system it prices, never the one a meter file was recorded
+ * with, so the file is always read against the panels really on the roof.
+ */
+let _statedSys = null;
+function pickSystem(src){
+  const own = src.solar_view && src.solar_view !== 'mine' && src.my_system ? { ...src, ...src.my_system } : src;
+  return { has_solar: !!own.has_solar, planned: !!own.solar_planned, count_A: +own.count_A || 0, count_B: +own.count_B || 0,
+    azimuth_A: own.azimuth_A ?? 180, tilt_A: own.tilt_A ?? 30, azimuth_B: own.azimuth_B ?? 270, tilt_B: own.tilt_B ?? 30,
+    inverter_kw: +own.inverter_kw || 5, panel_w: +own.panel_w || +state.panel_w || 440, battery_kwh: +own.battery_kwh || 0 };
+}
+export function statedSystem(){ return _scenarioDepth > 0 && _statedSys ? _statedSys : pickSystem(state); }
 
 /**
  * Scenario results by checksum. Small and bounded: one render needs at most the
@@ -1264,6 +1397,7 @@ export function withSimState(changes, fn){
   // so take it from the argument rather than from anybody's memory.
   const snap = snapshotSim();
   if (changes) for (const k in changes) if (!(k in snap)) snap[k] = state[k];
+  if (_scenarioDepth === 0) _statedSys = pickSystem(state);
   _scenarioDepth += 1;
   try {
     if (changes) Object.assign(state, changes);
@@ -1648,7 +1782,7 @@ export function pathValue(b0, b1, years, cost, batteryKwh){
 }
 export function setSolarExtrasReady(v){ _solarExtrasReady = v; }
 export function setSolarExtrasPending(v){ _solarExtrasPending = v; }
-export function adjScenarioDepth(d){ _scenarioDepth += d; }
+export function adjScenarioDepth(d){ if (_scenarioDepth === 0 && d > 0) _statedSys = pickSystem(state); _scenarioDepth += d; }
 
 /* ---- The two background jobs, shared by the page and src/sim-worker.js ----
  * Same sums in both places: the page uses them when a worker is not

@@ -421,15 +421,15 @@
     "type": "flat",
     "meter": "smart",
     "rates": {
-      "day": 0.2995,
-      "night": 0.2995,
-      "peak": 0.2995,
-      "ev": 0.2995
+      "day": 0.3268,
+      "night": 0.3268,
+      "peak": 0.3268,
+      "ev": 0.3268
     },
     "windows": {
       "ev": null
     },
-    "standing": 244.77,
+    "standing": 262.38,
     "exit": 50,
     "length": 12,
     "green": true,
@@ -446,16 +446,8 @@
       },
       "read": "2026-10-03"
     },
-    "notes": "Smart meter, one flat rate, 26% off unit rates for 12 months. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).",
-    "price_change": {
-      "effective_date": "2026-10-09",
-      "pct": 0.091,
-      "standing_pct": 0.072,
-      "direction": "increase",
-      "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)",
-      "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."
-    },
-    "standing_rural": 311.76,
+    "notes": "Smart meter, one flat rate, 26% off unit rates for 12 months. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration). From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.",
+    "standing_rural": 334.21,
     "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"
   },
   {
@@ -465,10 +457,10 @@
     "type": "tou",
     "meter": "smart",
     "rates": {
-      "day": 0.32,
-      "night": 0.2362,
-      "peak": 0.3896,
-      "ev": 0.2362
+      "day": 0.3491,
+      "night": 0.2577,
+      "peak": 0.4251,
+      "ev": 0.2577
     },
     "windows": {
       "peak": [
@@ -481,7 +473,7 @@
       ],
       "ev": null
     },
-    "standing": 244.77,
+    "standing": 262.38,
     "exit": 50,
     "length": 12,
     "green": true,
@@ -500,28 +492,20 @@
       },
       "read": "2026-10-03"
     },
-    "notes": "Smart day/night/peak, 26% off for 12 months. Peak 17:00-19:00 Monday to Friday only. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).",
+    "notes": "Smart day/night/peak, 26% off for 12 months. Peak 17:00-19:00 Monday to Friday only. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration). From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.",
     "weekend": {
       "days": [
         5,
         6
       ],
       "rates": {
-        "peak": 0.32
+        "peak": 0.3491
       },
       "same_as": {
         "peak": "day"
       }
     },
-    "price_change": {
-      "effective_date": "2026-10-09",
-      "pct": 0.091,
-      "standing_pct": 0.072,
-      "direction": "increase",
-      "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)",
-      "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."
-    },
-    "standing_rural": 311.76,
+    "standing_rural": 334.21,
     "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"
   },
   {
@@ -531,10 +515,10 @@
     "type": "tou",
     "meter": "smart",
     "rates": {
-      "day": 0.32,
-      "night": 0.2362,
-      "peak": 0.3896,
-      "ev": 0.2362
+      "day": 0.3491,
+      "night": 0.2577,
+      "peak": 0.4251,
+      "ev": 0.2577
     },
     "windows": {
       "peak": [
@@ -547,7 +531,7 @@
       ],
       "ev": null
     },
-    "standing": 244.77,
+    "standing": 262.38,
     "exit": 50,
     "length": 12,
     "green": true,
@@ -566,28 +550,20 @@
       },
       "read": "2026-10-03"
     },
-    "notes": "Same rates as Smart Standard with the Spend Goal feature. Peak Monday to Friday only. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).",
+    "notes": "Same rates as Smart Standard with the Spend Goal feature. Peak Monday to Friday only. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration). From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.",
     "weekend": {
       "days": [
         5,
         6
       ],
       "rates": {
-        "peak": 0.32
+        "peak": 0.3491
       },
       "same_as": {
         "peak": "day"
       }
     },
-    "price_change": {
-      "effective_date": "2026-10-09",
-      "pct": 0.091,
-      "standing_pct": 0.072,
-      "direction": "increase",
-      "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)",
-      "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."
-    },
-    "standing_rural": 311.76,
+    "standing_rural": 334.21,
     "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"
   },
   {
@@ -597,10 +573,10 @@
     "type": "ev",
     "meter": "smart",
     "rates": {
-      "day": 0.32,
-      "night": 0.2419,
-      "peak": 0.4083,
-      "ev": 0.1252
+      "day": 0.3491,
+      "night": 0.2639,
+      "peak": 0.4455,
+      "ev": 0.1366
     },
     "windows": {
       "peak": [
@@ -616,7 +592,7 @@
         5
       ]
     },
-    "standing": 364.89,
+    "standing": 391.16,
     "exit": 50,
     "length": 12,
     "green": true,
@@ -636,28 +612,20 @@
       },
       "read": "2026-10-03"
     },
-    "notes": "Smart EV plan, 15% off for 12 months; EV time 02:00-05:00 every day, peak Monday to Friday (Smart EV tariff terms, Aug 2026). UNVERIFIED standing: €364.89 is the Smart EV plan's standing charge; the EV Plus card does not print one. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).",
+    "notes": "Smart EV plan, 15% off for 12 months; EV time 02:00-05:00 every day, peak Monday to Friday (Smart EV tariff terms, Aug 2026). UNVERIFIED standing: €364.89 is the Smart EV plan's standing charge; the EV Plus card does not print one. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration). From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.",
     "weekend": {
       "days": [
         5,
         6
       ],
       "rates": {
-        "peak": 0.32
+        "peak": 0.3491
       },
       "same_as": {
         "peak": "day"
       }
     },
-    "price_change": {
-      "effective_date": "2026-10-09",
-      "pct": 0.091,
-      "standing_pct": 0.072,
-      "direction": "increase",
-      "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)",
-      "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."
-    },
-    "standing_rural": 430.24,
+    "standing_rural": 461.22,
     "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"
   },
   {
@@ -667,10 +635,10 @@
     "type": "tou",
     "meter": "smart",
     "rates": {
-      "day": 0.3152,
-      "night": 0.2818,
-      "peak": 0.3845,
-      "ev": 0.2818
+      "day": 0.3439,
+      "night": 0.3074,
+      "peak": 0.4195,
+      "ev": 0.3074
     },
     "windows": {
       "peak": [
@@ -683,7 +651,7 @@
       ],
       "ev": null
     },
-    "standing": 244.77,
+    "standing": 262.38,
     "exit": 50,
     "length": 12,
     "green": true,
@@ -702,7 +670,7 @@
       },
       "read": "2026-10-03"
     },
-    "notes": "Smart plan charged at the night rate all weekend, Friday 11pm to Monday 8am; 26% off for 12 months. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).",
+    "notes": "Smart plan charged at the night rate all weekend, Friday 11pm to Monday 8am; 26% off for 12 months. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration). From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.",
     "weekend": {
       "span": [
         [
@@ -715,23 +683,15 @@
         ]
       ],
       "rates": {
-        "day": 0.2818,
-        "peak": 0.2818
+        "day": 0.3074,
+        "peak": 0.3074
       },
       "same_as": {
         "day": "night",
         "peak": "night"
       }
     },
-    "price_change": {
-      "effective_date": "2026-10-09",
-      "pct": 0.091,
-      "standing_pct": 0.072,
-      "direction": "increase",
-      "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)",
-      "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."
-    },
-    "standing_rural": 311.76,
+    "standing_rural": 334.21,
     "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"
   },
   {
@@ -741,15 +701,15 @@
     "type": "flat",
     "meter": "smart",
     "rates": {
-      "day": 0.4159,
-      "night": 0.4159,
-      "peak": 0.4159,
-      "ev": 0.4159
+      "day": 0.4537,
+      "night": 0.4537,
+      "peak": 0.4537,
+      "ev": 0.4537
     },
     "windows": {
       "ev": null
     },
-    "standing": 244.77,
+    "standing": 262.38,
     "exit": 0,
     "length": 0,
     "green": true,
@@ -766,16 +726,8 @@
       },
       "read": "2026-10-03"
     },
-    "notes": "No discount, no fixed term. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration).",
-    "price_change": {
-      "effective_date": "2026-10-09",
-      "pct": 0.091,
-      "standing_pct": 0.072,
-      "direction": "increase",
-      "source": "bordgaisenergy.ie/home/price-change-info and our-tariffs (new standard tables)",
-      "note": "Bord Gáis unit rates +9.1%, standing +7.2% from 9 Oct 2026 (24hr standard 41.59c → 45.38c, standing €244.77 → €262.38)."
-    },
-    "standing_rural": 311.76,
+    "notes": "No discount, no fixed term. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration). From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.",
+    "standing_rural": 334.21,
     "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"
   },
   {
@@ -785,21 +737,21 @@
     "type": "dynamic",
     "meter": "smart",
     "rates": {
-      "day": 0.1673,
-      "night": 0.1673,
-      "peak": 0.1673,
-      "ev": 0.1673
+      "day": 0.1902,
+      "night": 0.1902,
+      "peak": 0.1902,
+      "ev": 0.1902
     },
     "windows": {
       "ev": null
     },
-    "standing": 331.96,
+    "standing": 347.56,
     "exit": 50,
     "length": 12,
     "green": true,
     "export_rate": 0.185,
     "verified_date": "2026-10-03",
-    "notes": "★ NEW (1 June 2026). Single base rate 16.73c + half-hourly wholesale. No discount on base. Day-ahead prices at bordgaisenergy.ie/day-ahead-market-prices. UNVERIFIED since launch — the base rate is not published on the plan-comparison page and was not re-checked on 25 Aug 2026.",
+    "notes": "★ NEW (1 June 2026). Single base rate 16.73c + half-hourly wholesale. No discount on base. Day-ahead prices at bordgaisenergy.ie/day-ahead-market-prices. UNVERIFIED since launch — the base rate is not published on the plan-comparison page and was not re-checked on 25 Aug 2026. From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.",
     "source": {
       "url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true",
       "anchor": [
@@ -811,15 +763,7 @@
       },
       "read": "2026-10-03"
     },
-    "price_change": {
-      "effective_date": "2026-10-09",
-      "pct": 0.137,
-      "standing_pct": 0.047,
-      "direction": "increase",
-      "source": "bordgaisenergy.ie/home/our-tariffs, Smart Dynamic table from 9 Oct 2026",
-      "note": "Base rate 16.73c → 19.02c and standing €331.96 → €347.56 from 9 Oct 2026; the wholesale part is added hourly on top."
-    },
-    "standing_rural": 398.95,
+    "standing_rural": 417.7,
     "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found"
   },
   {
@@ -2599,29 +2543,21 @@
     "type": "flat",
     "meter": "smart",
     "rates": {
-      "day": 0.3161,
-      "night": 0.3161,
-      "peak": 0.3161,
-      "ev": 0.3161
+      "day": 0.3449,
+      "night": 0.3449,
+      "peak": 0.3449,
+      "ev": 0.3449
     },
     "windows": {
       "ev": null
     },
-    "standing": 244.76,
+    "standing": 262.38,
     "exit": 50,
     "length": 12,
     "green": true,
     "export_rate": 0.185,
     "verified_date": "2026-09-15",
-    "notes": "Not in Bord Gáis's new-customer plan list on 30 Sep 2026.",
-    "price_change": {
-      "effective_date": "2026-10-09",
-      "pct": 0.091,
-      "standing_pct": 0.072,
-      "direction": "increase",
-      "source": "Bord Gais price announcement, 9 Sep 2026",
-      "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."
-    },
+    "notes": "Not in Bord Gáis's new-customer plan list on 30 Sep 2026. From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.",
     "discontinued": true
   },
   {
@@ -2631,10 +2567,10 @@
     "type": "tou",
     "meter": "smart",
     "rates": {
-      "day": 0.3378,
-      "night": 0.2493,
-      "peak": 0.4112,
-      "ev": 0.2493
+      "day": 0.3685,
+      "night": 0.272,
+      "peak": 0.4486,
+      "ev": 0.272
     },
     "windows": {
       "peak": [
@@ -2647,21 +2583,13 @@
       ],
       "ev": null
     },
-    "standing": 244.76,
+    "standing": 262.38,
     "exit": 50,
     "length": 12,
     "green": true,
     "export_rate": 0.185,
     "verified_date": "2026-09-15",
-    "notes": "Not in Bord Gáis's new-customer plan list on 30 Sep 2026.",
-    "price_change": {
-      "effective_date": "2026-10-09",
-      "pct": 0.091,
-      "standing_pct": 0.072,
-      "direction": "increase",
-      "source": "Bord Gais price announcement, 9 Sep 2026",
-      "note": "Bord Gais unit rates +9.1%, standing +7.2% from 9 Oct 2026."
-    },
+    "notes": "Not in Bord Gáis's new-customer plan list on 30 Sep 2026. From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.",
     "discontinued": true
   }
 ]

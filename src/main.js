@@ -2346,14 +2346,22 @@ function auditQuote(quotedPrice, numPanels, batteryKwh){
    * the panels' credit — an EV's petrol saving is not something a solar
    * installer delivers.
    */
+  // On this roof: the quoted panels split across its faces as the home's own
+  // are. All on the first face, a south-west and north-east roof was credited
+  // with more than the Solar page gave the very same system.
+  const own = totalPanels(), nB = state.count_B > 0 && own > 0 ? Math.round(numPanels * state.count_B / own) : 0;
   const withSystem = withSimState({
-    has_solar: true, count_A: numPanels, count_B: 0,
+    has_solar: true, count_A: numPanels - nB, count_B: nB,
     battery_kwh: batteryKwh, install_cost: quotedPrice, grant_seai: grant,
   }, () => getBestPlan().net);
   const withoutSystem = withSimState({
     has_solar: false, count_A: 0, count_B: 0, battery_kwh: 0,
   }, () => getBestPlan().net);
-  const totalAnnualBenefit = Math.max(0, withoutSystem - withSystem);
+  let totalAnnualBenefit = Math.max(0, withoutSystem - withSystem);
+  // The system the home has, quoted: the Solar page's own figure, so the two never disagree.
+  if (state.has_solar && numPanels === own && +batteryKwh === +(state.battery_kwh || 0)){
+    try { const c = v7SolarData().cur; if (c && c.solarBenefit > 0) totalAnnualBenefit = c.solarBenefit; } catch (e) {}
+  }
 
   const payback = totalAnnualBenefit > 0 ? netQuoted / totalAnnualBenefit : 999;
   const npv20 = calcNPV20(totalAnnualBenefit, netQuoted, batteryKwh, state.panel_degradation);
@@ -5321,12 +5329,14 @@ function renderOptimisedSuggestion(){
 function designGoals(){
   const sweep = sweepGoalDesigns();
   if (!sweep || !sweep.designs || !sweep.designs.length) return [];
+  // Only sizes that pay for themselves can be called the fastest to, or the
+  // cheapest that still does: when none do, those labels went on systems
+  // that took 27 years or never paid back.
   const ok = sweep.designs.filter((d) => d.npv > 0 && d.payback < 25);
-  const pool = ok.length ? ok : sweep.designs;
   const pick = [
     { key: 'value', icon: 'trendUp', label: 'Best value', why: 'Most back over 20 years, without overspending', d: bestDesign() },
-    { key: 'payback', icon: 'clock', label: 'Fastest payback', why: 'Pays for itself soonest', d: pool.slice().sort((a, b) => a.payback - b.payback || a.net - b.net)[0] },
-    { key: 'cost', icon: 'euro', label: 'Lowest cost', why: 'Smallest outlay that still pays off', d: pool.slice().sort((a, b) => a.net - b.net || a.payback - b.payback)[0] },
+    { key: 'payback', icon: 'clock', label: 'Fastest payback', why: 'Pays for itself soonest', d: ok.slice().sort((a, b) => a.payback - b.payback || a.net - b.net)[0] },
+    { key: 'cost', icon: 'euro', label: 'Lowest cost', why: 'Smallest outlay that still pays off', d: ok.slice().sort((a, b) => a.net - b.net || a.payback - b.payback)[0] },
     { key: 'own', icon: 'battery', label: 'Most of your own power', why: 'Biggest system: buy the least from the grid', d: sweep.designs.slice().sort((a, b) => (b.panels - a.panels) || (b.batt - a.batt))[0] },
   ].filter((g) => g.d);
   const out = [];
@@ -11818,6 +11828,8 @@ function modelAccuracy(){
       ? (() => { const fb = fileBasis();
           if (fb && fb.ask) return { label: 'Meter file: before or after the panels?', err: 8, tip: 'Say when the panels went up', go: "flowEdit('filewhen')" };
           if (fb && fb.contradicts) return { label: 'Meter file shows panels already running', err: 6, tip: 'Mark the panels as installed', go: 'openMySystem()' };
+          // The months since the panels went in are worked back from what was bought and sold.
+          if (fb && fb.rebuilt) return { label: `Your meter data; from ${fmtDay(fb.rebuilt)}, when the panels began, worked back to what the home used`, err: 3 };
           return { label: 'Your meter data', err: 1 }; })()
       : state.usage_input_mode === 'kwh'
         ? { label: 'Usage from your yearly kWh', err: 5, tip: 'Add your ESB meter file', go: "v7Sheet('meter')" }
@@ -11878,6 +11890,8 @@ function sysSet(key, v){
   if (key === 'battery_kwh') v = Math.round(v * 2) / 2;
   if (state[key] === v) return;
   const battWas = +state.battery_kwh || 0;
+  const sizing = ['count_A', 'count_B', 'battery_kwh', 'panel_w'].includes(key);
+  const guideWas = sizing ? estimateInstallCost(totalKwp(), battWas) : 0;
   state[key] = v;
   const fine = state.fine = state.fine || {};
   if (['panel_w', 'panel_degradation'].includes(key)) fine.panels = true;
@@ -11893,6 +11907,21 @@ function sysSet(key, v){
       // The discharge rate follows the battery: a 5 kWh unit does not put out 5 kW.
       if (!fine.battery) state.battery_discharge_kw = Math.max(2.5, Math.min(6, v * 0.5));
       if (battWas === 0 && v > 0) state.charge_from_grid = true;
+    }
+  }
+  // A typed price belongs to the size it was typed for. A planned system that
+  // grows or shrinks moves its price by the usual price of the change; one
+  // already on the roof keeps what was paid, and says so. Kept as it was,
+  // 29 more panels came free and the payback fell from 11 years to 7.
+  if (sizing && state.cost_is_manual && state.install_cost > 0){
+    const step = estimateInstallCost(totalKwp(), +state.battery_kwh || 0) - guideWas;
+    if (Math.abs(step) >= 50){
+      if (state.solar_planned || state.solar_is_estimate){
+        state.install_cost = Math.max(0, Math.round((state.install_cost + step) / 50) * 50);
+        showToast(`Price now ${fmtCurrency(state.install_cost)}: your figure ${step > 0 ? 'plus' : 'less'} the usual ${fmtCurrency(Math.abs(step))} for the change. Type your own under Price.`, { type: 'blue', icon: ic('info', 16) });
+      } else {
+        showToast(`Still priced at the ${fmtCurrency(state.install_cost)} you paid. Change the price if this system cost more.`, { type: 'blue', icon: ic('info', 16) });
+      }
     }
   }
   applyEstimatedSolarCost();
@@ -13899,14 +13928,14 @@ function renderMethodology(){
       </div>
     </div>
 
-    <div class="card" style="background:rgba(0,230,118,.04);border-color:var(--accent)">
+    ${CONTROLLER.email ? `<div class="card" style="background:rgba(0,230,118,.04);border-color:var(--accent)">
       <div class="card-label" style="color:var(--accent)">${ic('doc',13)} Contact</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.75;margin-top:6px">
         Spotted a wrong rate or have a question?<br>
-        Email: <b style="color:var(--accent)">hello@solaroptimiser.ie</b><br><br>
+        Email: <a href="mailto:${escAttr(CONTROLLER.email)}" style="color:var(--accent);font-weight:700">${esc(CONTROLLER.email)}</a><br><br>
         Rate corrections are applied within 48 hours.
       </div>
-    </div>
+    </div>` : ''}
 
     <p class="disclaimer">
       <b>Disclaimer.</b> These are estimates. Your real bills and solar will depend on the weather and how you use power. ${BRAND.name} isn’t a regulated financial or energy adviser.
@@ -14090,7 +14119,7 @@ window.exploreSolar = exploreSolar;
 window.handleSwitchClick = handleSwitchClick;
 window.setScreen = setScreen;
 window.v7Sheet = v7Sheet;
-window.sysSet = sysSet;
+window.sysSet = sysSet; window.designGoals = designGoals; window.auditQuote = auditQuote;
 window.sysPreview = sysPreview;
 window.sysFine = sysFine;
 window.sysSplit = sysSplit;
@@ -14315,6 +14344,7 @@ window.getRecommendation = getRecommendation;
 window.getBestPlan = getBestPlan;
 window.v7SolarData = v7SolarData;
 window.sim = sim;
+window.fileBasis = fileBasis; window.bimonthlyFor = bimonthlyFor;
 window.annualCost = annualCost;
 window.getPlanById = getPlanById;
 window.__annual = (s, p) => annualCost(s, p).net;   // tests: a plan's comparable yearly cost

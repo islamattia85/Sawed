@@ -44,12 +44,23 @@ test('a file from before the panels: asked, then the panels are added to it', as
   expect(after).toBeLessThan(before - 200);
 });
 
-test('a file with the panels running all year is priced as recorded, with no question', async ({ page }) => {
+test('a file with the panels running all year: no question, and the home’s own use worked back with the panels counted once', async ({ page }) => {
   await fresh(page); await upload(page, esbFile({ exportFrom: 0 }));
-  const fileOnly = await page.evaluate(() => { invalidate(); rebuildBase(); return Math.round(getBestPlan().net); });
   await havePanels(page);
   await expect(page.locator('.fl-q h2')).not.toContainText('before the panels');
-  expect(await page.evaluate(() => { invalidate(); rebuildBase(); return Math.round(getBestPlan().net); })).toBe(fileOnly);
+  const r = await page.evaluate(() => {
+    invalidate(); rebuildBase();
+    const rows = Object.values(state.meter.days), k = 365 / rows.length;
+    const sum = (a) => a.reduce((x, y) => x + y, 0);
+    const bought = sum(rows.map((r) => sum(r.slice(0, 24)))) * k;
+    const s = sim(state.baseline);
+    return { bought, used: sum(Array.from(CACHE.consNoEv)), gen: sum(Array.from(s.gen)), modelBought: sum(Array.from(s.grid_import)) };
+  });
+  // The home used more than it bought (the panels covered some), less than bought plus all they made.
+  expect(r.used).toBeGreaterThan(r.bought * 1.02);
+  expect(r.used).toBeLessThan(r.bought + r.gen);
+  // With the panels added back once, the model buys about what the meter did.
+  expect(Math.abs(r.modelBought - r.bought) / r.bought, JSON.stringify(r)).toBeLessThan(0.2);
 });
 
 test('panels that start partway through: the part before them is the home’s usage', async ({ page }) => {

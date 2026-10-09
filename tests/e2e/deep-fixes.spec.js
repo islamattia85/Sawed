@@ -99,10 +99,20 @@ test('a meter file from a home with panels up is not given the panels twice', as
   }
   await page.locator('.fl-upload input[type=file]').setInputFiles({ name: 'esb.csv', mimeType: 'text/csv', buffer: Buffer.from(rows.join('\n')) });
   await page.getByRole('button', { name: /Use this data/ }).click();
-  const cost = () => page.evaluate(() => { window.invalidate(); window.rebuildBase(); return Math.round(window.getRecommendation().ranked.find((x) => x.plan.id === 'EI-SST').net); });
-  const fileOnly = await cost();
   await page.evaluate(() => { flowAnswer('solar', 'have'); flowAnswer('where', 'east'); flowAnswer('roof', 'S'); flowAnswer('tilt', 35); flowAnswer('panels', 9); flowAnswer('battery', 10); });
-  expect(await cost()).toBe(fileOnly);
+  // The days with the panels running are the home's own use, worked back
+  // once: what it bought, plus what the panels made, less what it sold and a
+  // battery's losses. Not the readings with the panels added on top again.
+  const r = await page.evaluate(() => {
+    window.invalidate(); window.rebuildBase();
+    const sum = (a) => a.reduce((x, y) => x + y, 0);
+    const days = window.state.meter.days, used = window.fileDays ? null : null;
+    let bought = 0, sold = 0; for (const r of Object.values(days)){ bought += sum(r.slice(0, 24)); sold += sum(r.slice(24)); }
+    return { basis: window.fileBasis(), bought, sold, sep: window.state.bills['Sep-Oct'] };
+  });
+  expect(r.basis.rebuilt, 'worked back from the first day').toBeTruthy();
+  // Sep-Oct's use, a whole two months, is more than the file's 28 days bought scaled up, never less.
+  expect(r.sep).toBeGreaterThan(r.bought / 28 * 61);
 });
 
 test('a battery that only stores solar today: the current plan is priced that way, and the gain from night top-ups is shown', async ({ page }) => {

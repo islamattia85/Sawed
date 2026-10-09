@@ -26,6 +26,8 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) =>
 /** Money to the euro, the way the app talks about money. */
 /** Euros, rounded. A negative amount (money coming in) reads −€230, never €-230. */
 export const eur = (v) => { const n = Math.round(v || 0); return `${n < 0 ? '−' : ''}€${Math.abs(n).toLocaleString('en-IE')}`; };
+/** A yearly bill. Below zero the home is paid: "paid €37", not a bare minus sign. */
+export const billAmt = (v) => (Math.round(v || 0) < 0 ? `paid ${eur(-v)}` : eur(v));
 
 /**
  * Where a year's money goes, as one stacked bar.
@@ -223,7 +225,7 @@ export function savingsLadder({ rungs = [] } = {}) {
   const rows = items.map((r, i) => {
     const w = Math.max(1, (Math.max(0, r.value) / max) * 100);
     return `<div class="lad-row" data-rung="${i}" data-label="${esc(r.label)}" data-value="${n(r.value)}" title="${esc(r.label)}: ${eur(r.value)}/yr">
-      <span class="lad-k">${esc(r.label)}</span><b class="lad-v">${eur(r.value)}</b>
+      <span class="lad-k">${esc(r.label)}</span><b class="lad-v">${billAmt(r.value)}</b>
       <i class="lad-t"><i style="width:${n(w)}%;background:var(${r.token})"></i></i></div>`;
   }).join('');
   return `<div class="v7-ladder" role="group" aria-label="Your yearly bill, step by step">${rows}</div>`;

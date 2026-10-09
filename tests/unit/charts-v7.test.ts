@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error - plain JS module, no types
-import { savingsLadder, rateStrip, scoreRing, monthBars } from '../../src/ui/charts.js';
+import { savingsLadder, rateStrip, scoreRing, monthBars, billAmt } from '../../src/ui/charts.js';
 
 /**
  * The V7 objects carry the answer itself, not just its working — the ladder is
@@ -103,3 +103,11 @@ describe('the V7 objects follow the same rules as the V6 ones', () => {
 });
 
 
+
+describe('a yearly bill below zero', () => {
+  it('says the home is paid, not a bare minus sign', () => {
+    expect(billAmt(-37)).toBe('paid €37');
+    expect(billAmt(640)).toBe('€640');
+    expect(savingsLadder({ rungs: [{ label: 'Now', value: -37, token: '--accent' }] })).toContain('paid €37');
+  });
+});
