@@ -6680,10 +6680,84 @@ function goRefineSolar(){
   openMySystem();
 }
 
-// Growth loop: a share-ready savings card. Brand-styled canvas PNG with the
-// headline saving — no personal data, no usage details. Web Share API with
-// download fallback.
-function makeShareCardCanvas(savings){
+/**
+ * The home, its use and its solar, for the share card and its text: what a
+ * friend asks ("what did you put in, what does it make, what did it cost?").
+ * Nothing that says who the household is: no name, address, Eircode or meter
+ * number. Rows are [label, value, full width].
+ */
+function shareDetails(){
+  const out = { solar: null, home: [], use: null };
+  const best = getBestPlan();
+  const s = best && best.sim;
+  const n0 = (v) => Math.round(v).toLocaleString('en-IE');
+  const eurS = (v) => '€' + n0(v);
+  const WORD = { N: 'north', NE: 'north-east', E: 'east', SE: 'south-east', S: 'south', SW: 'south-west', W: 'west', NW: 'north-west' };
+  const off = (a, b) => { const d = Math.abs(a - b) % 360; return Math.min(d, 360 - d); };
+  const dir = (az) => WORD[COMPASS_POINTS.reduce((a, b) => (off(b.az, az) < off(a.az, az) ? b : a)).short];
+  if (state.has_solar && totalPanels() > 0 && s){
+    const planned = state.solar_planned || state.solar_is_estimate;
+    const faces = [[state.count_A, state.azimuth_A, state.tilt_A], [state.count_B, state.azimuth_B, state.tilt_B]].filter((f) => f[0] > 0);
+    const gen = sumF(s.gen), exp = sumF(s.grid_export), curt = s.curtailed ? sumF(s.curtailed) : 0;
+    const d = v7SolarData();
+    const rows = [
+      ['Panels', `${totalPanels()} × ${Math.round(state.panel_w)} W · ${totalKwp().toFixed(1)} kWp`],
+      ['Battery', state.battery_kwh > 0 ? `${state.battery_kwh} kWh` : 'None'],
+      ['Inverter', `${+state.inverter_kw || inverterFor(totalKwp())} kW`],
+    ];
+    if (d.cur.payback < 50) rows.push(['Pays back', `${d.cur.payback.toFixed(1)} years`]);
+    rows.push(['Roof', faces.map(([c, az, t]) => `${faces.length > 1 ? `${c} ` : ''}facing ${dir(az)} at ${Math.round(t)}°`).join(' · ').replace(/^f/, 'F'), true]);
+    rows.push([planned ? 'Would make' : 'Makes', `${n0(gen)} kWh a year`]);
+    rows.push(['Used at home', `${Math.round(Math.max(0, gen - exp - curt) / Math.max(1, gen) * 100)}%`]);
+    rows.push([planned ? 'Would sell' : 'Sells', `${n0(exp)} kWh · ${eurS(sumF(s.revenue))}`]);
+    if (d.sysCost > 0) rows.push(['Cost', `${eurS(d.sysCost)}${(state.grant_seai || 0) > 0 ? ` after the ${eurS(state.grant_seai)} grant` : ''}${state.cost_is_manual ? '' : ' (guide price)'}`, true]);
+    out.solar = { title: planned ? 'My planned solar' : 'My solar', rows };
+  }
+  const house = { terraced: 'Terraced', semi: 'Semi-detached', detached: 'Detached', bungalow: 'Bungalow', apartment: 'Apartment' }[state.house_type];
+  const heat = { gas: 'Gas or oil', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heaters' }[state.heating_type];
+  const region = IRISH_REGIONS[state.region];
+  // The house is asked when sizing panels; without them it may be only the default.
+  if (house && out.solar) out.home.push(['Home', house]);
+  if (heat) out.home.push(['Heating', heat]);
+  if (region) out.home.push(['Region', region.name]);
+  if (state.ev_active) out.home.push([state.ev_in_bill ? 'Car' : 'Planned car', `Electric, ${n0(+state.ev_km_per_year || 0)} km a year`]);
+  // When the home uses its power: night 23:00-08:00 and peak 17:00-19:00, as smart plans count them.
+  let day = 0, night = 0, peak = 0;
+  if (s && s.cons) for (let i = 0; i < s.cons.length; i++){
+    const h = i % 24, c = s.cons[i] || 0;
+    if (h >= 23 || h < 8) night += c; else if (h >= 17 && h < 19) peak += c; else day += c;
+  }
+  const tot = day + night + peak, kwh = v7AnnualKwh();
+  if (kwh > 0) out.use = { kwh, src: state._csv_imported ? 'from my smart meter' : '', split: tot > 0 ? { day: day / tot, night: night / tot, peak: peak / tot } : null };
+  return out;
+}
+
+/** The share card's words, for pasting into a message. */
+function shareText(savings, details, df){
+  const n0 = (v) => Math.round(v).toLocaleString('en-IE');
+  const lines = [`My home energy analysis: €${n0(Math.max(0, savings))} a year less${df ? ' on gas and electricity' : ''}.`];
+  if (details){
+    let det = null; try { det = shareDetails(); } catch (e) { det = null; }
+    if (det && det.solar) lines.push('', det.solar.title, ...det.solar.rows.map(([k, v]) => `${k}: ${v}`));
+    if (det && (det.home.length || det.use)){
+      lines.push('', 'My home', ...det.home.map(([k, v]) => `${k}: ${v}`));
+      if (det.use){
+        const sp = det.use.split;
+        lines.push(`Uses: ${n0(det.use.kwh)} kWh a year${det.use.src ? `, ${det.use.src}` : ''}${sp ? ` (day ${Math.round(sp.day * 100)}%, night ${Math.round(sp.night * 100)}%, peak ${Math.round(sp.peak * 100)}%)` : ''}`);
+      }
+    }
+    try { const b = getBestPlan(); if (b && b.plan) lines.push('', `Best plan for my home: ${b.plan.supplier} ${b.plan.plan}, ${b.net < 0 ? `€${n0(-b.net)} a year in credit` : `€${n0(b.net)} a year`}`); } catch (e) {}
+    lines.push('');
+  }
+  lines.push(`Check yours free: ${location.origin}`);
+  return lines.join('\n');
+}
+
+// Growth loop: a share-ready card. Brand-styled canvas PNG with the headline
+// saving and, when the person leaves it on, their home, use and solar (see
+// shareDetails: nothing that says who they are). Web Share API with download
+// fallback.
+function makeShareCardCanvas(savings, opts = {}){
   const cv = document.createElement('canvas');
   if (!cv || typeof cv.getContext !== 'function') return null;
   const full = (p) => (p ? `${p.supplier} · ${p.plan}` : '');
@@ -6731,10 +6805,34 @@ function makeShareCardCanvas(savings){
   } catch (e) {}
   const shown = facts.slice(0, 3);
 
+  // The home and its solar, a card each: two figures to a line, a long one alone.
+  let det = null;
+  if (opts.details){ try { det = shareDetails(); } catch (e) { det = null; } }
+  const sections = [];
+  if (det){
+    if (det.solar) sections.push({ title: det.solar.title, rows: det.solar.rows });
+    const homeRows = det.home.slice();
+    if (det.use) homeRows.push(['Uses', `${Math.round(det.use.kwh).toLocaleString('en-IE')} kWh a year${det.use.src ? ` · ${det.use.src}` : ''}`, true]);
+    if (homeRows.length) sections.push({ title: 'My home', rows: homeRows, split: det.use && det.use.split });
+  }
+  const LINE = 100;
+  sections.forEach((sec) => {
+    const lines = []; let open = null;
+    for (const r of sec.rows){
+      if (r[2]){ if (open){ lines.push([open]); open = null; } lines.push([r]); }
+      else if (open){ lines.push([open, r]); open = null; }
+      else open = r;
+    }
+    if (open) lines.push([open]);
+    sec.lines = lines;
+    sec.h = 120 + lines.length * LINE + (sec.split ? 90 : 0);
+  });
+
   const RUNG = 118, top = 530;
   const boxH = 100 + rungs.length * RUNG;
   const fy = top + boxH + 24;
-  const W = 1080, H = Math.max(1350, fy + (shown.length ? 136 : 0) + 200);
+  const below = sections.length ? sections.reduce((a, sec) => a + sec.h + 24, 0) - 24 : (shown.length ? 136 : 0);
+  const W = 1080, H = Math.max(1350, fy + below + 200);
   cv.width = W; cv.height = H;
   const x = cv.getContext('2d');
   if (!x || typeof x.fillRect !== 'function') return null;
@@ -6772,15 +6870,44 @@ function makeShareCardCanvas(savings){
   rungs.forEach(([label, plan, v, c], i) => {
     const y = top + 120 + i * RUNG;
     t(fit(label, W - 192 - 180, 30, 700), 96, y, 30, '#EEF1EE', 700);
-    t(eurS(v), W - 96, y, 32, c === '#4CCB8C' ? '#4CCB8C' : '#EEF1EE', 800, 'right');
+    t(v < 0 ? `${eurS(-v)} credit` : eurS(v), W - 96, y, 32, c === '#4CCB8C' ? '#4CCB8C' : '#EEF1EE', 800, 'right');
     t(fit(plan, W - 192, 24, 400), 96, y + 34, 24, '#A2ACA6', 400);
     rr(96, y + 52, W - 192, 20, 10, '#262D29');
     rr(96, y + 52, Math.max(20, (W - 192) * (Math.max(0, v) / max)), 20, 10, c);
   });
 
-  // Up to three facts.
-  const fw = shown.length ? (W - 112 - 24 * (shown.length - 1)) / shown.length : 0;
-  shown.forEach(([k, v], i) => {
+  // The home and its solar, or else up to three facts.
+  let sy = fy;
+  sections.forEach((sec) => {
+    rr(56, sy, W - 112, sec.h, 36, '#171C19');
+    t(sec.title, 96, sy + 62, 28, '#A2ACA6', 600);
+    const colW = (W - 192 - 40) / 2;
+    sec.lines.forEach((line, li) => {
+      const ly = sy + 100 + li * LINE;
+      line.forEach(([k, v, wide], ci) => {
+        const lx = 96 + ci * (colW + 40), w = wide ? W - 192 : colW;
+        t(k, lx, ly + 30, 24, '#A2ACA6', 500);
+        let size = 34; x.font = `700 ${size}px ${F}`;
+        while (size > 24 && x.measureText(v).width > w){ size -= 2; x.font = `700 ${size}px ${F}`; }
+        t(fit(v, w, size, 700), lx, ly + 72, size, '#EEF1EE', 700);
+      });
+    });
+    if (sec.split){
+      const by = sy + 100 + sec.lines.length * LINE + 10, bw = W - 192;
+      const parts = [['Day', sec.split.day, '#A2ACA6'], ['Night', sec.split.night, '#4CCB8C'], ['Peak', sec.split.peak, '#ffd166']];
+      let bx = 96;
+      parts.forEach(([, f, c], i) => { if (f > 0) rr(bx, by, Math.max(10, bw * f - (i < 2 ? 4 : 0)), 20, 10, c); bx += bw * f; });
+      let lx = 96;
+      parts.forEach(([k, f, c]) => {
+        const s = `${k} ${Math.round(f * 100)}%`;
+        rr(lx, by + 44, 18, 18, 9, c); t(s, lx + 28, by + 61, 24, '#A2ACA6', 600);
+        x.font = `600 24px ${F}`; lx += 28 + x.measureText(s).width + 36;
+      });
+    }
+    sy += sec.h + 24;
+  });
+  const fw = !sections.length && shown.length ? (W - 112 - 24 * (shown.length - 1)) / shown.length : 0;
+  if (!sections.length) shown.forEach(([k, v], i) => {
     const fx = 56 + i * (fw + 24);
     rr(fx, fy, fw, 136, 28, '#171C19');
     t(k, fx + 30, fy + 52, 26, '#A2ACA6', 600);
@@ -6791,20 +6918,57 @@ function makeShareCardCanvas(savings){
 
   // Footer.
   let live = 0; try { live = getRecommendation().ranked.length; } catch (e) { live = TARIFFS.filter(tt => !tt.discontinued).length; }
-  t('My whole year, priced on all ' + live + ' Irish plans.', 72, H - 96, 28, '#A2ACA6', 500);
+  let acc = null; if (sections.length) try { acc = modelAccuracy().pct; } catch (e) { acc = null; }
+  t(fit('My whole year, priced on all ' + live + ' Irish plans' + (acc ? `, accurate to ±${acc}%.` : '.'), W - 144, 28, 500), 72, H - 96, 28, '#A2ACA6', 500);
   t('Check yours free at peakless', 72, H - 52, 34, '#ffd166', 700);
   return cv;
 }
 
-function shareSavingsCard(){
-  // The card shows the whole comparison, so its headline is the whole of it.
+/** The card's headline: the whole comparison, as Home shows it. */
+function shareSavings(){
   let savings = publishableSavings();
   try { const pl = (state.solar_planned || state.solar_is_estimate) ? plannedLadder() : null; if (pl) savings = pl.today - pl.best.net; } catch (e) {}
   let df = null; try { df = dualFuel(); } catch (e) { df = null; }
   if (df) savings = df.stay.total - Math.min(df.stay.total, df.moveElec ? df.moveElec.total : Infinity, df.moveBoth ? df.moveBoth.total : Infinity);
-  const cv = makeShareCardCanvas(savings);
+  return { savings, df };
+}
+
+/**
+ * Share opens a preview first: the picture as it will be sent, and a switch
+ * for the home, use and solar on it, so nothing goes that the person hasn't seen.
+ */
+let _shareDetailsOn = true, _shareCv = null, _shareMemo = { k: null, src: '' };
+function shareSavingsCard(){ _shareMemo.k = null; v7Sheet('share'); }
+function renderShareSheet(){
+  const k = modelKey() + '|' + _shareDetailsOn;
+  if (_shareMemo.k !== k){
+    _shareCv = makeShareCardCanvas(shareSavings().savings, { details: _shareDetailsOn });
+    let src = ''; try { src = _shareCv ? _shareCv.toDataURL('image/png') : ''; } catch (e) { src = ''; }
+    _shareMemo = { k, src };
+  }
+  const on = _shareDetailsOn;
+  return `<div class="v7-sheet-head"><div class="v7-eyebrow">Share</div><h2 class="v7-h">Your figures as a picture</h2></div>
+    ${_shareMemo.src ? `<img class="sh-preview" src="${_shareMemo.src}" alt="The picture you will share">` : ''}
+    <button class="v7-switch-row sh-details" role="switch" aria-checked="${on}" onclick="shareToggleDetails()">
+      <span class="v7-switch-text"><b>My home, use and solar</b><small>${on ? (state.has_solar && totalPanels() > 0 ? 'Your system, what it makes and costs, your heating and your use' : 'Your heating, your area and your use') : 'Only the saving and the plans'}</small></span>
+      <span class="v7-switch ${on ? 'on' : ''}" aria-hidden="true"><i></i></span></button>
+    <button class="switch-cta v7-cta" onclick="shareCardGo()">${ic('link', 18)} Share</button>
+    <button class="v7-cta-2" onclick="shareCardCopy()">Copy as text</button>
+    <div class="v7-fine">Nothing on it says who you are: no name, address, Eircode or meter number.</div>`;
+}
+function shareToggleDetails(){ _shareDetailsOn = !_shareDetailsOn; renderApp(); }
+function shareCardCopy(){
+  const { savings, df } = shareSavings();
+  const text = shareText(savings, _shareDetailsOn, df);
+  const done = () => showToast('Copied. Paste it into your message.', { type: 'accent', icon: ic('checkC', 16) });
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(() => {});
+  else { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }
+}
+function shareCardGo(){
+  const { savings, df } = shareSavings();
+  const cv = _shareCv || makeShareCardCanvas(savings, { details: _shareDetailsOn });
   if (!cv){ copyShareUrl(); return; }
-  const text = 'My home energy analysis: \u20ac' + Math.round(savings).toLocaleString('en-IE') + (df ? ' a year less on gas and electricity.' : ' a year less.') + ' Check yours free: ' + location.origin;
+  const text = shareText(savings, _shareDetailsOn, df);
   cv.toBlob((blob) => {
     if (!blob){ copyShareUrl(); return; }
     const file = new File([blob], 'peakless-analysis.png', { type: 'image/png' });
@@ -11477,7 +11641,7 @@ const V7 = createV7({
   renderSavingsBreakdown, renderAssumptions,
   renderTrustPanel, renderLogicBreakdown, renderNightRateCard, renderEvSavingsCard, evEconomics,
   renderDayInspector,
-  renderSystemSheet, renderQuickSystem, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet, renderJourneySheet, renderQuestSheet, renderMeterSheet, renderHabitsSheet,
+  renderSystemSheet, renderQuickSystem, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet, renderJourneySheet, renderQuestSheet, renderMeterSheet, renderHabitsSheet, renderShareSheet,
   alertCount: () => { try { return unseenAlerts().length; } catch (e) { return 0; } },
 });
 
@@ -14365,7 +14529,7 @@ window.anMonth = anMonth;
 // For tests: forget the sizing run so it can be redone on the page.
 window.__clearSweep = () => { CACHE._goalSweep = null; CACHE._goalSweep_ck = null; };
 window.__df = () => dualFuel();
-window.__shareCard = (s) => makeShareCardCanvas(s).toDataURL();
+window.__shareCard = (s, details) => makeShareCardCanvas(s, { details }).toDataURL();
 window.__sim = { annualKwh: () => sumF(CACHE.cons), pso: PSO_LEVY, plannedLadder, noSolarBest, baselineNet: () => baselineNet(state.baseline), dualFuel, installCost: () => state.install_cost };
 window.setGrantEligible = setGrantEligible;
 window.sysConfirmRoof = sysConfirmRoof;
@@ -14463,6 +14627,10 @@ window.cancelContractEdit = cancelContractEdit;
 window.setEvMode = setEvMode;
 window.calibrateBillsToBaseline = calibrateBillsToBaseline;
 window.shareSavingsCard = shareSavingsCard;
+window.shareToggleDetails = shareToggleDetails;
+window.shareCardGo = shareCardGo;
+window.shareCardCopy = shareCardCopy;
+window.__shareText = (d) => shareText(shareSavings().savings, d, shareSavings().df);
 window.computeScenarioRange = computeScenarioRange;
 window.computeSolarPaybackScenarios = computeSolarPaybackScenarios;
 window.computeOptimisations = computeOptimisations;

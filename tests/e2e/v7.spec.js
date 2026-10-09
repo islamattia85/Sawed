@@ -857,3 +857,27 @@ test('alerts: no withdrawn-plan alert for a plan we only assumed', async ({ page
   const kinds = await page.evaluate(() => window.computeAlerts().map((a) => a.kind));
   expect(kinds).not.toContain('withdrawn');
 });
+
+test('Share shows the picture first, with the home, use and solar on it unless switched off', async ({ page }) => {
+  const errors = await boot(page, { has_solar: true, solar_planned: false, count_A: 10, count_B: 6, azimuth_A: 180, azimuth_B: 270, tilt_A: 35, tilt_B: 30,
+    battery_kwh: 10, heating_type: 'heatpump', house_type: 'semi', region: 'south', current_screen: 'result' });
+  await page.locator('.ax-tile', { hasText: 'Share' }).click();
+  await expect(page.locator('#v7-sheet .sh-preview')).toBeVisible();
+  const tall = await page.locator('#v7-sheet .sh-preview').evaluate((img) => img.naturalHeight);
+  // The words that go with it: the system as set, and nothing that says who the home is.
+  const text = await page.evaluate(() => window.__shareText(true));
+  expect(text).toContain('Panels: 16 ×');
+  expect(text).toContain('Battery: 10 kWh');
+  expect(text).toContain('Roof: 10 facing south at 35° · 6 facing west at 30°');
+  expect(text).toContain('Heating: Heat pump');
+  expect(text).toContain('Region: South');
+  expect(text).toMatch(/Uses: [\d,]+ kWh a year/);
+  expect(text).not.toMatch(/MPRN|Eircode|@/);
+  // Switched off: only the saving and the plans, and a shorter picture.
+  await page.locator('.sh-details').click();
+  await expect(page.locator('.sh-details')).toHaveAttribute('aria-checked', 'false');
+  const short = await page.locator('#v7-sheet .sh-preview').evaluate((img) => img.naturalHeight);
+  expect(short).toBeLessThan(tall);
+  expect(await page.evaluate(() => window.__shareText(false))).not.toContain('Panels');
+  expect(errors).toEqual([]);
+});

@@ -1468,6 +1468,7 @@ export function createV7(api) {
     else if (sh.kind === 'quest') body = api.renderQuestSheet(sh.id);
     else if (sh.kind === 'meter') body = api.renderMeterSheet();
     else if (sh.kind === 'habits') body = api.renderHabitsSheet();
+    else if (sh.kind === 'share') body = api.renderShareSheet();
     if (!body) return '';
     return `<div class="v7-sheet-root" id="v7-sheet">
       <div class="v7-sheet-backdrop" onclick="v7Sheet(null)" aria-hidden="true"></div>

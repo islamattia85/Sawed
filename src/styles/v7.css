@@ -364,6 +364,13 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 }
 .v7-switch.on { background: var(--accent); }
 .v7-switch.on i { transform: translateX(18px); }
+
+/* Share: the picture as it will be sent, then what is on it. */
+.sh-preview {
+  display: block; width: auto; max-width: 100%; max-height: 52vh; margin: 0 auto var(--space-3);
+  border-radius: var(--radius-lg); box-shadow: 0 2px 12px rgba(0, 0, 0, .18);
+}
+.sh-details { margin-bottom: var(--space-3); }
 @media (prefers-reduced-motion: reduce) { .v7-switch, .v7-switch i { transition: none; } }
 .v7-tile-wide { width: 100%; }
 
