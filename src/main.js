@@ -13540,17 +13540,6 @@ function parseCsvHdf(text, filename){
       }
     }
 
-    // Helper: parse date string → month number (1-12)
-    function parseDateMonth(s){
-      if (!s) return null;
-      // DD-MM-YYYY or DD/MM/YYYY (day first — ESB and most Irish formats)
-      const dmy = s.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
-      if (dmy) return parseInt(dmy[2], 10);
-      // YYYY-MM-DD ISO
-      const ymd = s.match(/(\d{4})-(\d{2})-(\d{2})/);
-      if (ymd) return parseInt(ymd[2], 10);
-      return null;
-    }
     // Helper: parse date string → hour of day (0-23), or null
     function parseDateHour(s){
       if (!s) return null;
@@ -13577,6 +13566,20 @@ function parseCsvHdf(text, filename){
       const ymd = s.match(/(\d{4})-(\d{2})-(\d{2})/);              // YYYY-MM-DD
       if (ymd) return ymd[1]+'-'+ymd[2]+'-'+ymd[3];
       return null;
+    }
+
+    // The day a reading belongs to. ESB stamps the END of each half hour, so
+    // 00:00 is the last half hour of the day before: counted on its own date,
+    // the closing reading of a file that ends on 28 February made March–April
+    // a period with one day of data, and the year came out 16% short.
+    function halfHourDay(s){
+      let dk = parseDateDayKey(s);
+      if (!dk) return null;
+      const mo = +dk.slice(5, 7), da = +dk.slice(8, 10);
+      if (mo < 1 || mo > 12 || da < 1 || da > 31) return null;
+      const tm = s.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*$/);
+      if (tm && (+tm[1]) * 60 + (+tm[2]) - 30 < 0){ const d = new Date(dk + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 1); dk = d.toISOString().slice(0, 10); }
+      return dk;
     }
 
     // ── Unit detection ────────────────────────────────────────────────
@@ -13615,7 +13618,11 @@ function parseCsvHdf(text, filename){
     const DAYS_YR = DAYS_NL.slice(); if (_isLeap) DAYS_YR[1] = 29;
     const BIMONTHLY_DAYS = BIMONTHLY_MONTHS.map(([m1,m2]) => DAYS_YR[m1-1] + DAYS_YR[m2-1]);
     const buckets = [0,0,0,0,0,0];
-    const bucketDays = [new Set(),new Set(),new Set(),new Set(),new Set(),new Set()];
+    // Readings per day in each period. A day counts by how much of it the file
+    // has (46 half hours make a whole day, as on the spring clock change), so a
+    // lone reading at either end of a file is not taken for a day of use.
+    const bucketDays = [new Map(),new Map(),new Map(),new Map(),new Map(),new Map()];
+    const daysIn = (m) => { let t = 0; m.forEach((n) => { t += Math.min(1, n / 46); }); return t; };
     let rowsRead = 0;
     let rowsSkipped = 0;
 
@@ -13638,14 +13645,14 @@ function parseCsvHdf(text, filename){
       const val = parseFloat(valueStr);
       if (!isFinite(val) || val < 0 || val > 50) { rowsSkipped++; continue; }
 
-      const month = parseDateMonth(dateStr);
-      if (!month || month < 1 || month > 12) { rowsSkipped++; continue; }
+      const dk = halfHourDay(dateStr);
+      if (!dk) { rowsSkipped++; continue; }
+      const month = +dk.slice(5, 7);
 
       const bucketIdx = BIMONTHLY_MONTHS.findIndex(([m1,m2]) => month === m1 || month === m2);
       if (bucketIdx >= 0){
         buckets[bucketIdx] += val * ENERGY_FACTOR;
-        const dk = parseDateDayKey(dateStr);
-        if (dk) bucketDays[bucketIdx].add(dk);
+        bucketDays[bucketIdx].set(dk, (bucketDays[bucketIdx].get(dk) || 0) + 1);
         rowsRead++;
       }
     }
@@ -13664,8 +13671,8 @@ function parseCsvHdf(text, filename){
     // This makes the annual total correct regardless of the file's time span.
     const bills = {};
     BIMONTHLY_KEYS.forEach((k, i) => {
-      const daysOfData = bucketDays[i].size;
-      bills[k] = (daysOfData > 0) ? Math.round((buckets[i] / daysOfData) * BIMONTHLY_DAYS[i]) : 0;
+      const daysOfData = daysIn(bucketDays[i]);
+      bills[k] = (daysOfData >= 1) ? Math.round((buckets[i] / daysOfData) * BIMONTHLY_DAYS[i]) : 0;
     });
 
     // If some buckets are empty (missing months), fill from the average of the
@@ -13777,9 +13784,9 @@ function parseCsvHdf(text, filename){
     // so the annual figure is always a proper yearly estimate. Here we just
     // measure how much real data backs it, and warn honestly when it's thin.
     const allDaysSet = new Set();
-    bucketDays.forEach(s => s.forEach(d => allDaysSet.add(d)));
+    bucketDays.forEach(m => m.forEach((n, d) => { if (n >= 24) allDaysSet.add(d); }));
     const totalDays = allDaysSet.size;
-    const periodsCovered = bucketDays.filter(s => s.size > 0).length;
+    const periodsCovered = bucketDays.filter(m => daysIn(m) >= 1).length;
     const sortedDays = Array.from(allDaysSet).sort();
     let spanDays = totalDays;
     if (sortedDays.length > 1){
@@ -13810,7 +13817,7 @@ function parseCsvHdf(text, filename){
       <div class="card" style="background:var(--accent-faint);border-color:var(--accent)">
         <div class="card-label" style="color:var(--accent)">✓ Imported ${rowsRead.toLocaleString()} readings</div>
         <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.9;margin-top:6px">
-          ${BIMONTHLY_KEYS.map((k,i) => `${k}: <b>${Math.round(bills[k]).toLocaleString()} kWh</b>${bucketDays[i].size === 0 ? '<span style="color:var(--amber)">*</span>' : ''}`).join(' · ')}<br>
+          ${BIMONTHLY_KEYS.map((k,i) => `${k}: <b>${Math.round(bills[k]).toLocaleString()} kWh</b>${daysIn(bucketDays[i]) < 1 ? '<span style="color:var(--amber)">*</span>' : ''}`).join(' · ')}<br>
           <b style="color:var(--accent)">Total: ${Math.round(total).toLocaleString()} kWh/yr</b> — anticipated full-year profile
           <br><span style="color:var(--ink-dim)">Readings in ${_unitIsKw ? 'kW (avg per 30-min interval) — converted ×0.5 to kWh' : 'kWh — used as-is'}</span>
           ${periodsCovered < 6 ? `<br><span style="color:var(--amber)">* estimated, no readings for this period</span>` : ''}

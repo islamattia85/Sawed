@@ -1,6 +1,6 @@
 """Write golden.json, the limits tests/e2e/golden-households.spec.js holds the app to.
 
-    python3 tests/fixtures/meter-scenarios/make_golden.py <results dir> [--reset]
+    python3 tests/fixtures/meter-scenarios/make_golden.py <results dir> [--reset] [--loosen=ID:reason ...]
 
 For each reference scenario: where today's result is within the agreed tolerance
 (use and bill 5%, payback half a year, best plan or one within EUR 25 a year),
@@ -10,7 +10,9 @@ that closes a gap should run this again and commit the tighter limits.
 
 Limits only tighten: an existing limit is kept when today's result would loosen
 it (that is a regression for the golden test to catch, not a new limit). Pass
---reset to start from today's results alone. The warnings the import card gives
+--reset to start from today's results alone, or --loosen=ID:reason to take
+today's limits for one scenario whose known gap a correct fix made larger (the
+reason is kept in golden.json). The warnings the import card gives
 and the questions the app asks are kept the same way: once given, they must go
 on being given. Where the accuracy figure the app shows covers the error found,
 it must go on covering it; where it does not yet, it may not shrink.
@@ -38,6 +40,7 @@ def tighter(old, new):
 if __name__ == '__main__':
     rows = {r['id']: r for r in json.load(open(os.path.join(sys.argv[1], 'scores.json')))}
     reference = REFERENCE + [x for x in sys.argv[2:] if not x.startswith('--')]
+    loosen = dict(x[len('--loosen='):].split(':', 1) for x in sys.argv[2:] if x.startswith('--loosen='))
     path = os.path.join(HERE, 'golden.json')
     prev = {} if '--reset' in sys.argv or not os.path.exists(path) else json.load(open(path))['scenarios']
     out = {'note': __doc__.strip().split('\n\n')[1].replace('\n', ' '), 'scenarios': {}}
@@ -48,7 +51,9 @@ if __name__ == '__main__':
         lim = dict(kwh=limit(r['kwh_err'], TOL['kwh'], 0.5), bill=limit(r['bill_err'], TOL['bill'], 0.5), plan=limit(r['plan_gap'], TOL['plan'], 5))
         if r.get('true_payback'):
             lim['payback'] = limit(r['payback_err'], TOL['payback'], 0.1) if r.get('payback_err') is not None else None
-        p = prev.get(sid, {})
+        p = prev.get(sid, {}) if sid not in loosen else {}
+        if sid in loosen: lim['loosened'] = loosen[sid]
+        elif prev.get(sid, {}).get('loosened'): lim['loosened'] = prev[sid]['loosened']
         for k in ('kwh', 'bill', 'plan', 'payback'):
             if k in lim and k in p: lim[k] = tighter(p[k], lim[k])
         gaps = [k for k in ('kwh', 'bill', 'plan', 'payback') if lim.get(k) is not None and lim[k] > TOL[k]]
