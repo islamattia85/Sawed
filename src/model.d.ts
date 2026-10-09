@@ -11,3 +11,6 @@ export function meterYearDays(): (number[] | undefined)[] | null;
 export function goalPanels(): number[];
 export function pathValue(b0: number, b1: number, years: number, cost: number, batteryKwh: number): { value: number; saved: number; payback: number | null };
 export function inverterFor(kwp: number): number;
+export function fileOwnShape(): { hourly: number[] | null; buckets: { night: number; morning: number; day: number; evening: number } | null } | null;
+export function shapeBuckets(hours: number[]): { night: number; morning: number; day: number; evening: number } | null;
+export function getShape(month: number): number[];

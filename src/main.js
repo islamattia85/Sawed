@@ -21,7 +21,7 @@ import { BRAND, CONTROLLER, MARK_PATHS, iconDataUri, wordmarkHtml } from './bran
 import { IC, ic } from './icons';
 import FIG from './data/front-figures.json';
 import {
-  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileDays, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, tidyNames, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
+  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileDays, fileOwnShape, shapeBuckets, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, tidyNames, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
   outcomeAgainst, sweepSetup, evaluateDesign, finishSweep,
 } from './model';
 
@@ -8446,12 +8446,16 @@ function setHotWater(v){
 }
 
 function renderShapeControls(){
-  // 4-bucket consumption shape override
-  const b = state._shape_buckets || { night: 22, morning: 18, day: 18, evening: 42 };
+  // 4-bucket consumption shape override. From a meter file with panels in it,
+  // the pattern in use is its days before the panels, or the heating type's.
+  const own = state._shape_user ? null : fileOwnShape();
+  const b = (own ? own.buckets : state._shape_buckets) || { night: 22, morning: 18, day: 18, evening: 42 };
   const sum = b.night + b.morning + b.day + b.evening;
+  const why = !own ? '' : own.buckets ? 'From your meter file’s days before the panels. After them it shows what you bought, not what you used. '
+    : 'Your meter file has panels in all of it, so it shows what you bought, not what you used. This is the usual pattern for your heating. ';
   return `
     <p style="font-size:12px;color:var(--ink-soft);margin:0 0 12px;line-height:1.5">
-      Only change this if your meter data shows a different pattern. The four parts must add up to 100%.
+      ${why}Only change this if your meter data shows a different pattern. The four parts must add up to 100%.
     </p>
 
     <div class="shape-bucket">
@@ -8507,6 +8511,7 @@ function renderShapeControls(){
 
 function updateShapeBucket(which, val){
   if (!state._shape_buckets) state._shape_buckets = { night: 22, morning: 18, day: 18, evening: 42 };
+  state._shape_user = true;   // set by hand: used as it is, whatever the meter file shows
   // Clamp and set the slider being moved
   state._shape_buckets[which] = Math.min(val, 100);
   // Auto-balance: the "other" buckets share whatever remains so sum always = 100
@@ -8555,6 +8560,7 @@ function setShapePreset(type){
     storage:  { night: 50, morning: 14, day: 14, evening: 22 }
   };
   state._shape_buckets = { ...presets[type] };
+  state._shape_user = true;
   invalidate();
   saveState();
   renderApp();
@@ -8562,6 +8568,7 @@ function setShapePreset(type){
 
 function clearShapeOverride(){
   delete state._shape_buckets;
+  state._shape_user = true;   // the heating-type default, chosen
   invalidate();
   saveState();
   renderApp();
@@ -13505,6 +13512,7 @@ function clearCsvImport(){
   // CSV import wrote a derived 4-bucket shape override — clear it too so removing
   // the CSV fully reverts to the heating-type default, not a stale custom shape.
   state._shape_buckets = null;
+  state._shape_user = false;
   applyUsageInput();   // rebuild from whichever manual anchor (€ bill / kWh) is active
   invalidate();
   saveState();
@@ -13534,7 +13542,7 @@ function handleCsvFile(evt){
  * would rather keep the yearly figure they typed. Kept in memory only, for
  * the card on screen.
  */
-const CSV_FIELDS = ['bills', '_csv_imported', 'meter', '_csv_export_kwh', '_csv_hourly_shape', '_shape_buckets', '_csv_days', '_csv_periods',
+const CSV_FIELDS = ['bills', '_csv_imported', 'meter', '_csv_export_kwh', '_csv_hourly_shape', '_shape_buckets', '_shape_user', '_csv_days', '_csv_periods',
   '_csv_filename', '_file_split', '_csv_unread_pct', '_csv_dupes', 'usage_input_mode', 'annual_kwh', 'bimonthly_bill_eur', 'file_when', '_file_bills', '_file_bills_key'];
 let _csvBefore = null;
 function csvRestore(){
@@ -13870,22 +13878,12 @@ function parseCsvHdf(text, filename){
       const total24 = hourBuckets.reduce((a,b)=>a+b, 0);
       if (total24 > 0){
         state._csv_hourly_shape = hourBuckets.map(v => v / total24);
-        // Derive the 4-bucket consumption-shape split from the real data so the
-        // "Usage pattern" editor reflects the CSV, not the
-        // heating-type default. Buckets cover all 24 hours; evening absorbs the
-        // rounding remainder so the four values sum to exactly 100.
-        const sumHrs = (hrs) => hrs.reduce((a,h)=>a + hourBuckets[h], 0) / total24;
-        const night   = sumHrs([22,23,0,1,2,3,4,5]);
-        const morning = sumHrs([6,7,8,9]);
-        const day     = sumHrs([10,11,12,13,14,15,16]);
-        const tot = night + morning + day + sumHrs([17,18,19,20,21]);
-        if (tot > 0){
-          const n  = Math.round(night/tot*100);
-          const mo = Math.round(morning/tot*100);
-          const dy = Math.round(day/tot*100);
-          const ev = Math.max(0, 100 - n - mo - dy);
-          state._shape_buckets = { night:n, morning:mo, day:dy, evening: ev };
-        }
+        // The 4-part split from the real data, so the "Usage pattern" editor
+        // reflects the file, not the heating-type default. A new file's pattern
+        // replaces one set by hand. (From a file with panels in it, the model
+        // uses only its days before them: fileOwnShape.)
+        const parts = shapeBuckets(hourBuckets);
+        if (parts){ state._shape_buckets = parts; state._shape_user = false; }
       }
     } else {
       state._csv_hourly_shape = null;

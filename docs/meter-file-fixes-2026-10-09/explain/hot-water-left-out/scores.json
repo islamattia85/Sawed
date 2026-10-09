@@ -1,0 +1,38 @@
+{
+ "B2-hp_solar_batt": {
+  "kwh_err": -4.4,
+  "bill_err": 0.1,
+  "saving": 1530,
+  "true_saving": 1630,
+  "saving_err": -6.1,
+  "payback": 6.6,
+  "true_payback": 6.2
+ },
+ "B5-hp_solar_gridfill": {
+  "kwh_err": -3.7,
+  "bill_err": 0.2,
+  "saving": 1609,
+  "true_saving": 1692,
+  "saving_err": -4.9,
+  "payback": 6.3,
+  "true_payback": 5.97
+ },
+ "B3-friend": {
+  "kwh_err": 3.7,
+  "bill_err": 0.5,
+  "saving": 1918,
+  "true_saving": 1852,
+  "saving_err": 3.5,
+  "payback": 5.5,
+  "true_payback": 5.72
+ },
+ "B4d-hp_solar_batt": {
+  "kwh_err": -5.3,
+  "bill_err": -7.8,
+  "saving": 1824,
+  "true_saving": 1630,
+  "saving_err": 11.9,
+  "payback": 5.5,
+  "true_payback": 6.2
+ }
+}

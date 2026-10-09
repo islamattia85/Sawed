@@ -325,7 +325,8 @@ let _grossMemo = { key: null, val: null };
 function rebuiltDays(days, from){
   const sys = statedSystem();
   const keys = Object.keys(days).sort();
-  const key = [keys.length, keys[0], keys[keys.length - 1], from, JSON.stringify(sys), state.region, state.heating_type].join('|');
+  const key = [keys.length, keys[0], keys[keys.length - 1], from, JSON.stringify(sys), state.region, state.heating_type,
+    state.heat_time, state.hot_water_strategy, state._shape_user ? JSON.stringify(state._shape_buckets || null) : ''].join('|');
   if (_grossMemo.key === key) return _grossMemo.val;
   const gen = systemGeneration(sys), batt = sys.battery_kwh;
   const pre = keys.filter((k) => k < from);
@@ -518,6 +519,57 @@ export const SHAPE_DIRECT_SUMMER = [
   0.80,0.85,0.90,1.00,1.25,1.70, 1.85,1.45,1.15,0.95,0.75,0.55
 ];
 
+/**
+ * The four parts of a day (overnight, morning, daytime, evening) as whole
+ * percentages adding to 100, from 24 hourly amounts. The "Usage pattern"
+ * editor shows these; evening takes the rounding.
+ */
+export function shapeBuckets(hours){
+  const total = hours.reduce((a, b) => a + b, 0);
+  if (!(total > 0)) return null;
+  const part = (hrs) => hrs.reduce((a, h) => a + hours[h], 0) / total;
+  const n = Math.round(part([22, 23, 0, 1, 2, 3, 4, 5]) * 100), mo = Math.round(part([6, 7, 8, 9]) * 100), dy = Math.round(part([10, 11, 12, 13, 14, 15, 16]) * 100);
+  return { night: n, morning: mo, day: dy, evening: Math.max(0, 100 - n - mo - dy) };
+}
+
+/**
+ * The home's own hours, from a meter file that has panels in it.
+ *
+ * When a file is read, its import readings set the day's pattern (the hourly
+ * shape and the "Usage pattern" parts). From a home with panels that pattern
+ * is what it bought, not what it used: the panels have taken the middle of the
+ * day out, and a battery has moved the buying into the night. Used as the
+ * home's own hours, it put 41% of a battery home's use in 23:00-08:00 (55%
+ * with the battery filled from the grid) against 28.5% in truth, and a
+ * night-rate plan looked EUR 137-300 a year cheaper for the home without panels
+ * than it is, cutting the solar saving 14-22% (docs/meter-file-fixes-2026-10-09.md).
+ *
+ * So for such a file the pattern comes from its days before the panels, when
+ * there are three weeks of them, and otherwise there is none and the heating
+ * profile stands. Null when the readings have no panels in them: the file's
+ * own pattern is the home's.
+ */
+let _ownMemo = { key: null, days: null, val: null };
+export function fileOwnShape(){
+  const days = state._csv_imported && state.meter && state.meter.days;
+  if (!days) return null;
+  const b = fileBasis();
+  const from = b && (b.rebuilt || b.since || b.start || (b.mode === 'net' ? b.from : null));
+  if (!from) return null;
+  const key = from + '|' + Object.keys(days).length;
+  if (_ownMemo.key === key && _ownMemo.days === days) return _ownMemo.val;
+  const pre = Object.keys(days).filter((k) => k < from);
+  let val = { hourly: null, buckets: null };
+  if (pre.length >= 21){
+    const hb = new Array(24).fill(0);
+    for (const k of pre) for (let h = 0; h < 24; h++) hb[h] += days[k][h];
+    const t = hb.reduce((a, c) => a + c, 0);
+    if (t > 0) val = { hourly: hb.map((v) => v / t), buckets: shapeBuckets(hb) };
+  }
+  _ownMemo = { key, days, val };
+  return val;
+}
+
 // Returns the hourly shape for a given month (0-11). Matches engineering tool exactly.
 // Shoulder seasons (Mar/Apr/Sep/Oct) average winter + summer for smooth transition.
 // Hot water strategy shifts ~15% of daily load between morning/evening peaks (legacy)
@@ -596,8 +648,11 @@ export function getShape(month){
     for (const h of evHours) base[h] += perEvHour;
   }
 
-  // 4) User override: 4-bucket reshaping from advanced consumption editor
-  const buckets = state._shape_buckets;
+  // 4) User override: 4-bucket reshaping from advanced consumption editor, or
+  //    the parts read from a meter file. From a file with panels in it, only
+  //    its days before the panels count (fileOwnShape); one set by hand stands.
+  const own = state._shape_user ? null : fileOwnShape();
+  const buckets = own ? own.buckets : state._shape_buckets;
   if (buckets){
     const sum = (buckets.night||0) + (buckets.morning||0) + (buckets.day||0) + (buckets.evening||0);
     if (sum >= 90 && sum <= 110){
@@ -663,7 +718,9 @@ export function buildConsumption(){
 
   // If user imported a smart meter CSV, we have a real 24-hour load shape.
   // Blend it 70/30 with the heating-type shape so seasonal variation is preserved.
-  const csvShape = state._csv_hourly_shape;  // 24-element normalized array or null
+  // From a file with panels in it, the shape of its days before them (fileOwnShape).
+  const ownShape = fileOwnShape();
+  const csvShape = ownShape ? ownShape.hourly : state._csv_hourly_shape;  // 24-element normalized array or null
 
   for (let m=0; m<12; m++){
     const bi = bimonthlyFor(m);

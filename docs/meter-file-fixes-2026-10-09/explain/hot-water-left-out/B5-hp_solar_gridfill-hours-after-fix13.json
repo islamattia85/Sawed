@@ -1,0 +1,50 @@
+{
+ "noSolar": {
+  "total": 7234,
+  "night_pct": 42,
+  "winter_night_pct": 43.2
+ },
+ "jan16": [
+  1.59,
+  1.5,
+  3.9,
+  3.9,
+  3.99,
+  1.78,
+  2.15,
+  1.13,
+  0.94,
+  1.97,
+  1.69,
+  1.59,
+  1.69,
+  1.78,
+  1.97,
+  2.25,
+  2.72,
+  1.97,
+  2.16,
+  1.41,
+  2.34,
+  2.06,
+  1.78,
+  1.59
+ ],
+ "hw": "smart",
+ "ht": null,
+ "buckets": {
+  "night": 58,
+  "morning": 8,
+  "day": 7,
+  "evening": 27
+ },
+ "user": false,
+ "asIs": {
+  "total": 3497,
+  "night_pct": 58.3,
+  "winter_night_pct": 58.4
+ },
+ "gen": 0,
+ "cfg": true,
+ "strat": "auto"
+}
