@@ -117,7 +117,7 @@ test('a meter file from a home with panels up is not given the panels twice', as
   expect(r.sep).toBeGreaterThan(r.bought / 28 * 61);
 });
 
-test('a battery that only stores solar today: the current plan is priced that way, and the gain from night top-ups is shown', async ({ page }) => {
+test('a battery that only stores solar today: its bill is read that way, and what night top-ups are worth is shown', async ({ page }) => {
   const run = (ans) => page.evaluate((ans) => {
     startFlow('full'); flowAnswer('bill', 120); flowAnswer('meter', 'smart'); flowAnswer('area', 'urban'); flowAnswer('plan', 'EI-SST'); flowAnswer('disc', 0);
     flowAnswer('heat', 'gas'); flowAnswer('night', 'no'); flowAnswer('solar', 'have'); flowAnswer('where', 'east'); flowAnswer('roof', 'S'); flowAnswer('tilt', 35); flowAnswer('panels', 9); flowAnswer('battery', 10);

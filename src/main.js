@@ -23,7 +23,7 @@ import { IC, ic } from './icons';
 import FIG from './data/front-figures.json';
 import {
   IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileIsNet, fileDays, fileOwnShape, shapeBuckets, seasonalShape, SEASONAL_SHAPE, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, tidyNames, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
-  outcomeAgainst, sweepSetup, evaluateDesign, finishSweep,
+  outcomeAgainst, sweepSetup, evaluateDesign, finishSweep, readBillAsRun,
 } from './model';
 
 /* Peakless — application entry.
@@ -1079,15 +1079,25 @@ function withoutGridCharge(){
   _noGridMemo = { key, val };
   return val;
 }
+/** How the battery runs today (My system): it changes how the bill is read, so read it again. */
+function setGridChargeNow(v){
+  state.grid_charge_now = v;
+  if (!state._csv_imported) applyUsageInput();
+  invalidate(); saveState(); renderApp();
+}
+window.setGridChargeNow = setGridChargeNow;
+
 /**
- * What the home would save on the plan it is on now, just by letting its
- * battery top up on night power: null when it already does, or it's under €10.
+ * A battery that, the owner said, only stores solar today: what letting it top
+ * up on night power is worth on the plan the home is on. Every figure shown
+ * already assumes it does, so this says what the setting itself is worth.
+ * Null when it already does, or it's under €10.
  */
 function currentGridGain(){
   if (!batteryRunsSolarOnlyNow()) return null;
   const plan = getPlanById(state.baseline); if (!plan) return null;
-  const now = annualCost(sim(state.baseline), plan).net;
-  const could = withSimState({ grid_charge_now: 'yes' }, () => annualCost(sim(state.baseline), plan).net);
+  const now = readBillAsRun(() => annualCost(sim(state.baseline), plan).net);
+  const could = annualCost(sim(state.baseline), plan).net;
   const g = Math.round(now - could);
   return g >= 10 ? g : null;
 }
@@ -2849,12 +2859,16 @@ function calibrateBillsToBaseline(){
       }
       return sumF(sm.cost) - (sm.revenue ? sumF(sm.revenue) : 0) + plan.standing + PSO_LEVY;
     };
-    let lo = 0.1, hi = 6;
-    for (let it = 0; it < 14; it++){
-      const mid = (lo + hi) / 2;
-      if (costAt(mid) < target) lo = mid; else hi = mid;
-    }
-    costAt((lo + hi) / 2);
+    // The bill was run up the way the battery works today: read it that way.
+    // Everything shown afterwards is priced with night top-ups where they pay.
+    readBillAsRun(() => {
+      let lo = 0.1, hi = 6;
+      for (let it = 0; it < 14; it++){
+        const mid = (lo + hi) / 2;
+        if (costAt(mid) < target) lo = mid; else hi = mid;
+      }
+      costAt((lo + hi) / 2);
+    });
     invalidate();
     return;
   }
@@ -6414,7 +6428,7 @@ function renderFlow(){
     fileexp: (() => { const fs = state._csv_imported ? fileSolar() : null; return [`Your meter file shows power sold from ${fs && fs.exportFrom ? fmtDay(fs.exportFrom) : 'partway'}. Do you have solar panels?`, 'A meter only records power sold when something at the home makes it.']; })(),
     billwhen: ['Is the bill you entered from before or after the panels went up?', 'A bill from after them is already lower.'],
     billmonths: ['Which months is that bill for?', 'Bills after solar swing a lot with the seasons.'],
-    gridnow: ['Does the battery charge from the grid at night now?', 'Some are set to top up on cheap night power. It changes what your plan costs you today.'],
+    gridnow: ['Does the battery charge from the grid at night now?', 'Some are set to top up on cheap night power. It tells us how to read your bill. Every figure assumes it does, where that pays.'],
     ev: ['An electric car?', ''],
     km: ['How far do you drive in a year?', 'The Irish average is about 16,000 km.'],
     car: ['What kind of car?', ''],
@@ -6563,7 +6577,7 @@ function renderFlow(){
         : `<div class="fl-opts">${opt('filewhen', 'before', 'Yes, from before them', 'We’ll add the panels to it')}${unsold}${opt('filewhen', 'noexport', 'No, my system never sends power to the grid', 'We’ll use it as it is')}</div>`; }
     if (q === 'billwhen') return `<div class="fl-opts">${opt('billwhen', 'before', 'Before', 'We’ll add the panels to it')}${opt('billwhen', 'after', 'After', 'We’ll work back from it')}</div>`;
     if (q === 'billmonths') return `<div class="fl-opts">${opt('billmonths', 'winter', 'Winter', 'November to February')}${opt('billmonths', 'shoulder', 'Spring or autumn', 'March, April, September, October')}${opt('billmonths', 'summer', 'Summer', 'May to August')}${opt('billmonths', 'average', 'An average month', 'Worked out over a year')}</div>`;
-    if (q === 'gridnow') return `<div class="fl-opts">${opt('gridnow', 'yes', 'Yes', 'It tops up on night power')}${opt('gridnow', 'no', 'No', 'It only stores solar')}${opt('gridnow', 'unsure', 'Not sure', 'We’ll assume it only stores solar')}</div>`;
+    if (q === 'gridnow') return `<div class="fl-opts">${opt('gridnow', 'yes', 'Yes', 'It tops up on night power')}${opt('gridnow', 'no', 'No', 'It only stores solar')}${opt('gridnow', 'unsure', 'Not sure', 'We’ll read your bill as if it does')}</div>`;
     if (q === 'battery') return `<div class="fl-opts">${opt('battery', 0, 'No battery')}${opt('battery', 5, '5 kWh', 'Covers a typical evening')}${opt('battery', 10, '10 kWh', 'Evening and night, or a cheap-rate top-up')}${opt('battery', 13, '13 kWh', 'A bigger home or an EV')}</div>${own('battery', 'kWh', 40, 'e.g. 9')}`;
     if (q === 'tilt') return `<div class="fl-opts fl-three">${opt('tilt', 15, '15°', 'shallow')}${opt('tilt', 35, '35°', 'typical')}${opt('tilt', 45, '45°', 'steep')}</div>${own('tilt', '°', 90, 'e.g. 30')}
       <button class="sg-link" onclick="flowAnswer('tilt', 35)">Not sure (assume 35°)</button>`;
@@ -12497,8 +12511,8 @@ function renderSystemSheet(){
         ${_syNum('battery_eff', Math.round(state.battery_eff * 100), 70, 100, 1, '%', 'Round-trip efficiency', 'Energy you get back for each unit stored. Lithium: 90–95%.').replace(`sysSet('battery_eff',this.value)`, `sysSet('battery_eff',this.value/100)`)}
         ${_syNum('battery_min', Math.round(state.battery_min * 100), 0, 50, 5, '%', 'Kept in reserve', 'The battery never runs below this. Usually 10%.').replace(`sysSet('battery_min',this.value)`, `sysSet('battery_min',this.value/100)`)}
 ${state.has_solar && !state.solar_planned && !state._csv_imported ? `
-        <div class="sy-row"><span class="sy-row-l"><b>Charges from the grid at night now</b><small>How it runs on your current plan</small></span>
-          <span class="sy-seg">${[['yes', 'Yes'], ['no', 'No']].map(([v, t]) => `<button class="sy-stop ${(state.grid_charge_now === 'yes') === (v === 'yes') ? 'on' : ''}" onclick="state.grid_charge_now='${v}';invalidate();saveState();renderApp()">${t}</button>`).join('')}</span></div>` : ''}
+        <div class="sy-row"><span class="sy-row-l"><b>Charges from the grid at night now</b><small>How it runs today, so we read your bill right</small></span>
+          <span class="sy-seg">${[['yes', 'Yes'], ['no', 'No']].map(([v, t]) => `<button class="sy-stop ${(state.grid_charge_now === 'no') === (v === 'no') ? 'on' : ''}" onclick="setGridChargeNow('${v}')">${t}</button>`).join('')}</span></div>` : ''}
         ${_syNum('battery_discharge_kw', state.battery_discharge_kw, 1, 15, 0.5, 'kW', 'Most it can supply at once', 'Continuous power on the datasheet.')}
         ${_syNum('inverter_kw', state.inverter_kw, 1, 20, 0.5, 'kW', 'Inverter size', 'Usually 3.6–6 kW for a home.')}`) : ''}
     </section>

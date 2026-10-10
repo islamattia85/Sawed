@@ -1407,8 +1407,10 @@ export function sim(planId){
     return r;
   };
   let ssim;
-  if (planId === state.baseline && batteryRunsSolarOnlyNow()){
-    // The plan the home is on, priced the way its battery runs today.
+  if (_billAsRun && planId === state.baseline && batteryRunsSolarOnlyNow()){
+    // Reading a typed bill only: it was run up with a battery that stores
+    // solar alone, so the usage behind it is worked out that way. What the
+    // plan costs is never shown on this basis (readBillAsRun).
     ssim = run('self-consume', false);
   } else if (eff.hasBattery && eff.mode === 'auto'){
     // What an owner would do: set the inverter to whichever pays on this plan.
@@ -1573,14 +1575,29 @@ export function invalidate(){
  * simulates or displays the strategy reads it through here.
  */
 /**
- * A battery already installed that, as far as we know, only stores solar: the
- * owner said it doesn't charge from the grid, wasn't sure, or wasn't asked.
- * The current plan is then priced that way, so the bill it is matched to and
- * the saving from switching are not built on a setting the home doesn't use.
+ * A battery already installed that, the owner said, only stores solar today.
+ *
+ * Every plan, the one the home is on included, is priced with the battery
+ * topping up on night power wherever that pays: it is what the app tells
+ * people to set, and the figures they see must rest on it. This answer is used
+ * for one thing only: reading a typed bill, which was run up the way the
+ * battery works today (readBillAsRun). "Not sure" and "not asked" (every home
+ * with a meter file) are not "no".
  */
 export function batteryRunsSolarOnlyNow(){
   return !!(state.has_solar && !state.solar_planned && (state.battery_kwh || 0) > 0
-    && !fileIsNet() && state.grid_charge_now !== 'yes');
+    && !fileIsNet() && state.grid_charge_now === 'no');
+}
+
+let _billAsRun = false;
+/**
+ * Run `fn` with the current plan priced the way the battery works today, to
+ * work out the usage behind a typed bill. The prices cached meanwhile are
+ * thrown away after, so nothing shown is ever priced this way.
+ */
+export function readBillAsRun(fn){
+  _billAsRun = true;
+  try { return fn(); } finally { _billAsRun = false; invalidate(); }
 }
 
 export function effectiveStrategy(){
