@@ -273,7 +273,7 @@ export function createV7(api) {
           let ng = null; try { ng = api.withoutGridCharge(); } catch (e) {}
           if (!ng || chosen) return '';
           const same = ng.plan.id === best.plan.id;
-          return `<div class="v7-note is-check gc-note">${api.ic('battery', 16)}<div><b>This needs your battery to charge from the grid at night.</b> Set it in your inverter app. ${same ? `If it only takes solar, this plan is still the best, at ${eur(ng.net)} a year.` : `If it only takes solar, the best plan is <b>${esc(ng.plan.supplier)} ${esc(ng.plan.plan)}</b>, at ${eur(ng.net)} a year.`}</div></div>`;
+          return `<div class="v7-note is-check gc-note">${api.ic('battery', 16)}<div><b>This needs your battery to charge from the grid at night.</b> Set it in your inverter app. ${same ? `If it only takes solar, this plan is still the best, ${atYear(ng.net)}.` : `If it only takes solar, the best plan is <b>${esc(ng.plan.supplier)} ${esc(ng.plan.plan)}</b>, ${atYear(ng.net)}.`}</div></div>`;
         })()}
         ${(() => {
           // A battery that only stores solar today: every figure here assumes
@@ -583,6 +583,8 @@ export function createV7(api) {
    * A plan's year in words. Below zero the plan pays the home (export pay
    * beats the bill), which a minus sign beside another minus sign never said.
    */
+  /** "at €X a year", or "paying you €X a year" where export pay beats the bill. */
+  const atYear = (v) => (v < -0.5 ? `paying you ${eur(-v)} a year` : `at ${eur(Math.max(0, v))} a year`);
   function yearWords(cost, html) {
     const s = (t) => (html ? `<small>${t}</small>` : t);
     return cost < -0.5 ? `${s('paid')} ${api.fmtCurrency(-cost)} ${s('a year')}` : `${api.fmtCurrency(Math.max(0, cost))} ${s('a year')}`;
@@ -923,10 +925,11 @@ export function createV7(api) {
   const hourAxis = () => axis(Array.from({ length: 24 }, (_, h) => (h % 6 === 0 ? String(h).padStart(2, '0') : '')));
   /** Two or three things side by side, longest bar = most. */
   function hbars(list) {
-    const max = Math.max(0.0001, ...list.map((r) => r.v));
+    // The year's amount, paid or paid to you, as in savingsLadder.
+    const max = Math.max(0.0001, ...list.map((r) => Math.abs(r.v)));
     return list.map((r) => `<div class="ax-hbar">
         <div class="ax-hbar-k"><span>${r.name}</span><b>${r.val}</b></div>
-        <div class="ax-hbar-t"><i style="width:${Math.max(2, (r.v / max) * 100).toFixed(1)}%;background:var(${r.token})"></i></div>
+        <div class="ax-hbar-t"><i style="width:${Math.max(2, (Math.abs(r.v) / max) * 100).toFixed(1)}%;background:var(${r.token})"></i></div>
       </div>`).join('');
   }
   const cta = (label, go, cls = 'switch-cta v7-cta') => `<button class="${cls} ax-cta" onclick="${go}">${label} ${api.ic('chevR', 18)}</button>`;
@@ -1033,7 +1036,9 @@ export function createV7(api) {
         : `Electricity at ${RATE_NAME[big.key] || big.label} is the biggest part: ${big.p}`;
     const credit = d.sys && T.credit > 0.5 ? `<div class="ax-row ax-row-credit"><i class="ax-sw" style="background:var(--ax-sold)"></i>
         <span class="ax-row-l"><b>Paid for what you sell back${api.infoTip('export payments', 'What the supplier pays for the solar you send to the grid, taken off the bill. Each plan has its own export rate.')}</b></span>
-        <span class="ax-row-v"><b class="is-gain">−${eur(T.credit)}</b></span></div>` : '';
+        <span class="ax-row-v"><b class="is-gain">−${eur(T.credit)}</b></span></div>${T.tax > 0.5 ? `<div class="ax-row"><i class="ax-sw" style="background:var(--ax-fixed)"></i>
+        <span class="ax-row-l"><b>Tax on what you sell above ${eur(api.exportTaxFree())} a year</b></span>
+        <span class="ax-row-v"><b>${eur(T.tax)}</b></span></div>` : ''}` : '';
 
     const mo = T.month;
     const hiI = mo.indexOf(Math.max(...mo));
@@ -1048,10 +1053,10 @@ export function createV7(api) {
     const vsNow = R.net - T.total;
     const nowName = `${esc(R.plan.supplier)} · ${esc(R.plan.plan)}`;
     const cmpRows = [
-      { name: `Now, as billed: ${nowName}${planned ? ', no panels yet' : ''}${st.ev_active && !st.ev_in_bill ? ', with the planned car' : ''}`, val: eur(R.net), v: R.net, token: '--bandink-day' },
-      { name: `This home on ${esc(plan.supplier)} · ${esc(plan.plan)}`, val: eur(T.total), v: T.total, token: d.picked ? '--v7-mid' : '--accent' },
+      { name: `Now, as billed: ${nowName}${planned ? ', no panels yet' : ''}${st.ev_active && !st.ev_in_bill ? ', with the planned car' : ''}`, val: billAmt(R.net), v: R.net, token: '--bandink-day' },
+      { name: `This home on ${esc(plan.supplier)} · ${esc(plan.plan)}`, val: billAmt(T.total), v: T.total, token: d.picked ? '--v7-mid' : '--accent' },
     ];
-    if (d.picked) cmpRows.push({ name: `Best for this home: ${esc(B.plan.supplier)} · ${esc(B.plan.plan)}`, val: eur(B.net), v: B.net, token: '--accent' });
+    if (d.picked) cmpRows.push({ name: `Best for this home: ${esc(B.plan.supplier)} · ${esc(B.plan.plan)}`, val: billAmt(B.net), v: B.net, token: '--accent' });
     const cheap = anCard(vsNow > 5 ? `${eur(vsNow)} a year less than you pay now` : vsNow < -5 ? `${eur(-vsNow)} a year more than you pay now` : 'About what you pay now',
       `${hbars(cmpRows)}${d.picked ? `<button class="ax-inline ax-go" onclick="anPick('')">Go back to the best plan, ${eur(T.total - B.net)} a year less ${api.ic('chevR', 14)}</button>
         <button class="ax-inline ax-go" onclick="choosePlan('${plan.id}');anPick('')">Use ${esc(plan.supplier)} everywhere, Home included ${api.ic('chevR', 14)}</button>` : ''}`);
@@ -1497,7 +1502,7 @@ export function createV7(api) {
     const pc = plan.price_change;
     const switchName = jsAttr(`${plan.supplier} ${plan.plan}`);
     return `<div class="v7-sheet-head">
-        <div class="v7-eyebrow">${rank ? `#${rank} of ${rec.ranked.length} for your home` : 'Not ranked'}</div>
+        <div class="v7-eyebrow">${rank ? `#${rank} of ${api.plansData().counts.all} for your home` : 'Not ranked'}</div>
         <h2 class="v7-h">${esc(plan.supplier)}</h2>
         <div class="v7-muted">${esc(plan.plan)}</div>
       </div>

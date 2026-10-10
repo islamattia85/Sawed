@@ -11,7 +11,7 @@ import {
   isInWindow, bandAt, rateAt as engineRateAt, isFlatPlan, staticRateAt,
   simulateBaseline as engineSimulateBaseline, sumF, WHOLESALE_CAP,
 } from './engine/tariff-rules';
-import { moneyBar, dayProfile, paybackCurve, yearRibbon, bandDonut, rateStrip } from './ui/charts.js';
+import { moneyBar, dayProfile, paybackCurve, yearRibbon, bandDonut, rateStrip, billAmt } from './ui/charts.js';
 import { createV7 } from './ui/v7.js';
 import { checkSwitch, timingFit } from './engine/meter';
 import { installErrorReporting } from './errors';
@@ -1777,7 +1777,7 @@ function _analyticsData(plan){
   const ac = annualCost(s, plan);
   const t = { cost: s.cost, revenue: s.revenue, band: s.band, use: s.cons, imp: s.grid_import,
     gen: s.gen, exp: s.grid_export, ch: s.battery_charge, dis: s.battery_discharge, soc: s.soc,
-    energy: ac.energy_cost, standing: ac.standing, pso: ac.pso, outlook: ac.outlook_extra, credit: ac.export_revenue, total: ac.net };
+    energy: ac.energy_cost, standing: ac.standing, pso: ac.pso, outlook: ac.outlook_extra, credit: ac.export_revenue, tax: ac.export_tax || 0, total: ac.net };
   const byBand = {}, kwhBand = {};
   const month = new Array(12).fill(0), monthBuy = new Array(12).fill(0), monthSell = new Array(12).fill(0);
   const dayCost = new Array(365).fill(0);
@@ -1822,7 +1822,7 @@ function _analyticsData(plan){
       cons: sumF(s.cons), arbitrage: state.battery_kwh > 0 && arbitrageOn() };
   }
   return { sys, installed, plan, picked: ap.picked, bestIsChoice: ap.bestIsChoice, _t: t,
-    today: { total: t.total, energy: t.energy, standing: t.standing, pso: t.pso, outlook: t.outlook, credit: t.credit,
+    today: { total: t.total, energy: t.energy, standing: t.standing, pso: t.pso, outlook: t.outlook, credit: t.credit, tax: t.tax,
       byBand, kwhBand, month, monthBuy, monthSell, hourUse, hourImp, hourCost, kwh: sumF(t.use), imp: sumF(t.imp),
       dearest: { day: hi, cost: dayCost[hi] }, cheapest: { day: lo, cost: dayCost[lo] } },
     ref, best, solar };
@@ -3618,7 +3618,9 @@ function webDecorate(html){
   const head = (eye, title, lede) => `<div class="web-page-head"><div class="wl-eyebrow">${eye}</div><h2 class="web-title">${title}</h2>${lede ? `<p class="web-lede">${lede}</p>` : ''}</div>`;
   const nx = (items) => `<section class="web-next" aria-label="What's next"><div class="web-next-h">What's next</div>${items.map(([go, b, sm, main]) => `<button class="web-nx ${main ? 'is-main' : ''}" onclick="${go}"><span><b>${b}</b><small>${sm}</small></span>${ic('chevR', 18)}</button>`).join('')}</section>`;
   const toPlans = ["setScreen('plans')", 'Compare every plan', 'Ranked on your home'];
-  const toSolar = ["state._an_from=null;anTab('solar')", 'Would solar pay off here?', 'Payback after the SEAI grant'];
+  // Panels already up: asked whether they are paying off, not whether solar would.
+  const owns = !!(state.has_solar && !state.solar_planned && totalPanels() > 0);
+  const toSolar = ["state._an_from=null;anTab('solar')", owns ? 'Are your panels paying off?' : 'Would solar pay off here?', owns ? 'What they bring back, and when they’ve paid for themselves' : 'Payback after the SEAI grant'];
   const toAnswer = ["setScreen('result')", 'Back to your answer', 'Every figure in one place'];
   const toHome = ["setScreen('myhome')", 'Your home', 'Change any answer'];
   let top = '', end = '';
@@ -3640,7 +3642,8 @@ function webDecorate(html){
     html = html.replace('<div class="v7-plan-list">', '<div class="v7-plan-list"><div class="web-plan-cols" aria-hidden="true"><span>#</span><span>Plan</span><span>Its day</span><span>A year, on your home</span><span></span></div>');
   } else if (scr === 'analytics' || scr === 'solar'){
     const t = scr === 'solar' ? 'solar' : tab;
-    top = t === 'solar' ? head('Solar', 'Would solar pay off <em>here</em>?', 'Sized for your roof, with the SEAI grant counted.')
+    top = t === 'solar' ? (owns ? head('Solar', 'Are your panels <em>paying off</em>?', 'What they make, what they bring back, and the plan that pays most for them.')
+        : head('Solar', 'Would solar pay off <em>here</em>?', 'Sized for your roof, with the SEAI grant counted.'))
       : head('Your figures', { bill: 'Where your bill goes.', hours: 'Your day, hour by hour.', accuracy: 'How sure we are.', car: 'What the car costs to charge.' }[t] || 'Why these figures.', 'Every hour of your year, on every plan you can switch to.');
     end = nx([[...toAnswer, 1], t === 'solar' ? toHome : toSolar]);
   } else if (scr === 'myhome'){
@@ -3727,7 +3730,8 @@ function webDash(){
   const spend = parts.reduce((a, p) => a + p.v, 0);
   const where = `<div class="wd-stack">${parts.map((p) => `<span style="flex:${p.v.toFixed(1)};background:${p.c}"></span>`).join('')}</div>
     <div class="wd-split">${parts.map((p) => `<div><i style="background:${p.c}"></i><span>${p.l}</span><b>${eur(p.v)}</b></div>`).join('')}
-    ${T.credit > 1 ? `<div class="is-credit"><i style="background:var(--accent)"></i><span>Paid for what you sell back</span><b>−${eur(T.credit)}</b></div>` : ''}</div>`;
+    ${T.credit > 1 ? `<div class="is-credit"><i style="background:var(--accent)"></i><span>Paid for what you sell back</span><b>−${eur(T.credit)}</b></div>` : ''}
+    ${T.tax > 0.5 ? `<div><i style="background:var(--ink-dim)"></i><span>Tax on what you sell above ${eur(EXPORT_TAX_FREE * Math.max(1, +state.bill_names || 1))}</span><b>${eur(T.tax)}</b></div>` : ''}</div>`;
   // Your day, hour by hour.
   const hu = T.hourUse, srt = [...hu].sort((a, b) => b - a), cap = srt[0] > srt[1] * 2.5 ? srt[1] * 1.6 : srt[0], hm = Math.max(.1, cap), DH = 190, DB = 28;
   const day = `<svg viewBox="0 0 ${W} ${DH}" width="100%" role="img" aria-label="Your average day, hour by hour">
@@ -3740,8 +3744,8 @@ function webDash(){
   // Top plans on this home.
   const mine = state.baseline;
   const top = rec.ranked.filter((r) => !r.onHold).slice(0, 5);
-  const mineRow = top.some((r) => r.plan.id === mine) ? '' : (() => { try { const p = getPlanById(mine); return `<tr class="is-me"><td>${esc(p.supplier)} (yours)<small>${esc(p.plan)}</small></td><td>${eur(annualCost(sim(p.id), p).net)}</td></tr>`; } catch (e) { return ''; } })();
-  const plans = `<table class="wd-plans">${top.map((r, i) => `<tr class="${i === 0 ? 'is-top' : ''} ${r.plan.id === mine ? 'is-me' : ''}" onclick="setScreen('plans');v7Sheet('plan','${r.plan.id}')"><td>${esc(r.plan.supplier)}${r.plan.id === mine ? ' (yours)' : ''}<small>${esc(r.plan.plan)}</small></td><td>${eur(r.net ?? r.cost)}</td></tr>`).join('')}${mineRow}</table>`;
+  const mineRow = top.some((r) => r.plan.id === mine) ? '' : (() => { try { const p = getPlanById(mine); return `<tr class="is-me"><td>${esc(p.supplier)} (yours)<small>${esc(p.plan)}</small></td><td>${billAmt(annualCost(sim(p.id), p).net)}</td></tr>`; } catch (e) { return ''; } })();
+  const plans = `<table class="wd-plans">${top.map((r, i) => `<tr class="${i === 0 ? 'is-top' : ''} ${r.plan.id === mine ? 'is-me' : ''}" onclick="setScreen('plans');v7Sheet('plan','${r.plan.id}')"><td>${esc(r.plan.supplier)}${r.plan.id === mine ? ' (yours)' : ''}<small>${esc(r.plan.plan)}</small></td><td>${billAmt(r.net ?? r.cost)}</td></tr>`).join('')}${mineRow}</table>`;
   const acc = modelAccuracy();
   const card = (cls, head, body) => `<section class="wd-card ${cls}">${head}${body}</section>`;
   const hd = (t, sub, link) => `<div class="wd-h"><h3>${t}</h3>${sub ? `<small>${sub}</small>` : ''}${link || ''}</div>`;
@@ -3750,9 +3754,9 @@ function webDash(){
       <nav class="wd-tabs" aria-label="More detail">${[['bill','Bill'],['hours','Hours'],['solar','Solar'],['accuracy','Accuracy']].map(([k, l]) => `<button onclick="state._an_from=null;anTab('${k}')">${l}</button>`).join('')}</nav></div>
     <div class="wd-grid">
       ${card('s8', hd('Your bill, month by month', now ? `${esc(base.supplier)} now and ${esc(plan.supplier)}, on this home` : `On ${esc(plan.supplier)} ${esc(plan.plan)}`), month + `<div class="wd-legend">${now ? `<span><i style="background:var(--ink-dim);opacity:.5"></i>${esc(base.supplier)} ${esc(base.plan)}</span>` : ''}<span><i style="background:var(--accent)"></i>${esc(plan.supplier)} ${esc(plan.plan)}</span></div>`)}
-      ${card('s4', hd(T.credit > 1 ? `You buy ${eur(spend)}, and are paid ${eur(T.credit)} back` : `Where ${eur(spend)} goes`, `On ${esc(plan.supplier)}: ${eur(T.total)} a year once the export is taken off`), where)}
+      ${card('s4', hd(T.credit > 1 ? `You buy ${eur(spend)}, and are paid ${eur(T.credit)} back` : `Where ${eur(spend)} goes`, T.total < -0.5 ? `On ${esc(plan.supplier)} you’re paid ${eur(-T.total)} a year, all in` : `On ${esc(plan.supplier)}: ${eur(T.total)} a year once the export is taken off`), where)}
       ${card('s8 wd-x', hd('Your day, hour by hour', 'average kWh, coloured by price band', `<button class="wd-link" onclick="state._an_from=null;anTab('hours')">Go through the year ${ic('chevR', 14)}</button>`), day + `<p class="wd-note">${dayLine}</p>`)}
-      ${card('s4 wd-x', hd('Top plans for you', '', `<button class="wd-link" onclick="setScreen('plans')">All ${rec.ranked.length} ${ic('chevR', 14)}</button>`), plans)}
+      ${card('s4 wd-x', hd('Top plans for you', '', `<button class="wd-link" onclick="setScreen('plans')">All ${v7PlansData().counts.all} ${ic('chevR', 14)}</button>`), plans)}
       ${card('s4 wd-acc wd-x', hd('How sure we are', ''), `<div class="wd-big">±${acc.pct}%</div><div class="wd-bar"><i style="width:${Math.max(8, 100 - acc.pct * 4)}%"></i></div>${state._csv_imported ? '<p class="wd-note">Measured from your ESB meter file.</p>' : `<button class="wd-link" onclick="setScreen('csv-import')">Add your ESB meter file ${ic('chevR', 14)}</button>`}`)}
       ${card('s8 wd-if wd-x', hd('What if…', 'see your answer with it'), `<div class="wd-ifs">
         <button onclick="state._an_from=null;anTab('solar')"><b>${state.has_solar && totalPanels() > 0 ? 'Change your solar' : 'Add solar panels'}</b><span>Payback after the SEAI grant</span></button>
@@ -11721,7 +11725,7 @@ const V7 = createV7({
   ic, IRISH_REGIONS, renderProfileNavBtn, accountMenuLink,
   annualKwh: v7AnnualKwh, setupLabel: v7SetupLabel,
   plansData: v7PlansData, solarData: v7SolarData, monthlyTotals: v7MonthlyTotals, monthDetail: v7MonthDetail,
-  getBestPlan,
+  getBestPlan, exportTaxFree: () => EXPORT_TAX_FREE * Math.max(1, +state.bill_names || 1),
   renderResultEmpty: v7ResultEmpty,
   hasModelledSystem: v7HasModelledSystem,
   // What a plan costs this home as simulated — solar, battery and EV included.
@@ -14274,6 +14278,12 @@ function parseCsvHdf(text, filename){
     saveState();
     _csvBefore = before;
     const total = Object.values(state.bills).reduce((a,b)=>a+b,0);
+    // A file from a home with panels records what was bought and sold, which
+    // the card gives as they are. What the home used is worked out later, from
+    // the system and the heating: given here before the heating was asked it
+    // was a third figure, neither what was bought nor what Profile then showed.
+    const sells = state._csv_export_kwh > 0;
+    const cardBills = sells ? bills : state.bills, cardTotal = Object.values(cardBills).reduce((a, b) => a + b, 0);
 
     let coverageHtml;
     if (totalDays < 45){
@@ -14286,7 +14296,7 @@ function parseCsvHdf(text, filename){
       const prevTotal = prevOk ? Math.round(prevBuckets.reduce((a, v, i) => a + v / daysIn(prevDays[i]) * BIMONTHLY_DAYS[i], 0)) : 0;
       const fileSpan = firstDay && lastDay ? Math.round((new Date(lastDay) - new Date(firstDay)) / 86400000) + 1 : spanDays;
       const older = fileSpan > 400 && yearFrom
-        ? ` Your file holds about ${(Math.round(fileSpan / 365 * 10) / 10).toLocaleString('en-IE')} years. We use the latest 12 months, your home as it is now.${prevTotal && Math.abs(total - prevTotal) / prevTotal > 0.1 ? ` The 12 months before came to ${fmtN(Math.round(prevTotal / 10) * 10)} kWh. If this year was unusual, you can change it in My home.` : ''}`
+        ? ` Your file holds about ${(Math.round(fileSpan / 365 * 10) / 10).toLocaleString('en-IE')} years. We use the latest 12 months, your home as it is now.${prevTotal && Math.abs(cardTotal - prevTotal) / prevTotal > 0.1 ? ` The 12 months before came to ${fmtN(Math.round(prevTotal / 10) * 10)} kWh. If this year was unusual, you can change it in My home.` : ''}`
         : '';
       coverageHtml = `<div data-years="${older ? 'latest' : 'one'}" style="margin-top:10px;padding:9px 12px;background:var(--accent-soft);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.6">✓ A full year of readings.${older}</div>`;
     }
@@ -14301,9 +14311,10 @@ function parseCsvHdf(text, filename){
       <div class="card" style="background:var(--accent-faint);border-color:var(--accent)">
         <div class="card-label" style="color:var(--accent)">✓ Imported ${rowsRead.toLocaleString()} readings</div>
         <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.9;margin-top:6px">
-          ${BIMONTHLY_KEYS.map((k,i) => `${k}: <b>${Math.round(state.bills[k]).toLocaleString()} kWh</b>${daysIn(bucketDays[i]) < 1 ? '<span style="color:var(--amber)">*</span>' : ''}`).join(' · ')}<br>
-          <b style="color:var(--accent)">Total: ${Math.round(total).toLocaleString()} kWh/yr</b> — anticipated full-year profile
-          <br><span style="color:var(--ink-dim)">Readings in ${_unitIsKw ? 'kW (avg per 30-min interval) — converted ×0.5 to kWh' : 'kWh — used as-is'}</span>
+          ${BIMONTHLY_KEYS.map((k,i) => `${k}: <b>${Math.round(cardBills[k]).toLocaleString()} kWh</b>${daysIn(bucketDays[i]) < 1 ? '<span style="color:var(--amber)">*</span>' : ''}`).join(' · ')}<br>
+          ${sells
+    ? `<b style="color:var(--accent)">Bought from the grid: ${Math.round(cardTotal).toLocaleString('en-IE')} kWh a year</b><br>Sold back: ${Math.round(state._csv_export_kwh).toLocaleString('en-IE')} kWh a year. What the home uses, panels included, is worked out from your answers about the system and the heating.`
+    : `<b style="color:var(--accent)">Total: ${Math.round(cardTotal).toLocaleString('en-IE')} kWh a year</b>`}
           ${periodsCovered < 6 ? `<br><span style="color:var(--amber)">* estimated, no readings for this period</span>` : ''}
         </div>
         ${coverageHtml}

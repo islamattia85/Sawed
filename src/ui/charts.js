@@ -220,11 +220,13 @@ export function bandDonut({ slices = [], size = 128 } = {}) {
 export function savingsLadder({ rungs = [] } = {}) {
   const items = rungs.filter((r) => r && Number.isFinite(r.value));
   if (!items.length) return '';
-  const max = Math.max(1, ...items.map((r) => Math.max(0, r.value)));
+  // Each bar is the year's amount, paid or paid to you (the label says which):
+  // a credit drawn from zero was an empty bar, and two credits two empty bars.
+  const max = Math.max(1, ...items.map((r) => Math.abs(r.value)));
   // Plain rows, not SVG text: a full plan name has to be able to wrap.
   const rows = items.map((r, i) => {
-    const w = Math.max(1, (Math.max(0, r.value) / max) * 100);
-    return `<div class="lad-row" data-rung="${i}" data-label="${esc(r.label)}" data-value="${n(r.value)}" title="${esc(r.label)}: ${eur(r.value)}/yr">
+    const w = Math.max(1, (Math.abs(r.value) / max) * 100);
+    return `<div class="lad-row ${r.value < -0.5 ? 'is-paid' : ''}" data-rung="${i}" data-label="${esc(r.label)}" data-value="${n(r.value)}" title="${esc(r.label)}: ${billAmt(r.value)}/yr">
       <span class="lad-k">${esc(r.label)}</span><b class="lad-v">${billAmt(r.value)}</b>
       <i class="lad-t"><i style="width:${n(w)}%;background:var(${r.token})"></i></i></div>`;
   }).join('');

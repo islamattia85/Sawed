@@ -28,8 +28,8 @@ const EV_PLANNER = {
 async function bill(page) {
   return page.evaluate(() => {
     const big = document.querySelector('.ax-ans .ax-big');
-    // A home whose solar earns more than its bill is paid: −€230, or "is paid €230".
-    const euros = (t) => { const m = t.match(/([−-]?)€([\d,]+)/); return m ? (m[1] ? -1 : 1) * Number(m[2].replace(/,/g, '')) : NaN; };
+    // A home whose solar earns more than its bill is paid: "paid €230", or "is paid €230".
+    const euros = (t) => { const m = t.match(/(paid\s*|[−-]?)€([\d,]+)/); return m ? (m[1] ? -1 : 1) * Number(m[2].replace(/,/g, '')) : NaN; };
     const card = [...document.querySelectorAll('.ax-card')].find((c) => /pay now/i.test(c.querySelector('.ax-t').textContent));
     const bars = card ? [...card.querySelectorAll('.ax-hbar b')].map((b) => euros(b.textContent)) : [];
     const paid = /is paid/.test(document.querySelector('.ax-ans').textContent);
