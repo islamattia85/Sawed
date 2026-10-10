@@ -15,6 +15,8 @@ test('no WCAG 2.1 A/AA violations on main screens and sheets', async ({ page }) 
   const all = {};
   for (const [name, go] of VIEWS) {
     await page.evaluate((s) => (0, eval)(s), go); await page.waitForTimeout(700);
+    // A message fading in or out is scanned at its settled colours, not caught half-transparent.
+    await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'), null, { timeout: 5000 }).catch(() => {});
     const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
     for (const v of r.violations) { if (process.env.D) for (const n of v.nodes.slice(0,8)) console.log('N', name, v.id, n.target.join(' '), (n.any[0]?.message||'').slice(0,120), n.html.slice(0,120)); const k = `${v.id} (${v.impact})`; (all[k] = all[k] || { help: v.help, where: new Set(), n: 0, ex: v.nodes[0]?.target?.join(' ') }); all[k].where.add(name); all[k].n += v.nodes.length; }
   }
