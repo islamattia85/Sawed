@@ -29,10 +29,9 @@ for (const [id, lim] of Object.entries(GOLDEN.scenarios)) {
     expect(r.seen.rejected, String(r.seen.rejected)).toBeFalsy();
     const t = TRUTH[sc.truth];
     // Scored as tests/fixtures/meter-scenarios/score.py scores it: a home planning solar on its plans as
-    // it is today (the app ranks plans with the planned panels in); a battery that only stores solar on
-    // the app's answer for that, which the Plans page gives under its headline.
-    let ranked = r.today || r.ranked;
-    if (r.solarOnly && sc.truth !== 'hp_solar_gridfill' && !t.battery_per_plan) ranked = r.solarOnly;
+    // it is today (the app ranks plans with the planned panels in). Every battery home's truth prices
+    // each plan with the battery set for it, as the app's headline does (10 Oct 2026).
+    const ranked = r.today || r.ranked;
     r.best = ranked[0].id; r.bestNet = ranked[0].net;
     if (lim.payback != null && t.payback) expect(r.solar, `${id}: the app shows a payback`).toBeTruthy();
     // Rounded to a tenth, as score.py reports them and as the limits were set.

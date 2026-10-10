@@ -44,12 +44,17 @@ def build_homes():
     hs['ev'] = dict(label='EV charged at night, 6,000 kWh', use=c, imp=c, exp=zero, gen=zero)
     i, e, g = with_system(a, pv_a, 0, D(2025, 5, 12))
     hs['gas_solar'] = dict(label='Gas home, 4 kWp south since 12 May 2025, no battery', use=a, imp=i, exp=e, gen=g, install='2025-05-12', system=dict(kwp=4.0, faces=[[9, 180, 35]], panel_w=4000 / 9, battery=0, cost=7800, grant=1800))
+    # Every home with a battery is priced with it set for each plan (battery_per_plan), as the
+    # app promises its figures are (10 Oct 2026); its own battery as it runs (the file) is kept
+    # beside that as costs_as_run. These batteries are as with_system records them: all of the
+    # size usable, 95% round trip, 3 kW.
+    own = lambda cap: dict(cap=cap, eff=0.95, rate=1.5)
     i, e, g = with_system(b, pv_b, 10, D(2025, 3, 3))
-    hs['hp_solar_batt'] = dict(label='Heat pump home, 6 kWp + 10 kWh battery since 3 Mar 2025, battery on solar only', use=b, imp=i, exp=e, gen=g, install='2025-03-03', system=dict(kwp=6.0, faces=[[13, 180, 35]], panel_w=6000 / 13, battery=10, cost=12500, grant=2400))
+    hs['hp_solar_batt'] = dict(label='Heat pump home, 6 kWp + 10 kWh battery since 3 Mar 2025, battery on solar only', use=b, imp=i, exp=e, gen=g, install='2025-03-03', system=dict(kwp=6.0, faces=[[13, 180, 35]], panel_w=6000 / 13, battery=10, cost=12500, grant=2400), battery_per_plan=own(10))
     i, e, g = with_system(b, pv_b, 10, D(2025, 3, 3), grid_months=(11, 12, 1, 2))
-    hs['hp_solar_gridfill'] = dict(label='Heat pump home, 6 kWp + 10 kWh battery, filled from the grid at night Nov-Feb', use=b, imp=i, exp=e, gen=g, install='2025-03-03', system=dict(kwp=6.0, faces=[[13, 180, 35]], panel_w=6000 / 13, battery=10, cost=12500, grant=2400))
+    hs['hp_solar_gridfill'] = dict(label='Heat pump home, 6 kWp + 10 kWh battery, filled from the grid at night Nov-Feb', use=b, imp=i, exp=e, gen=g, install='2025-03-03', system=dict(kwp=6.0, faces=[[13, 180, 35]], panel_w=6000 / 13, battery=10, cost=12500, grant=2400), battery_per_plan=own(10))
     i, e, g = with_system(d, pv_d, 9, D(2025, 10, 20), export_from=D(2025, 12, 1))
-    hs['friend'] = dict(label="The tester's case, rebuilt: heat pump 6,500 kWh, 22 panels on two faces, 9 kWh battery, panels from 20 Oct 2025, exports recorded from 1 Dec 2025", use=d, imp=i, exp=e, gen=g, install='2025-10-20', system=dict(kwp=9.68, faces=[[12, 225, 35], [10, 45, 35]], panel_w=440, battery=9, cost=10600, grant=0))
+    hs['friend'] = dict(label="The tester's case, rebuilt: heat pump 6,500 kWh, 22 panels on two faces, 9 kWh battery, panels from 20 Oct 2025, exports recorded from 1 Dec 2025", use=d, imp=i, exp=e, gen=g, install='2025-10-20', system=dict(kwp=9.68, faces=[[12, 225, 35], [10, 45, 35]], panel_w=440, battery=9, cost=10600, grant=0), battery_per_plan=own(9))
     # Homes whose file is not the home as it is now.
     ev_from = [v if H.LOCAL[k].date() >= D(2026, 4, 1) else 0.0 for k, v in enumerate(ev_a)]
     hs['gas_ev_now'] = dict(label='Gas home that bought an EV on 1 Apr 2026', use=add(a, ev_a), imp=add(a, ev_a), exp=zero, gen=zero, file_imp=add(a, ev_from))

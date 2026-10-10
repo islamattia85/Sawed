@@ -1561,9 +1561,10 @@ export function createV7(api) {
     const st = S();
     if (!(st.battery_kwh > 0) || !st.has_solar || !s?.strategy_used) return '';
     const auto = (st.strategy_mode || 'auto') === 'auto';
-    const arb = s.strategy_used === 'arbitrage';
+    const arb = s.strategy_used === 'arbitrage', asRun = s.strategy_used === 'as-run';
     const what = arb
       ? 'charge the battery from the grid in the cheap overnight window and use it at peak'
+      : asRun ? (s.as_run_fills ? 'run the battery as your meter file shows it running now, filling from the grid at night' : 'run the battery as your meter file shows it running now, storing your solar')
       : 'fill the battery from your solar only (grid charging would not pay on this plan)';
     return `<div class="v7-note is-check">${api.ic('battery', 16)}<div><b>Battery.</b> ${auto ? 'Costed to' : 'Set to'} ${what}.${auto && arb ? ' Set this in your inverter app when you switch.' : ''}</div></div>`;
   }

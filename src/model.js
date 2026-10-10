@@ -238,6 +238,10 @@ export function annualCost(sim, plan, asOf){
   return c;
 }
 
+// Set while the readings of a net file are read as the home's own use, to
+// price the battery set differently from how the file shows it (retimeNet).
+let _rebuildNet = false;
+
 export function fileIsNet(){
   const b = fileBasis();
   return !!(b && b.mode === 'net');
@@ -341,7 +345,7 @@ export function fileBasis(){
     // another size) needs the use worked back.
     const cur = pickSystem(state);
     const same = cur.has_solar && !cur.planned && ['count_A', 'count_B', 'battery_kwh', 'azimuth_A', 'azimuth_B', 'tilt_A', 'tilt_B'].every((k) => cur[k] === own[k]);
-    if (allYear && same) return { mode: 'net', ...all, start: since, since };
+    if (allYear && same && !_rebuildNet) return { mode: 'net', ...all, start: since, since };
     return { mode: 'gross', ...all, start: since, since, rebuilt: since, ask };
   }
   if (daysBetween(fs.first, start) <= 14) return { mode: 'net', ...all, start };
@@ -429,6 +433,20 @@ function unsoldDay(r, gen, shape, cap, soc){
 }
 
 /**
+ * A battery filling from the grid on a timer, read off a month of readings:
+ * the hours from midnight to 6am whose import stands well above the month's
+ * usual hour (three times it, and at least 0.5 kWh). A heat pump's morning
+ * boost starts at six and stays out of it. Returns the 24 hours (true where
+ * it fills) and the usual hour, the home's own use in them.
+ */
+function fillHours(rows){
+  const avg = new Array(24).fill(0);
+  for (const r of rows) for (let h = 0; h < 24; h++) avg[h] += (r[h] || 0) / rows.length;
+  const usual = [...avg].sort((a, c) => a - c)[12];
+  return { fill: avg.map((v, h) => h < 6 && v >= 0.5 && v >= 3 * usual), usual };
+}
+
+/**
  * The home's own use, hour by hour, on the days its panels were running.
  *
  * The meter shows what was bought and sold. Over a month, what the home used
@@ -486,12 +504,15 @@ function rebuiltDays(days, from, unsold){
         // (the home's use in its own shape, the panels' hours), what it took
         // in times what a round trip loses. The 8% of all the solar used that
         // stood here took 260 kWh a year off a heat pump home whose battery
-        // lost 93 (docs/meter-file-fixes-2026-10-09.md).
+        // lost 93 (docs/meter-file-fixes-2026-10-09.md). Filled from the grid
+        // at night as well, it lost the same on that (10 Oct 2026).
         const imp = r.slice(0, 24).reduce((a, b) => a + b, 0);
         const before = imp + used, j = modelDay(k) * 24;
         const day = solarBatteryDay(shape.map((v) => v * before), gen.subarray ? gen.subarray(j, j + 24) : gen.slice(j, j + 24), batt, soc);
         soc = day.soc;
-        const total = before - day.charged * (1 - (state.battery_eff || 0.9));
+        const F = M.fill || (M.fill = fillHours(M.keys.map((x) => days[x])));
+        let grid = 0; for (let h = 0; h < 24; h++) if (F.fill[h]) grid += Math.max(0, r[h] - F.usual);
+        const total = before - (day.charged + grid) * (1 - (state.battery_eff || 0.9));
         for (let h = 0; h < 24; h++) row[h] = +(shape[h] * total).toFixed(3);
       } else {
         for (let h = 0; h < 24; h++) row[h] = +(r[h] + used * M.genH[h] / genT).toFixed(3);
@@ -1154,6 +1175,8 @@ export function getPlanById(id){
    7. SIMULATION ENGINE — hour-by-hour battery dispatch + costs
    ============================================================ */
 
+const MONTH_OF_DAY = (() => { const a = []; DAYS_IN_MONTH.forEach((n, m) => { for (let d = 0; d < n; d++) a.push(m); }); return a; })();
+
 export function simulate(plan, gen, cons, strategy){
   const cap = fileIsNet() ? 0 : (state.battery_kwh || 0);   // usable kWh; a net meter file already has the battery in it
   const minSoc = state.battery_min * cap;
@@ -1222,6 +1245,12 @@ export function simulate(plan, gen, cons, strategy){
   const exportEnabled = state.export_enabled !== false;
   const exportLimit = exportEnabled ? (state.export_limit_kw || 999) : 0;
 
+  // 'as-run': the battery as a meter file shows it running, whatever the plan:
+  // solar stored first, the house run from it whenever it has charge, and
+  // filled from the grid only in the hours the file shows it filling
+  // (strategy.fill_schedule, per month; see batteryFillSchedule).
+  const asRun = strategy.mode === 'as-run', fills = asRun ? strategy.fill_schedule : null;
+
   for (let i=0; i<HOURS_IN_YEAR; i++){
     out.soc[i] = soc;
     const hour = i % 24;
@@ -1249,7 +1278,30 @@ export function simulate(plan, gen, cons, strategy){
 
     // === Strategy logic ===
     let curtailed = 0;
-    if (netSolarAfterLoad > 0){
+    if (asRun){
+      if (netSolarAfterLoad > 0){
+        charge = Math.min((maxSoc - soc) / eff, maxChargeKw, netSolarAfterLoad);
+        soc += charge * eff;
+        exp = netSolarAfterLoad - charge;
+        if (exp > exportLimit){ curtailed = exp - exportLimit; exp = exportLimit; }
+        out.curtailed[i] = curtailed;
+      } else if (netSolarAfterLoad < 0){
+        const deficit = -netSolarAfterLoad;
+        // A timer fills until the battery is full: on from the month's first
+        // filling hour until 6am while it has room, though only the first hours
+        // stand out in the readings when it starts the night part full.
+        const f = fills && fills[MONTH_OF_DAY[Math.floor(i / 24)] ?? 11];
+        if (f && (f[hour] || (hour < 6 && hour > f.indexOf(true) && f.indexOf(true) >= 0 && soc < maxSoc - 1e-6))){
+          charge = Math.max(0, Math.min((maxSoc - soc) / eff, maxChargeKw));
+          soc += charge * eff;
+          imp = deficit + charge;
+        } else {
+          const dis = Math.min(Math.max(0, soc - minSoc), deficit / eff, maxDischargeKw);
+          soc -= dis; discharge = dis;
+          imp = Math.max(0, deficit - dis * eff);
+        }
+      }
+    } else if (netSolarAfterLoad > 0){
       // Solar surplus. Decide: store in battery vs export.
       const headroom = maxSoc - soc;
       const canStore = Math.min(headroom / eff, maxChargeKw, netSolarAfterLoad);
@@ -1390,6 +1442,118 @@ function creditFileExport(r, plan){
   r.revenue = rev;
   return r;
 }
+/**
+ * When a battery in a net meter file fills from the grid, month by month
+ * (fillHours). Null when the file shows no filling. Read from the readings, so
+ * the battery is priced as it really runs, not as anyone remembers setting it.
+ */
+let _fillMemo = { key: null, days: null, val: null };
+function batteryFillSchedule(){
+  const days = state.meter && state.meter.days, b = fileBasis();
+  if (!days || !b) return null;
+  const keys = Object.keys(days).filter((k) => k >= b.from && k <= b.to).sort();
+  if (!keys.length) return null;
+  const key = keys.length + keys[0] + keys[keys.length - 1];
+  if (_fillMemo.key === key && _fillMemo.days === days) return _fillMemo.val;
+  const rows = Array.from({ length: 12 }, () => []);
+  for (const k of keys) rows[+k.slice(5, 7) - 1].push(days[k]);
+  let any = false;
+  const out = rows.map((rs) => {
+    if (!rs.length) return null;
+    const { fill } = fillHours(rs);
+    if (fill.some(Boolean)) any = true;
+    return fill;
+  });
+  _fillMemo = { key, days, val: any ? out : null };
+  return _fillMemo.val;
+}
+
+/**
+ * A net file's home as the model sees it: its own use worked back from the
+ * readings (rebuiltDays) and its panels' typical year. Built once for each
+ * file and system; only the difference two battery settings make on it is
+ * used (retimeNet), so its own errors largely cancel.
+ */
+let _rebuiltNetMemo = { key: null, val: null };
+function rebuiltNetBase(){
+  const key = JSON.stringify(SIM_FIELDS.map((f) => state[f])) + '|' + (state.meter && Object.keys(state.meter.days || {}).length) + '|' + state.file_when;
+  if (_rebuiltNetMemo.key === key) return _rebuiltNetMemo.val;
+  let val = null;
+  _rebuildNet = true;
+  try {
+    const b = fileBasis();
+    if (b && b.mode === 'gross' && b.rebuilt) val = { cons: buildConsumption().cons, gen: buildSolar().total };
+  } finally { _rebuildNet = false; }
+  _rebuiltNetMemo = { key, val };
+  return val;
+}
+
+/**
+ * Whether the difference a battery setting makes can be read off the rebuilt
+ * home: only when the model, running the battery as the file shows (filling
+ * from the grid where the file shows it filling), comes within EUR 30 (or 5%
+ * of the power bought) of what the readings cost over the year on the plan
+ * the home is on, power sold included. Decided once a home, so every plan is
+ * priced the same way.
+ */
+let _retimeOkMemo = { key: null, val: false };
+function retimeTrusted(base, fills){
+  const key = _rebuiltNetMemo.key + '|' + state.baseline + '|' + JSON.stringify(fills);
+  if (_retimeOkMemo.key === key) return _retimeOkMemo.val;
+  let ok = false;
+  const p0 = getPlanById(state.baseline);
+  if (p0 && p0.type !== 'dynamic'){
+    const rec = simulate(p0, CACHE.solar.total, CACHE.cons, { mode: 'self-consume', charge_from_grid: false });
+    let bought = 0, model = 0;
+    _rebuildNet = true;
+    try {
+      const r = simulate(p0, base.gen, base.cons, { mode: 'as-run', fill_schedule: fills });
+      for (let i = 0; i < r.cost.length; i++){ bought += rec.cost[i]; model += r.cost[i] - (r.revenue ? r.revenue[i] : 0); }
+    } finally { _rebuildNet = false; }
+    const readings = bought - (state._csv_export_kwh || 0) * (p0.export_rate || 0);
+    ok = Math.abs(model - readings) <= Math.max(30, 0.05 * bought);
+  }
+  _retimeOkMemo = { key, val: ok };
+  return ok;
+}
+
+/**
+ * A meter file recorded with the battery at work prices each plan exactly as
+ * the home bought and sold, which is the battery as it runs today. Every
+ * figure is meant to rest on the battery set for the plan (topping up in its
+ * cheap hours where that pays), so each plan gets the difference that setting
+ * makes, worked out on the home's rebuilt use: the setting less the battery
+ * as the file shows it running. In 'auto' the cheapest of the setting for the
+ * plan, solar only and today's way is kept, as an owner would; a chosen
+ * setting is priced as chosen. Where the rebuilt home can't be trusted for it
+ * (retimeTrusted), the readings stand.
+ */
+function retimeNet(net, plan, eff, sdf){
+  const fills = batteryFillSchedule(), base = rebuiltNetBase();
+  const kept = { ...net, strategy_used: 'as-run', as_run_fills: !!fills };
+  if (!base || !retimeTrusted(base, fills)) return kept;
+  _rebuildNet = true;
+  try {
+    const go = (st) => simulate(plan, base.gen, base.cons, { arbitrage_priority: 0.7, discharge_strategy: 'peak_first', reserve_for_evening: 0.0, ...st });
+    const asRun = go({ mode: 'as-run', fill_schedule: fills });
+    const opts = { 'as-run': asRun };
+    if (fills) opts['self-consume'] = go({ mode: 'as-run', fill_schedule: null });
+    if (eff.mode === 'auto' || (eff.mode === 'arbitrage' && eff.charge_from_grid)) opts.arbitrage = go({ mode: 'arbitrage', charge_from_grid: true });
+    const energy = (r) => { let e = 0; for (let i = 0; i < r.cost.length; i++) e += r.cost[i] * sdf - (r.revenue ? r.revenue[i] : 0); return e; };
+    let pick = 'as-run';
+    if (eff.mode === 'auto'){ for (const k of Object.keys(opts)) if (energy(opts[k]) < energy(opts[pick]) - 0.01) pick = k; }
+    else pick = opts.arbitrage ? 'arbitrage' : (opts['self-consume'] ? 'self-consume' : 'as-run');
+    if (pick === 'as-run') return kept;
+    const to = opts[pick], out = { ...net, strategy_used: pick };
+    for (const k of ['grid_import', 'grid_export', 'cost', 'revenue']){
+      const a = new Float32Array(net[k].length), m = k === 'cost' ? sdf : 1;
+      for (let i = 0; i < a.length; i++) a[i] = net[k][i] + (to[k][i] - asRun[k][i]) * m;
+      out[k] = a;
+    }
+    return out;
+  } finally { _rebuildNet = false; }
+}
+
 export function sim(planId){
   if (CACHE.dirty) rebuildBase();
   if (CACHE.sims[planId]) return CACHE.sims[planId];
@@ -1420,6 +1584,11 @@ export function sim(planId){
     ssim = annualCost(a, plan).net <= annualCost(b, plan).net ? a : b;
   } else {
     ssim = run(eff.mode, eff.charge_from_grid);
+  }
+  // A net file with a battery in it: the battery set for this plan, not as the file has it.
+  if (fileIsNet() && (statedSystem().battery_kwh || 0) > 0 && plan.type !== 'dynamic'){
+    const own = state.strategy_mode || 'auto';
+    ssim = retimeNet(ssim, plan, { mode: own, charge_from_grid: state.charge_from_grid !== false }, baselineDiscountFactor(planId));
   }
   CACHE.sims[planId] = creditFileExport(ssim, plan);
   return CACHE.sims[planId];

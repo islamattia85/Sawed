@@ -58,12 +58,9 @@ def score(r):
     out['kwh_err'] = round((r['kwh'] - t['use_kwh']) / t['use_kwh'] * 100, 1) if t['use_kwh'] else None
     # A home planning solar is priced as it is today (the app ranks plans with the planned panels in).
     ranked = r.get('today') or r['ranked']
-    # A battery that only stores solar (every battery home here but the one filled at night): the
-    # app leads with a plan that needs night filling and gives the solar-only answer under it.
-    # The answer for how this battery runs is the one scored; the headline is kept beside it.
+    # Every battery home's truth prices each plan with the battery set for it (battery_per_plan),
+    # as the app's headline does, so the headline is scored (10 Oct 2026).
     out['headline'] = dict(best=ranked[0]['id'], bill=ranked[0]['net'], gap=round(t['costs'][ranked[0]['id']] - t['best_cost']) if ranked[0]['id'] in t['costs'] else None)
-    if r.get('solarOnly') and sc['truth'] != 'hp_solar_gridfill' and not t.get('battery_per_plan'):
-        ranked = r['solarOnly']; out['scored_on'] = 'solar-only answer'
     best = ranked[0]['id']; best_net = ranked[0]['net']; costs = t['costs']
     out['best'] = best; out['true_best'] = t['best']
     out['plan_gap'] = round(costs[best] - t['best_cost']) if best in costs else None
