@@ -169,7 +169,7 @@
     "length": 12,
     "green": false,
     "export_rate": 0.195,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.electricireland.ie/switch/new-customer/price-plans?priceType=E",
       "anchor": [
@@ -181,7 +181,7 @@
         "night": "Night: 23.00 - 08.00",
         "ev": "Night Boost: 02.00 - 04.00"
       },
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": "Smart meter; Night Boost 02:00-04:00, 5.5% off unit rates, new customers. Urban standing charge €250.77 inc VAT: Electric Ireland's plan cards do not print it; it is consistent with each card's Estimated Annual Bill (4,200 kWh + standing + €19.10 PSO). CEG 19.5c not re-read from electricireland.ie in this check. Standing €328.54 (5 Oct 2026): Electric Ireland does not print it; it is the only figure that reproduces its own Estimated Annual Bill for this plan (€1,595), and matches bonkers.ie.",
     "standing_rural": 400.48,
@@ -210,7 +210,7 @@
     "length": 12,
     "green": false,
     "export_rate": 0.195,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.electricireland.ie/switch/new-customer/price-plans?priceType=E",
       "anchor": [
@@ -221,7 +221,7 @@
         "day": "Day: 08.00 - 23.00",
         "night": "Night: 23.00 - 08.00"
       },
-      "read": "2026-10-09",
+      "read": "2026-10-10",
       "welcome": {
         "url": "https://www.electricireland.ie/switch/new-customer/price-plans?priceType=E",
         "anchor": [
@@ -360,7 +360,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.195,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.electricireland.ie/switch/new-customer/price-plans?priceType=E",
       "anchor": [
@@ -371,7 +371,7 @@
         "day": "Day: 08.00 - 23.00",
         "night": "Night: 23.00 - 08.00"
       },
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": "Day & night meter, 100% green electricity, 5.5% off. Nightsaver standing carried from the last full price list. Urban standing charge €250.77 inc VAT: Electric Ireland's plan cards do not print it; it is consistent with each card's Estimated Annual Bill (4,200 kWh + standing + €19.10 PSO). CEG 19.5c not re-read from electricireland.ie in this check.",
     "standing_rural": 392.76,
@@ -954,7 +954,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.185,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "notes": "★ NEW (1 June 2026). Single base rate 16.73c + half-hourly wholesale. No discount on base. Day-ahead prices at bordgaisenergy.ie/day-ahead-market-prices. UNVERIFIED since launch — the base rate is not published on the plan-comparison page and was not re-checked on 25 Aug 2026. From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.",
     "source": {
       "url": "https://www.bordgaisenergy.ie/home/our-plans?isNewCustomer=YES&fuelType=ELECTRICITY&smartMeter=SMARTMETER_YES&isSmartMeter=true",
@@ -965,7 +965,7 @@
       "fields": {
         "day": "Base"
       },
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "standing_rural": 417.7,
     "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found"
@@ -990,7 +990,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.185,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.energia.ie/energy-plans/electricity",
       "anchor": [
@@ -1000,7 +1000,7 @@
       "fields": {
         "day": "Smart meter"
       },
-      "read": "2026-10-09",
+      "read": "2026-10-10",
       "plus": [
         {
           "url": "https://www.energia.ie/about-energia/our-tariffs",
@@ -1083,7 +1083,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.185,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.energia.ie/energy-plans/electricity",
       "anchor": [
@@ -1104,7 +1104,7 @@
           "col": 3
         }
       },
-      "read": "2026-10-09",
+      "read": "2026-10-10",
       "plus": [
         {
           "url": "https://www.energia.ie/about-energia/our-tariffs",
@@ -1191,7 +1191,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.185,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.energia.ie/energy-plans/electricity",
       "anchor": [
@@ -1208,7 +1208,7 @@
           "col": 2
         }
       },
-      "read": "2026-10-09",
+      "read": "2026-10-10",
       "plus": [
         {
           "url": "https://www.energia.ie/about-energia/our-tariffs",
@@ -1294,7 +1294,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.185,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.energia.ie/energy-plans/electricity",
       "anchor": [
@@ -1311,7 +1311,7 @@
           "col": 2
         }
       },
-      "read": "2026-10-09",
+      "read": "2026-10-10",
       "plus": [
         {
           "url": "https://www.energia.ie/about-energia/our-tariffs",
@@ -1390,7 +1390,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.185,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.energia.ie/energy-plans/electricity",
       "anchor": [
@@ -1400,7 +1400,7 @@
       "fields": {
         "day": "Standard 24hr meter"
       },
-      "read": "2026-10-09",
+      "read": "2026-10-10",
       "plus": [
         {
           "url": "https://www.energia.ie/about-energia/our-tariffs",
@@ -1483,7 +1483,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.185,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "notes": "Smart Track: base rates inc VAT from energia.ie/about-energia/our-tariffs (rates from 2 June 2026), plus the half-hourly wholesale price. Standing €299.75 urban.",
     "source": {
       "url": "https://www.energia.ie/about-energia/our-tariffs",
@@ -1498,7 +1498,7 @@
         "standing_rural": "Standing charge Dynamic Tariff Rural per year"
       },
       "col": 1,
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "standing_rural": 380.68,
     "standing_rural_source": "energia.ie/about-energia/our-tariffs, 9 Oct 2026 (checked daily)"
@@ -1574,7 +1574,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.195,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.sseairtricity.com/ie/home/products/smart-everyday-electricity-with-top-discount",
       "anchor": [
@@ -1585,7 +1585,7 @@
         "standing": "Urban 24hr meter"
       },
       "col": 1,
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": "Smart meter flat rate, 30% off for 12 months. Discounted rates and standing from the plan page, inc VAT. CEG 19.5c not re-read from sseairtricity.com in this check. Re-read 5 Oct 2026 after SSE's price rise (found by the bonkers.ie comparison).",
     "standing_rural": 351.46,
@@ -1619,7 +1619,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.195,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.sseairtricity.com/ie/home/products/smart-day-night-peak-electricity-with-top-discount",
       "anchor": [
@@ -1633,7 +1633,7 @@
         "standing": "Urban Smart"
       },
       "col": 1,
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": "Smart day/night/peak, 30% off for 12 months. Discounted rates and standing from the plan page, inc VAT. CEG 19.5c not re-read from sseairtricity.com in this check. Re-read 5 Oct 2026 after SSE's price rise (found by the bonkers.ie comparison).",
     "standing_rural": 351.46,
@@ -1659,7 +1659,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.195,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.sseairtricity.com/ie/home/products/electricity-top-discount",
       "anchor": [
@@ -1670,7 +1670,7 @@
         "standing": "Urban 24hr"
       },
       "col": 1,
-      "read": "2026-10-09",
+      "read": "2026-10-10",
       "welcome": {
         "url": "https://www.sseairtricity.com/ie/home/help-centre/our-tariffs",
         "anchor": [
@@ -1708,7 +1708,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.195,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.sseairtricity.com/ie/home/products/electricity-top-discount",
       "anchor": [
@@ -1720,7 +1720,7 @@
         "standing": "Urban Night saver"
       },
       "col": 1,
-      "read": "2026-10-09",
+      "read": "2026-10-10",
       "welcome": {
         "url": "https://www.sseairtricity.com/ie/home/help-centre/our-tariffs",
         "anchor": [
@@ -1760,7 +1760,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.195,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.sseairtricity.com/ie/home/products/electricity-smart-ev-max",
       "anchor": [
@@ -1772,7 +1772,7 @@
         "standing": "Urban Smart EV"
       },
       "col": 1,
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": "Smart EV: 6 cheap hours 23:00-05:00, 20% off for 12 months. Discounted rates and standing from the plan page, inc VAT. CEG 19.5c not re-read from sseairtricity.com in this check. Re-read 5 Oct 2026 after SSE's price rise (found by the bonkers.ie comparison).",
     "standing_rural": 426.72,
@@ -1806,7 +1806,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.195,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.sseairtricity.com/ie/home/products/smart-weekends-electricity",
       "anchor": [
@@ -1822,7 +1822,7 @@
         "standing": "Urban Smart"
       },
       "col": 1,
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": "Half-price electricity from 8am Saturday to 11pm Sunday; 15% off for 12 months. Discounted rates and standing from the plan page, inc VAT. CEG 19.5c not re-read from sseairtricity.com in this check. Re-read 5 Oct 2026 after SSE's price rise (found by the bonkers.ie comparison).",
     "weekend": {
@@ -1865,7 +1865,7 @@
     "length": 12,
     "green": false,
     "export_rate": 0.1716,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.yunoenergy.ie/",
       "anchor": [
@@ -1877,7 +1877,7 @@
         "standing": "Urban Standing Charge"
       },
       "col": 2,
-      "read": "2026-10-09",
+      "read": "2026-10-10",
       "welcome": {
         "url": "https://www.yunoenergy.ie/",
         "anchor": [
@@ -1927,7 +1927,7 @@
     "length": 12,
     "green": false,
     "export_rate": 0.1716,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.yunoenergy.ie/",
       "anchor": [
@@ -1940,7 +1940,7 @@
         "standing": "Urban Standing Charge"
       },
       "col": 2,
-      "read": "2026-10-09",
+      "read": "2026-10-10",
       "welcome": {
         "url": "https://www.yunoenergy.ie/",
         "anchor": [
@@ -1982,7 +1982,7 @@
     "length": 12,
     "green": false,
     "export_rate": 0.1716,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.yunoenergy.ie/",
       "anchor": [
@@ -1997,7 +1997,7 @@
         "standing": "Urban Standing Charge"
       },
       "col": 2,
-      "read": "2026-10-09",
+      "read": "2026-10-10",
       "plus": [
         {
           "url": "https://www.yunoenergy.ie/",
@@ -2042,7 +2042,7 @@
     "length": 12,
     "green": false,
     "export_rate": 0.1716,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.yunoenergy.ie/",
       "anchor": [
@@ -2055,7 +2055,7 @@
         "standing": "Urban Standing Charge"
       },
       "col": 2,
-      "read": "2026-10-09",
+      "read": "2026-10-10",
       "plus": [
         {
           "url": "https://www.yunoenergy.ie/",
@@ -2158,7 +2158,7 @@
       "ev": 0.0942
     },
     "standing": 358.07,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://yunoenergy.ie/pricing-page",
       "anchor": [
@@ -2186,7 +2186,7 @@
           }
         }
       ],
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": "Smart day/night/peak with a 02:00-06:00 EV rate, Yuno's standard (variable) price, no discount. yunoenergy.ie/pricing-page, read 9 Oct 2026, inc VAT; standing excludes the PSO levy. 12-month initial period. The discounted EV Variable Smart is no longer shown on Yuno's pages.",
     "standing_rural": 389.89,
@@ -2248,7 +2248,7 @@
       "ev": 0.3715
     },
     "standing": 300.2,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.flogas.ie/price-plans/?newCustomer=Yes&lookingFor=Electricity&meterType=Smart",
       "api": "flogas",
@@ -2261,7 +2261,7 @@
           "item": 2
         }
       },
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": "Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), read 9 Oct 2026: offer available from 7 Oct 2026 to new and existing customers paying by direct debit with paperless bills; 12-month minimum term, exit fee €50. Prices inc VAT, urban and rural standing charges from the same rows; standing excludes the PSO levy. Microgen export 18.5c (flogas.ie).",
     "standing_rural": 366.1,
@@ -2341,7 +2341,7 @@
       "ev": 0.2922
     },
     "standing": 300.2,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.flogas.ie/price-plans/?newCustomer=Yes&lookingFor=Electricity&meterType=Smart",
       "api": "flogas",
@@ -2356,7 +2356,7 @@
           "item": 2
         }
       },
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": "Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), read 9 Oct 2026: offer available from 7 Oct 2026 to new and existing customers paying by direct debit with paperless bills; 12-month minimum term, exit fee €50. Prices inc VAT, urban and rural standing charges from the same rows; standing excludes the PSO levy. Microgen export 18.5c (flogas.ie).",
     "standing_rural": 366.1,
@@ -2443,7 +2443,7 @@
       "ev": 0.1263
     },
     "standing": 387.16,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.flogas.ie/price-plans/?newCustomer=Yes&lookingFor=Electricity&meterType=Smart",
       "api": "flogas",
@@ -2459,7 +2459,7 @@
           "item": 2
         }
       },
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": "EV Night Charge 02:00-05:00. Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), read 9 Oct 2026: offer available from 7 Oct 2026 to new and existing customers paying by direct debit with paperless bills; 12-month minimum term, exit fee €50. Prices inc VAT, urban and rural standing charges from the same rows; standing excludes the PSO levy. Microgen export 18.5c (flogas.ie).",
     "standing_rural": 472.36,
@@ -2521,7 +2521,7 @@
       "ev": 0.396
     },
     "standing": 305.68,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.flogas.ie/price-plans/?newCustomer=Yes&lookingFor=Electricity&meterType=Smart",
       "api": "flogas",
@@ -2534,7 +2534,7 @@
           "item": 2
         }
       },
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": "Standard (non-smart) 24-hour meter: the 24hr Meter table. Flogas pricing API (webapi-prd.flogas.ie, the data behind flogas.ie/price-plans), read 9 Oct 2026: offer available from 7 Oct 2026 to new and existing customers paying by direct debit with paperless bills; 12-month minimum term, exit fee €50. Prices inc VAT, urban and rural standing charges from the same rows; standing excludes the PSO levy. Microgen export 18.5c (flogas.ie).",
     "standing_rural": 370.96,
@@ -2568,7 +2568,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.25,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.pinergy.ie/terms-conditions/tariffs/",
       "anchor": [
@@ -2584,7 +2584,7 @@
         }
       },
       "col": 2,
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": " Pinergy 'Lifestyle & Smart Tariffs', correct as at 14 Sep 2026, inc VAT; standing €283.47 excludes the €19.10 PSO. Export 25c not re-read in this check.",
     "standing_rural": 283.47,
@@ -2617,7 +2617,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.25,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.pinergy.ie/terms-conditions/tariffs/",
       "anchor": [
@@ -2632,7 +2632,7 @@
         }
       },
       "col": 2,
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": "The 9am-5pm rate applies on weekdays only. Pinergy 'Lifestyle & Smart Tariffs', correct as at 14 Sep 2026, inc VAT; standing €283.47 excludes the €19.10 PSO. Export 25c not re-read in this check.",
     "weekend": {
@@ -2675,7 +2675,7 @@
     "length": 12,
     "green": true,
     "export_rate": 0.25,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.pinergy.ie/terms-conditions/tariffs/",
       "anchor": [
@@ -2690,7 +2690,7 @@
         }
       },
       "col": 2,
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": "Cheap band 19:00-midnight every day. Pinergy 'Lifestyle & Smart Tariffs', correct as at 14 Sep 2026, inc VAT; standing €283.47 excludes the €19.10 PSO. Export 25c not re-read in this check.",
     "standing_rural": 283.47,
@@ -2748,7 +2748,7 @@
     "length": 12,
     "green": false,
     "export_rate": 0,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.prepaypower.ie/why-switch/pricing/rates",
       "anchor": [
@@ -2765,7 +2765,7 @@
         ]
       },
       "col": 4,
-      "read": "2026-10-09",
+      "read": "2026-10-10",
       "welcome": {
         "url": "https://www.prepaypower.ie/our-services/pre-pay-electricity",
         "anchor": [],
@@ -2800,7 +2800,7 @@
     "length": 12,
     "green": false,
     "export_rate": 0,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.prepaypower.ie/why-switch/pricing/rates",
       "anchor": [
@@ -2821,7 +2821,7 @@
         ]
       },
       "col": 4,
-      "read": "2026-10-09",
+      "read": "2026-10-10",
       "welcome": {
         "url": "https://www.prepaypower.ie/our-services/pre-pay-electricity",
         "anchor": [],
@@ -2861,7 +2861,7 @@
     "length": 12,
     "green": false,
     "export_rate": 0,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.prepaypower.ie/why-switch/pricing/rates",
       "anchor": [
@@ -2886,7 +2886,7 @@
         ]
       },
       "col": 4,
-      "read": "2026-10-09",
+      "read": "2026-10-10",
       "welcome": {
         "url": "https://www.prepaypower.ie/our-services/pre-pay-smart-pay",
         "anchor": [],
@@ -2918,7 +2918,7 @@
     "length": 0,
     "green": false,
     "export_rate": 0,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.waterpower.ie/current-electricity-rates/",
       "anchor": [
@@ -2933,7 +2933,7 @@
       },
       "col": 2,
       "unit": "eur",
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": "waterpower.ie/current-electricity-rates, urban, e-billing, inc VAT; standing excludes the €19.10 PSO, listed separately. The page carries no date. Waterpower does not publish a Clean Export Guarantee rate, so export is 0 here and a home with solar is understated on this plan. Exit fee and contract length not published.",
     "standing_rural": 322.26,
@@ -2962,7 +2962,7 @@
     "length": 0,
     "green": false,
     "export_rate": 0,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.waterpower.ie/current-electricity-rates/",
       "anchor": [
@@ -2978,7 +2978,7 @@
       },
       "col": 2,
       "unit": "eur",
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": "waterpower.ie/current-electricity-rates, urban, e-billing, inc VAT; standing excludes the €19.10 PSO, listed separately. The page carries no date. Waterpower does not publish a Clean Export Guarantee rate, so export is 0 here and a home with solar is understated on this plan. Exit fee and contract length not published.",
     "standing_rural": 322.26,
@@ -3012,7 +3012,7 @@
     "length": 0,
     "green": false,
     "export_rate": 0,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.waterpower.ie/current-electricity-rates/",
       "anchor": [
@@ -3029,7 +3029,7 @@
       },
       "col": 2,
       "unit": "eur",
-      "read": "2026-10-09",
+      "read": "2026-10-10",
       "plus": [
         {
           "url": "https://www.waterpower.ie/current-electricity-rates/",
@@ -3070,7 +3070,7 @@
     "length": 0,
     "green": true,
     "export_rate": 0,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.communitypower.ie/tariffs",
       "anchor": [
@@ -3084,7 +3084,7 @@
         }
       },
       "col": 2,
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": "communitypower.ie/tariffs, inc VAT, urban. UNVERIFIED from 1 Oct 2026: the page states these prices are effective 1 Oct 2025 to 30 Sep 2026 and no later list is published yet. Export not published.",
     "standing_rural": 353.73,
@@ -3113,7 +3113,7 @@
     "length": 0,
     "green": true,
     "export_rate": 0,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.communitypower.ie/tariffs",
       "anchor": [
@@ -3128,7 +3128,7 @@
         }
       },
       "col": 2,
-      "read": "2026-10-09"
+      "read": "2026-10-10"
     },
     "notes": "communitypower.ie/tariffs, inc VAT, urban. UNVERIFIED from 1 Oct 2026: the page states these prices are effective 1 Oct 2025 to 30 Sep 2026 and no later list is published yet. Export not published.",
     "standing_rural": 353.73,
@@ -3162,7 +3162,7 @@
     "length": 0,
     "green": true,
     "export_rate": 0,
-    "verified_date": "2026-10-09",
+    "verified_date": "2026-10-10",
     "source": {
       "url": "https://www.communitypower.ie/tariffs",
       "anchor": [
@@ -3178,7 +3178,7 @@
         }
       },
       "col": 2,
-      "read": "2026-10-09",
+      "read": "2026-10-10",
       "plus": [
         {
           "url": "https://www.communitypower.ie/tariffs",
