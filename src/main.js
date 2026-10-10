@@ -1115,11 +1115,11 @@ const STRESS_CHEAP = [0.05, 0.12, 0.19, 0.26, 0.33, 0.40];
 let _stress = { key: '', b0: null, nb0: null, pts: {}, grids: {}, queued: false };
 /** The map for a level of other prices (1 = today's), as far as it is worked out. */
 const stressGrid = (imp = stressF().imports) => _stress.grids[imp] || (_stress.grids[imp] = {});
-function stressKey(){
-  return JSON.stringify([state.count_A, state.count_B, state.azimuth_A, state.azimuth_B, state.tilt_A, state.battery_kwh, usageKey(),
-    state.heating_type, state.ev_active, state.ev_km_per_year, state.area, state.meter_type, state.region, state.grid_charge_now,
-    state.inverter_kw, state.has_solar, state.solar_planned, state.bill_names, state.export_tax_rate]);
-}
+// Keyed on everything the model reads (simKey), as the Solar page's own
+// figures are: each kept its own list, and a change on one list only (the
+// panels' wattage, the hot water, the inverter) left one of two paybacks on
+// the same page from before it (7.3 and 7.5 years, 10 Oct 2026).
+function stressKey(){ return simKey(); }
 function stressF(){
   const m = marketToday(), s = state._st || {};
   return { exportTo: s.exp ?? m.exportRate, cheapTo: s.cheap ?? m.cheapRate, imports: s.imp || 1 };
@@ -1469,12 +1469,7 @@ function usageKey(){
   return Object.keys(b).sort().map(k => `${k}:${Math.round(b[k] || 0)}`).join(',');
 }
 function cachedScenario(hasSolar, hasEv){
-  const ck = JSON.stringify([hasSolar, hasEv, state.region, state.count_A, state.count_B,
-    state.tilt_A, state.azimuth_A, state.battery_kwh, state.panel_w, state.heating_type,
-    usageKey(), state.ev_km_per_year, state.baseline, state.chosen_plan,
-    state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.heat_time, state.area, state._ghi_override,
-    // The scenario now costs the current plan too, so its discount is an input.
-    state.baseline_discount_pct]);
+  const ck = JSON.stringify([hasSolar, hasEv]) + simKey();
   const hit = singleScenarioMemo.get(ck);
   if (hit) return hit;
   adjScenarioDepth(1);
@@ -1489,18 +1484,10 @@ const noSolarScenarioMemo = new Map();
 function computeSolarPaybackScenarios(){
   const sysCost = state.install_cost - state.grant_seai;
 
-  // Cache key — only recompute if relevant state changed
-  // (region, panels, battery, install cost, EV km, heating, bills)
-  const ck = JSON.stringify([state.region, state.count_A, state.count_B, state.azimuth_A, state.azimuth_B,
-    state.tilt_A, state.tilt_B, state.battery_kwh, state.panel_w, state.install_cost, state.grant_seai,
-    state.heating_type, usageKey(), state.ev_km_per_year, state.ev_kwh_per_100km,
-    state.fuel_price, state.ice_l_per_100km, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.heat_time, state.area, state.region, state.ev_in_bill,
-    // The hand-picked plan changes the with-solar side of every scenario.
-    state.chosen_plan,
-    // computeScenarioRange() re-runs this whole set at three different
-    // irradiances. Without the override in the key, the bad-year and good-year
-    // runs would be served the average-year answer.
-    state._ghi_override]);
+  // Everything the model reads (the hand-picked plan and the irradiance
+  // override of computeScenarioRange's three runs included), as the stress
+  // test on the same page is keyed.
+  const ck = 'scen|' + simKey();
   const memo = scenarioMemo.get(ck);
   if (memo) return memo;
 
@@ -1686,6 +1673,11 @@ const UI_ONLY = new Set(['current_screen', 'theme', 'alerts_seen', 'score_seen',
 const MODEL_PRIVATE = new Set(['_csv_imported', '_csv_hourly_shape', '_ghi_override']);
 function modelKey(){
   return JSON.stringify(state, (key, v) => (key && !MODEL_PRIVATE.has(key) && (key[0] === '_' || UI_ONLY.has(key)) ? undefined : v)) + '|' + _tariffGen;
+}
+/** modelKey for results worked out often: the meter file by when it came and how many days it holds, not every reading. */
+function simKey(){
+  return JSON.stringify(state, (key, v) => (key === 'meter' ? (v ? `${v.imported_at || ''}|${Object.keys(v.days || {}).length}` : v)
+    : key && !MODEL_PRIVATE.has(key) && (key[0] === '_' || UI_ONLY.has(key)) ? undefined : v)) + '|' + _tariffGen;
 }
 
 let _plMemo = { k: null, v: null };
