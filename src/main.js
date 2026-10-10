@@ -23,7 +23,7 @@ import { IC, ic } from './icons';
 import FIG from './data/front-figures.json';
 import {
   IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileIsNet, fileDays, fileOwnShape, shapeBuckets, seasonalShape, SEASONAL_SHAPE, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, tidyNames, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
-  outcomeAgainst, sweepSetup, evaluateDesign, finishSweep, readBillAsRun,
+  outcomeAgainst, sweepSetup, evaluateDesign, finishSweep, readBillAsRun, syncFileBills,
 } from './model';
 
 /* Peakless — application entry.
@@ -2731,7 +2731,9 @@ function fileSummary(){
   const fs = fileSolar(), fb = fileBasis();
   if (!fs || !fb) return '';
   const d = fmtDay;
-  let t = `Your file runs ${d(fs.first)} to ${d(fs.last)}.`;
+  // The file's own first day: only its latest 400 days are kept.
+  const first = state._csv_first && state._csv_first < fs.first ? state._csv_first : fs.first;
+  let t = `Your file runs ${d(first)} to ${d(fs.last)}.`;
   if (fs.exportFrom) t += ` Panels show from ${d(fs.exportFrom)}, sending ${fs.exportKwh.toLocaleString('en-IE')} kWh to the grid.`;
   else if (fb.start) t += ` Panels show from ${d(fb.start)}.`;
   else t += ' No solar shows in it.';
@@ -13864,7 +13866,7 @@ function handleCsvFile(evt){
  * the card on screen.
  */
 const CSV_FIELDS = ['bills', '_csv_imported', 'meter', '_csv_export_kwh', '_csv_hourly_shape', '_shape_buckets', '_shape_user', '_csv_days', '_csv_periods',
-  '_csv_filename', '_file_split', '_csv_unread_pct', '_csv_dupes', 'usage_input_mode', 'annual_kwh', 'bimonthly_bill_eur', 'file_when', '_file_bills', '_file_bills_key'];
+  '_csv_filename', '_csv_first', '_file_split', '_csv_unread_pct', '_csv_dupes', 'usage_input_mode', 'annual_kwh', 'bimonthly_bill_eur', 'file_when', '_file_bills', '_file_bills_key'];
 let _csvBefore = null;
 function csvRestore(){
   if (!_csvBefore) return;
@@ -14065,6 +14067,27 @@ function parseCsvHdf(text, filename){
     // lone reading at either end of a file is not taken for a day of use.
     const bucketDays = [new Map(),new Map(),new Map(),new Map(),new Map(),new Map()];
     const daysIn = (m) => { let t = 0; m.forEach((n) => { t += Math.min(1, n / 46); }); return t; };
+    // A file of more than a year: the figures are its latest twelve months, the
+    // year the rest of the app prices and shows (syncYearBills). Averaged over
+    // all its years, this card said 5,344 kWh and Profile 5,943 for a home whose
+    // use had grown. The twelve months before are kept to say so when they differ.
+    // Only where those twelve months hold 330 days, as the app needs to use them
+    // (meterYearDays): dates Excel turned round can fall past the file's end.
+    let firstDay = '', lastDay = '';
+    const seenDays = new Set();
+    for (const line of dataLines){
+      const c = line.split(',').map(x => x.replace(/^"|"$/g,'').trim());
+      if (c.length < 3 || (c[_typeCol] && !c[_typeCol].toLowerCase().includes('active import'))) continue;
+      const dk = halfHourDay(c[_dateCol] || '');
+      if (!dk) continue;
+      seenDays.add(dk);
+      if (!firstDay || dk < firstDay) firstDay = dk;
+      if (dk > lastDay) lastDay = dk;
+    }
+    const dayShift = (dk, n) => { const d = new Date(dk + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+    let yearFrom = lastDay ? dayShift(lastDay, -364) : '', prevFrom = lastDay ? dayShift(lastDay, -729) : '';
+    if ([...seenDays].filter((d) => d >= yearFrom).length < 330) yearFrom = prevFrom = '';
+    const prevBuckets = [0,0,0,0,0,0], prevDays = [new Map(),new Map(),new Map(),new Map(),new Map(),new Map()];
     let rowsRead = 0;
     let rowsSkipped = 0;
     let rowsUnread = 0;   // import readings whose date or value cannot be read
@@ -14094,8 +14117,8 @@ function parseCsvHdf(text, filename){
 
       const bucketIdx = BIMONTHLY_MONTHS.findIndex(([m1,m2]) => month === m1 || month === m2);
       if (bucketIdx >= 0){
-        buckets[bucketIdx] += val * ENERGY_FACTOR;
-        bucketDays[bucketIdx].set(dk, (bucketDays[bucketIdx].get(dk) || 0) + 1);
+        const [B, BD] = dk >= yearFrom ? [buckets, bucketDays] : dk >= prevFrom ? [prevBuckets, prevDays] : [null, null];
+        if (B){ B[bucketIdx] += val * ENERGY_FACTOR; BD[bucketIdx].set(dk, (BD[bucketIdx].get(dk) || 0) + 1); }
         rowsRead++;
       }
     }
@@ -14144,6 +14167,8 @@ function parseCsvHdf(text, filename){
       if (readType2 && !readType2.toLowerCase().includes('active import')) continue;
       const val = parseFloat(valueStr2);
       if (!isFinite(val) || val < 0 || val > 50) continue;
+      const dk2 = halfHourDay(dateStr2);
+      if (!dk2 || dk2 < yearFrom) continue;
       // ESB stamps the END of each half hour: 00:30 is 00:00–00:30 (hour 0),
       // 01:00 is 00:30–01:00 (hour 0), 00:00 the last half hour of the day before
       // (hour 23). Subtracting a whole hour from every stamp put half the
@@ -14239,24 +14264,35 @@ function parseCsvHdf(text, filename){
       : rowsUnread > 0 ? `<div data-warn="unread-few" style="margin-top:8px;font-size:12px;color:var(--ink-soft)">We couldn’t read ${fmtN(rowsUnread)} reading${rowsUnread === 1 ? '' : 's'}, so ${rowsUnread === 1 ? 'it’s' : 'they’re'} left out.</div>` : '')
       + (dupes > 0 ? `<div data-warn="dupes" style="margin-top:8px;padding:9px 12px;background:var(--blue-soft);border-radius:8px;font-size:12px;color:var(--ink)">${fmtN(dupes)} reading${dupes === 1 ? ' was a repeat' : 's were repeats'} of others in the file. We count each half hour once.</div>` : '');
 
+    state.bills = bills;
+    state._csv_imported = true;
+    state._file_split = false;
+    state._csv_filename = filename;
+    state._csv_first = firstDay;
+    // The year as the rest of the app reads it from the stored days
+    // (syncFileBills), so this card and Profile give the same figure.
+    invalidate();
+    try { syncFileBills(); } catch (e) { /* the figures above stand */ }
+    saveState();
+    _csvBefore = before;
+    const total = Object.values(state.bills).reduce((a,b)=>a+b,0);
+
     let coverageHtml;
     if (totalDays < 45){
       coverageHtml = `<div style="margin-top:10px;padding:10px 12px;background:var(--amber-soft);border:1px solid var(--amber);border-radius:8px;font-size:12px;color:var(--ink);line-height:1.6"><b style="color:var(--amber)">⚠ Only ${totalDays} day${totalDays === 1 ? '' : 's'} of data</b> . That’s well short of a year, so the seasons are a guess. Treat these figures as rough, and add a full year when you can.</div>`;
     } else if (totalDays < 300 || periodsCovered < 6){
       coverageHtml = `<div style="margin-top:10px;padding:10px 12px;background:var(--blue-soft);border:1px solid var(--blue);border-radius:8px;font-size:12px;color:var(--ink);line-height:1.6"><b style="color:var(--blue)">Partial year:</b> ${totalDays} days across ${periodsCovered} of 6 billing periods. We filled the gaps from the rest. A full year would make the seasons more accurate.</div>`;
     } else {
-      coverageHtml = `<div style="margin-top:10px;padding:9px 12px;background:var(--accent-soft);border-radius:8px;font-size:12px;color:var(--ink-soft)">✓ A full year of readings${spanDays > 400 ? ` (file spans ~${Math.round(spanDays / 365 * 10) / 10} years — averaged per day, so the result is one typical year)` : ''}.</div>`;
+      // The twelve months before, where the file has them whole, said when they differ by over 10%.
+      const prevOk = prevDays.every((m) => daysIn(m) >= 1) && prevDays.reduce((a, m) => a + daysIn(m), 0) >= 300;
+      const prevTotal = prevOk ? Math.round(prevBuckets.reduce((a, v, i) => a + v / daysIn(prevDays[i]) * BIMONTHLY_DAYS[i], 0)) : 0;
+      const fileSpan = firstDay && lastDay ? Math.round((new Date(lastDay) - new Date(firstDay)) / 86400000) + 1 : spanDays;
+      const older = fileSpan > 400 && yearFrom
+        ? ` Your file holds about ${(Math.round(fileSpan / 365 * 10) / 10).toLocaleString('en-IE')} years. We use the latest 12 months, your home as it is now.${prevTotal && Math.abs(total - prevTotal) / prevTotal > 0.1 ? ` The 12 months before came to ${fmtN(Math.round(prevTotal / 10) * 10)} kWh. If this year was unusual, you can change it in My home.` : ''}`
+        : '';
+      coverageHtml = `<div data-years="${older ? 'latest' : 'one'}" style="margin-top:10px;padding:9px 12px;background:var(--accent-soft);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.6">✓ A full year of readings.${older}</div>`;
     }
 
-    state.bills = bills;
-    state._csv_imported = true;
-    state._file_split = false;
-    state._csv_filename = filename;
-    invalidate();
-    saveState();
-    _csvBefore = before;
-
-    const total = Object.values(bills).reduce((a,b)=>a+b,0);
     // A yearly figure typed earlier that the file disagrees with by more than
     // 15%: said, with the choice to keep it. Replacing it without a word left
     // people wondering where their figure went.
@@ -14267,7 +14303,7 @@ function parseCsvHdf(text, filename){
       <div class="card" style="background:var(--accent-faint);border-color:var(--accent)">
         <div class="card-label" style="color:var(--accent)">✓ Imported ${rowsRead.toLocaleString()} readings</div>
         <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.9;margin-top:6px">
-          ${BIMONTHLY_KEYS.map((k,i) => `${k}: <b>${Math.round(bills[k]).toLocaleString()} kWh</b>${daysIn(bucketDays[i]) < 1 ? '<span style="color:var(--amber)">*</span>' : ''}`).join(' · ')}<br>
+          ${BIMONTHLY_KEYS.map((k,i) => `${k}: <b>${Math.round(state.bills[k]).toLocaleString()} kWh</b>${daysIn(bucketDays[i]) < 1 ? '<span style="color:var(--amber)">*</span>' : ''}`).join(' · ')}<br>
           <b style="color:var(--accent)">Total: ${Math.round(total).toLocaleString()} kWh/yr</b> — anticipated full-year profile
           <br><span style="color:var(--ink-dim)">Readings in ${_unitIsKw ? 'kW (avg per 30-min interval) — converted ×0.5 to kWh' : 'kWh — used as-is'}</span>
           ${periodsCovered < 6 ? `<br><span style="color:var(--amber)">* estimated, no readings for this period</span>` : ''}
