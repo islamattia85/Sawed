@@ -2553,7 +2553,9 @@ html.web #wh-home .v7-cta-2:has(svg) { display: none; }
 @media (max-width: 899px) { .wl-proof { display: none; } .wl-hero { padding-bottom: 16px; } }
 
 /* Setup names what it is for, so every way in lands somewhere that makes sense. */
-.fl-route { display: grid; gap: 4px; padding: 14px 16px; margin-bottom: 4px; border-radius: var(--radius-lg); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent); }
+/* What this way in is for: said once, on its first question, as part of the
+   page (a tinted box read as a notice, and stood over every question). */
+.fl-route { display: grid; gap: 4px; padding: 0 0 18px; margin-bottom: 6px; border-bottom: 1px solid var(--hair); }
 .fl-route b { font: 700 17px var(--display); color: var(--ink); }
 .fl-route span { font-size: 15px; color: var(--ink-soft); line-height: 1.45; }
 /* The quote route's answer: is the price fair. */

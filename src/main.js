@@ -6008,8 +6008,16 @@ function flowSteps(f = state._flow || {}, fbIn){
     if (q === 'ev' && f.ev === 'have') out.push('evtime');
   }
   const first = (FLOW_INTENT[state._flow_intent] || {}).first;
-  if (first){ const head = first.filter((k) => out.includes(k)); return head.concat(out.filter((k) => !head.includes(k))); }
-  return out;
+  let res = out;
+  if (first){ const head = first.filter((k) => out.includes(k)); res = head.concat(out.filter((k) => !head.includes(k))); }
+  // Panels asked first (Getting the most from your panels): whether the bill
+  // is from before or after them comes straight after the bill, in its stage.
+  // It came after the heating, under "Your usage" again.
+  if (res.indexOf('solar') >= 0 && res.indexOf('solar') < res.indexOf('bill')){
+    const bw = res.filter((k) => k === 'billwhen' || k === 'billmonths');
+    if (bw.length){ res = res.filter((k) => !bw.includes(k)); res.splice(res.indexOf('bill') + 1, 0, ...bw); }
+  }
+  return res;
 }
 /* Guides keep their own history entries, so the phone's Back gesture steps
    back through them instead of leaving the app or skipping two screens. */
@@ -6083,7 +6091,8 @@ const FLOW_INTENT = {
     chap: { solar: 'Your roof', where: 'Your roof', house: 'Your roof', roof: 'Your roof', tilt: 'Your roof', system: 'Your system', panels: 'Your system', battery: 'Your system', price: 'Your system', grant: 'Your system' } },
   have: { t: 'Getting the most from your panels', s: 'Your panels first, then your bill. We work out what they make and which plan pays best for the power you sell. About 3 minutes.',
     pre: [['solar', 'have']], first: ['solar', 'where', 'roof', 'tilt', 'panels', 'battery', 'gridnow', 'price', 'grant'],
-    chap: { solar: 'Your panels', where: 'Your panels', roof: 'Your panels', tilt: 'Your panels', panels: 'Your panels', battery: 'Your panels', gridnow: 'Your panels', price: 'Your panels', grant: 'Your panels' } },
+    chap: { solar: 'Your panels', where: 'Your panels', roof: 'Your panels', tilt: 'Your panels', panels: 'Your panels', battery: 'Your panels', gridnow: 'Your panels', price: 'Your panels', grant: 'Your panels',
+      billwhen: 'Your usage', billmonths: 'Your usage' } },
   quote: { t: 'Checking your quote', s: 'What the quote offers first, then your roof and bill, so it is judged on your own home. About 3 minutes.',
     pre: [['solar', 'thinking'], ['system', 'custom']], first: ['solar', 'system', 'panels', 'battery', 'price', 'grant', 'where', 'house', 'roof', 'tilt'],
     chap: { solar: 'Your quote', system: 'Your quote', panels: 'Your quote', battery: 'Your quote', price: 'Your quote', grant: 'Your quote', where: 'Your roof', house: 'Your roof', roof: 'Your roof', tilt: 'Your roof' } },
@@ -6096,25 +6105,6 @@ const FLOW_INTENT = {
   meter: { t: 'Starting from your meter file', s: 'Add the file from esbnetworks.ie, then a few short questions. About 2 minutes.' },
   home: { t: 'Checking your home', s: 'Your bill and heating, then panels and a car if you have or want them. About 3 minutes.' },
 };
-/**
- * The most questions this route can still ask: every unanswered fork tried
- * both ways. Shown as the total, it can only fall as answers come in, so
- * "Step 10 of 14" never follows "Step 9 of 13".
- */
-const FLOW_FORKS = { plan: ['unsure', 'EI-24'], heat: ['gas', 'heatpump', 'storage'], gas: ['yes', 'no'], solar: ['no', 'have', 'thinking'],
-  system: ['custom', 'pick'], battery: [0, 5], billwhen: ['before', 'after'], ev: ['no', 'have', 'thinking'] };
-function flowMaxSteps(f){
-  // The meter file's own check is read once, not once per route tried.
-  const fb = state._csv_imported ? fileBasis() : null;
-  let best = flowSteps(f, fb);
-  const open = Object.keys(FLOW_FORKS).filter((k) => !(k in f));
-  const go = (i, g) => {
-    if (i === open.length){ const st = flowSteps(g, fb); if (st.length > best.length) best = st; return; }
-    for (const v of FLOW_FORKS[open[i]]) go(i + 1, { ...g, [open[i]]: v });
-  };
-  go(0, f);
-  return best;
-}
 // With a meter file, whether the home has panels is asked with the file, in its stage.
 const flowChap = (k) => ((FLOW_INTENT[state._flow_intent] || {}).chap || {})[k]
   || (k === 'solar' && state._csv_imported && (state._flow || {}).bill === 'meter' && state._flow_mode !== 'quick' ? 'Your usage' : null)
@@ -6412,7 +6402,7 @@ function renderFlow(){
     ...(state._flow_intent === 'meter' ? { bill: ['Add your ESB meter file', 'Your real half-hour readings. The most exact answer there is.'] } : {}),
     // Panels already on the roof: ask about them as bought, not as a purchase.
     ...(owner ? {
-      price: ['What did the panels cost?', 'Roughly is fine. Including VAT, before any grant.'],
+      price: ['What did your system cost?', `${+f.battery > 0 ? 'Panels, battery and fitting' : 'Panels and fitting'}. Roughly is fine, including VAT, before any grant.`],
       grant: ['Did you get the SEAI grant for them?', 'Up to €1,800 for the panels.'],
     } : {}),
     // A plan with its discount in the name already has it in its prices.
@@ -6603,20 +6593,24 @@ function renderFlow(){
   // The questions this visit asks: not the ones the way in, or the saved home, already answered.
   const given = state._flow_given || [];
   const asked = steps.filter((k) => !given.includes(k) || k === open);
-  // The total is the longest this route can still be, so it never grows.
-  const total = Math.max(asked.length, flowMaxSteps(f).filter((k) => !given.includes(k) || k === open).length);
+  // Counted in stages, which a route keeps from start to end, not in questions:
+  // answers add and take away questions as they come, and the total the
+  // count showed fell in jumps ("Step 17 of 20" was the last question asked).
+  const parts = flowParts(steps), pi = open ? parts.indexOf(flowChap(open)) : parts.length;
   let h = '';
   for (const s of steps){
     const branch = ['roof', 'tilt', 'panels', 'battery', 'price', 'grant', 'km', 'car'].includes(s);
     if (s === open){
       h += `<section class="fl-q ${branch ? 'fl-branch' : ''}" aria-label="${label[s][0]}">
-        ${WEB ? `<div class="fl-step-k">Step ${asked.filter((k) => k in f && k !== s).length + 1} of ${total} · ${flowChap(s)}</div>` : ''}<h2>${label[s][0]}</h2>${label[s][1] ? `<p>${label[s][1]}</p>` : ''}${body(s)}</section>`;
+        ${WEB ? `<div class="fl-step-k">Part ${pi + 1} of ${parts.length} · ${flowChap(s)}</div>` : ''}<h2>${label[s][0]}</h2>${label[s][1] ? `<p>${label[s][1]}</p>` : ''}${body(s)}</section>`;
       break;
     }
   }
-  // Setup says what it is for and what comes first, so no way in feels like a wrong turn.
+  // Setup says what it is for and what comes first, so no way in feels like a
+  // wrong turn. Once, on its first question: on every one it pushed each
+  // question a third of the way down a phone.
   const R = FLOW_INTENT[state._flow_intent] || (!state.onboarding_complete ? FLOW_INTENT[state._flow_mode === 'quick' ? 'plans' : 'home'] : null);
-  if (R && open) h = `<div class="fl-route"><b>${R.t}</b><span>${state.onboarding_complete ? 'Only the questions about this. Leave at any time and your answer stays as it was.' : R.s}</span></div>` + h;
+  if (R && open && asked.every((k) => !(k in f) || k === open)) h = `<div class="fl-route"><b>${R.t}</b><span>${state.onboarding_complete ? 'Only the questions about this. Leave at any time and your answer stays as it was.' : R.s}</span></div>` + h;
   // What's answered so far, as one row of chips: tap one to change it.
   const answered = steps.filter((s) => s in f && s !== open);
   if (answered.length) h = `<div class="fl-chips" aria-label="Your answers, tap to change">${answered.map((s) => `<button class="fl-chip" onclick="flowEdit('${s}')" aria-label="Change ${esc(label[s][0])}">${esc(shown[s](f[s]))}</button>`).join('')}</div>` + h;
@@ -6667,7 +6661,6 @@ function renderFlow(){
         <span>Your home is only saved on this device. With an account it’s backed up, works on any device, and we’ll tell you when a cheaper plan comes along.</span>
         <button class="fl-save-link" onclick="flowFinish('save')">Create a free account ${ic('chevR', 14)}</button></div></section>` : ''}`;
   }
-  const done = asked.filter((s) => s in f).length;
   const leave = state.onboarding_complete ? 'flowLeave()' : 'goLanding()';
   return `<div class="fl">
     <div class="fl-top">
@@ -6678,19 +6671,24 @@ function renderFlow(){
         <button class="fl-exit" onclick="${leave}">${state.onboarding_complete ? 'Back to my answer' : 'Leave'}</button></span>` : ''}
     </div>
     ${WEB ? flowChapters(steps, f, open) : ''}
-    <div class="sg-progress fl-prog"><i style="width:${finished ? 100 : Math.round(done / Math.max(1, total) * 100)}%"></i></div>
+    <div class="sg-progress fl-prog"><i style="width:${finished ? 100 : Math.round((pi + (() => { const ks = steps.filter((k) => flowChap(k) === parts[pi]); return ks.filter((k) => k in f && k !== open).length / Math.max(1, ks.length); })()) / Math.max(1, parts.length) * 100)}%"></i></div>
     ${WEB ? `<div class="fl-grid"><div class="fl-body">${h}</div>${flowSide(steps, f, open, shown)}</div>` : `<div class="fl-body">${h}</div>`}
   </div>`;
 }
 
 /** The setup's stages, named, with where you are among them. */
-const FLOW_CHAPTER = { bill: 'Your usage', meter: 'Your usage', area: 'Your usage', filewhen: 'Your usage', billwhen: 'Your usage', billmonths: 'Your usage',
+const FLOW_CHAPTER = { bill: 'Your usage', meter: 'Your usage', area: 'Your usage', filewhen: 'Your usage', billwhen: 'Solar', billmonths: 'Solar',
   plan: 'Your plan', disc: 'Your plan', heat: 'Heating', heattime: 'Heating', hotwater: 'Heating', night: 'Heating', gas: 'Heating', gasbill: 'Heating',
-  where: 'Your home', house: 'Your home', solar: 'Solar', roof: 'Solar', tilt: 'Solar', panels: 'Solar', battery: 'Solar', system: 'Solar',
+  where: 'Solar', house: 'Solar', solar: 'Solar', roof: 'Solar', tilt: 'Solar', panels: 'Solar', battery: 'Solar', system: 'Solar',
   price: 'Solar', grant: 'Solar', gridnow: 'Solar', fileexp: 'Your usage', ev: 'Car', evtime: 'Car', km: 'Car', car: 'Car' };
-function flowChapters(steps, f, open){
+/** The route's stages, in the order its questions come. */
+function flowParts(steps){
   const names = [];
   steps.forEach((k) => { const c = flowChap(k); if (!names.includes(c)) names.push(c); });
+  return names;
+}
+function flowChapters(steps, f, open){
+  const names = flowParts(steps);
   const now = open ? flowChap(open) : null;
   return `<ol class="fl-chap" aria-label="Stages">${names.map((c) => {
     const ks = steps.filter((k) => flowChap(k) === c);
@@ -6712,7 +6710,7 @@ function flowSide(steps, f, open, shown){
   return `<aside class="fl-side ${got.length ? '' : 'is-empty'}" aria-label="Your home so far">
     <div class="fl-card"><b class="fl-card-h">Your home so far</b><small>Change any answer at any time.</small>
       <div class="fl-sofar">${got.length ? got.map((k) => `<div><span>${FLOW_SHORT[k] || k}</span><b>${val(k)} <button onclick="flowEdit('${k}')" aria-label="Change ${FLOW_SHORT[k] || k}">${ic('edit', 14)}</button></b></div>`).join('') : '<div><span>Nothing yet</span><b>—</b></div>'}</div></div>
-    <div class="fl-live"><small>${open ? `${steps.length - got.length} question${steps.length - got.length === 1 ? '' : 's'} to go` : 'All done'}</small><b>${n} plans to compare</b></div>
+    <div class="fl-live"><small>${(() => { const ps = flowParts(steps), i = open ? ps.indexOf(flowChap(open)) : -1; return !open ? 'All done' : i < ps.length - 1 ? `Next: ${ps[i + 1]}` : 'Last part'; })()}</small><b>${n} plans to compare</b></div>
   </aside>`;
 }
 

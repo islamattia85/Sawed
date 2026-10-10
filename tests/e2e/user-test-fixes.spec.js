@@ -50,22 +50,56 @@ test('Back from the first question leaves setup; Forward comes back in; the same
   await expect(page.locator('.wl-site')).toBeVisible();
   await page.getByRole('button', { name: 'thinking about solar' }).click();
   await expect(heading(page)).toHaveText('Which way does the roof face?');
-  await expect(page.locator('.fl-step-k')).toContainText('Step 3 of');
+  await expect(page.locator('.fl-step-k')).toContainText('Part 1 of 6 · Your roof');
+  // Carrying on, not starting: what this way in is for was said on its first question.
+  await expect(page.locator('.fl-route')).toHaveCount(0);
 });
 
-test('the step total never grows as the answers come in', async ({ page }) => {
-  await fresh(page);
-  await page.evaluate(() => window.siteGo('solar'));
-  const totals = [];
-  const read = async () => { const t = await page.locator('.fl-step-k').textContent(); totals.push(+String(t).match(/of (\d+)/)[1]); };
-  await read();
-  for (const [q, v] of [['where', 'east'], ['house', 'semi'], ['roof', 'S'], ['tilt', 35], ['bill', 250], ['meter', 'smart'], ['area', 'urban'],
-    ['plan', 'EI-24'], ['disc', 0], ['heat', 'gas'], ['gas', 'no'], ['night', 'no'], ['system', 'custom'], ['panels', 12], ['battery', 5], ['price', 0], ['grant', 'yes']]) {
-    await page.evaluate(([q, v]) => window.flowAnswer(q, v), [q, v]);
-    if (await page.locator('.fl-step-k').count()) await read();
-  }
-  for (let i = 1; i < totals.length; i++) expect(totals[i], `totals ${totals.join(' → ')}`).toBeLessThanOrEqual(totals[i - 1]);
-});
+/**
+ * Setup counts in stages, which a route keeps from start to end. It counted
+ * questions against the longest the route could still be, so the total fell in
+ * jumps as answers ruled questions out ("Step 8 of 22", then "Step 9 of 13"),
+ * and a home without a car was last asked "Step 17 of 20". The bill's date came
+ * after the heating under "Your usage" again, and the region under "Your home"
+ * in the middle of the solar questions (10 Oct 2026).
+ */
+const ANSWERS = { where: 'south', house: 'semi', roof: 'S', tilt: 35, panels: 10, battery: 9, gridnow: 'yes', price: 0, grant: 'no', bill: 160, meter: 'smart',
+  area: 'urban', plan: 'EN-EV', disc: 0, heat: 'heatpump', heattime: 'night', night: 'no', gas: 'no', billwhen: 'after', billmonths: 'Jul-Aug', km: 15000, car: 17, evtime: 'night', system: 'custom' };
+for (const [route, mode, intent, extra] of [['panels I have, no car', 'full', 'have', { ev: 'no' }], ['panels I have, a car', 'full', 'have', { ev: 'have' }],
+  ['the whole home, panels, gas', 'full', null, { solar: 'have', heat: 'gas', ev: 'no' }], ['the whole home, no panels', 'full', null, { solar: 'no', ev: 'no' }],
+  ['thinking about solar', 'full', 'solar', { ev: 'no' }], ['a cheaper plan', 'quick', null, {}]]) {
+  test(`setup counts in stages that keep their total and never come back: ${route}`, async ({ page }) => {
+    await fresh(page, 1280);
+    const seen = await page.evaluate(([mode, intent, ans]) => {
+      window.startFlow(mode, intent || undefined);
+      const out = [];
+      for (let i = 0; i < 40; i++) {
+        const sec = document.querySelector('.fl-q'), el = sec && sec.querySelector('[data-q]');
+        // "Pick a system" is still working out its cards: answered as "my own".
+        const m = !el && sec && sec.innerHTML.match(/flowAnswer\('(\w+)'/), q = el ? el.dataset.q : m ? m[1] : sec && sec.querySelector('.fl-working') ? 'system' : null;
+        if (!q) break;
+        const k = document.querySelector('.fl-step-k').textContent.match(/Part (\d+) of (\d+) · (.+)/);
+        out.push({ q, part: +k[1], of: +k[2], stage: k[3].trim(), route: document.querySelectorAll('.fl-route').length });
+        window.flowAnswer(q, ans[q] ?? 'no');
+      }
+      return out;
+    }, [mode, intent, { ...ANSWERS, ...extra }]);
+    const trail = seen.map((s) => `${s.part}/${s.of} ${s.stage} [${s.q}]`).join(' → ');
+    expect(seen.length, trail).toBeGreaterThan(5);
+    expect(new Set(seen.map((s) => s.of)).size, `the total stays put: ${trail}`).toBe(1);
+    for (let i = 1; i < seen.length; i++) expect(seen[i].part, trail).toBeGreaterThanOrEqual(seen[i - 1].part);
+    // A stage, once left, never comes back.
+    const order = seen.map((s) => s.stage).filter((c, i, a) => c !== a[i - 1]);
+    expect(new Set(order).size, `stages in order: ${order.join(' → ')}`).toBe(order.length);
+    // The last question asked is in the last stage.
+    expect(seen[seen.length - 1].part, trail).toBe(seen[0].of);
+    // What this way in is for: on its first question only.
+    expect(seen.map((s) => s.route), trail).toEqual(seen.map((_, i) => (i === 0 ? 1 : 0)));
+    // A typed bill's date comes straight after the bill, when the panels were asked first.
+    const at = (k) => seen.findIndex((s) => s.q === k);
+    if (intent === 'have') expect(at('billwhen'), trail).toBe(at('bill') + 1);
+  });
+}
 
 test('a plan with its discount in the name: the question says so, and the same figure is not counted twice', async ({ page }) => {
   await fresh(page, 1280);
@@ -114,11 +148,14 @@ test('owners are asked about their panels as bought, and a yearly kWh figure is 
   await fresh(page, 1280);
   await page.evaluate(() => window.siteGo('have'));
   await page.evaluate(() => { for (const [q, v] of [['where', 'west'], ['roof', 'EW'], ['tilt', 35], ['panels', 14], ['battery', 10], ['gridnow', 'yes']]) window.flowAnswer(q, v); });
-  await expect(heading(page)).toHaveText('What did the panels cost?');
+  await expect(heading(page)).toHaveText('What did your system cost?');
+  await expect(page.locator('.fl-q p')).toContainText('Panels, battery and fitting');
   await page.evaluate(() => window.flowAnswer('price', 0));
   await expect(heading(page)).toHaveText('Did you get the SEAI grant for them?');
-  await page.evaluate(() => { for (const [q, v] of [['grant', 'yes'], ['bill', 'kwh:7000'], ['meter', 'smart'], ['area', 'rural'], ['plan', 'unsure'], ['heat', 'gas'], ['night', 'no']]) window.flowAnswer(q, v); });
+  await page.evaluate(() => { for (const [q, v] of [['grant', 'yes'], ['bill', 'kwh:7000']]) window.flowAnswer(q, v); });
+  // Straight after the usage it is about.
   await expect(heading(page)).toHaveText('Is that usage from before or after the panels went up?');
+  await page.evaluate(() => { for (const [q, v] of [['meter', 'smart'], ['area', 'rural'], ['plan', 'unsure'], ['heat', 'gas'], ['night', 'no']]) window.flowAnswer(q, v); });
   await page.evaluate(() => window.flowAnswer('billwhen', 'after'));
   await expect(heading(page)).not.toHaveText('Which months is that bill for?');
   // Units bought after the panels are less than the home uses: the model works back to more.

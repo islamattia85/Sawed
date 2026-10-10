@@ -39,7 +39,7 @@ for (const [button, route, question] of WAYS) {
     await page.waitForFunction(() => window.state.current_screen === 'flow');
     await expect(page.locator('.fl-route b')).toHaveText(route);
     await expect(page.locator('.fl-q h2')).toHaveText(question);
-    await expect(page.locator('.fl-step-k')).toContainText('Step 1 of');
+    await expect(page.locator('.fl-step-k')).toContainText('Part 1 of');
     await page.waitForTimeout(100);
     expect(await page.evaluate(() => window.scrollY)).toBeLessThan(10);
     expect(await page.evaluate(() => window.state.onboarding_complete)).toBeFalsy();
@@ -108,7 +108,7 @@ test('returning visitor with no panels on file: "I have panels" asks only about 
   await confirmHome(page);
   await page.waitForFunction(() => window.state.current_screen === 'flow');
   await expect(page.locator('.fl-q h2')).toHaveText('Which way does the roof face?');
-  await expect(page.locator('.fl-step-k')).toContainText('Step 1 of');
+  await expect(page.locator('.fl-step-k')).toContainText('Part 1 of');
   await page.locator('.fl-exit').click();
   const after = await page.evaluate(() => ({ s: window.state.has_solar, n: window.state.count_A }));
   expect(after).toEqual(before);
