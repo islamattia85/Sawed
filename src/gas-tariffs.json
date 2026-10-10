@@ -1,22 +1,16 @@
 [
   {
     "supplier": "Bord Gáis Energy",
-    "unit": 0.1117,
-    "standing": 131.69,
+    "unit": 0.1236,
+    "standing": 140.92,
     "gas_discount": 0.09,
     "dual_discount": 0.17,
     "dual_welcome": 0,
-    "price_change": {
-      "effective_date": "2026-10-09",
-      "pct": 0.1065,
-      "standing_pct": 0.0701,
-      "note": "Gas 11.17c → 12.36c, standing €131.69 → €140.92 from 9 October 2026."
-    },
     "source": [
       "https://www.bordgaisenergy.ie/home/our-tariffs",
       "https://www.bordgaisenergy.ie/home/compare-dual-fuel-price-plans"
     ],
-    "verified_date": "2026-10-04"
+    "verified_date": "2026-10-10"
   },
   {
     "supplier": "Electric Ireland",
@@ -30,7 +24,7 @@
       "https://www.electricireland.ie/residential/electricity-and-gas/gas-price-plans",
       "https://www.electricireland.ie/residential/electricity-and-gas/dual-fuel-price-plans"
     ],
-    "verified_date": "2026-10-04"
+    "verified_date": "2026-10-10"
   },
   {
     "supplier": "Energia",
@@ -44,11 +38,11 @@
       "https://www.energia.ie/about-energia/our-tariffs",
       "https://www.energia.ie/energy-plans/gas"
     ],
-    "verified_date": "2026-10-04"
+    "verified_date": "2026-10-10"
   },
   {
     "supplier": "SSE Airtricity",
-    "unit": 0.1138,
+    "unit": 0.127,
     "standing": 152.31,
     "gas_discount": 0.16,
     "dual_discount": null,
@@ -57,19 +51,19 @@
     "source": [
       "https://www.sseairtricity.com/ie/home/products/gas/"
     ],
-    "verified_date": "2026-10-04"
+    "verified_date": "2026-10-10"
   },
   {
     "supplier": "Flogas",
-    "unit": 0.1269,
+    "unit": 0.127,
     "standing": 170.84,
     "gas_discount": null,
-    "dual_discount": 0.28,
+    "dual_discount": 0.1,
     "dual_welcome": 0,
     "notes": "Dual Fuel 28% Loyalty Discount: gas 9.14c and standing €170.84 as shown; the standard rate is worked back from the 28%.",
     "source": [
       "https://www.flogas.ie/price-plans/"
     ],
-    "verified_date": "2026-10-04"
+    "verified_date": "2026-10-10"
   }
 ]
