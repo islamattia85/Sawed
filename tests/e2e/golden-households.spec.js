@@ -32,7 +32,7 @@ for (const [id, lim] of Object.entries(GOLDEN.scenarios)) {
     // it is today (the app ranks plans with the planned panels in); a battery that only stores solar on
     // the app's answer for that, which the Plans page gives under its headline.
     let ranked = r.today || r.ranked;
-    if (r.solarOnly && sc.truth !== 'hp_solar_gridfill') ranked = r.solarOnly;
+    if (r.solarOnly && sc.truth !== 'hp_solar_gridfill' && !t.battery_per_plan) ranked = r.solarOnly;
     r.best = ranked[0].id; r.bestNet = ranked[0].net;
     if (lim.payback != null && t.payback) expect(r.solar, `${id}: the app shows a payback`).toBeTruthy();
     // Rounded to a tenth, as score.py reports them and as the limits were set.
@@ -51,6 +51,12 @@ for (const [id, lim] of Object.entries(GOLDEN.scenarios)) {
     expect(err.plan, say).toBeLessThanOrEqual(lim.plan);
     if (lim.payback != null && err.payback != null) expect(err.payback, say).toBeLessThanOrEqual(lim.payback);
     if (lim.saving != null && err.saving != null) expect(err.saving, `${say}, solar saving €${Math.round(r.solar.saving)} (true €${Math.round(t.saving)})`).toBeLessThanOrEqual(lim.saving);
+    // The plan the home is on, priced with the battery set for it as every other plan is.
+    if (lim.current != null) {
+      const cur = sc.answers.plan, mine = r.ranked.find((x) => x.id === cur);
+      expect(mine, `${id}: the current plan ${cur} is priced`).toBeTruthy();
+      expect(tenth(Math.abs(mine.net - t.costs[cur]) / t.costs[cur] * 100), `${say}; current plan ${cur} €${mine.net} (true €${Math.round(t.costs[cur])})`).toBeLessThanOrEqual(lim.current);
+    }
     const asked = r.seen.questions.map((q) => q.q), warned = r.seen.warns.flat();
     for (const q of [].concat(lim.asks || [])) expect(asked, `${say}; asks ${q}`).toContain(q);
     for (const w of lim.warns || []) expect(warned, `${say}; warns ${w}`).toContain(w);

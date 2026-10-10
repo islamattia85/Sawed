@@ -12,12 +12,13 @@
    ],
    "acc": "covers",
    "today": {
-    "kwh_err": -1.2,
+    "kwh_err": -1.1,
     "bill_err": -0.9,
     "plan_gap": 0,
     "payback": 6.8,
     "true_payback": 6.82,
     "saving_err": -0.4,
+    "current_err": null,
     "accuracy": 4,
     "lost_pct": 0.0
    }
@@ -33,12 +34,13 @@
    ],
    "acc": "covers",
    "today": {
-    "kwh_err": 0.8,
+    "kwh_err": 0.7,
     "bill_err": 0.6,
     "plan_gap": 0,
     "payback": 5.8,
     "true_payback": 5.78,
     "saving_err": -0.8,
+    "current_err": null,
     "accuracy": 4,
     "lost_pct": 0.0
    }
@@ -54,12 +56,13 @@
    ],
    "acc": "covers",
    "today": {
-    "kwh_err": 0.7,
+    "kwh_err": 0.0,
     "bill_err": 0.0,
     "plan_gap": 0,
     "payback": 6.4,
     "true_payback": 6.43,
     "saving_err": -0.3,
+    "current_err": null,
     "accuracy": 4,
     "lost_pct": 0.0
    }
@@ -83,6 +86,7 @@
     "payback": 6.6,
     "true_payback": 6.82,
     "saving_err": 3.2,
+    "current_err": null,
     "accuracy": 6,
     "lost_pct": 0.0
    }
@@ -106,6 +110,7 @@
     "payback": 5.0,
     "true_payback": 5.78,
     "saving_err": 15.5,
+    "current_err": null,
     "accuracy": 55,
     "lost_pct": 0.0
    }
@@ -127,6 +132,7 @@
     "payback": 6.8,
     "true_payback": 6.77,
     "saving_err": -0.1,
+    "current_err": null,
     "accuracy": 4,
     "lost_pct": 0.0
    }
@@ -149,6 +155,7 @@
     "payback": 6.3,
     "true_payback": 6.2,
     "saving_err": -1.3,
+    "current_err": null,
     "accuracy": 4,
     "lost_pct": 0.0
    }
@@ -172,6 +179,7 @@
     "payback": 5.6,
     "true_payback": 5.72,
     "saving_err": 2.1,
+    "current_err": null,
     "accuracy": 4,
     "lost_pct": 0.0
    }
@@ -196,6 +204,7 @@
     "payback": 6.7,
     "true_payback": 6.77,
     "saving_err": 0.8,
+    "current_err": null,
     "accuracy": 5,
     "lost_pct": 0.0
    }
@@ -218,6 +227,7 @@
     "payback": 6.0,
     "true_payback": 5.97,
     "saving_err": -0.3,
+    "current_err": null,
     "accuracy": 4,
     "lost_pct": 0.0
    }
@@ -234,12 +244,13 @@
    "acc_min": 4,
    "known_gap": "kwh, bill, plan, accuracy",
    "today": {
-    "kwh_err": -16.9,
+    "kwh_err": -17.2,
     "bill_err": -10.1,
     "plan_gap": 51,
     "payback": 6.3,
     "true_payback": 6.39,
     "saving_err": 1.8,
+    "current_err": null,
     "accuracy": 4,
     "lost_pct": 0.0
    }
@@ -264,6 +275,7 @@
     "payback": 6.8,
     "true_payback": 6.82,
     "saving_err": -0.2,
+    "current_err": null,
     "accuracy": 4,
     "lost_pct": 0.0
    }
@@ -279,12 +291,13 @@
    ],
    "acc": "covers",
    "today": {
-    "kwh_err": -0.1,
+    "kwh_err": 0.0,
     "bill_err": -0.0,
     "plan_gap": 0,
     "payback": 6.8,
     "true_payback": 6.82,
     "saving_err": -0.2,
+    "current_err": null,
     "accuracy": 4,
     "lost_pct": 0.0
    }
@@ -312,6 +325,7 @@
     "payback": 6.5,
     "true_payback": 6.77,
     "saving_err": 4.9,
+    "current_err": null,
     "accuracy": 11,
     "lost_pct": 0.0
    }
@@ -334,6 +348,7 @@
     "payback": 6.8,
     "true_payback": 6.77,
     "saving_err": -0.1,
+    "current_err": null,
     "accuracy": 4,
     "lost_pct": 0.0
    }
@@ -357,6 +372,7 @@
     "payback": 4.0,
     "true_payback": 6.77,
     "saving_err": 70.9,
+    "current_err": null,
     "accuracy": 4,
     "lost_pct": 0.0
    }
@@ -380,6 +396,7 @@
     "payback": 6.1,
     "true_payback": 6.82,
     "saving_err": 11.0,
+    "current_err": null,
     "accuracy": 6,
     "lost_pct": 0.0
    }
@@ -406,6 +423,7 @@
     "payback": 6.6,
     "true_payback": 6.82,
     "saving_err": 3.4,
+    "current_err": null,
     "accuracy": 17,
     "lost_pct": 60.5
    }
@@ -431,6 +449,82 @@
     "payback": 6.8,
     "true_payback": 6.82,
     "saving_err": -0.2,
+    "current_err": null,
+    "accuracy": 4,
+    "lost_pct": 0.0
+   }
+  },
+  "B9a-hpb_before": {
+   "kwh": 5.0,
+   "bill": 12.0,
+   "plan": 25,
+   "payback": 0.5,
+   "saving": 3.0,
+   "current": 7.5,
+   "asks": [
+    "filehome",
+    "filewhen"
+   ],
+   "acc_min": 4,
+   "known_gap": "bill, current, accuracy",
+   "today": {
+    "kwh_err": 1.2,
+    "bill_err": 10.7,
+    "plan_gap": 0,
+    "payback": 5.5,
+    "true_payback": 5.36,
+    "saving_err": -2.6,
+    "current_err": 6.6,
+    "accuracy": 4,
+    "lost_pct": 0.0
+   }
+  },
+  "B9b-hpb_gridfill": {
+   "kwh": 5.0,
+   "bill": 17.0,
+   "plan": 25,
+   "payback": 0.5,
+   "saving": 3.0,
+   "current": 5.0,
+   "asks": [
+    "filehome",
+    "hotwater"
+   ],
+   "acc_min": 4,
+   "known_gap": "bill, accuracy",
+   "today": {
+    "kwh_err": 2.1,
+    "bill_err": 15.6,
+    "plan_gap": 0,
+    "payback": 5.5,
+    "true_payback": 5.36,
+    "saving_err": -3.0,
+    "current_err": 3.7,
+    "accuracy": 4,
+    "lost_pct": 0.0
+   }
+  },
+  "B9c-hpb_gridfill": {
+   "kwh": 5.0,
+   "bill": 17.0,
+   "plan": 25,
+   "payback": 0.5,
+   "saving": 3.0,
+   "current": 15.0,
+   "asks": [
+    "filehome",
+    "hotwater"
+   ],
+   "acc_min": 4,
+   "known_gap": "bill, current, accuracy",
+   "today": {
+    "kwh_err": 2.1,
+    "bill_err": 15.6,
+    "plan_gap": 0,
+    "payback": 5.5,
+    "true_payback": 5.36,
+    "saving_err": -3.0,
+    "current_err": 13.6,
     "accuracy": 4,
     "lost_pct": 0.0
    }

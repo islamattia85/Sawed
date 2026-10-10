@@ -57,6 +57,19 @@ def build_homes():
     hs['gas_to_hp'] = dict(label='Gas home that put in a heat pump on 15 Jan 2026', use=add(a, hp_a), imp=add(a, hp_a), exp=zero, gen=zero, file_imp=add(a, hp_from))
     vac = [0.07 if D(2026, 8, 3) <= H.LOCAL[k].date() <= D(2026, 8, 30) else v for k, v in enumerate(a)]
     hs['gas_holiday'] = dict(label='Gas home, away 3-30 Aug 2026', use=a, imp=a, exp=zero, gen=zero, file_imp=vac)
+    # A battery on a plan with a cheap window (added 10 Oct 2026): a heat pump home like the
+    # owner's, 4.6 kWp south and a 9 kWh battery, filled from the grid 02:00-05:00 all year.
+    # Priced on every plan with the battery set for that plan (truth: battery_per_plan).
+    e = add(H.scale_to(H.base_load(41), 2600), H.scale_to(H.heat_pump(42), 3300))
+    pv_e = H.pv_cork([(4.6, 180, 35)], 43)
+    # Its battery is an ordinary 9 kWh lithium one, as the app assumes one to be when told only
+    # its size: 10% kept in reserve (8.1 kWh usable), 92% round trip, 5 kW.
+    sys_e = dict(kwp=4.6, faces=[[10, 180, 35]], panel_w=460, battery=9, cost=9800, grant=1800)
+    spec = dict(cap=9 * 0.9, eff=0.92, rate=2.5)
+    g = [v if H.LOCAL[k].date() >= D(2025, 3, 3) else 0.0 for k, v in enumerate(pv_e)]
+    i, x = H.battery(e, g, spec['cap'], grid_fill_months=tuple(range(1, 13)), eff=spec['eff'], rate=spec['rate'])
+    hs['hpb_gridfill'] = dict(label='Heat pump home, 4.6 kWp + 9 kWh battery since 3 Mar 2025, filled from the grid 02:00-05:00 all year', use=e, imp=i, exp=x, gen=g, install='2025-03-03', system=sys_e, battery_per_plan=spec)
+    hs['hpb_before'] = dict(label='Heat pump home as above, panels and battery from 1 Jun 2026; file from before them', use=e, imp=i, exp=x, gen=pv_e, install='2026-06-01', system=sys_e, battery_per_plan=spec, file_imp=e)
     # The planning system every no-solar home is quoted: 4 kWp south, no battery, EUR 7,800 less EUR 1,800 grant.
     PLAN_SYS = dict(kwp=4.0, faces=[[9, 180, 35]], panel_w=4000 / 9, battery=0, cost=7800, grant=1800)
     return hs, pv_plan, PLAN_SYS
@@ -74,6 +87,17 @@ def truth_for(h, pv_plan, plan_sys):
     # The solar saving and payback, counted as the app counts them: the cheapest plan without
     # the panels less the cheapest plan with them; the price after grant over that.
     sys = h.get('system')
+    if h.get('battery_per_plan'):
+        # Each plan priced with the battery set for it (homes.battery_for_plan): what the app
+        # promises its figures rest on. How this battery actually runs is kept beside it.
+        t['costs_as_run'] = costs
+        costs = {}
+        for pid in P.smart_plans():
+            sp = h['battery_per_plan']
+            bi, be = H.battery_for_plan(h['use'], h['gen'], sp['cap'], P.PLANS[pid], idx, eff=sp['eff'], rate=sp['rate'])
+            costs[pid] = round(P.cost(loc, bi, be, pid), 2)
+        best = min(costs, key=costs.get)
+        t.update(costs=costs, best=best, best_cost=costs[best], battery_per_plan=True)
     if sys:
         nos = P.all_costs(loc, use, [0.0] * len(use)); wi = costs
     else:
@@ -186,6 +210,16 @@ def scenarios(hs):
     g = hs['hp_solar_gridfill']
     name = 'B5_hp_solar_gridfill.csv'; put(name, esb_text(g['imp'], g['exp'], *YEAR_NOW))
     out.append(S('B5-hp_solar_gridfill', 'B', 'Battery filled from the grid at night in winter', 'hp_solar_gridfill', 'hp_solar_gridfill', name, dict(HAVE(g['system']), heat='heatpump', gridnow='yes', filewhen='allyear'), window=[str(x) for x in YEAR_NOW]))
+    # A battery on a plan with a cheap window (10 Oct 2026). B9a: the owner's case, a file from
+    # before the system, on EV Smart Drive. B9b/c: a year of the system at work, the battery
+    # filled 02:00-05:00, on EV Smart Drive and on a day/night/peak plan.
+    hb = hs['hpb_before']; sb = hb['system']; span = (D(2025, 6, 1), D(2026, 5, 31))
+    name = 'B9a_hpb_before.csv'; put(name, esb_text(hb['file_imp'], [0.0] * H.N, *span, export=False))
+    out.append(S('B9a-hpb_before', 'B', 'Battery on EV Smart Drive; file from before the panels and battery', 'hpb_before', 'hpb_before', name, dict(HAVE(sb), heat='heatpump', filewhen='before', plan='EN-EV'), window=[str(x) for x in span]))
+    hg = hs['hpb_gridfill']
+    name = 'B9b_hpb_gridfill.csv'; put(name, esb_text(hg['imp'], hg['exp'], *YEAR_NOW))
+    out.append(S('B9b-hpb_gridfill', 'B', 'Battery filled 02:00-05:00 all year, on EV Smart Drive; a year of the system at work', 'hpb_gridfill', 'hpb_gridfill', name, dict(HAVE(sb), heat='heatpump', filewhen='allyear', plan='EN-EV'), window=[str(x) for x in YEAR_NOW]))
+    out.append(S('B9c-hpb_gridfill', 'B', 'Same file, on a day/night/peak plan (Electric Ireland SST Saver)', 'hpb_gridfill', 'hpb_gridfill', name, dict(HAVE(sb), heat='heatpump', filewhen='allyear', plan='EI-SST'), window=[str(x) for x in YEAR_NOW]))
     # Asked about the power sold (fileexp, from 9 Oct 2026), they say yes: the truth.
     out.append(S('B6-gas_solar', 'B', 'User says no solar; the file shows exports', 'gas_solar', 'gas_solar', 'B2_gas_solar.csv', dict(heat='gas', solar='no', fileexp='have'), window=[str(x) for x in YEAR_NOW]))
     name = 'B7_gas.csv'; put(name, esb_text(hs['gas']['imp'], hs['gas']['exp'], *YEAR_NOW, export=False))

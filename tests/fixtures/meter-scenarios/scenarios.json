@@ -834,6 +834,69 @@
   ]
  },
  {
+  "id": "B9a-hpb_before",
+  "group": "B",
+  "title": "Battery on EV Smart Drive; file from before the panels and battery",
+  "home": "hpb_before",
+  "truth": "hpb_before",
+  "file": "B9a_hpb_before.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 10,
+   "battery": 9,
+   "gridnow": "no",
+   "heat": "heatpump",
+   "filewhen": "before",
+   "plan": "EN-EV"
+  },
+  "window": [
+   "2025-06-01",
+   "2026-05-31"
+  ]
+ },
+ {
+  "id": "B9b-hpb_gridfill",
+  "group": "B",
+  "title": "Battery filled 02:00-05:00 all year, on EV Smart Drive; a year of the system at work",
+  "home": "hpb_gridfill",
+  "truth": "hpb_gridfill",
+  "file": "B9b_hpb_gridfill.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 10,
+   "battery": 9,
+   "gridnow": "no",
+   "heat": "heatpump",
+   "filewhen": "allyear",
+   "plan": "EN-EV"
+  },
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
+  "id": "B9c-hpb_gridfill",
+  "group": "B",
+  "title": "Same file, on a day/night/peak plan (Electric Ireland SST Saver)",
+  "home": "hpb_gridfill",
+  "truth": "hpb_gridfill",
+  "file": "B9b_hpb_gridfill.csv",
+  "answers": {
+   "solar": "have",
+   "panels": 10,
+   "battery": 9,
+   "gridnow": "no",
+   "heat": "heatpump",
+   "filewhen": "allyear",
+   "plan": "EI-SST"
+  },
+  "window": [
+   "2025-10-09",
+   "2026-10-08"
+  ]
+ },
+ {
   "id": "B6-gas_solar",
   "group": "B",
   "title": "User says no solar; the file shows exports",

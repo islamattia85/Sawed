@@ -10,6 +10,9 @@ partial or short file (A3-A5) the seasons are a guess, so the brief asks what
 error is acceptable: we use 10% for nine months and 15% for a few weeks, and
 say so in the report.
 
+Where the truth prices each plan with the battery set for it (battery_per_plan),
+the plan the home is on is held to the bill tolerance too ("current plan").
+
 Two checks besides the figures. A file the app reads less than 95% of must say
 so on the import card (data-warn="unread"): readings dropped without a word
 fail ("lost readings, no warning"). And whether the accuracy figure the app
@@ -59,7 +62,7 @@ def score(r):
     # app leads with a plan that needs night filling and gives the solar-only answer under it.
     # The answer for how this battery runs is the one scored; the headline is kept beside it.
     out['headline'] = dict(best=ranked[0]['id'], bill=ranked[0]['net'], gap=round(t['costs'][ranked[0]['id']] - t['best_cost']) if ranked[0]['id'] in t['costs'] else None)
-    if r.get('solarOnly') and sc['truth'] != 'hp_solar_gridfill':
+    if r.get('solarOnly') and sc['truth'] != 'hp_solar_gridfill' and not t.get('battery_per_plan'):
         ranked = r['solarOnly']; out['scored_on'] = 'solar-only answer'
     best = ranked[0]['id']; best_net = ranked[0]['net']; costs = t['costs']
     out['best'] = best; out['true_best'] = t['best']
@@ -77,6 +80,13 @@ def score(r):
         out['payback'] = round(r['solar']['payback'], 1) if r['solar']['payback'] < 900 else None
         out['true_payback'] = t['payback']
         out['payback_err'] = round(out['payback'] - t['payback'], 1) if out['payback'] is not None else None
+    # The plan the home is on, where the truth prices every plan with the battery set for it:
+    # the figure the app shows for it must rest on the same setting (fixed 10 Oct 2026).
+    cur = sc['answers'].get('plan')
+    if t.get('battery_per_plan') and cur in costs:
+        mine = next((x['net'] for x in r['ranked'] if x['id'] == cur), None)
+        out['current'] = cur; out['current_bill'] = mine; out['true_current'] = round(costs[cur])
+        out['current_err'] = round((mine - costs[cur]) / costs[cur] * 100, 1) if mine is not None else None
     out['accuracy_shown'] = r['accuracy']['pct']
     raw = max(abs(r['kwh'] - t['use_kwh']) / t['use_kwh'] * 100 if t['use_kwh'] else 0, abs(best_net - costs[best]) / costs[best] * 100 if best in costs else 0)
     out['acc_covers'] = out['accuracy_shown'] is not None and out['accuracy_shown'] >= raw
@@ -96,6 +106,7 @@ def score(r):
     if out['kwh_err'] is not None and abs(out['kwh_err']) > tol['kwh']: fails.append('consumption')
     if out['bill_err'] is None or abs(out['bill_err']) > tol['bill']: fails.append('bill')
     if out['plan_gap'] is None or out['plan_gap'] > tol['plan']: fails.append('plan')
+    if 'current' in out and (out['current_err'] is None or abs(out['current_err']) > tol['bill']): fails.append('current plan')
     if 'payback_err' in out and (out['payback_err'] is None or abs(out['payback_err']) > tol['payback']): fails.append('payback' if out['payback_err'] is not None else 'no payback shown')
     if any(l > 5 and 'unread' not in (warns[i] if i < len(warns) else []) for i, l in enumerate(lost)): fails.append('lost readings, no warning')
     out['fails'] = fails; out['pass'] = not fails; out['tolerance'] = tol
@@ -112,4 +123,5 @@ if __name__ == '__main__':
     json.dump(rows, open(os.path.join(d, 'scores.json'), 'w'), indent=1)
     for r in rows:
         if r['outcome'] == 'rejected': print(f"{r['id']:22} REJECTED  {r['message'][:110]}"); continue
-        print(f"{r['id']:22} {'PASS' if r['pass'] else 'FAIL':4} kWh {r['kwh']:6} ({r['kwh_err'] if r['kwh_err'] is not None else 'n/a':>6}%)  bill {r['bill_err']}%  gap {r['price_gap']}%  plan {r['best']:18} gap €{r['plan_gap']}  payback {r.get('payback')} vs {r.get('true_payback')}  acc ±{r['accuracy_shown']}%  {'asked' if r['asked'] else ''} {','.join(r['fails'])}")
+        cur = f"  current {r['current']} €{r['current_bill']} vs €{r['true_current']} ({r['current_err']}%)" if 'current' in r else ''
+        print(f"{r['id']:22} {'PASS' if r['pass'] else 'FAIL':4} kWh {r['kwh']:6} ({r['kwh_err'] if r['kwh_err'] is not None else 'n/a':>6}%)  bill {r['bill_err']}%  gap {r['price_gap']}%  plan {r['best']:18} gap €{r['plan_gap']}  payback {r.get('payback')} vs {r.get('true_payback')}  acc ±{r['accuracy_shown']}%{cur}  {'asked' if r['asked'] else ''} {','.join(r['fails'])}")

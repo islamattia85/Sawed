@@ -59,6 +59,21 @@ The scenario is the same as every other: upload the file, answer setup as
 rebuilt) with a Sigenergy-style file made from it, and checks the answers
 against the stored truth. Run it after changing anything here.
 
+## Real months against the app's
+
+A home with only some months of its system at work (no full year yet) can still
+be checked: list it in `real/private/actuals.json` with its meter file, its
+answers, its system and the months its own system recorded (made, used, bought,
+sold). Then
+
+    SCENARIO_OUT=/tmp/real npx playwright test real-actuals
+
+sets the app's months beside the real ones. Weather and habits differ from the
+typical year the app plans for, so the months are reported, not held to a
+tolerance. What is held: the plan the home is on is priced with the battery
+filling in its cheap hours, as every figure says. Where the private file is not
+there, the test skips itself.
+
 ## Privacy
 
 Half-hourly readings show when a household is in, out and asleep, even with

@@ -166,3 +166,60 @@ def battery(use, gen, cap, grid_fill_months=(), fill_to=1.0, eff=0.95, rate=1.5)
         if night_fill and soc < fill_to * cap:
             c = min(rate, (fill_to * cap - soc) / eff); soc += c * eff; imp[i] += c
     return imp, exp
+
+def battery_for_plan(use, gen, cap, plan, idx, eff=0.95, rate=1.5):
+    """What a home with panels and a battery buys and sells on `plan` over the
+    half hours `idx`, with the battery set the way the app tells owners to set
+    it: filled from the grid in the plan's cheapest hours when that power, after
+    losses, costs less than its dearest hours (and, when that window is too short,
+    the next-cheapest hours straight after it). It fills to what the hours until
+    the next cheap window need beyond the solar they will store, or full when
+    the cheap power after losses also costs less than export pays (the spare
+    solar is then worth more sold). Perfect foresight of the coming day: the
+    most a good inverter schedule can do, and close to what one does.
+
+    Written apart from the app's own battery code, so the app is marked against
+    what the setting achieves, not against itself. Returns (bought, sold), one
+    value per index in `idx`."""
+    w = plan.get('windows') or {}; R = plan['rates']
+    def inwin(h, win):
+        a, b = win; return a <= h < b if a < b else (h >= a or h < b)
+    cheap = sorted((R.get(b, R['day']), b) for b in ('ev', 'night') if w.get(b))
+    cr, cb = cheap[0] if cheap else (None, None)
+    dear = max([R['day']] + ([R['peak']] if w.get('peak') and 'peak' in R else []))
+    fill = cb is not None and cr / eff < dear - 0.01
+    full = fill and cr / eff < (plan.get('export_rate') or 0)
+    n = len(idx)
+    inc = [fill and inwin(LOCAL[i].hour, w[cb]) for i in idx]
+    # A short cheapest window (Night Boost's two hours) can't fill a big battery: the plan's
+    # next-cheapest hours straight after it finish the top-up when they still pay.
+    if fill and len(cheap) > 1 and cheap[1][0] / eff < dear - 0.01:
+        sb = cheap[1][1]
+        for x in range(1, n):
+            if not inc[x] and inc[x - 1] and inwin(LOCAL[idx[x]].hour, w[sb]): inc[x] = True
+    target = [0.0] * n; j = 0
+    while j < n:
+        if not inc[j]: j += 1; continue
+        k = j
+        while k < n and inc[k]: k += 1
+        m = k
+        while m < n and not inc[m]: m += 1
+        if full: t = cap
+        else:
+            deficit = sum(max(0.0, use[idx[x]] - gen[idx[x]]) for x in range(k, m))
+            spare = sum(max(0.0, gen[idx[x]] - use[idx[x]]) for x in range(k, m))
+            t = min(cap, max(0.0, deficit - spare * eff))
+        for x in range(j, k): target[x] = t
+        j = k
+    imp, exp = [0.0] * n, [0.0] * n; soc = 0.0
+    for x, i in enumerate(idx):
+        net = use[i] - gen[i]
+        if net < 0:
+            c = min(-net, (cap - soc) / eff, rate); soc += c * eff; exp[x] = -net - c
+        elif inc[x]:
+            imp[x] = net                      # cheap hours: the house runs on the grid
+        else:
+            d = min(net, soc, rate); soc -= d; imp[x] = net - d
+        if inc[x] and soc < target[x]:
+            c = min(rate, (target[x] - soc) / eff); soc += c * eff; imp[x] += c
+    return imp, exp
