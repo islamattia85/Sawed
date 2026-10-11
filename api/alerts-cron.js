@@ -3,7 +3,8 @@
  *
  * For each signed-in household that turned on "Email me these", works out
  * today's alerts (api/_alerts.js) and emails any not sent before; alert_log
- * holds one row per email so a rerun never sends a second copy.
+ * holds one row per email so a rerun never sends a second copy. The reading
+ * and sending is in api/_alerts-run.js.
  *
  * Needs CRON_SECRET (Vercel sends it as a bearer token on cron calls),
  * SUPABASE_SERVICE_ROLE_KEY, and for email RESEND_API_KEY and MAIL_FROM.
@@ -11,7 +12,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { adminDb, sendEmail } from './_server.js';
-import { alertsFor } from './_alerts.js';
+import { runAlerts } from './_alerts-run.js';
 
 export const config = { maxDuration: 60 };
 
@@ -35,24 +36,12 @@ export default async function handler(req, res) {
   const tariffs = Array.isArray(raw) ? raw : raw.tariffs || [];
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Dublin' });
 
-  const { data: rows, error } = await db.from('profiles').select('id, email, app_state').not('app_state', 'is', null).limit(5000);
-  if (error) return res.status(500).json({ error: 'Could not read profiles.' });
+  // Only households that turned emails on, a few answers each, a page at a
+  // time, within the run's time (api/_alerts-run.js).
+  const run = await runAlerts({ db, tariffs, today, appUrl: process.env.APP_URL, send: sendEmail });
+  if (!run.ok) return res.status(500).json({ error: run.error });
 
-  let sent = 0, skipped = 0;
-  for (const p of rows || []) {
-    let st = p.app_state;
-    if (typeof st === 'string') { try { st = JSON.parse(st); } catch { continue; } }
-    const due = alertsFor(st, tariffs, today, process.env.APP_URL);
-    for (const a of due) {
-      // Claim the key first: if the row exists, it was already sent.
-      const { error: dup } = await db.from('alert_log').insert({ user_id: p.id, alert_key: a.key });
-      if (dup) { skipped++; continue; }
-      const ok = await sendEmail({ to: p.email, subject: a.subject, text: `${a.text}\n\nYou get this because you turned on email alerts in Peakless. Turn them off in My Peakless.` });
-      if (ok) sent++;
-      else await db.from('alert_log').delete().eq('user_id', p.id).eq('alert_key', a.key);
-    }
-  }
   // Retention: data past its keeping period goes (supabase/security_2026_10.sql).
   const { data: purged } = await db.rpc('purge_expired').then((r) => r, () => ({ data: null }));
-  return res.status(200).json({ ok: true, households: (rows || []).length, sent, skipped, purged });
+  return res.status(200).json({ ...run, purged });
 }

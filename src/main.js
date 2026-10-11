@@ -14,6 +14,7 @@ import {
 import { moneyBar, dayProfile, paybackCurve, yearRibbon, bandDonut, rateStrip, billAmt } from './ui/charts.js';
 import { createV7 } from './ui/v7.js';
 import { houseScene } from './ui/house.js';
+import { NO_SYNC, cloudCopy, sentKey } from './sync.js';
 import { checkSwitch, timingFit } from './engine/meter';
 import { installErrorReporting } from './errors';
 import { dualFuelChoices, gasPlanFor, gasKwhFromBill, inFirstYear, supplierKey } from './gas.js';
@@ -108,21 +109,12 @@ async function sbInit(){
  * on both is simply joined, and two different homes are put side by side for
  * the person to choose. Saved quotes from both are always kept. */
 
-// What describes this screen rather than the household is never synced.
-const NO_SYNC = ['_flow', '_flow_edit', '_flow_intent', '_flow_given', '_st_open', '_eg', '_sg', 'current_screen', '_home_deep', '_solar_deep', '_solar_more', '_an_tab', '_an_from', '_an_pick', '_an_note', '_an_day_open', '_an_mon', '_sheet', '_sys_saving', '_sys_name', '_fine_open', '_settings_open', '_return_to', '_lead_form',
-  '_tariff_refreshing', '_expert_open', '_account_id', '_saved_at',
-  // Contact details typed for the email-capture part (src/features.js) stay on this device.
-  'lead_queue', 'user_email', 'email_captured'];
 let _sync = { status: 'idle', at: null };
+let _lastCloud = null;         // the account and copy last written (src/sync.js)
 let _syncTimer = null;
 let _handover = null;          // { remote, remoteAt } while the person chooses
 let _myLeads = null;           // the account's quote requests, once fetched
 
-function cloudCopy(src){
-  const o = {};
-  for (const k in src) if (!NO_SYNC.includes(k)) o[k] = src[k];
-  return o;
-}
 function setupKey(st){
   const keys = ['region', 'heating_type', 'usage_input_mode', 'annual_kwh', 'bimonthly_bill_eur', 'baseline',
     'has_solar', 'count_A', 'count_B', 'panel_w', 'battery_kwh', 'ev_active'];
@@ -182,17 +174,22 @@ async function sbLoadProfile(){
 
 async function sbSaveProfile(extraFields){
   if (!_sb || !_sbUser) return;
+  const copy = cloudCopy(state), json = JSON.stringify(copy);
+  // A save is queued on every change, a screen change too; the account needs
+  // a new copy only when the home itself changed (src/sync.js).
+  if (!extraFields && sentKey(_sbUser.id, json) === _lastCloud && _sync.status === 'saved') return;
   _sync = { status: 'saving', at: _sync.at };
   try {
     const payload = {
       id: _sbUser.id,
       email: _sbUser.email,
-      app_state: cloudCopy(state),
+      app_state: copy,
       updated_at: new Date().toISOString(),
       ...(extraFields || {}),
     };
     const { error } = await _sb.from('profiles').upsert(payload, { onConflict: 'id' });
     if (error) throw error;
+    _lastCloud = sentKey(_sbUser.id, json);
     _sync = { status: 'saved', at: Date.now() };
     if (state._account_id !== _sbUser.id){
       state._account_id = _sbUser.id;
