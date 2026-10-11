@@ -109,3 +109,13 @@ test('the figures are called estimates, never exact', async ({ page }) => {
   expect(all).not.toMatch(/\bexact (figures|answer)|most exact|most accurate figures|instead of an estimate|Calculations are/i);
   expect(all).toMatch(/estimate/i);
 });
+
+test('Home names the cheapest plan as the cheapest, and says the solar figures are at today’s prices', async ({ page }) => {
+  await boot(page, { has_solar: true, solar_planned: false, considering_solar: true, count_A: 10, panel_w: 440, azimuth_A: 180, tilt_A: 35, battery_kwh: 5, current_screen: 'result' });
+  await page.evaluate(() => window.setScreen('result'));
+  const home = page.locator('.screen').first();
+  await expect(home).not.toContainText('Best for your home');
+  await expect(page.locator('.hc').first()).toContainText('at today’s prices');
+  // The page's name in a browser tab or a shared link isn't "advisor".
+  expect(await page.title()).not.toMatch(/advis/i);
+});

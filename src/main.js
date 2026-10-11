@@ -3037,7 +3037,7 @@ function renderIntro(){
             </svg>
           </div>
         </div>
-        <div class="intro-title">Your personal<br>energy advisor.</div>
+        <div class="intro-title">Every Irish plan,<br>priced on your home.</div>
         <div class="intro-sub">Find your cheapest electricity plan, with or without solar.</div>
       </div>`;
     footerHTML = `
@@ -3385,7 +3385,7 @@ function planMatters(){
   const F = planFacts(), b = FIG.big, g = F.gone, best = getPlanById(b.best_plan), stay = getPlanById(b.before_plan);
   const rows = [
     ...(g && b.gone_payback != null ? [['On the plan that was withdrawn', planPlain(g), b.gone_payback, 'is-gone']] : []),
-    ['On today’s best plan', planPlain(best), b.best_payback, 'is-good'],
+    ['On today’s cheapest plan', planPlain(best), b.best_payback, 'is-good'],
     [stay && planCategory(stay) === 'flat' ? 'Staying on a one-price plan' : 'Staying on the plan it was on', planPlain(stay), b.stay_payback, 'is-bad'],
   ];
   const gone = g && g.discontinued_date ? `One plan paid ${c1(g.export_rate)} for export and ${c1(g.rates.ev)} to charge at night. It was withdrawn on ${fmtDay(g.discontinued_date)}.` : '';
@@ -3424,7 +3424,7 @@ function showAnalysis(){
   return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
     ${T(4, 12, 'A year, month by month', 'class="h"')}${T(256, 12, eur(-FIG.typical.net / FIG.typical.payback), 'class="g" text-anchor="end"')}
     ${now.map((v, i) => `<rect x="${10 + i * 20.5}" y="${y(v)}" width="7" height="${104 - y(v)}" rx="2" class="mute"/><rect x="${18 + i * 20.5}" y="${y(best[i])}" width="7" height="${104 - y(best[i])}" rx="2" class="acc"/>${T(17 + i * 20.5, 118, M[i], 'text-anchor="middle"')}`).join('')}
-    ${T(4, 130, '■ your plan now   ', 'class="mute-t"')}${T(96, 130, '■ best plan, with panels', 'class="acc-t"')}</svg>`;
+    ${T(4, 130, '■ your plan now   ', 'class="mute-t"')}${T(96, 130, '■ cheapest plan, with panels', 'class="acc-t"')}</svg>`;
 }
 function showDay(){
   const p = getPlanById('YN-EV-DNP') || getPlanById(DEMO_PLANS[0]);
@@ -5722,7 +5722,7 @@ function renderSolarGuide(){
         <div class="sg-facts">
           <div><b>${eur(d ? d.cur.solarBenefit : 0)}</b><small>back every year</small></div>
           <div><b>${eur(d ? d.sysCost : 0)}</b><small>to install, after the grant</small></div>
-          <div><b class="${d && d.npv >= 0 ? 'is-gain' : ''}">${eur(d ? d.npv : 0)}</b><small>ahead over 20 years</small></div>
+          <div><b class="${d && d.npv >= 0 ? 'is-gain' : ''}">${eur(d ? d.npv : 0)}</b><small>ahead over 20 years, at today’s prices</small></div>
         </div>
         ${d && d.best && d.best.plan ? `<div class="sg-found">${ic('spark', 14)}<span>With panels, your best plan is <b>${esc(d.best.plan.supplier)} ${esc(d.best.plan.plan)}</b>. This answer assumes you switch to it, and counts only what the panels add.</span></div>` : ''}
         <div class="sg-sys">${totalPanels()} panels${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh battery` : ' · no battery'} · ${({ S: 'south', SE: 'south-east', SW: 'south-west', EW: 'east and west', E: 'east', W: 'west' })[state._sg_face] || 'south'}-facing</div>
@@ -6869,11 +6869,11 @@ function makeShareCardCanvas(savings, opts = {}){
       const pl = (state.solar_planned || state.solar_is_estimate) ? plannedLadder() : null;
       if (pl) rungs = [
         ['Current plan', full(mine), pl.today, '#7A847E'],
-        ['Best plan', full(pl.noSolar.plan), pl.noSolar.net, '#2F7A56'],
+        ['Cheapest plan', full(pl.noSolar.plan), pl.noSolar.net, '#2F7A56'],
         ['Current plan + solar', full(mine), pl.mine, '#2F7A56'],
-        ['Best plan + solar', full(pl.best.plan), pl.best.net, '#4CCB8C'],
+        ['Cheapest plan + solar', full(pl.best.plan), pl.best.net, '#4CCB8C'],
       ];
-      else rungs = [['Current plan', full(mine), rec.baseCost, '#7A847E'], ['Best plan', full(rec.best.plan), rec.best.net, '#4CCB8C']];
+      else rungs = [['Current plan', full(mine), rec.baseCost, '#7A847E'], ['Cheapest plan', full(rec.best.plan), rec.best.net, '#4CCB8C']];
     }
   } catch (e) { rungs = []; }
 
@@ -8336,7 +8336,7 @@ async function doGeneratePdf(){
       invalidate(); rebuildBase();
       sensitivity = [
         { label: 'If your usage is 20% lower', best: lo.best, current: lo.current },
-        { label: 'Best plan', best: best.net, current: baseCost },
+        { label: 'Cheapest plan', best: best.net, current: baseCost },
         { label: 'If your usage is 20% higher', best: hi.best, current: hi.current },
       ];
     } catch(e){ sensitivity = null; }
@@ -8432,14 +8432,14 @@ async function doGeneratePdf(){
       const mine = getPlanById(state.baseline);
       if (pl) ladder = [
         { label: 'Current plan', plan: `${mine.supplier} · ${mine.plan}`, value: pl.today, solar: false },
-        { label: 'Best plan', plan: `${pl.noSolar.plan.supplier} · ${pl.noSolar.plan.plan}`, value: pl.noSolar.net, solar: false },
+        { label: 'Cheapest plan', plan: `${pl.noSolar.plan.supplier} · ${pl.noSolar.plan.plan}`, value: pl.noSolar.net, solar: false },
         { label: 'Current plan + panels', plan: `${mine.supplier} · ${mine.plan}`, value: pl.mine, solar: true },
         { label: 'Best plan + panels', plan: `${pl.best.plan.supplier} · ${pl.best.plan.plan}`, value: pl.best.net, solar: true, best: true },
       ];
       else ladder = [
         { label: 'Current plan', plan: `${mine.supplier} · ${mine.plan}`, value: baseCost, solar: false },
         ...(state.has_solar && totalPanels() > 0 ? [{ label: 'Current plan, with your panels', plan: `${mine.supplier} · ${mine.plan}`, value: annualCost(sim(mine.id), mine).net, solar: true }] : []),
-        { label: rec.isManualChoice ? 'Your chosen plan' : 'Best plan', plan: `${best.plan.supplier} · ${best.plan.plan}`, value: best.net, solar: !!(state.has_solar && totalPanels() > 0), best: true },
+        { label: rec.isManualChoice ? 'Your chosen plan' : 'Cheapest plan', plan: `${best.plan.supplier} · ${best.plan.plan}`, value: best.net, solar: !!(state.has_solar && totalPanels() > 0), best: true },
       ];
     } catch(e){ ladder = null; }
     let accuracy = null;
@@ -9919,7 +9919,7 @@ function renderCompareTable(selIds){
     { k:'Strategy',      get:s=>s.strategy||'—',               fmt:v=>v,                       better:null },
     { k:'EV',            get:s=>s.ev?'yes':'no',               fmt:v=>v,                       better:null },
     { k:'System cost (net)', get:s=>s.sysCostNet,              fmt:fmtEur,                     better:'low' },
-    { k:'Best plan',     get:s=>s.bestPlanName||'—',           fmt:v=>v,                       better:null },
+    { k:'Cheapest plan', get:s=>s.bestPlanName||'—',           fmt:v=>v,                       better:null },
     { k:'Annual bill',   get:s=>s.bestNet,                     fmt:fmtEur,                     better:'low' },
     { k:'Saving vs current', get:s=>s.savings,                 fmt:fmtEur,                     better:'high' },
     { k:'Solar benefit/yr', get:s=>s.solarBenefit,             fmt:fmtEur,                     better:'high' },
@@ -10160,7 +10160,7 @@ function renderJourneySheet(kind){
   return `<div class="v7-sheet-head"><div class="v7-eyebrow">The tally</div><h2 class="v7-h">Which plan did you switch to?</h2></div>
     <p class="me-p">It becomes your plan here, and the yearly saving against your old one is counted from the date.</p>
     <label class="sy-field sy-field-stack"><span><b>Plan</b></span><select id="jr-plan">
-      <optgroup label="${rec.isManualChoice ? 'Your chosen plan, then the cheapest' : 'Best for your home'}">${top.map(opt).join('')}</optgroup>
+      <optgroup label="${rec.isManualChoice ? 'Your chosen plan, then the cheapest' : 'Cheapest for your home'}">${top.map(opt).join('')}</optgroup>
       <optgroup label="All other plans">${rest.map((p) => opt(p, -1)).join('')}</optgroup>
     </select></label>
     <label class="sy-field"><span><b>Date</b></span><input type="date" id="jr-date" value="${today}" max="${today}"></label>
@@ -12588,7 +12588,7 @@ function renderMyHome(){
 function renderEverything(){
   const G = [
     ['Your answer', [
-      ['euro', 'Your best plan and saving', 'The plan that costs least for your home, and how much it saves.', "setScreen('result')"],
+      ['euro', 'Your cheapest plan and saving', 'The plan that costs least for your home, and how much it saves.', "setScreen('result')"],
       ['doc', 'Download your report', 'A PDF of your answer, the plans, payback and method, to keep or give an installer.', 'openPdfReportModal()'],
       ['link', 'Share your result', 'A link to your figures, without your personal details.', 'shareSavingsCard()'],
     ]],
@@ -14827,9 +14827,9 @@ window.toggleCompareSelect = toggleCompareSelect;
   try {
     var ICON_LARGE = iconDataUri(512);
     var manifest = {
-      name: BRAND.name + " — Irish Energy Advisor",
+      name: BRAND.name + " — Irish electricity plans, priced on your home",
       short_name: BRAND.name,
-      description: "Find the cheapest electricity plan for your home, with or without solar, a battery or an EV.",
+      description: "Estimates what every Irish electricity plan would cost your home, with or without solar, a battery or an EV.",
       start_url: "/app",
       scope: "/",
       display: "standalone",

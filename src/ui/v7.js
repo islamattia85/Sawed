@@ -207,9 +207,9 @@ export function createV7(api) {
     const panels = pl.noSolar.net - pl.best.net;
     return `<div class="v7-ladder v7-grid4" role="group" aria-label="What you’d pay a year">
         ${bar(0, 'Current plan', full(mine), false, 'is-now')}
-        ${bar(1, 'Best plan', full(pl.noSolar.plan), false, 'is-mid')}
+        ${bar(1, 'Cheapest plan', full(pl.noSolar.plan), false, 'is-mid')}
         ${bar(2, 'Current plan', full(mine), true, 'is-mid')}
-        ${bar(3, 'Best plan', full(pl.best.plan), true, 'is-best')}
+        ${bar(3, 'Cheapest plan', full(pl.best.plan), true, 'is-best')}
       </div>
       <div class="g4-steps">
         <span><b>${sw > 1 ? eur(sw) : '€0'}</b> from switching plan, today</span>
@@ -264,16 +264,16 @@ export function createV7(api) {
           : gap >= 0 ? `No plan on the market costs less for this home. The next best is <b>${esc(next.plan.supplier)}</b> ${esc(next.plan.plan)}, ${eur(gap)} a year more.`
           : `<b>${esc(next.plan.supplier)}</b> ${esc(next.plan.plan)} would save only ${eur(-gap)} a year: not worth a switch.`}</div>`
       : `
-        <div class="v7-eyebrow">${pl ? 'Switch plan and add your planned solar to save' : saving > 10 ? (withSolar ? 'Switching plan could save, with your solar' : 'You could pay less') : 'Your best plan'}</div>
+        <div class="v7-eyebrow">${pl ? 'Switch plan and add your planned solar to save' : saving > 10 ? (withSolar ? 'Switching plan could save, with your solar' : 'You could pay less') : 'Your cheapest plan'}</div>
         <div class="qr-value v7-figure ${saving > 10 ? 'is-saving' : ''}" data-countup="${Math.round(Math.max(0, saving))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, saving))}</span><span class="v7-figure-unit">${saving > 10 ? 'less a year' : 'a year'}</span></div>
-        ${pl ? '' : `<div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Best for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`}
+        ${pl ? '' : `<div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Cheapest for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`}
         ${(() => {
           // An answer that rests on charging the battery from the grid says so,
           // with what it would be if the battery only takes solar.
           let ng = null; try { ng = api.withoutGridCharge(); } catch (e) {}
           if (!ng || chosen) return '';
           const same = ng.plan.id === best.plan.id;
-          return `<div class="v7-note is-check gc-note">${api.ic('battery', 16)}<div><b>This needs your battery to charge from the grid at night.</b> Set it in your inverter app. ${same ? `If it only takes solar, this plan is still the best, ${atYear(ng.net)}.` : `If it only takes solar, the best plan is <b>${esc(ng.plan.supplier)} ${esc(ng.plan.plan)}</b>, ${atYear(ng.net)}.`}</div></div>`;
+          return `<div class="v7-note is-check gc-note">${api.ic('battery', 16)}<div><b>This needs your battery to charge from the grid at night.</b> Set it in your inverter app. ${same ? `If it only takes solar, this plan is still the best, ${atYear(ng.net)}.` : `If it only takes solar, the cheapest plan is <b>${esc(ng.plan.supplier)} ${esc(ng.plan.plan)}</b>, ${atYear(ng.net)}.`}</div></div>`;
         })()}
         ${(() => {
           // A battery that only stores solar today: every figure here assumes
@@ -494,7 +494,7 @@ export function createV7(api) {
           <span><b>${eur(d ? d.sysCost : 0)}</b>after grant</span>
           <span><b>${eur(d ? d.npv : 0)}</b>over 20 years</span>
         </span>
-        <span class="hc-sub">${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}</span>
+        <span class="hc-sub">${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''} · at today’s prices</span>
         ${(() => { const t = api.stressHomeLine && api.stressHomeLine(); return t ? `<span class="hc-sub st-home">${api.ic('trendUp', 13)} ${t}</span>` : ''; })()}
         <button class="hc-go" onclick="anTab('solar','result')">Solar analysis ${api.ic('chevR', 14)}</button>
       </section>`;
@@ -797,7 +797,7 @@ export function createV7(api) {
     let ap = null; try { ap = api.anPlan(); } catch (e) { return ''; }
     const p = ap.plan;
     return `<button class="ax-plan" onclick="v7Sheet('anplan')" aria-label="Plan: ${esc(p.supplier)} ${esc(p.plan)}. Change">
-        <span><small>${ap.picked ? 'Plan you picked' : ap.bestIsChoice ? 'Your chosen plan' : 'Best plan for this home'}${homeWith() ? ` · with ${homeWith()}` : ''}</small><b>${esc(p.supplier)} · ${esc(p.plan)}</b></span>
+        <span><small>${ap.picked ? 'Plan you picked' : ap.bestIsChoice ? 'Your chosen plan' : 'Cheapest plan for this home'}${homeWith() ? ` · with ${homeWith()}` : ''}</small><b>${esc(p.supplier)} · ${esc(p.plan)}</b></span>
         <em>Change ${api.ic('chevD', 14)}</em></button>`;
   }
 

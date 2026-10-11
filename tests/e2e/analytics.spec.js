@@ -165,7 +165,7 @@ test('a picked plan that is not the cheapest says so on every tab, with the way 
   }
   await page.locator('.ax-dearer button').click();
   await expect(page.locator('.ax-dearer')).toHaveCount(0);
-  await expect(page.locator('.ax-plan')).toContainText('Best plan for this home');
+  await expect(page.locator('.ax-plan')).toContainText('Cheapest plan for this home');
   expect(errors).toEqual([]);
 });
 

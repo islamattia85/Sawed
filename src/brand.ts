@@ -3,7 +3,7 @@
  */
 export const BRAND = {
   name: 'Peakless',
-  tagline: 'Your personal Irish energy advisor',
+  tagline: 'Every Irish electricity plan, priced on your home',
   ink: '#16343d',
   gold: '#ffd166',
   mist: '#5a7880',
