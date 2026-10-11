@@ -1229,7 +1229,11 @@ export function simulate(plan, gen, cons, strategy){
     if (net < 0) dayNeed[d] -= net; else daySpare[d] += net;
   }
 
-  let soc = minSoc + 0.3*(cap - minSoc); // start at 30% above min
+  // The year starts at the reserve, as the battery comes into the cheap hours
+  // on most winter nights. It started 30% full: on 1 January, the first day
+  // simulated, the chart had it entering the 02:00 window a third full on the
+  // home's heaviest day of the year (11 Oct 2026).
+  let soc = minSoc;
   const exportRate = plan.export_rate;
   const peakRate = plan.rates.peak;
   const dearRate = Math.max(plan.rates.day || 0, plan.rates.peak || 0);

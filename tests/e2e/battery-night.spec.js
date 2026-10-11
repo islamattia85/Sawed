@@ -10,7 +10,7 @@
  */
 import { test, expect } from '@playwright/test';
 import { runScenario, TRUTH } from './run-scenario.js';
-import { isolate } from './support.js';
+import { isolate, boot } from './support.js';
 
 const fresh = async (page) => { await isolate(page); await page.goto('/app?fresh'); await page.waitForFunction(() => window.__bootSettled === true); };
 
@@ -54,4 +54,19 @@ test('a typed bill: the plan is priced the same whatever the battery answer; onl
   expect(out.unsure.kwh, 'not sure reads the bill as yes does').toBe(out.yes.kwh);
   expect(out.no.kwh, 'a battery that only stores solar ran up the bill on less use').toBeLessThan(out.yes.kwh);
   expect([out.yes.note, out.unsure.note, out.no.note]).toEqual([false, false, true]);
+});
+
+/**
+ * The simulated year starts on 1 January at the battery's reserve, as it comes
+ * into the cheap hours on most winter nights. It started 30% full, so the Hours
+ * tab had it entering 1 January's 02:00 window a third full on a home's heaviest
+ * day of the year (11 Oct 2026).
+ */
+test('the year starts with the battery at its reserve', async ({ page }) => {
+  await boot(page, { has_solar: true, solar_planned: false, count_A: 10, battery_kwh: 9, heating_type: 'heatpump', baseline: 'EI-NB', baseline_known: true });
+  const r = await page.evaluate(() => {
+    const s = window.sim(window.getRecommendation().best.plan.id);
+    return { start: s.soc[0], reserve: window.state.battery_min * window.state.battery_kwh };
+  });
+  expect(r.start).toBeCloseTo(r.reserve, 5);
 });
