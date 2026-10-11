@@ -12,14 +12,19 @@ export const BRAND = {
 } as const;
 
 /**
- * Who is responsible for personal data (the GDPR "controller"). Shown in the
- * privacy notice. Fill these in before launch; a blank field shows as such.
+ * The company that runs Peakless: the GDPR "controller", and the particulars
+ * its website must show (Companies Act 2014, s.151(4)). Shown on every legal
+ * page and in the website's footer (src/legal.js). Fill in the number,
+ * office and email once the company is formed; a blank shows as "[… to be
+ * added]", never as nothing.
  */
 export const CONTROLLER = {
-  name: '',          // registered company or sole-trader name
-  address: '',       // registered address in Ireland
-  email: '',         // privacy contact address
-  updated: '3 October 2026',
+  name: 'Peakless Energy Limited',
+  form: 'private company limited by shares',
+  number: '',        // CRO number, given on incorporation
+  address: '',       // registered office in Ireland
+  email: '',         // privacy contact, e.g. privacy@peakless.ie once the domain is ours
+  updated: '11 October 2026',
 } as const;
 
 /** The wordmark as markup. Styled by .pk-word in v7.css. */

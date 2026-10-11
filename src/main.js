@@ -20,6 +20,7 @@ import { dualFuelChoices, gasPlanFor, gasKwhFromBill, inFirstYear, supplierKey }
 import { GAS_TARIFFS } from './gas-tariffs.js';
 import { BRAND, CONTROLLER, MARK_PATHS, iconDataUri, wordmarkHtml } from './brand';
 import { FEATURES } from './features.js';
+import { LEGAL_SCREENS, companyLine, termsHtml, privacyHtml, rankingHtml, accessibilityHtml, complaintsHtml } from './legal.js';
 import { IC, ic } from './icons';
 import FIG from './data/front-figures.json';
 import {
@@ -502,7 +503,7 @@ function renderAuthSection(){
            was told absolutely nothing. -->
       <div id="auth-msg" class="auth-msg"></div>
     `}
-    <p style="margin:12px 0 0;font-size:12px;line-height:1.5;color:var(--ink-dim);text-align:center">An account is optional. Making one means you agree to the <a href="#terms" onclick="event.preventDefault();_authModalOpen=false;setScreen('terms')">terms of use</a>. <a href="#privacy" onclick="event.preventDefault();_authModalOpen=false;setScreen('privacy')">Privacy</a> says what we keep.</p>
+    <p style="margin:12px 0 0;font-size:12px;line-height:1.5;color:var(--ink-dim);text-align:center">An account is optional. Making one means you’re 18 or over and agree to the <a href="#terms" onclick="event.preventDefault();_authModalOpen=false;setScreen('terms')">terms of use</a>. <a href="#privacy" onclick="event.preventDefault();_authModalOpen=false;setScreen('privacy')">Privacy</a> says what we keep.</p>
   </div>`;
 }
 
@@ -2589,7 +2590,7 @@ function setAnalyticsConsent(granted){
   try { localStorage.setItem('sawed_analytics', granted ? 'yes' : 'no'); } catch (e) { /* private mode */ }
   loadPageCounter();
   fetch('/api/consent', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ kind: 'analytics', granted, text_version: 'v1', session_id: granted ? analyticsSession() : null }) }).catch(() => {});
+    body: JSON.stringify({ kind: 'analytics', granted, text_version: 'v2', session_id: granted ? analyticsSession() : null }) }).catch(() => {});
   renderApp();
 }
 function trackEvent(name, props, clickId){
@@ -2603,8 +2604,8 @@ function trackEvent(name, props, clickId){
 function renderConsentBar(){
   if (analyticsConsent()) return '';
   return `<div class="consent-bar" role="region" aria-label="Usage measurement">
-    <span>May we count anonymous usage (which screens and buttons are used) to improve ${BRAND.name}? No personal data, no ads.</span>
-    <span class="consent-btns"><button onclick="setAnalyticsConsent(false)">No thanks</button><button class="is-yes" onclick="setAnalyticsConsent(true)">Allow</button></span>
+    <span>May we count anonymous usage (which screens and buttons are used) to improve ${BRAND.name}? No ads, and you can change your mind in <a href="#privacy" onclick="event.preventDefault();setScreen('privacy')">Privacy</a>.</span>
+    <span class="consent-btns"><button onclick="setAnalyticsConsent(false)">No thanks</button><button onclick="setAnalyticsConsent(true)">Allow</button></span>
   </div>`;
 }
 
@@ -3574,7 +3575,8 @@ function renderSite(){
 
     <section class="wl-in wl-endwrap"><div class="wl-endcta"><div><h2 class="wl-h2">${done ? 'Your answer is saved on this device.' : 'Find out what your panels would really pay back.'}</h2><p>Free, no account needed. Prefer an app? <a href="${app}">The Peakless mobile app</a> gives the same answers on your phone’s home screen.</p></div><button class="wl-btn wl-btn-gold wl-btn-lg" onclick="${done ? go : "siteGo('solar')"}">${done ? 'See my answer' : 'Check my payback'}</button></div></section>
     <footer class="wl-foot"><span>Peakless · independent, no commissions</span>
-      <nav><a href="#how">How it works</a><a href="#plans">Every plan</a><a href="${app}">Mobile app</a><a href="#privacy" onclick="event.preventDefault();setScreen('privacy')">Privacy</a><a href="#terms" onclick="event.preventDefault();setScreen('terms')">Terms</a></nav></footer>
+      <nav><a href="#how">How it works</a><a href="#plans">Every plan</a><a href="${app}">Mobile app</a>${footLegal()}</nav>
+      <p class="wl-company">${companyLine()}</p></footer>
     ${renderHomeCheck()}
   </div>`;
 }
@@ -3675,7 +3677,8 @@ function webDecorate(html){
     if (close > 0) html = html.slice(0, close + 6) + `<div class="web-after">${end}</div>` + html.slice(close + 6);
   }
   const foot = `<footer class="wl-foot web-foot"><span>Peakless · independent, no commissions</span>
-    <nav><a href="/" onclick="event.preventDefault();${front}">Peakless home</a><a href="#everything" onclick="event.preventDefault();setScreen('everything')">Everything in Peakless</a><a href="/app">Mobile app</a><a href="#privacy" onclick="event.preventDefault();setScreen('privacy')">Privacy</a><a href="#terms" onclick="event.preventDefault();setScreen('terms')">Terms</a></nav></footer>`;
+    <nav><a href="/" onclick="event.preventDefault();${front}">Peakless home</a><a href="#everything" onclick="event.preventDefault();setScreen('everything')">Everything in Peakless</a><a href="/app">Mobile app</a>${footLegal()}</nav>
+    <p class="wl-company">${companyLine()}</p></footer>`;
   return html + foot;
 }
 
@@ -11254,8 +11257,7 @@ function renderMore(){
     [ic('clip',19),'Type a quote in by hand','Check it against 2026 Irish prices','auditor'],
     [ic('flask',19),'How the figures are worked out','Data sources and the method','methodology'],
     [ic('shield',19),'Our independence','How we make money','independence'],
-    [ic('shield',19),'Privacy and your data','What we keep, who sees it, delete your account','privacy'],
-    [ic('doc',19),'Terms of use','What the figures are, and what they aren’t','terms'],
+    ...LEGAL_SCREENS.map(([k, t, sub]) => [ic({ privacy: 'shield', ranking: 'scales' }[k] || 'doc', 19), t, sub, k]),
     ...(FEATURES.installerQuotes ? [[ic('home',19),'Installer portal','For installers','installer']] : []),
   ];
   const th = state.theme === 'dark' ? 'dark' : 'light';
@@ -11869,60 +11871,18 @@ function v7ApplyQuote(mode){
   quoteToSystem(rec.id);
 }
 
+/** The legal pages as footer links, short names. */
+const footLegal = () => [['privacy', 'Privacy'], ['terms', 'Terms'], ['ranking', 'How we rank'], ['accessibility', 'Accessibility'], ['complaints', 'Complaints']]
+  .map(([k, t]) => `<a href="#${k}" onclick="event.preventDefault();setScreen('${k}')">${t}</a>`).join('');
+
 /* ---- Privacy and your data ---------------------------------------------
- * Plain statement of what is kept where, plus the controls: analytics on or
- * off, clear this device, delete the account. DRAFT wording — to be reviewed
- * by a solicitor before launch. */
+ * The privacy notice (src/legal.js), then the controls: usage counts on or
+ * off, download, clear this device, delete the account. */
 function renderPrivacy(){
   const a = analyticsConsent();
-  const Q = FEATURES.installerQuotes;   // quote requests to installers (src/features.js)
-  const C = CONTROLLER;
-  const who = C.name ? `${esc(C.name)}${C.address ? `, ${esc(C.address)}` : ''}` : '<i>[company name and address to be added]</i>';
-  const mail = C.email ? `<a href="mailto:${escAttr(C.email)}">${esc(C.email)}</a>` : '<i>[privacy email to be added]</i>';
-  const row = (what, why, keep) => `<tr><td>${what}</td><td>${why}</td><td>${keep}</td></tr>`;
   return `${topbar('Privacy', 'accent', true)}
   <div class="screen">
-    <div class="card"><div class="privacy-copy">
-      <p><b>Short version.</b> Your home stays on this device unless you make an account. ${Q ? 'We only share your details with installers when you ask for quotes, and never with suppliers' : 'We don’t pass your details to suppliers or installers'}, we have no ads, and we never sell your data.</p>
-
-      <h3>Who we are</h3>
-      <p>${BRAND.name} is run by ${who}. We are the controller of your personal data. Contact: ${mail}.</p>
-
-      <h3>What we hold, why, and for how long</h3>
-      <table class="privacy-table">
-        <thead><tr><th>What</th><th>Why (legal basis)</th><th>Kept</th></tr></thead>
-        <tbody>
-          ${row('Your home answers and results, on this device', 'To give you the answer. Never sent to us unless you sign in', 'Until you clear them')}
-          ${row('Account: email, name, home answers, meter readings you load', 'To keep your home on every device (contract)', 'Until you delete the account')}
-          ${Q ? row('Quote request: name, email, phone, county, system', 'To get you installer quotes (your consent)', '24 months') : ''}
-          ${row('Alert emails', 'You turned them on (consent)', 'Until you turn them off')}
-          ${row('Installer quote you upload', 'To read it for you (contract)', 'Not kept by us')}
-          ${row('Anonymous usage counts', 'To improve the app (consent)', '26 months')}
-          ${row('Record of your consent choices', 'To show we asked (legal obligation)', '36 months')}
-          ${row('Scrambled internet address', 'To stop abuse (legitimate interest)', '1 day')}
-          ${row('Error reports: what went wrong, nothing about you', 'To fix faults (legitimate interest)', '30 days')}
-        </tbody>
-      </table>
-
-      <h3>Who receives it</h3>
-      <ul>
-        ${Q ? '<li><b>Installers</b>: up to three SEAI-registered installers, only if you ask for quotes.</li>' : ''}
-        <li><b>Supabase</b>: our database, in Ireland.</li>
-        <li><b>Vercel</b>: hosts the app and, if you allow it, counts page visits without cookies.</li>
-        <li><b>Anthropic</b> (USA): reads quotes you upload and writes quarterly suggestions. Suggestions get no personal details. Anthropic doesn’t train on what it reads for us and keeps it only briefly, as its business terms set out.</li>
-        <li><b>Resend</b> (USA): sends our emails.</li>
-        <li><b>Google</b>: only if you sign in with Google.</li>
-      </ul>
-      <p>Transfers to the USA are covered by the EU–US Data Privacy Framework or the EU's standard contractual clauses. Switching supplier happens on the supplier's own site: we send them nothing. No supplier or installer pays us${Q ? '' : ', and we don’t pass your details to them'}.</p>
-
-      <h3>On your device</h3>
-      <p>No advertising or tracking cookies. The app keeps your answers in your browser’s storage so they are there next time, and your sign-in if you make an account. If you allow usage counts, it also keeps a random number for that visit, gone when you close the tab. Clearing this device below removes all of it.</p>
-
-      <h3>Your rights</h3>
-      <p>You can see, download, correct or delete your data, object to how we use it, or withdraw consent at any time. Use the buttons below or email us. We’ll reply within a month. You can also complain to the Data Protection Commission at <a href="https://www.dataprotection.ie" target="_blank" rel="noopener">dataprotection.ie</a>.</p>
-      <p>Plan rankings are calculations to help you choose. Nothing is decided for you. See also our <a href="#terms" onclick="event.preventDefault();setScreen('terms')">terms of use</a>.</p>
-      <p class="privacy-date">Updated ${esc(C.updated)}.</p>
-    </div></div>
+    <div class="card"><div class="privacy-copy">${privacyHtml({ quotes: FEATURES.installerQuotes })}</div></div>
     <div class="secondary-card" style="cursor:default">
       <div class="secondary-card-body"><div class="secondary-card-title">Anonymous usage counts</div>
         <div class="secondary-card-sub">${a === 'yes' ? 'Allowed' : a === 'no' ? 'Off' : 'Not answered'}</div></div>
@@ -11940,48 +11900,30 @@ function renderPrivacy(){
       <div class="secondary-card-body"><div class="secondary-card-title" style="color:var(--loss)">Delete my account</div>
         <div class="secondary-card-sub">${escAttr(_sbUser.email || '')}: the account and everything saved in it</div></div><div class="secondary-card-arrow">›</div>
     </div>` : ''}
+    ${legalLinks('privacy')}
   </div>
   ${bottomNav()}`;
 }
 
-/* ---- Terms of use --------------------------------------------------------
- * What Peakless is and isn't, in plain words. DRAFT wording, to be reviewed
- * by a solicitor before launch, like the privacy page. */
-function renderTerms(){
-  const C = CONTROLLER;
-  const who = C.name ? `${esc(C.name)}${C.address ? `, ${esc(C.address)}` : ''}` : '<i>[company name and address to be added]</i>';
-  const mail = C.email ? `<a href="mailto:${escAttr(C.email)}">${esc(C.email)}</a>` : '<i>[contact email to be added]</i>';
-  return `${topbar('Terms of use', 'accent', true)}
+/** One legal page: its words from src/legal.js, and the others listed under it. */
+function legalPage(screen, title, body){
+  return `${topbar(title, 'accent', true)}
   <div class="screen">
-    <div class="card"><div class="privacy-copy">
-      <p><b>Short version.</b> ${BRAND.name} is a free calculator. It estimates what each electricity plan and a solar system would cost your home. It doesn’t sell energy, switch you, or install anything, and nobody pays us for what it shows. Check the price with the supplier or installer before you sign anything.</p>
-
-      <h3>Who we are</h3>
-      <p>${BRAND.name} is run by ${who}. Contact: ${mail}. By using ${BRAND.name} you agree to these terms.</p>
-
-      <h3>What the figures are</h3>
-      <p>Every figure is an estimate. It comes from what you tell us, the prices suppliers publish on their own websites, and typical Irish weather. Your real bills and solar will differ, sometimes by more than the range we show. We check supplier prices often, but they change and we can get one wrong. The supplier’s own price is the one that counts.</p>
-      <p>${BRAND.name} isn’t a regulated financial or energy adviser, a broker or a switching service. Nothing here is advice to buy, sign or switch. The decision is yours.</p>
-
-      <h3>Switching and installers</h3>
-      <p>You switch on the supplier’s own website, under the supplier’s terms. We are not part of that contract and we send the supplier nothing. Our quote check compares a price with typical prices for that size of system. It says nothing about an installer’s work, products or guarantees: check that the installer is SEAI-registered and read the quote yourself.</p>
-
-      <h3>Your account and what you upload</h3>
-      <p>You don’t need an account. If you make one, keep your sign-in to yourself; you can delete the account at any time in Privacy. Only upload quotes and meter files that are yours, or that you have the right to share. The <a href="#privacy" onclick="event.preventDefault();setScreen('privacy')">privacy page</a> says what we keep and for how long.</p>
-
-      <h3>Fair use</h3>
-      <p>Don’t try to break, overload or copy ${BRAND.name} or its data in bulk, or use it to mislead anyone. We may block use that does.</p>
-
-      <h3>Our responsibility</h3>
-      <p>We build ${BRAND.name} with care and offer it free, as it is. As far as the law allows, we aren’t responsible for losses from decisions made on its estimates, or for a time it isn’t available. Nothing here limits your rights as a consumer under Irish law, or our responsibility where the law doesn’t allow it to be limited.</p>
-
-      <h3>Changes and law</h3>
-      <p>We may update these terms; the date below shows the latest. Irish law applies, and you can bring a claim in the courts where you live.</p>
-      <p class="privacy-date">Updated ${esc(C.updated)}.</p>
-    </div></div>
+    <div class="card"><div class="privacy-copy">${body}</div></div>
+    ${legalLinks(screen)}
   </div>
   ${bottomNav()}`;
 }
+/** The other legal pages, so each is one tap from the rest. */
+function legalLinks(here){
+  return `<nav class="legal-links" aria-label="About Peakless">${LEGAL_SCREENS.filter(([k]) => k !== here)
+    .map(([k, t]) => `<a href="#${k}" onclick="event.preventDefault();setScreen('${k}')">${t}</a>`).join('')}</nav>`;
+}
+const renderTerms = () => legalPage('terms', 'Terms of use', termsHtml());
+const renderRanking = () => legalPage('ranking', 'How we rank plans', rankingHtml({ plans: TARIFFS.length,
+  suppliers: new Set(TARIFFS.map((t) => supplierKey(t.supplier))).size, exportTaxFree: EXPORT_TAX_FREE, paid: !!FEATURES.partners }));
+const renderAccessibility = () => legalPage('accessibility', 'Accessibility', accessibilityHtml());
+const renderComplaints = () => legalPage('complaints', 'Complaints', complaintsHtml());
 
 /** Right of access and portability: what this device and the account hold, as one JSON file. */
 async function downloadMyData(){
@@ -12705,7 +12647,9 @@ function v7Choose(planId){
    in-app screen stack instead of leaving the app. Screens are
    pushed as hash entries; the ?s= share param is left untouched.
    ============================================================ */
-const APP_SCREENS = ['result','plans','plan-detail','solar','analytics','monitor','privacy','terms',...(FEATURES.installerQuotes ? ['installer'] : []),'me','updates','profile','account',
+/** Screens anyone can open from a link, before setting up: the legal pages. */
+const OPEN_SCREENS = LEGAL_SCREENS.map(([k]) => k);
+const APP_SCREENS = ['result','plans','plan-detail','solar','analytics','monitor','privacy','terms','ranking','accessibility','complaints',...(FEATURES.installerQuotes ? ['installer'] : []),'me','updates','profile','account',
                      'compare','more','independence','quotes','auditor','refine',
                      'how-to-switch','methodology','csv-import','myhome','everything'];
 
@@ -13193,8 +13137,8 @@ function renderApp(){
   // reader can tap, and produces the real ranking from the same engine. The
   // guided setup is still there, one link down, for anyone who wants to build
   // solar and EV up front; it is no longer the toll gate.
-  // Privacy and terms are for anyone, set up or not: a link to either opens it.
-  if (!state.onboarding_complete && !['privacy', 'terms'].includes(state.current_screen)){
+  // The legal pages are for anyone, set up or not: a link to one opens it.
+  if (!state.onboarding_complete && !OPEN_SCREENS.includes(state.current_screen)){
     state.current_screen = 'fastpath';
     root.setAttribute('data-chrome','bare');
     root.innerHTML = renderFastPath();
@@ -13217,6 +13161,9 @@ function renderApp(){
     case 'auditor':      html = renderAuditor(); break;
     case 'privacy':      html = renderPrivacy(); break;
     case 'terms':        html = renderTerms(); break;
+    case 'ranking':      html = renderRanking(); break;
+    case 'accessibility':html = renderAccessibility(); break;
+    case 'complaints':   html = renderComplaints(); break;
     case 'installer':    html = FEATURES.installerQuotes ? renderInstallerPortal() : renderMore(); break;
     case 'me':
     case 'updates':      html = renderUpdates(); break;
@@ -13376,8 +13323,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const _shared = tryRestoreFromUrl();
     // Reopen the screen named in the URL hash (bookmark, refresh, or a Back
     // that landed on our first entry) rather than always dropping on Home.
-    // The privacy and terms pages open from a link for anyone, set up or not.
-    if (!state.onboarding_complete && ['privacy', 'terms'].includes(_hashScreen())) state.current_screen = _hashScreen();
+    // The legal pages open from a link for anyone, set up or not.
+    if (!state.onboarding_complete && OPEN_SCREENS.includes(_hashScreen())) state.current_screen = _hashScreen();
     if (state.onboarding_complete){
       const _h = _hashScreen();
       if (_h) state.current_screen = _h;

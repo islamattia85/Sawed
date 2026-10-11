@@ -1,0 +1,81 @@
+// @ts-check
+/**
+ * The legal pages and what the law asks the app to show (11 Oct 2026), from
+ * the legal pack for Peakless Energy Limited:
+ *
+ * - the website shows the company's name and legal form, where it is
+ *   registered and its number, and its registered office (Companies Act 2014,
+ *   s.151(4)); details not yet supplied show as "to be added", never as nothing;
+ * - every legal page opens from a plain link for a first-time visitor, and
+ *   each lists the others;
+ * - How we rank plans gives the sum and says nobody pays to move a plan up;
+ * - the usage-counts question gives "No thanks" the same weight as "Allow";
+ * - making an account says it is for people 18 and over.
+ */
+import { test, expect } from '@playwright/test';
+import { boot } from './support.js';
+
+const PAGES = [['privacy', 'Who we are'], ['terms', 'Our responsibility to you'], ['ranking', 'How the cost is worked out'],
+  ['accessibility', 'How far we’ve got'], ['complaints', 'If you’re not happy with our answer']];
+
+test('the website names the company as the law asks, in its footer', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const errors = await boot(page, { onboarding_complete: false, current_screen: 'welcome' }, '/');
+  await page.evaluate(() => { window.state.current_screen = 'welcome'; window.renderApp(); });
+  const line = page.locator('footer.wl-foot .wl-company').first();
+  await expect(line).toContainText('Peakless Energy Limited, a private company limited by shares.');
+  await expect(line).toContainText('Registered in Ireland, number');
+  await expect(line).toContainText('Registered office:');
+  // Not formed yet: the number and office say so rather than leaving a gap.
+  await expect(line).toContainText('[company number to be added]');
+  for (const name of ['Privacy', 'Terms', 'How we rank', 'Accessibility', 'Complaints'])
+    await expect(page.locator('footer.wl-foot').first().getByRole('link', { name })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('each legal page opens from a link before setup, names the company, and lists the others', async ({ page }) => {
+  await boot(page);
+  for (const [screen, heading] of PAGES) {
+    await page.evaluate(() => localStorage.clear());
+    await page.goto(`/app#${screen}`);
+    await page.reload();
+    await page.waitForFunction(() => !document.getElementById('loader'));
+    const copy = page.locator('.privacy-copy');
+    await expect(copy.locator('h3', { hasText: heading }), screen).toBeVisible();
+    await expect(copy.locator('.privacy-date'), screen).toContainText('Peakless Energy Limited');
+    await expect(page.locator('.legal-links a'), screen).toHaveCount(PAGES.length - 1);
+  }
+});
+
+test('How we rank plans: one sum, nobody pays to move up, and it counts the plans it compares', async ({ page }) => {
+  const errors = await boot(page, { current_screen: 'ranking' });
+  const copy = page.locator('.privacy-copy');
+  await expect(copy).toContainText('Nobody pays us to show a plan, or to move it up.');
+  const n = await page.evaluate(() => window.TARIFFS ? window.TARIFFS.length : null);
+  const text = await copy.innerText();
+  const m = text.match(/(\d+) plans from (\d+) suppliers/);
+  expect(m, text).not.toBeNull();
+  if (n) expect(Number(m[1])).toBe(n);
+  expect(errors).toEqual([]);
+});
+
+test('the usage-counts question: No thanks weighs the same as Allow, and the answer is logged with the wording shown', async ({ page }) => {
+  await boot(page, { askConsent: true });
+  let logged = null;
+  await page.route('**/api/consent', async (route) => { logged = route.request().postDataJSON(); await route.fulfill({ status: 200, body: '{}' }); });
+  const [no, yes] = await page.locator('.consent-btns button').all();
+  const look = (b) => b.evaluate((e) => { const c = getComputedStyle(e); return [c.backgroundColor, c.color, c.borderColor, c.fontWeight, e.getBoundingClientRect().height]; });
+  expect(await look(no)).toEqual(await look(yes));
+  await expect(page.locator('.consent-bar a', { hasText: 'Privacy' })).toBeVisible();
+  await no.click();
+  await expect.poll(() => logged).not.toBeNull();
+  expect(logged).toMatchObject({ kind: 'analytics', granted: false, text_version: 'v2' });
+});
+
+test('making an account says it is for people 18 and over', async ({ page }) => {
+  await boot(page);
+  const ok = await page.evaluate(() => typeof window.meOpenAuth === 'function');
+  test.skip(!ok, 'no account sign-up in this build');
+  await page.evaluate(() => window.meOpenAuth('signup'));
+  await expect(page.getByText(/18 or over/)).toBeVisible();
+});

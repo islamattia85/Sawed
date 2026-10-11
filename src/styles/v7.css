@@ -472,7 +472,7 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 }
 .consent-btns { display: flex; gap: var(--space-2); margin-left: auto; }
 .consent-btns button { padding: 8px 14px; border-radius: var(--radius-pill); border: 1px solid var(--hair); background: transparent; color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
-.consent-btns .is-yes { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+/* The two answers weigh the same: the DPC asks that refusing be as easy and as visible as accepting. */
 .lead-field { display: block; margin-bottom: var(--space-2); }
 .lead-field span { display: block; font-size: var(--text-caption); color: var(--ink-soft); margin-bottom: 4px; }
 .lead-consent { display: flex; gap: var(--space-2); align-items: flex-start; font-size: var(--text-caption); color: var(--ink-soft); line-height: 1.5; margin: var(--space-3) 0; }
@@ -481,7 +481,7 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
 .privacy-copy p { margin: 0 0 var(--space-3); line-height: 1.6; font-size: var(--text-data); color: var(--ink-soft); }
 .privacy-copy b { color: var(--ink); }
 .privacy-copy h3 { margin: var(--space-4) 0 var(--space-2); font-size: var(--text-body); color: var(--ink); }
-.privacy-copy ul { margin: 0 0 var(--space-3); padding-left: 18px; font-size: var(--text-data); line-height: 1.6; color: var(--ink-soft); }
+.privacy-copy ul, .privacy-copy ol { margin: 0 0 var(--space-3); padding-left: 18px; font-size: var(--text-data); line-height: 1.6; color: var(--ink-soft); }
 .privacy-copy a { color: var(--accent); }
 .privacy-table { width: 100%; margin: 0 0 var(--space-3); border-collapse: collapse; font-size: var(--text-caption); color: var(--ink-soft); }
 .privacy-table th { text-align: left; color: var(--ink); font-weight: 700; padding: 6px 6px 6px 0; border-bottom: 1px solid var(--hair); }
@@ -1942,7 +1942,10 @@ html.web .plan-card.is-sel { border-color: var(--accent); box-shadow: 0 0 0 1px 
 .wl-n { font: 500 13px var(--mono); color: var(--accent); }
 .wl-quote { margin-top: 24px; color: var(--ink-soft); }
 .wl-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding-top: 20px; font-size: 13px; color: var(--ink-dim); border-top: 1px solid var(--hair); }
-.wl-foot nav { display: flex; gap: 16px; }
+.wl-foot nav { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.wl-company { flex-basis: 100%; margin: 0; font-size: var(--text-caption); line-height: 1.5; }
+.legal-links { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: var(--space-2) var(--space-1) var(--space-4); font-size: var(--text-caption); }
+.legal-links a { color: var(--ink-soft); }
 .wl-foot a { color: inherit; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) { .wl-door { transition: none; } }
 @media (min-width: 900px) {

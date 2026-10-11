@@ -12,27 +12,13 @@ than a published price, it says so. US dollar prices are converted at about
 
 ## Part 1. Decide and register (you)
 
-### Step 1. Decide who runs Peakless
-The privacy page and terms must name a real person or company with a postal address.
+### Step 1. Form Peakless Energy Limited (decided 11 October 2026)
+Peakless will be run by Peakless Energy Limited, a private company limited by
+shares. The steps, the constitution, the first board decisions and the IP
+assignment are in the legal pack: "Peakless Energy Limited: legal pack (draft)",
+section 1. A solicitor reviews the pack on a fixed fee before anything is filed.
 
-- **Option A, sole trader (cheapest, fastest).** You run it in your own name.
-  Because you trade as "Peakless" and not your own name, register the business
-  name with the CRO: form RBN1, online through CORE, within a month of starting to
-  use the name.
-  - Cost: **€20** online (€40 on paper).
-  - Time: about 20 minutes to file; the CRO says up to about 5 weeks for the
-    certificate. You can launch while it is being processed.
-- **Option B, limited company.** Protects your personal money if something goes
-  wrong; makes sense once money comes in (partners, installer quotes).
-  - Cost: **€50** online (form A1 through CORE), plus €25 to reserve the name
-    first if you want (taken off the €50). Every year after: an annual return
-    (€20 if filed on time) and accounts, usually done by an accountant
-    (my estimate: a few hundred to €1,500 a year; get quotes).
-  - Time: about 1 to 2 weeks.
-- **My suggestion:** Option A now, Option B before you switch on quote requests or
-  partners. A 30-minute call with an accountant can confirm this for your situation.
-
-**Who:** you. **Cost:** €20 (A) or €50 plus yearly costs (B).
+**Who:** you. **Cost:** about €50 to file online, plus an accountant each year.
 
 ### Step 2. Check nobody else owns the name
 Search "Peakless" on TMview (tmdn.org, covers the EU and Ireland). Free.
@@ -59,9 +45,10 @@ For example privacy@peakless.ie. It only needs to forward to your own inbox.
 **Who:** you, with my records. **Cost:** **€0**.
 
 ### Step 5. Send me three details
-Your name (or the company's), the postal address, and the privacy email.
-I put them in the app (`src/brand.ts`); the privacy page and terms stop showing
-"[to be added]".
+The CRO number, the registered office and the privacy email. They go in one
+place (`CONTROLLER` in `src/brand.ts`); every legal page and the website footer
+show them, as the law asks a company's website to. Until then they read
+"[… to be added]".
 
 **Who:** you, then me (5 minutes). **Cost:** €0.
 

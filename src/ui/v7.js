@@ -33,7 +33,7 @@ export const V7_SURFACES = [
   { id: 'analytics', icon: 'chart', label: 'Analytics', screens: ['analytics', 'csv-import', 'solar'] },
   { id: 'updates', icon: 'bell', label: 'Updates', screens: ['updates', 'me', 'monitor'] },
   { id: 'profile', icon: 'user', label: 'Profile',
-    screens: ['profile', 'account', 'more', 'refine', 'auditor', 'quotes', 'methodology', 'independence', 'how-to-switch', 'privacy', 'terms', 'installer'] },
+    screens: ['profile', 'account', 'more', 'refine', 'auditor', 'quotes', 'methodology', 'independence', 'how-to-switch', 'privacy', 'terms', 'ranking', 'accessibility', 'complaints', 'installer'] },
 ];
 
 export function createV7(api) {

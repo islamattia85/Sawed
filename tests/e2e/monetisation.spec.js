@@ -112,7 +112,7 @@ test.describe('first launch: switched off', () => {
     await page.evaluate(() => localStorage.clear());
     await page.goto('/#terms');
     await page.waitForFunction(() => !document.getElementById('loader'));
-    await expect(page.locator('.privacy-copy')).toContainText('isn’t a regulated financial or energy adviser');
+    await expect(page.locator('.privacy-copy')).toContainText('isn’t a regulated financial adviser');
     await page.goto('/#privacy');
     await page.reload();
     await page.waitForFunction(() => !document.getElementById('loader'));
@@ -138,9 +138,9 @@ test.describe('first launch: switched off', () => {
     const copy = page.locator('.privacy-copy');
     for (const h of ['Who we are', 'What we hold, why, and for how long', 'Who receives it', 'Your rights']) await expect(copy.locator('h3', { hasText: h })).toBeVisible();
     // Retention periods match the database purge (supabase/security_2026_10.sql).
-    for (const k of ['26 months', '36 months', '1 day', '30 days']) await expect(copy.locator('.privacy-table')).toContainText(k);
+    for (const k of ['26 months', '36 months', '1 day', '30 days']) await expect(copy.locator('.privacy-table').first()).toContainText(k);
     await expect(copy).not.toContainText(/Quote request|up to three/i);
-    await expect(copy.locator('.privacy-table')).toContainText('meter readings');
+    await expect(copy.locator('.privacy-table').first()).toContainText('meter readings');
     await expect(copy).toContainText('Data Protection Commission');
     const dl = page.waitForEvent('download');
     await page.locator('.secondary-card', { hasText: 'Download my data' }).click();
@@ -184,7 +184,7 @@ test.describe('a later release: switched on', () => {
     await expect(page.locator('.ax-cta', { hasText: 'Get 3 quotes for this system' })).toBeVisible();
     await page.evaluate(() => window.setScreen('privacy'));
     await expect(page.locator('.privacy-copy')).toContainText('up to three SEAI-registered installers');
-    await expect(page.locator('.privacy-table')).toContainText('24 months');
+    await expect(page.locator('.privacy-table').first()).toContainText('24 months');
   });
 
   test('commission never changes the ranking', async ({ page }) => {
