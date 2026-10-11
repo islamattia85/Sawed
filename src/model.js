@@ -2162,11 +2162,11 @@ export function estimateInstallCost(kwp, battKwh){
    ============================================================ */
 export function calcSeaiGrant(kwp, batteryKwh){
   if (state.grant_eligible === false) return { panels: 0, battery: 0, total: 0 };
-  // SEAI Home Solar Scheme — current structure (2024/2025):
-  // First 2 kWp: €900/kWp  →  maximum grant = €1,800
-  // Cap: €1,800 for the panels; a battery adds €600 (SEAI, from 6 Oct 2026)
+  // SEAI Solar Electricity Grant, 2026 (seai.ie): €700 a kWp for the first
+  // 2 kWp, then €200 a kWp up to 4 kWp, so at most €1,800. The app gave €900 a
+  // kWp, up to €400 too much below 4 kWp (11 Oct 2026).
   if (kwp <= 0) return { panels: 0, battery: 0, total: 0 };
-  const panelGrant = Math.min(kwp, 2) * 900;
+  const panelGrant = Math.min(kwp, 2) * 700 + Math.max(0, Math.min(kwp, 4) - 2) * 200;
   const panels = Math.min(Math.round(panelGrant), 1800);
   // Budget 2027: EUR 600 for a home battery, on top of the solar grant, from 6 Oct 2026.
   const battery = batteryKwh > 0 ? 600 : 0;

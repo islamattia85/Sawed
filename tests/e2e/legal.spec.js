@@ -47,11 +47,12 @@ test('each legal page opens from a link before setup, names the company, and lis
   }
 });
 
-test('How we rank plans: one sum, nobody pays to move up, and it counts the plans it compares', async ({ page }) => {
+test('How we rank plans: one sum, nobody pays to move up, and it counts the plans a new customer can join', async ({ page }) => {
   const errors = await boot(page, { current_screen: 'ranking' });
   const copy = page.locator('.privacy-copy');
   await expect(copy).toContainText('Nobody pays us to show a plan, or to move it up.');
-  const n = await page.evaluate(() => window.TARIFFS ? window.TARIFFS.length : null);
+  // The plans a new customer can join: the same count the front page and How it works give (withdrawn ones are not compared).
+  const n = await page.evaluate(() => window.TARIFFS ? window.TARIFFS.filter((t) => !t.discontinued && !t.on_hold).length : null);
   const text = await copy.innerText();
   const m = text.match(/(\d+) plans from (\d+) suppliers/);
   expect(m, text).not.toBeNull();
@@ -78,4 +79,33 @@ test('making an account says it is for people 18 and over', async ({ page }) => 
   test.skip(!ok, 'no account sign-up in this build');
   await page.evaluate(() => window.meOpenAuth('signup'));
   await expect(page.getByText(/18 or over/)).toBeVisible();
+});
+
+test('switching on a paid feature takes back every "no commission" line, and How we rank plans says so', async ({ page }) => {
+  await page.addInitScript(() => { window.__SAWED_FEATURES = { partners: true }; });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await boot(page, { onboarding_complete: false, current_screen: 'welcome' }, '/');
+  await page.evaluate(() => { window.state.current_screen = 'welcome'; window.renderApp(); });
+  const front = await page.locator('body').innerText();
+  expect(front).not.toMatch(/no commission/i);
+  await page.evaluate(() => window.setScreen('independence'));
+  await expect(page.locator('body')).not.toContainText('No supplier pays us');
+  await page.evaluate(() => window.setScreen('ranking'));
+  await expect(page.locator('.privacy-copy')).toContainText('Every plan or quote that touches is marked');
+});
+
+test('the figures are called estimates, never exact', async ({ page }) => {
+  await boot(page);
+  const words = [];
+  for (const s of ['result', 'more', 'methodology', 'csv-import', 'everything', 'terms']) {
+    await page.evaluate((x) => window.setScreen(x), s);
+    words.push(await page.locator('body').innerText());
+  }
+  for (const t of ['solar', 'accuracy']) {
+    await page.evaluate((x) => { window.setScreen('analytics'); window.anTab(x); }, t);
+    words.push(await page.locator('body').innerText());
+  }
+  const all = words.join('\n');
+  expect(all).not.toMatch(/\bexact (figures|answer)|most exact|most accurate figures|instead of an estimate|Calculations are/i);
+  expect(all).toMatch(/estimate/i);
 });

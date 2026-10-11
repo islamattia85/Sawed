@@ -3153,14 +3153,14 @@ function doorsHtml(site){
   return `<section class="wl-doors pk-land-actions" aria-label="Start here">
     ${door('quick', "startFlow('quick')", 'is-main', 'Am I paying too much?', 'Your bill and your plan, and we rank every plan for your home.', ic('euro', 22), 'About a minute')}
     ${door('full', "startFlow('full')", '', 'Planning solar, a battery or an EV', 'Roof, panels, battery and car, one question at a time. Payback after the SEAI grant.', ic('sun', 20) + ic('battery', 20) + ic('car', 20), 'A few minutes')}
-    ${door('meter', "startFlow('quick', 'meter')", '', 'Start from my ESB meter file', 'Your real half-hour readings from esbnetworks.ie. The most exact answer there is.', ic('csv', 22), 'About a minute')}
+    ${door('meter', "startFlow('quick', 'meter')", '', 'Start from my ESB meter file', 'Your real half-hour readings from esbnetworks.ie. The closest figures we can give.', ic('csv', 22), 'About a minute')}
   </section>`;
 }
 /** Every plan Peakless tracks, with its rates: public, no home needed. */
 function sitePlans(){
   // The plans on sale today, by kind, with the spread of their rates. The
   // front page names no supplier; the app names plans, where you choose one.
-  const live = TARIFFS.filter((t) => !t.discontinued && !t.on_hold);
+  const live = openPlans();
   const span = (vals, fmt) => { const lo = Math.min(...vals), hi = Math.max(...vals); return fmt(lo) === fmt(hi) ? fmt(lo) : `${fmt(lo)} to ${fmt(hi)}`; };
   const cheap = (p) => Math.min(p.rates.night ?? 9, p.rates.ev ?? 9, p.rates.day ?? 9);
   const kinds = ['flat', 'tou', 'ev', 'dynamic'].map((k) => ({ k, ps: live.filter((p) => planCategory(p) === k) })).filter((x) => x.ps.length);
@@ -3487,8 +3487,8 @@ function showReport(){
 /** The website at "/": what Peakless is, shown and taught, then a way in. */
 function renderSite(){
   const done = state.onboarding_complete;
-  const n = TARIFFS.filter((t) => !t.discontinued).length;
-  const nSup = new Set(TARIFFS.filter((t) => !t.discontinued).map((t) => supplierKey(t.supplier))).size;
+  const n = openPlans().length;
+  const nSup = new Set(openPlans().map((t) => supplierKey(t.supplier))).size;
   const go = "siteGo('home')";
   // Someone with an answer opens the app on it, not on its start page.
   const app = done ? APP_HREF + '#result' : APP_HREF;
@@ -3506,7 +3506,7 @@ function renderSite(){
       <div class="wl-copy">
         <div class="wl-eyebrow wl-motto">${ic('sun', 15)} Solar and electricity plans, priced on your home</div>
         <h1 class="wl-h1">The right plan, <em>with or without</em> solar.</h1>
-        <p class="wl-lede">${n} plans from ${nSup} Irish suppliers, priced hour by hour on your own home. Free, no commission from anyone.</p>
+        <p class="wl-lede">${n} plans from ${nSup} Irish suppliers, priced hour by hour on your own home. Free${unpaid() ? ', no commission from anyone' : ''}.</p>
         <div class="wl-j-k">Where are you?</div>
         <div class="wl-journeys" role="group" aria-label="Where are you?">
           <button class="wl-journey is-have" onclick="siteGo('have')"><span class="wl-j-ic">${ic('sun', 22)}</span><span><b>I have solar</b><small>Am I on the best plan for my panels?</small></span>${ic('chevR', 18)}</button>
@@ -3568,13 +3568,13 @@ function renderSite(){
         <details><summary>What if my plan is withdrawn?</summary><p>It happens: plans close to new customers, and prices change. If you're on one, your supplier tells you what happens next. We price every plan on your home, so you can see the next best straight away, and Updates tell you when a cheaper plan comes along.</p></details>
         <details><summary>Do I need a smart meter?</summary><p>For time-of-day and EV plans, yes. Most Irish homes have one now. Without one, we compare only the plans you can move to.</p></details>
         <details><summary>Is switching safe? Will my power go off?</summary><p>No. Your supply never stops. The new supplier handles the switch with ESB Networks.</p></details>
-        <details><summary>How does Peakless make money?</summary><p>It doesn't, for now. No supplier or installer pays us, and there are no ads. If that ever changes, we'll say so here first, and it will never change the order plans are ranked in.</p></details>
-        <details><summary>What is the ESB meter file and why is it better?</summary><p>Your real half-hourly readings, free from esbnetworks.ie: My Meter, Downloads, “30-minute readings in kW”. With it we price your actual year instead of an estimate.</p></details>
+        <details><summary>How does Peakless make money?</summary><p>${unpaid() ? `It doesn't, for now. No supplier or installer pays us, and there are no ads. If that ever changes, we'll say so here first, and it will never change the order plans are ranked in.` : PAID_LINE}</p></details>
+        <details><summary>What is the ESB meter file and why is it better?</summary><p>Your real half-hourly readings, free from esbnetworks.ie: My Meter, Downloads, “30-minute readings in kW”. With it we price your own year of use, not a typical home’s.</p></details>
         <details><summary>Does it work for solar I already have?</summary><p>Yes. We count what the panels make, what you sell back and what the battery shifts, and rank the plans with all of that in.</p></details>
       </div></div></section>
 
     <section class="wl-in wl-endwrap"><div class="wl-endcta"><div><h2 class="wl-h2">${done ? 'Your answer is saved on this device.' : 'Find out what your panels would really pay back.'}</h2><p>Free, no account needed. Prefer an app? <a href="${app}">The Peakless mobile app</a> gives the same answers on your phone’s home screen.</p></div><button class="wl-btn wl-btn-gold wl-btn-lg" onclick="${done ? go : "siteGo('solar')"}">${done ? 'See my answer' : 'Check my payback'}</button></div></section>
-    <footer class="wl-foot"><span>Peakless · independent, no commissions</span>
+    <footer class="wl-foot"><span>Peakless · ${unpaid() ? 'independent, no commissions' : 'free to use'}</span>
       <nav><a href="#how">How it works</a><a href="#plans">Every plan</a><a href="${app}">Mobile app</a>${footLegal()}</nav>
       <p class="wl-company">${companyLine()}</p></footer>
     ${renderHomeCheck()}
@@ -3676,7 +3676,7 @@ function webDecorate(html){
     const close = html.lastIndexOf('</div>', upto);
     if (close > 0) html = html.slice(0, close + 6) + `<div class="web-after">${end}</div>` + html.slice(close + 6);
   }
-  const foot = `<footer class="wl-foot web-foot"><span>Peakless · independent, no commissions</span>
+  const foot = `<footer class="wl-foot web-foot"><span>Peakless · ${unpaid() ? 'independent, no commissions' : 'free to use'}</span>
     <nav><a href="/" onclick="event.preventDefault();${front}">Peakless home</a><a href="#everything" onclick="event.preventDefault();setScreen('everything')">Everything in Peakless</a><a href="/app">Mobile app</a>${footLegal()}</nav>
     <p class="wl-company">${companyLine()}</p></footer>`;
   return html + foot;
@@ -4188,7 +4188,7 @@ function obStep6Solar(){
             <input id="ob-grant" class="ob-mini-input" type="number" inputmode="numeric" min="0" max="5000" step="100" value="${_ob.install_grant >= 0 ? _ob.install_grant : calcSeaiGrant((_ob.count_A + _ob.count_B) * 440/1000, _ob.battery_kwh).total}">
           </div>
         </div>
-        <p style="font-size:12px;color:var(--ink-dim);margin-top:6px;line-height:1.5;font-family:var(--display)">SEAI grant: €900 per kWp for the first 2 kWp, up to €1,800.</p>
+        <p style="font-size:12px;color:var(--ink-dim);margin-top:6px;line-height:1.5;font-family:var(--display)">SEAI grant: €700 per kWp for the first 2 kWp, then €200 per kWp up to 4 kWp, so at most €1,800.</p>
       </div>
     ` : ''}`;
 }
@@ -5098,7 +5098,7 @@ function renderAssumptions(setupLabel){
       ${state._csv_imported
         ? `Using your smart-meter data.`
         : `Usage estimated from your €${state.bimonthly_bill_eur} two-month bill.
-           <a href="#" onclick="event.preventDefault();setScreen('csv-import')">Import smart-meter data</a> for exact figures.`}
+           <a href="#" onclick="event.preventDefault();setScreen('csv-import')">Import smart-meter data</a> for closer figures.`}
     </div>
     ${configChips()}
     <div class="based-on-links">
@@ -6399,7 +6399,7 @@ function renderFlow(){
     roof: ['Which way does the roof face?', 'The side that gets the sun.'],
     panels: ['How many panels?', `For your usage we suggest ${_flowSuggest()}.`],
     battery: ['A battery?', 'It stores the day’s solar for the evening.'],
-    ...(state._flow_intent === 'meter' ? { bill: ['Add your ESB meter file', 'Your real half-hour readings. The most exact answer there is.'] } : {}),
+    ...(state._flow_intent === 'meter' ? { bill: ['Add your ESB meter file', 'Your real half-hour readings. The closest figures we can give.'] } : {}),
     // Panels already on the roof: ask about them as bought, not as a purchase.
     ...(owner ? {
       price: ['What did your system cost?', `${+f.battery > 0 ? 'Panels, battery and fitting' : 'Panels and fitting'}. Roughly is fine, including VAT, before any grant.`],
@@ -6705,7 +6705,7 @@ const FLOW_SHORT = { bill: 'Usage', plan: 'Plan now', disc: 'Discount', house: '
   gridnow: 'Battery charging', km: 'Driving', car: 'Car' };
 function flowSide(steps, f, open, shown){
   const got = steps.filter((k) => k in f && k !== open);
-  const n = TARIFFS.filter((t) => !t.discontinued).length;
+  const n = openPlans().length;
   const val = (k) => { try { return esc(shown[k] ? shown[k](f[k]) : String(f[k])); } catch (e) { return esc(String(f[k])); } };
   return `<aside class="fl-side ${got.length ? '' : 'is-empty'}" aria-label="Your home so far">
     <div class="fl-card"><b class="fl-card-h">Your home so far</b><small>Change any answer at any time.</small>
@@ -9113,7 +9113,7 @@ function renderRefine(){
     </div>
 
     <p class="disclaimer">
-      <b>Disclaimer.</b> Calculations are estimates. Actual generation, degradation, and grid behaviour will vary. We are not regulated financial advisors.
+      <b>These are estimates.</b> Real generation, panel wear and prices will differ. ${BRAND.name} isn’t a regulated financial adviser.
     </p>
   </div>
   ${bottomNav()}`;
@@ -9544,7 +9544,7 @@ function renderMonitor(){
   } else {
     statusHtml = `<div class="mon-status action">
       <div class="mon-status-eyebrow">${ic('bolt',12,'vertical-align:-2px')} A better plan is available</div>
-      <div class="mon-status-line">Switching to <b>${best.plan.supplier} — ${best.plan.plan}</b> would save you about <b style="color:var(--amber)">${fmtCurrency(savings)}/yr</b> versus your current plan.</div>
+      <div class="mon-status-line">Switching to <b>${best.plan.supplier} — ${best.plan.plan}</b> could save you about <b style="color:var(--amber)">${fmtCurrency(savings)}/yr</b> versus your current plan.</div>
       <!-- countLabel already reads "22 of 25 — 3 dynamic plans excluded", so
            interpolating it after "of" produced "ranks #20 of 22 of 25". -->
       <div class="mon-status-meta">${rank ? `Your current plan ranks #${rank} of ${rec.rankedCount} for your usage` : `Your current plan isn’t in the ranking (dynamic plans are left out unless you turn them on in Settings)`}</div>
@@ -9721,8 +9721,8 @@ function renderContractAlert(){
 function renderIndependence(){
   const cards = [
     ['green', ic('plans',19), 'Rankings','The plan that saves you most is always first. Plans are ranked only by what you’d pay.'],
-    ['blue', ic('swap',19), 'Switching','No supplier pays us when you switch. You switch on the supplier’s own website, at the same price.'],
-    ['blue', ic('sun',19), 'Installer quotes','No installer pays us. What we say about a quote is only about its price and payback.'],
+    ['blue', ic('swap',19), 'Switching', FEATURES.partners ? 'Some suppliers pay us when you switch through Peakless. Those plans are marked. You switch on the supplier’s own website, at the same price.' : 'No supplier pays us when you switch. You switch on the supplier’s own website, at the same price.'],
+    ['blue', ic('sun',19), 'Installer quotes', FEATURES.installerQuotes ? 'Installers pay us for each quote request they accept. It never changes what we say about a quote, which is only about its price and payback.' : 'No installer pays us. What we say about a quote is only about its price and payback.'],
     ['blue', ic('info',19), 'If that changes','We’ll say so here first, and on any plan or quote it touches. It will never change the order plans are ranked in.'],
     ['green', ic('shield',19), 'Your data','Your home stays on your device unless you make an account. We never sell it or pass it to suppliers or installers.'],
   ];
@@ -9730,7 +9730,7 @@ function renderIndependence(){
   <div class="screen">
     <div class="qr-hero" style="border-color:var(--blue);box-shadow:var(--hero-shadow),0 0 32px -10px var(--blue-glow);text-align:left;padding:20px">
       <div class="qr-eyebrow" style="color:var(--blue)">How we make money</div>
-      <div style="font-family:var(--display);font-size:17px;font-weight:600;color:var(--ink);line-height:1.35;margin-top:6px">For now, it doesn’t. Peakless is free: no commissions, no introduction fees, no ads.</div>
+      <div style="font-family:var(--display);font-size:17px;font-weight:600;color:var(--ink);line-height:1.35;margin-top:6px">${unpaid() ? 'For now, it doesn’t. Peakless is free: no commissions, no introduction fees, no ads.' : PAID_LINE}</div>
     </div>
     ${cards.map(([cls,ic,t,b]) => `<div class="indep-card ${cls}">
       <div class="indep-ic">${ic}</div>
@@ -10024,14 +10024,14 @@ function computeAlerts(){
       out.push({ id: `withdrawn:${plan.id}`, kind: 'withdrawn', level: beaten ? 'warn' : 'info',
         title: `${esc(plan.supplier)} has stopped selling your plan`,
         body: `${esc(plan.plan)} has not been on sale${since}. `
-          + (beaten ? `${best} would save you ${eur(save)} a year.`
+          + (beaten ? `${best} could save you about ${eur(save)} a year.`
             : still ? `It still costs your home ${eur(-save)} a year less than anything on sale, so there is no rush.`
             : `It costs your home about the same as the best plan on sale, ${best}.`)
           + ' Once you move off a withdrawn plan, you can’t go back to it. We’ll tell you if its prices change.',
         go: "setScreen('plans')", cta: 'See the plans' });
     } else if (bestNow.plan.id !== state.baseline && save >= ALERT_MIN_SAVING){
       out.push({ id: `cheaper:${bestNow.plan.id}`, kind: 'cheaper', level: 'gain',
-        title: `${esc(bestNow.plan.supplier)} ${esc(bestNow.plan.plan)} would save you ${eur(save)} a year`,
+        title: `${esc(bestNow.plan.supplier)} ${esc(bestNow.plan.plan)} could save you about ${eur(save)} a year`,
         body: 'Against what your plan costs this home today. Switching takes about ten minutes and there is nothing to cancel.',
         go: "setScreen('result')", cta: 'See the switch' });
     }
@@ -11243,7 +11243,7 @@ function renderMore(){
   const groups = [
     ['Your data', [
       [ic('radar',19),'Price watch','Price changes, announced rises and alerts','monitor'],
-      [ic('csv',19),'Import smart-meter data','Your ESB meter file: the most accurate figures','csv-import'],
+      [ic('csv',19),'Import smart-meter data','Your ESB meter file: the closest figures','csv-import'],
     ]],
     ['Do it', [
       [ic('clip',19),"Upload an installer's quote",'We’ll read it and check it against your home', null, "v7Sheet('quote')"],
@@ -11871,6 +11871,15 @@ function v7ApplyQuote(mode){
   quoteToSystem(rec.id);
 }
 
+/** Nobody pays Peakless while both paid features are off (src/features.js);
+ * every "no commission" line follows this, so turning one on can't leave it untrue. */
+const unpaid = () => !FEATURES.partners && !FEATURES.installerQuotes;
+/** What a paid feature changes, said once for every page that says how Peakless is paid. */
+const PAID_LINE = 'Some suppliers or installers pay us when you switch or ask for quotes. Every plan or quote that touches is marked, and it never changes the order plans are ranked in.';
+
+/** The plans a new customer can join today: the count every page gives. */
+const openPlans = () => TARIFFS.filter((t) => !t.discontinued && !t.on_hold);
+
 /** The legal pages as footer links, short names. */
 const footLegal = () => [['privacy', 'Privacy'], ['terms', 'Terms'], ['ranking', 'How we rank'], ['accessibility', 'Accessibility'], ['complaints', 'Complaints']]
   .map(([k, t]) => `<a href="#${k}" onclick="event.preventDefault();setScreen('${k}')">${t}</a>`).join('');
@@ -11920,8 +11929,8 @@ function legalLinks(here){
     .map(([k, t]) => `<a href="#${k}" onclick="event.preventDefault();setScreen('${k}')">${t}</a>`).join('')}</nav>`;
 }
 const renderTerms = () => legalPage('terms', 'Terms of use', termsHtml());
-const renderRanking = () => legalPage('ranking', 'How we rank plans', rankingHtml({ plans: TARIFFS.length,
-  suppliers: new Set(TARIFFS.map((t) => supplierKey(t.supplier))).size, exportTaxFree: EXPORT_TAX_FREE, paid: !!FEATURES.partners }));
+const renderRanking = () => legalPage('ranking', 'How we rank plans', rankingHtml({ plans: openPlans().length,
+  suppliers: new Set(openPlans().map((t) => supplierKey(t.supplier))).size, exportTaxFree: EXPORT_TAX_FREE, paid: !unpaid() }));
 const renderAccessibility = () => legalPage('accessibility', 'Accessibility', accessibilityHtml());
 const renderComplaints = () => legalPage('complaints', 'Complaints', complaintsHtml());
 
@@ -12125,7 +12134,7 @@ function renderAccuracy(){
     <div class="sy-acc-top"><span>Estimate accuracy</span><b>±${a.pct}%</b></div>
     <div class="sy-acc-bar" aria-hidden="true"><i style="width:${fill}%"></i></div>
     ${a.tip ? `<button class="sy-acc-tip" onclick="${a.tip.go}">${ic('spark', 14)} ${esc(a.tip.tip)}</button>` : `<div class="sy-acc-note">${state._csv_imported ? 'Based on your real meter readings. Only the weather can change it.' : 'As close as we can get without your meter data.'}</div>`}
-    ${a.priceTypical ? `<div class="sy-acc-note">Payback uses a typical price for this system. Your quote's price makes it exact.</div>` : ''}
+    ${a.priceTypical ? `<div class="sy-acc-note">Payback uses a typical price for this system. Add your quote’s price to use what you’d really pay.</div>` : ''}
   </div>`;
 }
 
@@ -12491,7 +12500,7 @@ function renderHomeSheet(){
            ${kwhMode
              ? field('Yearly use', 'On your annual statement, or the last six bills added up.', `<span class="sy-num"><input type="number" inputmode="numeric" min="500" max="40000" step="100" value="${state.annual_kwh || Math.round(v7AnnualKwh())}" onchange="homeSet('annual_kwh',this.value)"><i>kWh</i></span>`)
              : field('Typical two-month bill', 'Including VAT.', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="1500" step="5" value="${state.bimonthly_bill_eur}" onchange="homeSet('bimonthly_bill_eur',this.value)"><i>€</i></span>`)}
-           <button class="v7-link" onclick="v7Sheet(null);setScreen('csv-import')">${ic('csv', 14)} Import ESB smart-meter data for exact figures</button>`}
+           <button class="v7-link" onclick="v7Sheet(null);setScreen('csv-import')">${ic('csv', 14)} Import ESB smart-meter data for closer figures</button>`}
       ${field('Current plan', '', sel('baseline', activeTariffsSorted().map((p) => [p.id, `${p.supplier} — ${p.plan}`]), state.baseline))}
       ${field('Contract ends', 'On your bill or welcome letter. We remind you before it does.', `<input type="date" value="${state.contract_end || ''}" onchange="homeSet('contract_end',this.value||null)">`)}
       ${field('Discount on it', 'A sign-up discount off the unit rates, if you have one.', `<span class="sy-num"><input type="number" inputmode="numeric" min="0" max="60" step="1" value="${state.baseline_discount_pct || 0}" onchange="homeSet('baseline_discount_pct',this.value)"><i>%</i></span>`)}
@@ -12602,7 +12611,7 @@ function renderEverything(){
     ]],
     ['Your home', [
       ['home', 'Usage, heating and current plan', 'Every answer the figures rest on. Change any of them.', "setScreen('myhome')"],
-      ['csv', 'ESB smart-meter file', 'Your real half-hour readings: the most exact figures.', "setScreen('csv-import')"],
+      ['csv', 'ESB smart-meter file', 'Your real half-hour readings: the closest figures.', "setScreen('csv-import')"],
       ['rotate', 'Answer the questions again', 'Go through setup from the start, with your answers kept.', "startFlow('full')"],
     ]],
     ['Staying on top of it', [
@@ -13447,14 +13456,14 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 function renderSeaiGrantCard(kwp, batteryKwh){
   const g = calcSeaiGrant(kwp, batteryKwh);
-  const capped = kwp > 2;
+  const capped = kwp >= 4;
   return `<div class="card" style="background:rgba(0,230,118,.04);border-color:var(--accent);margin-bottom:14px">
     <div class="card-label" style="color:var(--accent)">SEAI home solar grant</div>
     <div class="card-value accent">€${g.total.toLocaleString()}</div>
     <div style="margin-top:6px;font-size:15px;color:var(--ink-soft);line-height:1.6">
       ${capped
         ? `The maximum for a domestic system, at ${kwp.toFixed(1)} kWp.`
-        : `€900 per kWp for your first 2 kWp.`}
+        : `€700 per kWp for your first 2 kWp, then €200 per kWp up to 4 kWp.`}
       Already filled into the grant field above, and taken off every price in the app — change it there if your installer quotes differently.
       <a href="https://www.seai.ie/grants/solar-electricity-grant/" target="_blank" style="color:var(--blue);white-space:nowrap">seai.ie ↗</a>
     </div>
@@ -13673,7 +13682,7 @@ function renderCsvImport(){
     <div class="qr-hero" style="border-color:var(--blue)">
       <div class="qr-eyebrow" style="color:var(--blue)">Import from ESB Networks</div>
       <div style="font-family:var(--display);font-size:17px;font-weight:600;color:var(--ink);margin:4px 0">Add your meter file</div>
-      <div class="qr-sub">Use your real half-hourly readings instead of an estimate.</div>
+      <div class="qr-sub">Use your real half-hourly readings instead of a typical home’s.</div>
     </div>
 
     ${hasImport ? `
@@ -14287,7 +14296,7 @@ function renderMethodology(){
     <div class="card" style="margin-top:0">
       <div class="card-label">${ic('bolt',13)} Electricity cost simulation</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.75;margin-top:6px">
-        We simulate <b>8,760 hourly intervals</b> We spread your yearly usage across every hour using the standard Irish usage pattern, adjusted for how your home is heated.<br><br>
+        We work out <b>all 8,760 hours</b> of a year. We spread your yearly usage across every hour using the standard Irish usage pattern, adjusted for how your home is heated.<br><br>
         For every hour we work out what you’d pay on each plan, take off anything solar earns, and add the standing charge and PSO levy. Then we rank all ${TARIFFS.length} plans by the yearly total.
       </div>
     </div>
@@ -14315,11 +14324,10 @@ function renderMethodology(){
     <div class="card">
       <div class="card-label">${ic('shield',13)} SEAI grants</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.75;margin-top:6px">
-        We use the <b>2024 SEAI Home Solar Scheme</b> structure:<br>
-        • First 2 kWp: €900 per kWp (up to €1,800)<br>
-        • Next 2 kWp: €300 per kWp (up to €600 more)<br>
-        • Battery storage ≥2 kWh: +€600<br>
-        • Maximum total grant: €3,000<br><br>
+        We use SEAI’s <b>Solar Electricity Grant</b> as it stands in 2026:<br>
+        • €700 per kWp for the first 2 kWp, then €200 per kWp up to 4 kWp (at most €1,800)<br>
+        • A home battery: €600 more, from Budget 2027<br>
+        • So at most €2,400 in all<br><br>
         The grant is taken off before payback. You need an SEAI-registered installer. Check <b>seai.ie</b> for the current approved contractor list.
       </div>
     </div>
@@ -14327,7 +14335,7 @@ function renderMethodology(){
     <div class="card">
       <div class="card-label">${ic('chart',13)} Tariff data</div>
       <div style="font-size:12px;color:var(--ink-soft);line-height:1.75;margin-top:6px">
-        We track <b>${TARIFFS.length} Irish residential electricity plans</b> from ${new Set(TARIFFS.map((t) => supplierKey(t.supplier))).size} suppliers. Rates come from supplier websites and include VAT. Each plan shows when we last checked it.<br><br>
+        We compare <b>${openPlans().length} Irish residential electricity plans</b> from ${new Set(openPlans().map((t) => supplierKey(t.supplier))).size} suppliers, every one a new customer can join today. Rates come from supplier websites and include VAT. Each plan shows when we last checked it.<br><br>
         <b>Limitations:</b> Dynamic plans (Bord Gáis SmartSave, EI DynaMo, Energia Flex) use a modelled wholesale price curve, not live SEMOpx data. Actual dynamic plan bills will vary based on real-time market prices.
       </div>
     </div>
@@ -14350,7 +14358,7 @@ function renderMethodology(){
     </div>` : ''}
 
     <p class="disclaimer">
-      <b>Disclaimer.</b> These are estimates. Your real bills and solar will depend on the weather and how you use power. ${BRAND.name} isn’t a regulated financial or energy adviser.
+      <b>Disclaimer.</b> These are estimates. Your real bills and solar will depend on the weather and how you use power. ${BRAND.name} isn’t a regulated financial adviser.
     </p>
   </div>
   ${bottomNav()}`;

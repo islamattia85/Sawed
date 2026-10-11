@@ -264,7 +264,7 @@ export function createV7(api) {
           : gap >= 0 ? `No plan on the market costs less for this home. The next best is <b>${esc(next.plan.supplier)}</b> ${esc(next.plan.plan)}, ${eur(gap)} a year more.`
           : `<b>${esc(next.plan.supplier)}</b> ${esc(next.plan.plan)} would save only ${eur(-gap)} a year: not worth a switch.`}</div>`
       : `
-        <div class="v7-eyebrow">${pl ? 'Switch plan and add your planned solar to save' : saving > 10 ? (withSolar ? 'Switching plan saves, with your solar' : 'You could pay less') : 'Your best plan'}</div>
+        <div class="v7-eyebrow">${pl ? 'Switch plan and add your planned solar to save' : saving > 10 ? (withSolar ? 'Switching plan could save, with your solar' : 'You could pay less') : 'Your best plan'}</div>
         <div class="qr-value v7-figure ${saving > 10 ? 'is-saving' : ''}" data-countup="${Math.round(Math.max(0, saving))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, saving))}</span><span class="v7-figure-unit">${saving > 10 ? 'less a year' : 'a year'}</span></div>
         ${pl ? '' : `<div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Best for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`}
         ${(() => {
@@ -432,7 +432,7 @@ export function createV7(api) {
         <b>${api.ic(icon, 18)}${label}</b><small>${sub}</small></button>`;
     const acc = api.modelAccuracy().pct;
     return `<section class="ax-doors-wrap" aria-label="Why these figures?">
-      <div class="ax-doors-h"><b>Why these figures?</b><small>Every hour of your year, on all ${rec.ranked.length} plans</small></div>
+      <div class="ax-doors-h"><b>Why these figures?</b><small>Every hour of your year, on ${rec.ranked.length} plans</small></div>
       <div class="ax-doors">
         ${door('bill', 'euro', 'Bill', T ? eur(T.total) : 'in parts', `Bill${T ? `, ${eur(T.total)} a year` : ''}`)}
         ${door('hours', 'clock', 'Hours', hours, `Hours, ${hours}`)}
@@ -1832,7 +1832,7 @@ export function createV7(api) {
       <button class="v7-cta-2" onclick="v7Sheet('home')">Change any of it ${api.ic('chevR', 16)}</button>
       ${!st.ev_active ? `<div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();startEvGuide()">Thinking about an EV? See what it would change</a></div>` : ''}
       <div class="v7-sheet-links">
-        <a href="#" onclick="event.preventDefault();v7Sheet(null);setScreen('csv-import')">Add your meter file for exact figures</a>
+        <a href="#" onclick="event.preventDefault();v7Sheet(null);setScreen('csv-import')">Add your meter file for closer figures</a>
         ${st.has_solar ? `<a href="#" onclick="event.preventDefault();openMySystem()">Change the solar system</a>` : ''}
       </div>`;
   }

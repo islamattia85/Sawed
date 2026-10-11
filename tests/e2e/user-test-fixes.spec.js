@@ -138,7 +138,7 @@ test('for planned panels, Updates gives the same switch-now plan and figure as H
     return m ? +m[1].replace(/,/g, '') : null;
   });
   const alert = await page.evaluate(() => (window.computeAlerts().find((a) => a.kind === 'cheaper') || {}).title || '');
-  const m = alert.match(/would save you €([\d,]+) a year/);
+  const m = alert.match(/could save you about €([\d,]+) a year/);
   expect(home, 'Home shows a switch-now saving').not.toBeNull();
   expect(m, `Updates: "${alert}"`).not.toBeNull();
   expect(+m[1].replace(/,/g, '')).toBe(home);

@@ -18,4 +18,13 @@ describe('tax on export income (Budget 2027)', () => {
     expect(calcSeaiGrant(4, 0).total).toBe(1800);
     expect(calcSeaiGrant(4, 10).total).toBe(2400);
   });
+  it('the solar grant is SEAI’s 2026 rate: €700 a kWp to 2 kWp, €200 a kWp to 4, at most €1,800', () => {
+    // The app gave €900 a kWp, €400 too much on a 2 kWp system (11 Oct 2026).
+    setState({});
+    expect(calcSeaiGrant(1, 0).panels).toBe(700);
+    expect(calcSeaiGrant(2, 0).panels).toBe(1400);
+    expect(calcSeaiGrant(3, 0).panels).toBe(1600);
+    expect(calcSeaiGrant(4.6, 0).panels).toBe(1800);
+    expect(calcSeaiGrant(9, 0).panels).toBe(1800);
+  });
 });
