@@ -14,7 +14,7 @@ const read = (page) => page.evaluate(() => {
   const t = (document.querySelector('.hs') || {}).textContent || '';
   const n = (re) => { const m = t.match(re); return m ? +m[1].replace(/,/g, '') : null; };
   const row = (document.querySelector('.pf-row small') || {}).textContent || '';
-  return { use: n(/Home uses ([\d,]+)/), solar: n(/Solar makes ([\d,]+)/), sold: n(/↑ ([\d,]+)/), bought: n(/↓ ([\d,]+)/),
+  return { use: n(/([\d,]+) kWh used/), solar: n(/([\d,]+) kWh made/), sold: n(/([\d,]+) kWh sold/), bought: n(/([\d,]+) kWh bought/),
     year: +((row.match(/([\d,]+) kWh a year/) || [0, '0'])[1].replace(/,/g, '')) };
 });
 
@@ -61,4 +61,37 @@ test('panels up and a file that records their sales: the picture shows what they
   expect(r.solar).toBeGreaterThan(r.sold);
   // What the panels made is what the home used, less what it bought, plus what it sold.
   expect(Math.abs(r.solar - (r.use - r.bought + r.sold))).toBeLessThanOrEqual(1);
+});
+
+test('the picture: its words keep clear of each other and of what they describe, even with long figures, and each part opens its place', async ({ page }) => {
+  test.setTimeout(120000);
+  // Made up: a big home, panels on two roofs, a battery, a long-distance car and a heat pump.
+  const errors = await boot(page, { has_solar: true, solar_planned: false, considering_solar: true, count_A: 12, count_B: 8, panel_w: 460, azimuth_A: 180, tilt_A: 35,
+    azimuth_B: 90, tilt_B: 35, battery_kwh: 13.5, heating_type: 'heatpump', region: 'south', baseline: 'EN-EV', baseline_known: true, bimonthly_bill_eur: 700,
+    usage_input_mode: 'bill', bill_when: 'before', ev_active: true, ev_km_per_year: 40000, hot_water_strategy: 'legacy', current_screen: 'profile' });
+  await page.evaluate(() => window.setScreen('profile'));
+  const r = await page.evaluate(() => {
+    const box = (e) => { const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom }; };
+    const meet = (a, b) => a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1;
+    const words = [...document.querySelectorAll('.hs-label tspan')].map((e) => ({ text: e.textContent, ...box(e) }));
+    const names = [...document.querySelectorAll('.hs-hit')].map((e) => e.getAttribute('aria-label'));
+    const card = box(document.querySelector('.hs'));
+    const clash = [];
+    words.forEach((w, i) => {
+      words.slice(i + 1).forEach((v) => { if (meet(w, v)) clash.push(`${w.text} / ${v.text}`); });
+      // Against the parts' own shapes (the roof is not a box): any point of the line on one of them.
+      const on = new Set();
+      for (let x = w.l + 1; x < w.r - 1; x += 3) for (let y = w.t + 1; y < w.b - 1; y += 3)
+        document.elementsFromPoint(x, y).forEach((e) => { if (e.classList.contains('hs-hit')) on.add(e.getAttribute('aria-label')); });
+      on.forEach((name) => clash.push(`${w.text} / ${name}`));
+      if (w.l < card.l || w.r > card.r) clash.push(`${w.text} / the card's edge`);
+    });
+    return { n: words.length, names, clash };
+  });
+  expect(r.n, 'five labels of three lines').toBe(15);
+  expect(r.clash).toEqual([]);
+  expect(r.names).toEqual(['My home', 'My system', 'Heat pump', 'Your plan and the grid', 'Battery', 'Your EV']);
+  await page.locator('.hs-hit[aria-label="Your plan and the grid"]').click();
+  await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('plans');
+  expect(errors).toEqual([]);
 });

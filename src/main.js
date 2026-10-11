@@ -13,6 +13,7 @@ import {
 } from './engine/tariff-rules';
 import { moneyBar, dayProfile, paybackCurve, yearRibbon, bandDonut, rateStrip, billAmt } from './ui/charts.js';
 import { createV7 } from './ui/v7.js';
+import { houseScene } from './ui/house.js';
 import { checkSwitch, timingFit } from './engine/meter';
 import { installErrorReporting } from './errors';
 import { dualFuelChoices, gasPlanFor, gasKwhFromBill, inFirstYear, supplierKey } from './gas.js';
@@ -10996,60 +10997,22 @@ function householdScene(){
   const k = (v) => `${Math.round(v).toLocaleString('en-IE')} kWh`;
   const hw = { smart: 'Hot water heated 2–5am', legacy: 'Hot water on an immersion timer', none: hp ? 'Hot water from the heat pump' : 'Hot water from the boiler' }[state.hot_water_strategy] || 'Hot water';
   const planned = sys && (state.solar_planned || state.solar_is_estimate);
-  const tap = (go, label, x, y, w, h) => `<rect class="hs-hit" x="${x}" y="${y}" width="${w}" height="${h}" rx="12" onclick="${go}" role="button" tabindex="0" aria-label="${label}"><title>${label}</title></rect>`;
-
-  const panels = sys ? Array.from({ length: 4 }, (_, i) => {
-    const x0 = 196 + i * 16, y0 = 70 + i * 10.7;
-    return `<polygon class="hs-panel" points="${x0},${y0} ${x0 + 14},${y0 + 9.4} ${x0 + 14},${y0 + 21} ${x0},${y0 + 11.6}"/>`;
-  }).join('') : '';
 
   return `<section class="hs" aria-label="Your household and its energy over a year">
     <div class="hs-top">
       <span>${planned ? 'Your home with the planned system' : 'Your home'} · a typical year</span>
       <span class="hs-badge">${planned ? 'planned' : sys ? 'installed' : 'no solar'}</span>
     </div>
-    <svg class="hs-svg" viewBox="0 0 360 300" role="group" aria-label="Tap a part of the house to edit it">
-      ${sys ? `<g class="hs-sun"><circle cx="318" cy="38" r="13"/>${[0, 45, 90, 135, 180, 225, 270, 315].map((a) => {
-        const r = a * Math.PI / 180; return `<line x1="${318 + Math.cos(r) * 18}" y1="${38 + Math.sin(r) * 18}" x2="${318 + Math.cos(r) * 24}" y2="${38 + Math.sin(r) * 24}"/>`; }).join('')}</g>
-        <path class="hs-flow hs-flow-sun" d="M300 52 L262 84"/>` : ''}
-
-      <!-- grid -->
-      <g class="hs-pylon"><path d="M44 120 L32 215 M44 120 L56 215 M28 140 H60 M24 165 H64 M36 190 L52 165 M52 190 L36 165 M40 140 L48 120"/></g>
-      ${imp > 0 ? `<path class="hs-flow hs-flow-in" d="M62 176 C80 176 96 176 122 176"/>` : ''}
-      ${exp > 0 ? `<path class="hs-flow hs-flow-out" d="M122 190 C96 190 80 190 62 190"/>` : ''}
-
-      <!-- house -->
-      <polygon class="hs-roof" points="104,124 190,58 276,124"/>
-      ${panels}
-      <rect class="hs-wall" x="120" y="122" width="140" height="110" rx="4"/>
-      <rect class="hs-door" x="176" y="190" width="28" height="42" rx="3"/>
-      <rect class="hs-win" x="134" y="140" width="26" height="22" rx="3"/>
-      <g class="hs-tank"><rect x="226" y="140" width="20" height="40" rx="8"/><path d="M231 158 h10 M231 166 h10"/></g>
-
-      ${batt ? `<g class="hs-batt"><rect x="292" y="140" width="34" height="56" rx="6"/><rect x="304" y="135" width="10" height="6" rx="2"/>
-        <rect class="hs-batt-fill" x="297" y="168" width="24" height="23" rx="3"/></g>
-        <path class="hs-flow hs-flow-batt" d="M262 168 H290"/>` : ''}
-      ${hp ? `<g class="hs-hp"><rect x="82" y="214" width="32" height="24" rx="4"/><circle cx="98" cy="226" r="7"/></g>` : ''}
-      ${ev ? `<g class="hs-car"><path d="M276 266 l8-16 h38 l10 16 v12 h-56 z"/><circle cx="290" cy="278" r="6"/><circle cx="320" cy="278" r="6"/></g>
-        <path class="hs-flow hs-flow-ev" d="M246 232 C254 254 266 262 276 266"/>` : ''}
-
-      <text class="hs-val" x="44" y="236" text-anchor="middle">Grid</text>
-      <text class="hs-sub" x="44" y="252" text-anchor="middle">↓ ${k(imp)}</text>
-      ${exp > 0 ? `<text class="hs-sub" x="44" y="268" text-anchor="middle">↑ ${k(exp)}</text>` : ''}
-      <text class="hs-val" x="190" y="262" text-anchor="middle">Home uses ${k(use)}</text>
-      <text class="hs-sub" x="190" y="280" text-anchor="middle">${esc(hw)}</text>
-      ${sys ? `<text class="hs-val" x="190" y="30" text-anchor="middle">Solar makes ${k(gen)}</text>
-        <text class="hs-sub" x="190" y="46" text-anchor="middle">${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp</text>` : ''}
-      ${batt ? `<text class="hs-sub" x="309" y="214" text-anchor="middle">${state.battery_kwh} kWh</text>
-        ${cyc > 0 ? `<text class="hs-sub" x="309" y="229" text-anchor="middle">gives ${Math.round(cyc).toLocaleString("en-IE")} kWh</text>` : ''}` : ''}
-      ${ev ? `<text class="hs-sub" x="304" y="296" text-anchor="middle">EV ${k(evKwh)}</text>` : ''}
-
-      ${tap('openMySystem()', 'My system', 100, 56, 180, 70)}
-      ${tap('openMyHome()', 'My home', 118, 124, 144, 110)}
-      ${tap("setScreen('plans')", 'Your plan and the grid', 14, 112, 64, 166)}
-      ${batt ? tap('openMySystem()', 'Battery', 286, 130, 46, 104) : ''}
-      ${ev ? tap('startEvGuide()', 'Your EV', 266, 244, 76, 54) : ''}
-    </svg>
+    ${houseScene({ solar: sys, planned, panels: totalPanels(), battery: batt, ev, heatPump: hp,
+      flows: { sun: gen > 0, buy: imp > 0, sell: exp > 0, battery: cyc > 0, ev },
+      labels: {
+        grid: ['Grid', `${k(imp)} bought`, exp > 0 ? `${k(exp)} sold` : ''],
+        solar: ['Solar', `${k(gen)} made`, `${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp`],
+        battery: ['Battery', `${state.battery_kwh} kWh`, cyc > 0 ? `gives ${k(cyc)}` : ''],
+        home: ['Home', `${k(use)} used`, esc(hw)],
+        ev: ['EV', k(evKwh), `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year`],
+      },
+      taps: { system: 'openMySystem()', home: 'openMyHome()', grid: "setScreen('plans')", ev: 'startEvGuide()' } })}
     <div class="hs-actions">
       ${sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('sun', 14)} Add solar</button>`}
       ${batt || !sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('battery', 14)} Add a battery</button>`}
