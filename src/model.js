@@ -1156,43 +1156,42 @@ export function tidyNames(list){
 
 export let TARIFFS = tidyNames(EMBEDDED_TARIFFS.slice());
 /**
- * How an owned car stands against the home's meter file. Only the readings
- * and the person's own answers count; the app adds nothing on its own.
+ * An owned car against the home's meter file: 'in' when the readings already
+ * have its charging, 'added' when they don't and it goes on top, null with no
+ * meter file (or a car only planned).
  *
- *   'in'   its charging is in the readings: in every figure, nothing to leave out
- *   'home' it charges at home now, after the readings: its charging is added
- *          on top, from the person's own distance, and can be left out
- *   'away' it isn't charged at home: nothing added
- *   'ask'  the readings show no charging and the person hasn't said: nothing
- *          added, and the question is asked
- *   null   no meter file, or not a car the home has now
- *
- * Owning the car doesn't mean the file has it. The owner's file (Jun 2025 to
- * May 2026) had none: its heaviest hour all year was 4 kWh and only 61 reached
- * 2.5, where a home charger draws 2.3 to 7 kW for hours. The app said the car
- * was in it and left its charging out of every figure. Adding it unasked
- * would be a guess the other way (12 Oct 2026), so the person is asked. A
- * battery filling from the grid at night looks like a car here; "It isn't"
- * corrects that.
+ * A car on Home is charged at home: that is what having it there means, and
+ * "Leave out" takes it out. An old meter file, from before the car, is the
+ * normal case, as it is for panels: the car goes on top, from the person's own
+ * distance. The one thing to avoid is counting it twice, when the file was
+ * recorded with the car; the readings show that, so nobody is asked (12 Oct
+ * 2026, the owner: "if I add it, add it on top; if I leave it out, remove it").
  */
 export function carFileState(){
   if (!state._csv_imported || !state.ev_in_bill) return null;
-  const a = state.ev_file_car;
-  if (a === 'in' || a === 'home' || a === 'away' || a === 'ask') return a;
-  return carSeenInFile() === false ? 'ask' : 'in';
+  return carSeenInFile() === true ? 'in' : 'added';
 }
 export const carInMeterFile = () => carFileState() === 'in';
 /** The car's charging is modelled on top of the home's use, so leaving it out changes the figures. */
-export const carAddedOnTop = () => { const s = carFileState(); return s === null || s === 'home'; };
+export const carAddedOnTop = () => carFileState() !== 'in';
 
-/** Whether the meter year shows the car charging: true, false, or null when
- *  the file can't say (no full year, or no distance to compare with). */
+/**
+ * Whether the meter year shows the car charging: true, false, or null when
+ * the file can't say (no full year, or no distance to compare with).
+ *
+ * A home charger draws 2.3 to 7 kW for hours. The owner's heat-pump home, with
+ * no car, had one hour all year at 4 kWh and 61 at 2.5 or more. The car is
+ * seen when hours at 2.5 kWh or more hold 40% of its yearly charging. A
+ * battery filling from the grid draws its own charge rate for hours too, so
+ * with one the bar is that rate plus 1.5 kWh: a 7 kW charger still clears it.
+ */
 export function carSeenInFile(){
   const days = meterYearDays();
   const need = (+state.ev_km_per_year || 0) * (+state.ev_kwh_per_100km || 17) / 100;
   if (!days || !(need > 0)) return null;
+  const bar = Math.max(2.5, +state.battery_kwh > 0 ? (+state.battery_charge_kw || 3) + 1.5 : 0);
   let heavy = 0;
-  for (const row of days) if (row) for (let h = 0; h < 24; h++) if (row[h] >= 2.5) heavy += row[h];
+  for (const row of days) if (row) for (let h = 0; h < 24; h++) if (row[h] >= bar) heavy += row[h];
   return heavy >= 0.4 * need;
 }
 
@@ -1862,7 +1861,7 @@ export const SIM_FIELDS = [
   'azimuth_A', 'azimuth_B', 'tilt_A', 'tilt_B', 'panel_w', 'panel_degradation',
   'battery_kwh', 'strategy_mode', 'charge_from_grid', 'grid_charge_now', 'bill_names', 'export_tax_rate',
   'install_cost', 'grant_seai', 'inverter_kw',
-  'ev_active', 'ev_in_bill', 'ev_file_car', 'ev_km_per_year', 'ev_kwh_per_100km',
+  'ev_active', 'ev_in_bill', 'ev_km_per_year', 'ev_kwh_per_100km',
   'heating_type', 'hot_water_strategy', 'immersion_night', 'ev_charge_time', 'heat_time', 'region', 'area', 'meter_type',
   'baseline', 'baseline_discount_pct', 'chosen_plan', 'include_dynamic',
   // Registering for export payments is a lever the optimisation advisor trials
@@ -2179,7 +2178,7 @@ export const GOAL_BATTS  = [0, 5, 10];
 
 export function goalSweepCk(){
   return JSON.stringify(['goalsweep', state.region, state.heating_type, state.bimonthly_bill_eur,
-    JSON.stringify(state.bills), state.ev_active, state.ev_in_bill, state.ev_file_car, state.ev_km_per_year,
+    JSON.stringify(state.bills), state.ev_active, state.ev_in_bill, state.ev_km_per_year,
     state.ev_kwh_per_100km, state.azimuth_A, state.tilt_A, state.panel_w, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.heat_time, state.area, state.house_type, state.grant_eligible !== false, state.bill_names, state.export_tax_rate,
     // The roof as it is used: one face, or two and how the panels share them.
     state.count_B > 0 ? [state.azimuth_B, state.tilt_B, +(state.count_B / Math.max(1, totalPanels())).toFixed(2)] : 0]);
