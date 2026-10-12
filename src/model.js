@@ -1005,7 +1005,7 @@ export function buildConsumption(){
   // A meter file of a home that already has the car shows the car itself, at
   // the hours it really charged. Carving it out and adding a made-up night
   // charge moved real daytime use into the cheap window and lowered the bill.
-  const fileHasCar = !!state._csv_imported && !!state.ev_in_bill;
+  const fileHasCar = carInMeterFile();
   const evConfKwh = (+state.ev_km_per_year || 0) * (+state.ev_kwh_per_100km || 17) / 100;
   if (state.ev_in_bill && evConfKwh > 0 && !fileHasCar){
     let _tot = 0; for (let i=0;i<HOURS_IN_YEAR;i++) _tot += consNoEv[i];
@@ -1154,6 +1154,14 @@ export function tidyNames(list){
 }
 
 export let TARIFFS = tidyNames(EMBEDDED_TARIFFS.slice());
+/**
+ * The car's charging is in the home's meter readings: an owned car, and a
+ * meter file. Its kWh are mixed into the real hours, so no figure can take it
+ * out, and "Leave out" is not offered (12 Oct 2026: it was, and changed
+ * nothing on Home).
+ */
+export const carInMeterFile = () => !!state._csv_imported && !!state.ev_in_bill;
+
 export function getPlanById(id){
   const base = TARIFFS.find(t => t.id === id);
   if (!base) return TARIFFS[0];

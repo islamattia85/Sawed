@@ -25,7 +25,7 @@ import { LEGAL_SCREENS, companyLine, termsHtml, privacyHtml, rankingHtml, access
 import { IC, ic } from './icons';
 import FIG from './data/front-figures.json';
 import {
-  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileIsNet, fileDays, fileOwnShape, shapeBuckets, seasonalShape, SEASONAL_SHAPE, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, tidyNames, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
+  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileIsNet, fileDays, fileOwnShape, shapeBuckets, seasonalShape, SEASONAL_SHAPE, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, carInMeterFile, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, tidyNames, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
   outcomeAgainst, sweepSetup, evaluateDesign, finishSweep, readBillAsRun, syncFileBills,
 } from './model';
 
@@ -890,6 +890,9 @@ try {
   // Versioned migrations — deepMerge already backfills NEW fields with defaults,
   // so this is only for cases where an EXISTING field's meaning/shape changes.
   if (raw) migrateState(JSON.parse(raw));
+  // A car left out while its charging is in the meter file changed no figure,
+  // only hid the car: bring it back (12 Oct 2026).
+  if (!state.ev_active && state._ev_left_out && carInMeterFile()){ state.ev_active = true; delete state._ev_left_out; }
 } catch(e){ setState(structuredClone(DEFAULT_STATE)); }
 // A home with panels but no price (an older save, or a step left half-way)
 // would show a 0-year payback. Give it the guide price instead.
@@ -1871,6 +1874,8 @@ function accuracyWithMeter(){
  */
 function toggleEvModel(){
   if (!state.ev_active && !state._ev_left_out) return startEvGuide();
+  // A car in the meter readings can't be taken out of any figure.
+  if (state.ev_active && carInMeterFile()) return;
   state.ev_active = !state.ev_active;
   state._ev_left_out = !state.ev_active;
   if (!state.ev_active && state._an_tab === 'car') state._an_tab = 'bill';
@@ -11713,7 +11718,7 @@ const V7 = createV7({
   householdScore: () => householdScore(),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,
-  getPlanById, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, withoutGridCharge, currentGridGain, infoTip, renderStressCard, stressHomeLine, fileSolar, fileBasis, fileSummary, meterYearDays, batteryReplacement, batterySwapYear, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, FEATURES, renderConsentBar,
+  getPlanById, carInMeterFile, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, withoutGridCharge, currentGridGain, infoTip, renderStressCard, stressHomeLine, fileSolar, fileBasis, fileSummary, meterYearDays, batteryReplacement, batterySwapYear, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, FEATURES, renderConsentBar,
   fmtCurrency, fmtCent, fmtVerifiedDate, latestVerifiedLabel, planDataFlag, planCategoryLabel,
   freshnessChip, priceChangeChip, priceChangeStatus, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
   renderSavingsBreakdown, renderAssumptions,
