@@ -1160,15 +1160,19 @@ export let TARIFFS = tidyNames(EMBEDDED_TARIFFS.slice());
  * have its charging, 'added' when they don't and it goes on top, null with no
  * meter file (or a car only planned).
  *
- * A car on Home is charged at home: that is what having it there means, and
- * "Leave out" takes it out. An old meter file, from before the car, is the
- * normal case, as it is for panels: the car goes on top, from the person's own
- * distance. The one thing to avoid is counting it twice, when the file was
- * recorded with the car; the readings show that, so nobody is asked (12 Oct
- * 2026, the owner: "if I add it, add it on top; if I leave it out, remove it").
+ * A car on Home is charged at home, and "Leave out" takes it out. An old
+ * meter file, from before the car, is the normal case, as it is for panels:
+ * the car goes on top, from the person's own distance. Counting it twice, when
+ * the file was recorded with the car, is what to avoid. The person is asked
+ * once, where the file and the car meet (setup, the car guide, the file's
+ * upload): ev_in_file. Unanswered, the readings decide (carSeenInFile).
+ * (12 Oct 2026, the owner: "ask him does the ESB file contain the EV charging
+ * or not".)
  */
 export function carFileState(){
   if (!state._csv_imported || !state.ev_in_bill) return null;
+  if (state.ev_in_file === true) return 'in';
+  if (state.ev_in_file === false) return 'added';
   return carSeenInFile() === true ? 'in' : 'added';
 }
 export const carInMeterFile = () => carFileState() === 'in';
@@ -1861,7 +1865,7 @@ export const SIM_FIELDS = [
   'azimuth_A', 'azimuth_B', 'tilt_A', 'tilt_B', 'panel_w', 'panel_degradation',
   'battery_kwh', 'strategy_mode', 'charge_from_grid', 'grid_charge_now', 'bill_names', 'export_tax_rate',
   'install_cost', 'grant_seai', 'inverter_kw',
-  'ev_active', 'ev_in_bill', 'ev_km_per_year', 'ev_kwh_per_100km',
+  'ev_active', 'ev_in_bill', 'ev_in_file', 'ev_km_per_year', 'ev_kwh_per_100km',
   'heating_type', 'hot_water_strategy', 'immersion_night', 'ev_charge_time', 'heat_time', 'region', 'area', 'meter_type',
   'baseline', 'baseline_discount_pct', 'chosen_plan', 'include_dynamic',
   // Registering for export payments is a lever the optimisation advisor trials
@@ -2178,7 +2182,7 @@ export const GOAL_BATTS  = [0, 5, 10];
 
 export function goalSweepCk(){
   return JSON.stringify(['goalsweep', state.region, state.heating_type, state.bimonthly_bill_eur,
-    JSON.stringify(state.bills), state.ev_active, state.ev_in_bill, state.ev_km_per_year,
+    JSON.stringify(state.bills), state.ev_active, state.ev_in_bill, state.ev_in_file, state.ev_km_per_year,
     state.ev_kwh_per_100km, state.azimuth_A, state.tilt_A, state.panel_w, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.heat_time, state.area, state.house_type, state.grant_eligible !== false, state.bill_names, state.export_tax_rate,
     // The roof as it is used: one face, or two and how the panels share them.
     state.count_B > 0 ? [state.azimuth_B, state.tilt_B, +(state.count_B / Math.max(1, totalPanels())).toFixed(2)] : 0]);

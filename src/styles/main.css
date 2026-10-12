@@ -491,6 +491,7 @@ html.web /* The welcome screen centres nicely on a wide canvas */
   /* Buttons */
   .btn-secondary{display:inline-block;padding:12px 18px;background:transparent;color:var(--ink);border:1.5px solid var(--line);border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:border-color .15s,color .15s,background .15s}
   .btn-secondary:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-faint)}
+  .btn-secondary.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
   .btn-ghost{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:10px 16px;background:transparent;color:var(--ink-dim);border:none;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:.02em;transition:color .15s,background .15s}
   .btn-ghost:hover{color:var(--ink);background:rgba(255,255,255,.06)}
 

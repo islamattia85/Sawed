@@ -94,3 +94,66 @@ test('a battery that filled from the grid at night while the file was recorded i
   await page.evaluate(giveFile, [false, 3]);
   await expect(page.locator('.v7-hero .v7-ev-ctl')).toContainText('Added on top of your meter readings.');
 });
+
+/* Asked once, where the file and the car meet: in setup, in the car guide,
+ * and on the file's card when the car came first. */
+function esbFile() {
+  const rows = ['MPRN,Meter Serial Number,Read Value,Read Type,Read Date and End Time'];
+  const start = Date.UTC(2025, 5, 1);
+  for (let d = 0; d < 365; d++) {
+    const date = new Date(start + d * 86400000);
+    const ds = `${String(date.getUTCDate()).padStart(2, '0')}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${date.getUTCFullYear()}`;
+    for (let h = 1; h <= 24; h++) {
+      const hr = h - 1, imp = hr >= 17 && hr < 22 ? 1.4 : 0.6;
+      rows.push(`1,2,${imp * 2},Active Import Interval (kW),${ds} ${String(h % 24).padStart(2, '0')}:00`);
+    }
+  }
+  return { name: 'esb.csv', mimeType: 'text/csv', buffer: Buffer.from(rows.join('\n')) };
+}
+const toQuestion = (page, stop, answers) => page.evaluate(([stop, ans]) => {
+  for (let i = 0; i < 40; i++) {
+    const sec = document.querySelector('.fl-q'), el = sec && sec.querySelector('[data-q]');
+    const m = !el && sec && sec.innerHTML.match(/flowAnswer\('(\w+)'/), q = el ? el.dataset.q : m ? m[1] : null;
+    if (!q || q === stop) return q;
+    window.flowAnswer(q, ans[q] ?? 'no');
+  }
+  return null;
+}, [stop, answers]);
+
+test('setup: a meter file and "I have one" asks once whether the car is in the file, with the file’s months', async ({ page }) => {
+  await boot(page, { ev_active: false, ev_in_bill: false });
+  await page.evaluate(() => /** @type {any} */ (window).startFlow('full'));
+  await page.locator('.fl-upload input[type=file]').setInputFiles(esbFile());
+  await page.getByRole('button', { name: /use this data/i }).click();
+  const q = await toQuestion(page, 'evfile', { meter: 'smart', area: 'urban', plan: 'EI-24', disc: 0, heat: 'gas', gas: 'no', solar: 'no', ev: 'have' });
+  expect(q).toBe('evfile');
+  await expect(page.locator('.fl-q')).toContainText('Is the car’s charging in your ESB file?');
+  await expect(page.locator('.fl-q')).toContainText('May 2025 to May 2026');
+  await page.evaluate(() => /** @type {any} */ (window).flowAnswer('evfile', 'no'));
+  expect(await page.evaluate(() => /** @type {any} */ (window).state.ev_in_file)).toBe(false);
+  expect(await toQuestion(page, 'km', {})).toBe('km');
+});
+
+test('the car guide, with a meter file: "I got it after my ESB file" puts it on top', async ({ page }) => {
+  await boot(page, { ...HOME, ev_active: false, ev_in_bill: false });
+  await page.evaluate(giveFile, [false, 0]);
+  await page.evaluate(() => /** @type {any} */ (window).startEvGuide());
+  await expect(page.getByRole('button', { name: /Yes, and it’s in my ESB file/ })).toBeVisible();
+  await page.getByRole('button', { name: /Yes, I got it after my ESB file/ }).click();
+  const s = await page.evaluate(() => { const st = /** @type {any} */ (window).state; return [st.ev_in_file, st.ev_in_bill, st._eg]; });
+  expect(s).toEqual([false, true, 2]);
+});
+
+test('a meter file added after the car: its card asks, and the answer sticks', async ({ page }) => {
+  await boot(page, HOME);
+  await page.evaluate(() => /** @type {any} */ (window).startFlow('full'));
+  await page.locator('.fl-upload input[type=file]').setInputFiles(esbFile());
+  const ask = page.locator('[data-ask="car"]');
+  await expect(ask).toContainText('Is your car’s charging in this file?');
+  await expect(ask).toContainText('May 2025 to May 2026');
+  await ask.locator('[data-car-in="no"]').click();
+  await expect(ask.locator('[data-car-in="no"]')).toHaveClass(/on/);
+  expect(await page.evaluate(() => /** @type {any} */ (window).state.ev_in_file)).toBe(false);
+  await page.getByRole('button', { name: /use this data/i }).click();
+  expect(await page.evaluate(() => /** @type {any} */ (window).state.ev_in_file)).toBe(false);
+});

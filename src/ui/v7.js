@@ -343,7 +343,7 @@ export function createV7(api) {
       const w = rec.best.plan.windows || {};
       const win = w.ev || w.night;
       // An owned car and a meter file: on top of the readings, or already in
-      // them (model.js, carFileState). Nothing is asked.
+      // them (model.js, carFileState). Asked where the file and car meet, not here.
       const fs = api.carFileState();
       const fileNote = fs === 'in' ? '<br>Its charging is already in your meter readings, so it’s in every figure here.'
         : fs === 'added' ? '<br>Added on top of your meter readings.' : '';

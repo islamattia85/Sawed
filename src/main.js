@@ -893,7 +893,7 @@ try {
   // A car left out while its charging is in the meter file changed no figure,
   // only hid the car: bring it back (12 Oct 2026).
   if (!state.ev_active && state._ev_left_out && !carAddedOnTop()){ state.ev_active = true; delete state._ev_left_out; }
-  delete state.ev_file_car;   // a question asked for a few hours on 12 Oct 2026, now gone
+  delete state.ev_file_car;   // a question on Home for a few hours on 12 Oct 2026, now gone
 } catch(e){ setState(structuredClone(DEFAULT_STATE)); }
 // A home with panels but no price (an older save, or a step left half-way)
 // would show a 0-year payback. Give it the guide price instead.
@@ -1724,7 +1724,7 @@ function _plannedLadder(){
  * and it lapses when the home changes, because the best plan may change with it.
  */
 function anConfig(){
-  return JSON.stringify([!!state.has_solar, totalPanels(), +state.battery_kwh || 0, !!state.solar_planned, !!state.ev_active, !!state.ev_in_bill, +state.ev_km_per_year || 0, state.baseline]);
+  return JSON.stringify([!!state.has_solar, totalPanels(), +state.battery_kwh || 0, !!state.solar_planned, !!state.ev_active, !!state.ev_in_bill, state.ev_in_file, +state.ev_km_per_year || 0, state.baseline]);
 }
 /** The plan Analytics shows: { plan, best, picked }. Clears a pick the home has outgrown. */
 function anPlan(){
@@ -1885,6 +1885,25 @@ function toggleEvModel(){
   if (state.current_screen === 'analytics' || state.current_screen === 'solar') renderApp(); else setScreen(state.current_screen);
 }
 const removeEv = toggleEvModel;
+
+/** The months of the meter file the figures use, e.g. "June 2025 to May 2026". */
+function fileMonths(){
+  try {
+    const ks = Object.keys(fileDays() || (state.meter && state.meter.days) || {}).sort();
+    if (!ks.length) return '';
+    const m = (k) => new Date(k + 'T12:00:00Z').toLocaleDateString('en-IE', { month: 'long', year: 'numeric' });
+    return `${m(ks[0])} to ${m(ks[ks.length - 1])}`;
+  } catch (e) { return ''; }
+}
+
+/** The person's answer: is the car's charging in the meter file (model.js, carFileState)? */
+function setEvInFile(v, el){
+  state.ev_in_file = !!v;
+  invalidate(); saveState();
+  // On the upload card: mark the answer there, and leave the card as it is.
+  if (el){ el.parentNode.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === el)); return; }
+  if (state.current_screen === 'analytics' || state.current_screen === 'solar') renderApp(); else setScreen(state.current_screen);
+}
 
 /** Analytics' own tabs. Solar keeps its screen id ('solar') so every link
  *  into it — Home, the solar guide — still lands on it. */
@@ -5552,6 +5571,7 @@ function flowFromState(){
     plan: state.baseline_known ? state.baseline : 'unsure', heat: state.heating_type || 'gas',
     ev: state.ev_active ? (state.ev_in_bill ? 'have' : 'thinking') : 'no',
     meter: state.meter_type || 'smart', area: state.area || 'urban' };
+  if (state.ev_in_file === true || state.ev_in_file === false) f.evfile = state.ev_in_file ? 'yes' : 'no';
   if (state.region_asked) f.where = state.region;
   if (f.heat === 'gas' && f.bill !== 'meter') f.night = state.immersion_night ? 'immersion' : 'no';
   if ((f.heat === 'heatpump' || f.heat === 'storage') && f.bill !== 'meter') f.heattime = state.heat_time === 'night' ? 'night' : 'day';
@@ -5765,7 +5785,7 @@ function renderSolarGuide(){
 const EG_STEPS = 5;
 let _egBefore = null;
 function startEvGuide(){
-  _egBefore = { ev_active: state.ev_active, ev_km_per_year: state.ev_km_per_year, ev_in_bill: state.ev_in_bill,
+  _egBefore = { ev_active: state.ev_active, ev_km_per_year: state.ev_km_per_year, ev_in_bill: state.ev_in_bill, ev_in_file: state.ev_in_file,
     ev_kwh_per_100km: state.ev_kwh_per_100km, ev_charger_kw: state.ev_charger_kw, current_screen: state.current_screen };
   if (!state.ev_active) toggleEv();
   if (!(state.ev_km_per_year > 0)) state.ev_km_per_year = 16000;
@@ -5820,7 +5840,11 @@ function renderEvGuide(){
   if (step === 1){
     body = `${head('Step 1 · Your car', 'Do you have an electric car?', 'We’ll add it to your home and find the cheapest way to charge it.')}
       <div class="sg-opts">
-        ${opt(state.ev_in_bill, "egSet('ev_in_bill', true, 2)", 'Yes, I have one', 'Its charging is already in my electricity bill.')}
+        ${state._csv_imported
+          // With a meter file: is the car's charging in it? Asked here, once.
+          ? `${opt(state.ev_in_bill && state.ev_in_file === true, "state.ev_in_file=true;egSet('ev_in_bill', true, 2)", 'Yes, and it’s in my ESB file', `It was charging at home ${fileMonths() ? `from ${fileMonths()}` : 'when the file was recorded'}. We’ll use your readings as they are.`)}
+             ${opt(state.ev_in_bill && state.ev_in_file === false, "state.ev_in_file=false;egSet('ev_in_bill', true, 2)", 'Yes, I got it after my ESB file', 'We’ll add its charging on top of your readings.')}`
+          : opt(state.ev_in_bill, "egSet('ev_in_bill', true, 2)", 'Yes, I have one', 'Its charging is already in my electricity bill.')}
         ${opt(!state.ev_in_bill, "egSet('ev_in_bill', false, 2)", 'I’m thinking about one', 'Show me what it would add, and what it would save on petrol.')}
       </div>
       <button class="sg-link sg-skip" onclick="egCancel()">Not now</button>`;
@@ -6028,6 +6052,8 @@ function flowSteps(f = state._flow || {}, fbIn){
       if (f.system === 'custom') out.push('panels', 'battery');
       out.push('price', 'grant');
     }
+    // A car owned and a meter file: is its charging in the file? Asked once, here.
+    if (q === 'ev' && f.ev === 'have' && state._csv_imported) out.push('evfile');
     if (q === 'ev' && (f.ev === 'have' || f.ev === 'thinking')) out.push('km', 'car');
     if (q === 'ev' && f.ev === 'have') out.push('evtime');
   }
@@ -6307,11 +6333,13 @@ function flowAnswer(q, v){
   }
   if (q === 'grant'){ state.grant_eligible = v !== 'no'; state.grant_is_manual = false; applyEstimatedSolarCost(); }
   if (q === 'ev'){
-    if (was !== v) clear(['km', 'car', 'evtime']);
+    if (was !== v) clear(['km', 'car', 'evtime', 'evfile']);
     state.ev_active = v !== 'no'; state.ev_in_bill = v === 'have';
+    if (v !== 'have') delete state.ev_in_file;
     if (state.ev_active && !(state.ev_km_per_year > 0)) state.ev_km_per_year = 16000;
     if (!state.ev_active) state.ev_km_per_year = 0;
   }
+  if (q === 'evfile') state.ev_in_file = v === 'yes';
   if (q === 'km') state.ev_km_per_year = +v;
   if (q === 'car') state.ev_kwh_per_100km = +v;
   if (state.has_solar && totalPanels() > 0) applyEstimatedSolarCost();
@@ -6446,6 +6474,7 @@ function renderFlow(){
     billmonths: ['Which months is that bill for?', 'Bills after solar swing a lot with the seasons.'],
     gridnow: ['Does the battery charge from the grid at night now?', 'Some are set to top up on cheap night power. It tells us how to read your bill. Every figure assumes it does, where that pays.'],
     ev: ['An electric car?', ''],
+    evfile: ['Is the car’s charging in your ESB file?', `Your file runs from ${fileMonths() || 'the dates it covers'}. Was the car charging at home then?`],
     km: ['How far do you drive in a year?', 'The Irish average is about 16,000 km.'],
     car: ['What kind of car?', ''],
     // Usage typed as kWh is units bought, not a bill.
@@ -6479,6 +6508,7 @@ function renderFlow(){
     price: (v) => (+v > 0 ? `Quote €${(+v).toLocaleString('en-IE')}` : 'Guide price'),
     grant: (v) => (v === 'no' ? 'No grant' : v === 'unsure' ? 'Grant assumed' : 'Grant'),
     ev: (v) => ({ no: 'No EV', have: 'EV', thinking: 'EV planned' })[v],
+    evfile: (v) => (v === 'yes' ? 'Car in the ESB file' : 'Car added to the ESB file'),
     km: (v) => `${(+v).toLocaleString('en-IE')} km a year`, car: (v) => ({ 14: 'Small', 17: 'Family car', 20: 'SUV or large' })[v],
   };
   const optIco = { heat: { gas: 'flame', heatpump: 'waves', storage: 'layers', direct: 'bolt' }, solar: { no: 'x', have: 'sun', thinking: 'spark' },
@@ -6609,7 +6639,8 @@ function renderFlow(){
         <p class="fl-note">You can upload the quote itself later in My system.</p>`;
     }
     if (q === 'grant') return `<div class="fl-opts">${opt('grant', 'yes', 'Yes')}${opt('grant', 'no', 'No')}${opt('grant', 'unsure', 'Not sure', 'We’ll assume yes')}</div>`;
-    if (q === 'ev') return `<div class="fl-opts">${opt('ev', 'no', 'No')}${opt('ev', 'have', 'I have one', 'It’s already in my bill')}${opt('ev', 'thinking', 'Thinking about one', 'We’ll show the cost and petrol saved')}</div>`;
+    if (q === 'ev') return `<div class="fl-opts">${opt('ev', 'no', 'No')}${opt('ev', 'have', 'I have one', state._csv_imported ? 'Charged at home' : 'It’s already in my bill')}${opt('ev', 'thinking', 'Thinking about one', 'We’ll show the cost and petrol saved')}</div>`;
+    if (q === 'evfile') return `<div class="fl-opts">${opt('evfile', 'yes', 'Yes, it’s in the file', 'We’ll use your readings as they are')}${opt('evfile', 'no', 'No, I got it after', 'We’ll add its charging on top')}</div>`;
     if (q === 'km') return `<div class="fl-opts fl-three">${[8000, 16000, 25000].map((k) => opt('km', k, `${k / 1000}k km`)).join('')}</div>${own('km', 'km', 100000, 'e.g. 12000')}`;
     if (q === 'car') return `<div class="fl-opts fl-three">${opt('car', 14, 'Small')}${opt('car', 17, 'Family')}${opt('car', 20, 'SUV')}</div>`;
     return '';
@@ -6704,7 +6735,7 @@ function renderFlow(){
 const FLOW_CHAPTER = { bill: 'Your usage', meter: 'Your usage', area: 'Your usage', filewhen: 'Your usage', billwhen: 'Solar', billmonths: 'Solar',
   plan: 'Your plan', disc: 'Your plan', heat: 'Heating', heattime: 'Heating', hotwater: 'Heating', night: 'Heating', gas: 'Heating', gasbill: 'Heating',
   where: 'Solar', house: 'Solar', solar: 'Solar', roof: 'Solar', tilt: 'Solar', panels: 'Solar', battery: 'Solar', system: 'Solar',
-  price: 'Solar', grant: 'Solar', gridnow: 'Solar', fileexp: 'Your usage', ev: 'Car', evtime: 'Car', km: 'Car', car: 'Car' };
+  price: 'Solar', grant: 'Solar', gridnow: 'Solar', fileexp: 'Your usage', ev: 'Car', evfile: 'Car', evtime: 'Car', km: 'Car', car: 'Car' };
 /** The route's stages, in the order its questions come. */
 function flowParts(steps){
   const names = [];
@@ -6723,7 +6754,7 @@ function flowChapters(steps, f, open){
 
 /** The website's side card beside each question: the answers so far, and what it leads to. */
 const FLOW_SHORT = { bill: 'Usage', plan: 'Plan now', disc: 'Discount', house: 'House', system: 'System', where: 'Region',
-  meter: 'Meter', area: 'Area', heat: 'Heating', evtime: 'Car charging', heattime: 'Heating hours', hotwater: 'Hot water', night: 'Water at night',
+  meter: 'Meter', area: 'Area', heat: 'Heating', evfile: 'Car in the file', evtime: 'Car charging', heattime: 'Heating hours', hotwater: 'Hot water', night: 'Water at night',
   gas: 'Gas', gasbill: 'Gas bill', solar: 'Solar', tilt: 'Roof pitch', price: 'Price', grant: 'SEAI grant', roof: 'Roof faces',
   panels: 'Panels', battery: 'Battery', filewhen: 'Meter file date', fileexp: 'Power sold in the file', billwhen: 'Bill date', billmonths: 'Bill months',
   gridnow: 'Battery charging', km: 'Driving', car: 'Car' };
@@ -12838,7 +12869,7 @@ const SCENARIO_FIELDS = [
   'count_A','azimuth_A','tilt_A','count_B','azimuth_B','tilt_B','panel_w',
   'battery_kwh','install_cost','grant_seai','grant_is_manual','cost_is_manual',
   'strategy_mode','charge_from_grid','hot_water_strategy','include_dynamic','meter_type','area','immersion_night','ev_charge_time','heat_time',
-  'ev_active','ev_in_bill','ev_km_per_year','ev_kwh_per_100km',
+  'ev_active','ev_in_bill','ev_in_file','ev_km_per_year','ev_kwh_per_100km',
   'plan_overrides','_csv_imported','_csv_filename','_csv_days','_csv_periods'
 ];
 
@@ -14203,6 +14234,7 @@ function parseCsvHdf(text, filename){
 
     state.bills = bills;
     state._csv_imported = true;
+    delete state.ev_in_file;   // a new file: asked again on its card
     state._file_split = false;
     state._csv_filename = filename;
     state._csv_first = firstDay;
@@ -14242,6 +14274,9 @@ function parseCsvHdf(text, filename){
     const typedOff = typedKwh > 0 && Math.abs(total - typedKwh) / typedKwh > 0.15;
     const typedHtml = typedOff ? `<div data-warn="typed" style="margin-top:10px;padding:10px 12px;background:var(--amber-soft);border:1px solid var(--amber);border-radius:8px;font-size:12px;color:var(--ink);line-height:1.6">${before.usage_input_mode === 'kwh' ? `You told us ${fmtN(typedKwh)} kWh a year.` : `Your bill worked out at about ${fmtN(typedKwh)} kWh a year.`} This file says ${fmtN(Math.round(total))}. We’ll use the file unless you’d rather keep yours.
           <div style="margin-top:8px"><button class="btn-secondary" style="background:var(--surface,#fff)" data-keep-typed="yes" onclick="csvKeepTyped()">Keep my ${fmtN(typedKwh)} kWh</button></div></div>` : '';
+    // A car already in the home: is its charging in this file? Asked here, once.
+    const carHtml = state.ev_active && state.ev_in_bill ? `<div data-ask="car" style="margin-top:10px;padding:10px 12px;background:var(--surface,#fff);border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--ink);line-height:1.6"><b>Is your car’s charging in this file?</b> It runs from ${fileMonths()}. Was the car charging at home then?
+          <div class="fl-opts" style="margin-top:8px"><button class="btn-secondary" data-car-in="yes" onclick="setEvInFile(true, this)">Yes, it’s in the file</button> <button class="btn-secondary" data-car-in="no" onclick="setEvInFile(false, this)">No, I got it after</button></div></div>` : '';
     if (resultEl) resultEl.innerHTML = `
       <div class="card" style="background:var(--accent-faint);border-color:var(--accent)">
         <div class="card-label" style="color:var(--accent)">✓ Imported ${rowsRead.toLocaleString()} readings</div>
@@ -14256,6 +14291,7 @@ function parseCsvHdf(text, filename){
         ${readHtml}
         ${(() => { try { const t = fileSummary(); return t ? `<div style="margin-top:8px;font-size:12px;color:var(--ink-soft);line-height:1.6">${esc(t)}</div>` : ''; } catch (e) { return ''; } })()}
         ${typedHtml}
+        ${carHtml}
         <div style="margin-top:12px;font-size:13px;font-weight:600;color:var(--ink)">Is this file from the home you live in now?</div>
         <button class="switch-cta" style="margin-top:8px;font-size:13px;padding:12px 16px" data-filehome="yes"${typedOff ? ' data-keep-typed="no"' : ''} onclick="applyImportedBills()">Yes, use this data →</button>
         <button class="btn-secondary" style="margin-top:8px;display:block;width:100%" data-filehome="no" onclick="csvNotMyHome()">No, a home I lived in before</button>
@@ -14568,6 +14604,7 @@ window.anTab = anTab;
 window.anPick = anPick;
 window.removeEv = removeEv;
 window.toggleEvModel = toggleEvModel;
+window.setEvInFile = setEvInFile;
 window.undoLast = undoLast;
 window._undoKeep = _undoKeep;
 window.useGoalDesign = useGoalDesign;
