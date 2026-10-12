@@ -24,7 +24,8 @@ const fileOf = (name) => ({ name: name.replace(/\.gz$/, '').replace(/^.*\//, '')
 /** What each question gets when the scenario does not say: an ordinary urban home in Cork on Electric Ireland. */
 const DEFAULTS = { meter: 'smart', area: 'urban', plan: 'EI-24', disc: 0, heat: 'gas', heattime: 'day', night: 'no', gas: 'no', solar: 'no',
   where: 'south', house: 'semi', roof: 'S', tilt: 35, system: 'custom', panels: 9, battery: 0, gridnow: 'no', price: 0, grant: 'no',
-  ev: 'no', evfile: 'no', km: 15000, car: 17, evtime: 'night', billwhen: 'after', billmonths: 'average', filewhen: 'allyear',
+  // Every scenario home with a car (A1-A7 ev, C1) has its charging in its file.
+  ev: 'no', evfile: 'yes', km: 15000, car: 17, evtime: 'night', billwhen: 'after', billmonths: 'average', filewhen: 'allyear',
   // The made-up heat pumps heat their water at 13:00 and run through the day (homes.py).
   hotwater: 'day',
   // Choices on the import card: the file is from this home; the file's figure over a typed one.
