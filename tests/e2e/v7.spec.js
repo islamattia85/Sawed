@@ -80,12 +80,30 @@ test('a plan opens as a sheet over the list, and closes back onto it', async ({ 
   expect(errors).toEqual([]);
 });
 
-test('a plan with an announced rise says so on its row and in its sheet', async ({ page }) => {
-  await boot(page, { current_screen: 'plans', _plans_all: true });
-  const id = await page.evaluate(() => (window.TARIFFS || []).find((t) => t.price_change && !t.discontinued)?.id);
-  test.skip(!id, 'no announced price changes in the current data');
-  await page.evaluate((pid) => window.v7Sheet('plan', pid), id);
-  await expect(page.locator('#v7-sheet .v7-note.is-rise')).toContainText(/Prices rise/);
+// The change is set here, not taken from the live data: once a supplier's new
+// prices are read, its announcement is gone and the test would have nothing.
+// On 12 Oct 2026 a row still said "rising 12 Oct" on 12 Oct.
+test('an announced rise says "rising" before its date, "new prices since" after it until re-read, then nothing', async ({ page }) => {
+  for (const [now, verified, row, sheet] of [
+    ['2026-10-15T12:00:00Z', '2026-10-14', /rising 20 Oct/, /Prices rise 20 Oct/],
+    ['2026-10-20T12:00:00Z', '2026-10-14', /new prices since 20 Oct/, /New prices since 20 Oct/],
+    ['2026-10-21T12:00:00Z', '2026-10-20', null, null],
+  ]) {
+    await page.clock.setFixedTime(new Date(now));
+    await boot(page, { current_screen: 'plans', _plans_all: true });
+    await page.evaluate((v) => {
+      const p = window.getPlanById('EI-SST');
+      p.verified_date = v;
+      p.price_change = { effective_date: '2026-10-20', pct: 0.05, direction: 'increase', note: 'A test rise.' };
+      window.setScreen('plans');
+    }, verified);
+    const card = page.locator(`.v7-plan[onclick*="'EI-SST'"]`);
+    if (row) await expect(card, now).toContainText(row);
+    await expect(card, now).not.toContainText(row ? (/new/.test(String(row)) ? /rising/ : /new prices/) : /rising|new prices/);
+    await page.evaluate(() => window.v7Sheet('plan', 'EI-SST'));
+    if (sheet) await expect(page.locator('#v7-sheet .v7-note.is-rise'), now).toContainText(sheet);
+    else await expect(page.locator('#v7-sheet'), now).not.toContainText(/Prices rise|New prices since/);
+  }
 });
 
 test('no screen shouts: nothing is set in uppercase by style', async ({ page }) => {

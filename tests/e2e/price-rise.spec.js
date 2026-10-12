@@ -12,6 +12,10 @@ test('a current plan with an announced rise counts it, and the best plan is neve
     expect(r.best, id).toBeLessThanOrEqual(r.base + 0.5);
     if (r.own != null) expect(Math.abs(r.base - r.own), id).toBeLessThan(1);   // the same figure as in the ranking
   }
+  // The note, on a rise set here: Energia's own announcement goes once its new
+  // prices are read.
   await boot(page, { baseline: 'EN-SMART-24-HOUR', current_screen: 'result' });
-  await expect(page.locator('.v7-evnote', { hasText: 'prices rise' })).toContainText('Energia’s prices rise on');
+  await page.evaluate(() => { window.getPlanById('EN-SMART-24-HOUR').price_change = { effective_date: '2026-10-12', pct: 0.07, direction: 'increase' };
+    window.setScreen('result'); });
+  await expect(page.locator('.v7-evnote', { hasText: 'prices rise' })).toContainText('Energia’s prices rise on 12 Oct');
 });

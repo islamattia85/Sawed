@@ -26,8 +26,10 @@ Recipe shape (all rates in the page are c/kWh inc VAT, standing €/yr inc VAT):
         "standing": "Urban Standing Charge"
       },
       "col": 2,          # which number after the label (Yuno: ex VAT, then inc)
-      "vat": 1.09        # optional: page figure is ex VAT, multiply
-    }
+      "vat": 1.09,       # optional: page figure is ex VAT, multiply
+      "whole": true      # optional: the page prints whole-cent prices bare
+    }                    # ("44", not "44.0"), each with its unit on the next
+                         # line ("cents/kWh"), as Ecopower does
 
 A field may list several labels whose figures are summed (a prepay standing
 charge plus its service charge). `weekend.<band>` fields write into the plan's
@@ -68,6 +70,10 @@ MAIN_JS = ROOT / "src" / "model.js"   # the embedded tariff copy lives with the 
 # Prices always carry decimals (34.85c, €219.22); whole numbers on these pages
 # are times and counts ("8am to 11pm", "12 months"), never prices.
 NUM = re.compile(r"(?<![\d.])(\d{1,4}(?:,\d{3})*\.\d+)")
+# On a page whose recipe says "whole", a bare whole number is a price too; a
+# number touching letters or a % ("8am", "10% off", "2. Standing") is not.
+WHOLE = re.compile(r"(?<![\w.,])(\d{1,4}(?:\.\d+)?)(?![\w.%])")
+UNIT_LINE = re.compile(r"^(cents?|euro)/(kwh|day|year)$", re.I)
 TOLERANCE = 0.00005   # half a hundredth of a cent, in euro
 EURO = ("standing", "standing_rural", "welcome_credit")       # euro a year, two decimals
 PLAN_LEVEL = ("standing", "standing_rural", "export_rate", "welcome_credit")
@@ -94,21 +100,26 @@ def load_evidence(folder: Path) -> dict[str, dict]:
     return pages
 
 
-def numbers_after(lines: list[str], start: int, label: str) -> tuple[int, list[float]] | None:
+def numbers_after(lines: list[str], start: int, label: str, whole: bool = False) -> tuple[int, list[float]] | None:
     """Index of the first line at/after `start` containing `label`, and the
     numbers that follow it (on that line after the label, then later lines)."""
     lab = label.lower()
+    num = WHOLE if whole else NUM
     for i in range(start, len(lines)):
         if lab in lines[i].lower():
             rest = lines[i][lines[i].lower().index(lab) + len(lab):]
-            nums = [float(m.replace(",", "")) for m in NUM.findall(rest)]
+            nums = [float(m.replace(",", "")) for m in num.findall(rest)]
             j = i + 1
             while len(nums) < 6 and j < len(lines) and j < i + 14:
+                # A unit under a figure belongs to the row, not a new one.
+                if whole and UNIT_LINE.match(lines[j]):
+                    j += 1
+                    continue
                 # stop at the next labelled row: a line with letters and no digits
-                if re.search(r"[A-Za-z]{3}", lines[j]) and not NUM.search(lines[j]):
+                if re.search(r"[A-Za-z]{3}", lines[j]) and not num.search(lines[j]):
                     if nums:
                         break
-                nums += [float(m.replace(",", "")) for m in NUM.findall(lines[j])]
+                nums += [float(m.replace(",", "")) for m in num.findall(lines[j])]
                 j += 1
             return i, nums
     return None
@@ -138,7 +149,7 @@ def read_page_recipe(src: dict, pages: dict[str, dict]) -> dict:
         labels = [spec] if isinstance(spec, str) else spec
         total = 0.0
         for label in labels:
-            found = numbers_after(lines, pos, label)
+            found = numbers_after(lines, pos, label, bool(src.get("whole")))
             if not found or len(found[1]) < fcol:
                 return {"error": f"{field}: label {label!r} not found or has no figure"}
             total += found[1][fcol - 1]

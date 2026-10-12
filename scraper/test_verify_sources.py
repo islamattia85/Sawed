@@ -137,3 +137,37 @@ def test_an_announced_rise_not_recorded_at_all_says_so():
 
 def test_once_the_date_comes_the_ordinary_check_takes_over():
     assert vs.check_future({**PLAN, "price_change": None}, FUTURE, MORE, "2026-10-12") == []
+
+
+# Ecopower prints whole-cent prices bare ("44"), each with its unit on the line
+# under it, first excluding VAT, then including it (12 Oct 2026).
+ECO = {"url": "https://ecopower.ie/price-plan-26/", "text": "\n".join([
+    "Urban – SST Smart Meter – Domestic", "10% Discount Price Plan", "100% Green Electricity",
+    "Excluding VAT", "Including VAT", "1. Unit rates", "cent/kwh", "10% Discount Rate", "Standard Rate",
+    "Urban Smart Meter Day (8am-11pm)", "37.5", "cents/kWh", "41.7", "cents/kWh",
+    "Urban Smart Meter Peak (5pm-7pm)", "44", "cents/kWh", "48.9", "cents/kWh",
+    "2. Standing Charges", "(Excluding VAT)", "Per Day", "Per Year",
+    "Urban Smart Meter", "76", "cents/day", "277.4", "euro/year", "3. PSO Levy",
+    "1. Unit rates", "Urban Smart Meter Day (8am-11pm)", "40.9", "cents/kWh", "45.5", "cents/kWh",
+    "2. Standing Charges", "(Including VAT)", "Per Day", "Per Year",
+    "Urban Smart Meter", "82.8", "cents/day", "302.37", "euro/year", "3. PSO Levy",
+])}
+EPAGES = {vs.norm_url(ECO["url"]): ECO}
+
+
+def test_whole_cent_prices_are_read_when_the_recipe_says_so():
+    src = {"url": ECO["url"], "anchor": ["SST Smart Meter", "1. Unit rates"], "whole": True, "vat": 1.09,
+           "fields": {"day": "Urban Smart Meter Day", "peak": "Urban Smart Meter Peak"}}
+    assert vs.read_recipe(src, EPAGES) == {"values": {"day": 0.4088, "peak": 0.4796}}
+
+
+def test_without_it_a_bare_44_is_never_taken_as_the_price():
+    src = {"url": ECO["url"], "anchor": ["SST Smart Meter", "1. Unit rates"], "vat": 1.09,
+           "fields": {"peak": "Urban Smart Meter Peak"}}
+    assert vs.read_recipe(src, EPAGES).get("values", {}).get("peak") != 0.4796
+
+
+def test_a_unit_under_a_figure_keeps_the_row_going_to_the_yearly_figure():
+    src = {"url": ECO["url"], "anchor": ["SST Smart Meter", "(Including VAT)"], "whole": True,
+           "fields": {"standing": {"label": "Urban Smart Meter", "col": 2}}}
+    assert vs.read_recipe(src, EPAGES) == {"values": {"standing": 302.37}}

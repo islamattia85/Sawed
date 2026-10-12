@@ -626,7 +626,9 @@ export function createV7(api) {
           // The date sits once above the list; a card only says so when it was checked earlier.
           r.plan.verified_date && api.fmtVerifiedDate(r.plan.verified_date) !== api.latestVerifiedLabel() ? `<span class="plan-verified">Checked ${api.fmtVerifiedDate(r.plan.verified_date)}</span>` : '',
           api.planDataFlag(r.plan) ? `<span class="v7-flag is-check">${api.ic('warn', 12)} confirm rates</span>` : '',
-          r.plan.price_change ? `<span class="v7-flag is-rise">${api.ic('trendUp', 12)} rising ${fmtDate(r.plan.price_change.effective_date)}</span>` : '',
+          (() => { const s = api.priceChangeStatus(r.plan); if (!s) return '';
+            const word = s.started ? 'new prices since' : (s.rising ? 'rising' : 'falling');
+            return `<span class="v7-flag ${s.rising ? 'is-rise' : ''}">${s.rising ? api.ic('trendUp', 12) : ''} ${word} ${fmtDate(s.pc.effective_date)}</span>`; })(),
           r.onHold ? `<span class="v7-flag">wholesale-linked, not ranked</span>` : '',
         ].filter(Boolean).join('');
         return `<div class="plan-card v7-plan ${isChosen ? 'chosen' : isBest ? 'best' : isCurrent ? 'current' : ''}${r.plan.id === selId ? ' is-sel' : ''}"
@@ -1499,7 +1501,7 @@ export function createV7(api) {
     const rank = row ? rec.ranked.indexOf(row) + 1 : null;
     const bands = [...new Set(BANDS24(plan))];
     const label = { day: 'Day', night: 'Night', peak: 'Peak', ev: 'EV window', wfh: 'Work from home' };
-    const pc = plan.price_change;
+    const pcs = api.priceChangeStatus(plan), pc = pcs && pcs.pc;
     const switchName = jsAttr(`${plan.supplier} ${plan.plan}`);
     return `<div class="v7-sheet-head">
         <div class="v7-eyebrow">${rank ? `#${rank} of ${api.plansData().counts.all} for your home` : 'Not ranked'}</div>
@@ -1531,7 +1533,9 @@ export function createV7(api) {
       ${batteryLine(s, plan)}
       <div class="v7-fine">Every plan also carries the ${eur(api.PSO_LEVY || 6.67)} PSO levy, set by the regulator. It’s in the yearly figure above.</div>
       ${sourceLine(plan)}
-      ${pc ? `<div class="v7-note is-rise">${api.ic('trendUp', 16)}<div><b>Prices rise ${fmtDate(pc.effective_date)}.</b> ${esc(pc.note || '')} The year above already includes it for the months it applies.</div></div>` : ''}
+      ${pc ? `<div class="v7-note ${pcs.rising ? 'is-rise' : ''}">${api.ic('trendUp', 16)}<div><b>${pcs.started
+        ? `New prices since ${fmtDate(pc.effective_date)}.</b> ${esc(pc.note || '')} The rates above are from before; the year above counts the new ones.`
+        : `Prices ${pcs.rising ? 'rise' : 'fall'} ${fmtDate(pc.effective_date)}.</b> ${esc(pc.note || '')} The year above already includes it for the months it applies.`}</div></div>` : ''}
       ${api.planDataFlag(plan) ? `<div class="v7-note is-check">${api.ic('warn', 16)}<div>These rates have not been re-checked recently. Confirm them with ${esc(plan.supplier)} before switching.</div></div>` : ''}
       ${switchButton(plan, '', 'v7-cta-2')}
       <div class="v7-sheet-links">

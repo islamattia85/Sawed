@@ -5049,20 +5049,34 @@ function latestVerifiedDate(){
  * that date, and says the new prices are counted (engine/tariff-rules.ts,
  * pendingWeight).
  */
-function priceChangeChip(plan){
+/**
+ * Where a plan's announced price change stands today: null when there is none
+ * to mention, else whether it has started and which way it goes. A started
+ * change is still worth a word only until the plan's rates are read again on
+ * or after its date; after that the rates shown are the new ones. The plan
+ * card's tag said "rising 12 Oct" on 12 Oct itself (12 Oct 2026).
+ */
+function priceChangeStatus(plan){
   const pc = plan && plan.price_change;
-  if (!pc || !pc.effective_date) return '';
+  if (!pc || !pc.effective_date) return null;
   const eff = new Date(`${pc.effective_date}T00:00:00Z`);
-  if (isNaN(eff.getTime())) return '';
+  if (isNaN(eff.getTime())) return null;
   const started = eff.getTime() <= Date.now();
-  if (started && !(plan.verified_date && plan.verified_date < pc.effective_date)) return '';
+  if (started && !(plan.verified_date && plan.verified_date < pc.effective_date)) return null;
+  const bandPcts = pc.pct_bands ? Object.values(pc.pct_bands) : [];
+  const rising = (pc.pct || 0) >= 0 || bandPcts.some((v) => (v || 0) > 0);
+  return { pc, eff, started, rising, bandPcts };
+}
+
+function priceChangeChip(plan){
+  const s = priceChangeStatus(plan);
+  if (!s) return '';
+  const { pc, eff, started, rising, bandPcts } = s;
   // The headline % is the biggest band move, since Irish rises are uneven (a
   // night rate can jump far more than the day rate); "up to" makes that honest.
-  const bandPcts = pc.pct_bands ? Object.values(pc.pct_bands) : [];
   const worst = Math.max(Math.abs(pc.pct || 0), ...bandPcts.map((v) => Math.abs(v || 0)));
   const pct = Math.round(worst * 100);
   const uneven = bandPcts.length > 0 && Math.min(...bandPcts.map((v) => Math.abs(v || 0))) < worst - 0.005;
-  const rising = (worst >= 0) && ((pc.pct || 0) >= 0 || bandPcts.some((v) => (v || 0) > 0));
   const when = eff.toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
   const verb = rising ? 'rises' : 'falls';
   return `<div class="price-change-note ${rising ? 'is-rise' : 'is-fall'}">
@@ -11701,7 +11715,7 @@ const V7 = createV7({
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,
   getPlanById, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, withoutGridCharge, currentGridGain, infoTip, renderStressCard, stressHomeLine, fileSolar, fileBasis, fileSummary, meterYearDays, batteryReplacement, batterySwapYear, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, FEATURES, renderConsentBar,
   fmtCurrency, fmtCent, fmtVerifiedDate, latestVerifiedLabel, planDataFlag, planCategoryLabel,
-  freshnessChip, priceChangeChip, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
+  freshnessChip, priceChangeChip, priceChangeStatus, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
   renderSavingsBreakdown, renderAssumptions,
   renderTrustPanel, renderLogicBreakdown, renderNightRateCard, renderEvSavingsCard, evEconomics,
   renderDayInspector,

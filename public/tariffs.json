@@ -3231,7 +3231,45 @@
     "source": {
       "url": "https://ecopower.ie/price-plan-26/",
       "anchor": [
-        "Urban – SST Smart Meter – Domestic"
+        "Urban – SST Smart Meter – Domestic",
+        "1. Unit rates"
+      ],
+      "whole": true,
+      "vat": 1.09,
+      "fields": {
+        "day": "Urban Smart Meter Day",
+        "night": "Urban Smart Meter Night",
+        "peak": "Urban Smart Meter Peak"
+      },
+      "plus": [
+        {
+          "url": "https://ecopower.ie/price-plan-26/",
+          "anchor": [
+            "Urban – SST Smart Meter – Domestic",
+            "(Including VAT)"
+          ],
+          "whole": true,
+          "fields": {
+            "standing": {
+              "label": "Urban Smart Meter",
+              "col": 2
+            }
+          }
+        },
+        {
+          "url": "https://ecopower.ie/price-plan-26/",
+          "anchor": [
+            "Rural – SST Smart Meter – Domestic",
+            "(Including VAT)"
+          ],
+          "whole": true,
+          "fields": {
+            "standing_rural": {
+              "label": "Rural Smart Meter",
+              "col": 2
+            }
+          }
+        }
       ],
       "read": "2026-10-05"
     },
@@ -3263,7 +3301,43 @@
     "source": {
       "url": "https://ecopower.ie/price-plan-26/",
       "anchor": [
-        "Urban – 24 Hour Smart Meter – Domestic"
+        "Urban – 24 Hour Smart Meter – Domestic",
+        "1. Unit rates"
+      ],
+      "whole": true,
+      "vat": 1.09,
+      "fields": {
+        "day": "Urban 24 Hour Smart Meter"
+      },
+      "plus": [
+        {
+          "url": "https://ecopower.ie/price-plan-26/",
+          "anchor": [
+            "Urban – 24 Hour Smart Meter – Domestic",
+            "(Including VAT)"
+          ],
+          "whole": true,
+          "fields": {
+            "standing": {
+              "label": "Urban 24 Hour Smart Meter",
+              "col": 2
+            }
+          }
+        },
+        {
+          "url": "https://ecopower.ie/price-plan-26/",
+          "anchor": [
+            "Rural – 24 Hour Smart Meter – Domestic Customer",
+            "(Including VAT)"
+          ],
+          "whole": true,
+          "fields": {
+            "standing_rural": {
+              "label": "Rural 24 Hour Smart Meter",
+              "col": 2
+            }
+          }
+        }
       ],
       "read": "2026-10-05"
     },
