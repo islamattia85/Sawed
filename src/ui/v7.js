@@ -342,17 +342,18 @@ export function createV7(api) {
       let ev = null; try { ev = api.evEconomics(rec.best.plan.id); } catch (e) {}
       const w = rec.best.plan.windows || {};
       const win = w.ev || w.night;
-      // An owned car and a meter file: say whether the readings have its
-      // charging (then it is in every figure for good) or not (then it is
-      // added on top, and can be left out), and let the person correct it.
-      const inFile = api.carInMeterFile();
-      const fileNote = st._csv_imported && st.ev_in_bill
-        ? (inFile
-          ? `<br>Its charging is in your meter readings, so it’s in every figure here. <button class="ax-inline" onclick="setEvInFile(false)">It isn’t</button>`
-          : `<br>${api.carSeenInFile() === false && st.ev_in_file !== false ? 'Your meter readings show no car charging' : 'Not in your meter readings'}, so its charging is added on top. <button class="ax-inline" onclick="setEvInFile(true)">It is</button>`)
-        : '';
-      evRow = `<div class="v7-solar-ctl v7-ev-ctl"><span><b>${api.ic('car', 16)} ${st.ev_in_bill ? 'Your EV' : 'Planned EV'}</b><small>${ev ? `${eur(ev.evElectricityCost)} a year to charge · ${eur(ev.evVsPetrolNet)} less than petrol` : ''}${win ? ` · charge ${hhmm(win[0])}–${hhmm(win[1])}` : ''}${fileNote}</small></span>
-        ${inFile ? '' : '<button onclick="toggleEvModel()">Leave out</button>'}</div>`;
+      // An owned car and a meter file: the readings decide, or the person
+      // does; the app adds nothing on its own (model.js, carFileState).
+      const fs = api.carFileState();
+      const ask = (v, label) => `<button class="ax-inline" onclick="setCarFile('${v}')">${label}</button>`;
+      const fileNote = {
+        in: `<br>Its charging is in your meter readings, so it’s in every figure here. ${ask('ask', 'It isn’t')}`,
+        ask: `<br>Your meter readings show no car charging, so it isn’t in these figures. Does it charge at home now? ${ask('home', 'Yes, add it')} ${ask('away', 'No')}`,
+        home: `<br>It charges at home since your meter readings, so its charging is added on top. ${ask('ask', 'Change')}`,
+        away: `<br>It isn’t charged at home, so it isn’t in these figures. ${ask('ask', 'Change')}`,
+      }[fs] || '';
+      evRow = `<div class="v7-solar-ctl v7-ev-ctl"><span><b>${api.ic('car', 16)} ${st.ev_in_bill ? 'Your EV' : 'Planned EV'}</b><small>${ev && fs !== 'away' ? `${eur(ev.evElectricityCost)} a year to charge · ${eur(ev.evVsPetrolNet)} less than petrol` : ''}${win && fs !== 'away' ? ` · charge ${hhmm(win[0])}–${hhmm(win[1])}` : ''}${fileNote}</small></span>
+        ${api.carAddedOnTop() ? '<button onclick="toggleEvModel()">Leave out</button>' : ''}</div>`;
     }
     let solarRow = '';
     if (pl) {
@@ -1380,7 +1381,7 @@ export function createV7(api) {
       ${anCard(`Cheapest plans to charge on${api.infoTip('this list', `Charging alone. Your best plan overall, ${esc(plan.supplier)} ${esc(plan.plan)}, weighs the car with everything else you use.`)}`, `${hbars(byCharging.map((x, i) => ({ name: `${esc(x.p.supplier)} ${esc(x.p.plan)}`, val: eur(x.cost), v: x.cost, token: i === 0 ? '--accent' : '--bandink-day' })))}
         `)}
       ${cta('Compare EV plans', "state._plans_filter='ev';setScreen('plans')")}
-      ${api.carInMeterFile() ? '' : cta2('Leave the car out of the figures', 'toggleEvModel()', 'x')}`;
+      ${api.carAddedOnTop() ? cta2('Leave the car out of the figures', 'toggleEvModel()', 'x') : ''}`;
   }
 
   /* --- Accuracy: how sure are these figures? --- */

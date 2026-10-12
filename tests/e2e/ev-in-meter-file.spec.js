@@ -69,27 +69,34 @@ test('a car with no meter file can still be left out, and that changes the figur
 });
 
 // The owner's own file (Jun 2025 to May 2026) had no car in it: the car came
-// later. Taking it as in the file left 2,700 kWh and about €300 a year out of
-// every figure (12 Oct 2026). The readings are looked at now.
-test('a meter file without the car: its charging is added on top, and can be left out; "It is" puts it back in the file', async ({ page }) => {
+// later, or charges elsewhere. Taking it as in the file left it out of every
+// figure while saying it was in; adding it unasked would be a guess the other
+// way (12 Oct 2026). The readings stand until the person says.
+test('a meter file without the car: the figures are the readings, the person is asked, and only "Yes" adds it', async ({ page }) => {
   test.setTimeout(120_000);
   await boot(page, HOME);
-  const typed = await page.evaluate(figures);
+  const typed = await page.evaluate(figures);   // the same home and car, typed in
   await page.evaluate(giveFile, false);
   const row = page.locator('.v7-hero .v7-ev-ctl');
-  await expect(row).toContainText('Your meter readings show no car charging, so its charging is added on top');
+  await expect(row).toContainText('Your meter readings show no car charging, so it isn’t in these figures. Does it charge at home now?');
+  await expect(row.locator('button', { hasText: 'Leave out' })).toHaveCount(0);
+  const readings = await page.evaluate(figures);
+  expect(readings.now, 'nothing added unasked').toBeLessThan(typed.now - 100);
+
+  // Yes: its charging goes on top, the same as typed in, and can be left out.
+  await row.locator('button', { hasText: 'Yes, add it' }).click();
+  await expect(row).toContainText('so its charging is added on top');
   const added = await page.evaluate(figures);
-  // The same home and car as typed in: the figures agree, car and all.
   expect(Math.abs(added.now - typed.now), `${added.now} against ${typed.now}`).toBeLessThan(typed.now * 0.03);
   await row.locator('button', { hasText: 'Leave out' }).click();
-  const without = await page.evaluate(figures);
-  expect(without.now).toBeLessThan(added.now - 100);
+  expect((await page.evaluate(figures)).now).toBe(readings.now);
   await page.locator('.hc-invite', { hasText: 'left out' }).click();
-  // The person knows better: the car is in the file after all.
-  await page.locator('.v7-hero .v7-ev-ctl button', { hasText: 'It is' }).click();
-  await expect(page.locator('.v7-hero .v7-ev-ctl')).toContainText('in your meter readings, so it’s in every figure');
-  expect((await page.evaluate(figures)).now).toBe(without.now);
-  // And back.
-  await page.locator('.v7-hero .v7-ev-ctl button', { hasText: 'It isn’t' }).click();
   expect((await page.evaluate(figures)).now).toBe(added.now);
+
+  // Change, then No: back to the readings alone.
+  await page.locator('.v7-hero .v7-ev-ctl button', { hasText: 'Change' }).click();
+  await page.locator('.v7-hero .v7-ev-ctl button', { hasText: /^No$/ }).click();
+  await expect(page.locator('.v7-hero .v7-ev-ctl')).toContainText('It isn’t charged at home, so it isn’t in these figures');
+  expect((await page.evaluate(figures)).now).toBe(readings.now);
+  expect(await page.evaluate(() => /** @type {any} */ (window).state.ev_file_car)).toBe('away');
 });

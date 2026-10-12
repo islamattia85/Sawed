@@ -25,7 +25,7 @@ import { LEGAL_SCREENS, companyLine, termsHtml, privacyHtml, rankingHtml, access
 import { IC, ic } from './icons';
 import FIG from './data/front-figures.json';
 import {
-  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileIsNet, fileDays, fileOwnShape, shapeBuckets, seasonalShape, SEASONAL_SHAPE, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, carInMeterFile, carSeenInFile, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, tidyNames, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
+  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileIsNet, fileDays, fileOwnShape, shapeBuckets, seasonalShape, SEASONAL_SHAPE, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, carInMeterFile, carSeenInFile, carFileState, carAddedOnTop, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, tidyNames, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
   outcomeAgainst, sweepSetup, evaluateDesign, finishSweep, readBillAsRun, syncFileBills,
 } from './model';
 
@@ -892,7 +892,7 @@ try {
   if (raw) migrateState(JSON.parse(raw));
   // A car left out while its charging is in the meter file changed no figure,
   // only hid the car: bring it back (12 Oct 2026).
-  if (!state.ev_active && state._ev_left_out && carInMeterFile()){ state.ev_active = true; delete state._ev_left_out; }
+  if (!state.ev_active && state._ev_left_out && !carAddedOnTop()){ state.ev_active = true; delete state._ev_left_out; }
 } catch(e){ setState(structuredClone(DEFAULT_STATE)); }
 // A home with panels but no price (an older save, or a step left half-way)
 // would show a 0-year payback. Give it the guide price instead.
@@ -1723,7 +1723,7 @@ function _plannedLadder(){
  * and it lapses when the home changes, because the best plan may change with it.
  */
 function anConfig(){
-  return JSON.stringify([!!state.has_solar, totalPanels(), +state.battery_kwh || 0, !!state.solar_planned, !!state.ev_active, !!state.ev_in_bill, state.ev_in_file, +state.ev_km_per_year || 0, state.baseline]);
+  return JSON.stringify([!!state.has_solar, totalPanels(), +state.battery_kwh || 0, !!state.solar_planned, !!state.ev_active, !!state.ev_in_bill, state.ev_file_car, +state.ev_km_per_year || 0, state.baseline]);
 }
 /** The plan Analytics shows: { plan, best, picked }. Clears a pick the home has outgrown. */
 function anPlan(){
@@ -1874,8 +1874,9 @@ function accuracyWithMeter(){
  */
 function toggleEvModel(){
   if (!state.ev_active && !state._ev_left_out) return startEvGuide();
-  // A car in the meter readings can't be taken out of any figure.
-  if (state.ev_active && carInMeterFile()) return;
+  // A car whose charging isn't modelled on top (in the readings, or not
+  // charged at home) has nothing to take out.
+  if (state.ev_active && !carAddedOnTop()) return;
   state.ev_active = !state.ev_active;
   state._ev_left_out = !state.ev_active;
   if (!state.ev_active && state._an_tab === 'car') state._an_tab = 'bill';
@@ -1884,9 +1885,9 @@ function toggleEvModel(){
 }
 const removeEv = toggleEvModel;
 
-/** The person's own answer to whether the meter file has the car's charging. */
-function setEvInFile(v){
-  state.ev_in_file = !!v;
+/** The person's own answer on the car against the meter file: 'in', 'home', 'away', or 'ask' to ask again (model.js, carFileState). */
+function setCarFile(v){
+  state.ev_file_car = v;
   invalidate(); saveState();
   if (state.current_screen === 'analytics' || state.current_screen === 'solar') renderApp(); else setScreen(state.current_screen);
 }
@@ -11725,7 +11726,7 @@ const V7 = createV7({
   householdScore: () => householdScore(),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,
-  getPlanById, carInMeterFile, carSeenInFile, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, withoutGridCharge, currentGridGain, infoTip, renderStressCard, stressHomeLine, fileSolar, fileBasis, fileSummary, meterYearDays, batteryReplacement, batterySwapYear, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, FEATURES, renderConsentBar,
+  getPlanById, carInMeterFile, carSeenInFile, carFileState, carAddedOnTop, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, withoutGridCharge, currentGridGain, infoTip, renderStressCard, stressHomeLine, fileSolar, fileBasis, fileSummary, meterYearDays, batteryReplacement, batterySwapYear, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, FEATURES, renderConsentBar,
   fmtCurrency, fmtCent, fmtVerifiedDate, latestVerifiedLabel, planDataFlag, planCategoryLabel,
   freshnessChip, priceChangeChip, priceChangeStatus, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
   renderSavingsBreakdown, renderAssumptions,
@@ -12843,7 +12844,7 @@ const SCENARIO_FIELDS = [
   'count_A','azimuth_A','tilt_A','count_B','azimuth_B','tilt_B','panel_w',
   'battery_kwh','install_cost','grant_seai','grant_is_manual','cost_is_manual',
   'strategy_mode','charge_from_grid','hot_water_strategy','include_dynamic','meter_type','area','immersion_night','ev_charge_time','heat_time',
-  'ev_active','ev_in_bill','ev_in_file','ev_km_per_year','ev_kwh_per_100km',
+  'ev_active','ev_in_bill','ev_file_car','ev_km_per_year','ev_kwh_per_100km',
   'plan_overrides','_csv_imported','_csv_filename','_csv_days','_csv_periods'
 ];
 
@@ -14208,7 +14209,7 @@ function parseCsvHdf(text, filename){
 
     state.bills = bills;
     state._csv_imported = true;
-    delete state.ev_in_file;   // a new file is looked at afresh for the car
+    delete state.ev_file_car;   // a new file is looked at afresh for the car
     state._file_split = false;
     state._csv_filename = filename;
     state._csv_first = firstDay;
@@ -14574,7 +14575,7 @@ window.anTab = anTab;
 window.anPick = anPick;
 window.removeEv = removeEv;
 window.toggleEvModel = toggleEvModel;
-window.setEvInFile = setEvInFile;
+window.setCarFile = setCarFile;
 window.undoLast = undoLast;
 window._undoKeep = _undoKeep;
 window.useGoalDesign = useGoalDesign;

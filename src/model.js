@@ -1005,9 +1005,8 @@ export function buildConsumption(){
   // A meter file of a home that already has the car shows the car itself, at
   // the hours it really charged. Carving it out and adding a made-up night
   // charge moved real daytime use into the cheap window and lowered the bill.
-  // A file without the car is the home without it: nothing to carve out,
-  // the car is added on top below.
-  const fileHasCar = carInMeterFile();
+  // A meter file is the home as it was: nothing to carve out. The car is
+  // added on top below only when carAddedOnTop() says so.
   const evConfKwh = (+state.ev_km_per_year || 0) * (+state.ev_kwh_per_100km || 17) / 100;
   if (state.ev_in_bill && evConfKwh > 0 && !state._csv_imported){
     let _tot = 0; for (let i=0;i<HOURS_IN_YEAR;i++) _tot += consNoEv[i];
@@ -1019,7 +1018,7 @@ export function buildConsumption(){
   const cons = new Float32Array(HOURS_IN_YEAR);
   for (let i=0;i<HOURS_IN_YEAR;i++) cons[i] = consNoEv[i];
 
-  const evKmPerYear = state.ev_active && !fileHasCar ? (+state.ev_km_per_year || 0) : 0;
+  const evKmPerYear = state.ev_active && carAddedOnTop() ? (+state.ev_km_per_year || 0) : 0;
   const evKwhPer100 = +state.ev_kwh_per_100km || 17;
   const evAnnual = evKmPerYear * evKwhPer100 / 100;
   if (evAnnual > 0){
@@ -1157,24 +1156,34 @@ export function tidyNames(list){
 
 export let TARIFFS = tidyNames(EMBEDDED_TARIFFS.slice());
 /**
- * Is an owned car's charging in the home's meter readings? Then its kWh are
- * mixed into the real hours: every figure has it, and "Leave out" can't take
- * it out, so it isn't offered.
+ * How an owned car stands against the home's meter file. Only the readings
+ * and the person's own answers count; the app adds nothing on its own.
  *
- * Owning the car doesn't mean the file has it: the owner's file (Jun 2025 to
- * May 2026) had none, the car came later, and the app left its charging out of
- * every figure while saying it was in (12 Oct 2026). So the file is looked at:
- * a home charger draws 2.3 to 7 kW for hours, where this heat-pump home's
- * heaviest hour all year was 4 kWh and only 61 reached 2.5. The person's own
- * answer (ev_in_file) overrides what the readings suggest. A battery that
- * filled from the grid at night while the file was recorded looks like a car
- * here; the person's "It isn't" corrects that.
+ *   'in'   its charging is in the readings: in every figure, nothing to leave out
+ *   'home' it charges at home now, after the readings: its charging is added
+ *          on top, from the person's own distance, and can be left out
+ *   'away' it isn't charged at home: nothing added
+ *   'ask'  the readings show no charging and the person hasn't said: nothing
+ *          added, and the question is asked
+ *   null   no meter file, or not a car the home has now
+ *
+ * Owning the car doesn't mean the file has it. The owner's file (Jun 2025 to
+ * May 2026) had none: its heaviest hour all year was 4 kWh and only 61 reached
+ * 2.5, where a home charger draws 2.3 to 7 kW for hours. The app said the car
+ * was in it and left its charging out of every figure. Adding it unasked
+ * would be a guess the other way (12 Oct 2026), so the person is asked. A
+ * battery filling from the grid at night looks like a car here; "It isn't"
+ * corrects that.
  */
-export function carInMeterFile(){
-  if (!state._csv_imported || !state.ev_in_bill) return false;
-  if (state.ev_in_file === true || state.ev_in_file === false) return state.ev_in_file;
-  return carSeenInFile() !== false;
+export function carFileState(){
+  if (!state._csv_imported || !state.ev_in_bill) return null;
+  const a = state.ev_file_car;
+  if (a === 'in' || a === 'home' || a === 'away' || a === 'ask') return a;
+  return carSeenInFile() === false ? 'ask' : 'in';
 }
+export const carInMeterFile = () => carFileState() === 'in';
+/** The car's charging is modelled on top of the home's use, so leaving it out changes the figures. */
+export const carAddedOnTop = () => { const s = carFileState(); return s === null || s === 'home'; };
 
 /** Whether the meter year shows the car charging: true, false, or null when
  *  the file can't say (no full year, or no distance to compare with). */
@@ -1853,7 +1862,7 @@ export const SIM_FIELDS = [
   'azimuth_A', 'azimuth_B', 'tilt_A', 'tilt_B', 'panel_w', 'panel_degradation',
   'battery_kwh', 'strategy_mode', 'charge_from_grid', 'grid_charge_now', 'bill_names', 'export_tax_rate',
   'install_cost', 'grant_seai', 'inverter_kw',
-  'ev_active', 'ev_in_bill', 'ev_in_file', 'ev_km_per_year', 'ev_kwh_per_100km',
+  'ev_active', 'ev_in_bill', 'ev_file_car', 'ev_km_per_year', 'ev_kwh_per_100km',
   'heating_type', 'hot_water_strategy', 'immersion_night', 'ev_charge_time', 'heat_time', 'region', 'area', 'meter_type',
   'baseline', 'baseline_discount_pct', 'chosen_plan', 'include_dynamic',
   // Registering for export payments is a lever the optimisation advisor trials
@@ -2170,7 +2179,7 @@ export const GOAL_BATTS  = [0, 5, 10];
 
 export function goalSweepCk(){
   return JSON.stringify(['goalsweep', state.region, state.heating_type, state.bimonthly_bill_eur,
-    JSON.stringify(state.bills), state.ev_active, state.ev_in_bill, state.ev_in_file, state.ev_km_per_year,
+    JSON.stringify(state.bills), state.ev_active, state.ev_in_bill, state.ev_file_car, state.ev_km_per_year,
     state.ev_kwh_per_100km, state.azimuth_A, state.tilt_A, state.panel_w, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.heat_time, state.area, state.house_type, state.grant_eligible !== false, state.bill_names, state.export_tax_rate,
     // The roof as it is used: one face, or two and how the panels share them.
     state.count_B > 0 ? [state.azimuth_B, state.tilt_B, +(state.count_B / Math.max(1, totalPanels())).toFixed(2)] : 0]);
