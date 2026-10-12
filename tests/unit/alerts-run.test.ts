@@ -65,7 +65,7 @@ describe('the daily alert run', () => {
     const again = await runAlerts({ db, tariffs: [plan], today: '2026-10-05', send, page: 500 });
     expect(again).toMatchObject({ sent: 0, skipped: 5200 });
     expect(n).toBe(5200);
-  });
+  }, 30_000);   // 10,400 homes in all: past vitest's 5 s when the machine is busy
 
   it('stops starting new homes when its time is up, says so, and the next run finishes the rest', async () => {
     const db = fakeDb(homes(50));

@@ -33,7 +33,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     // The app is a single entry; sourcemaps make production stack traces usable.
-    sourcemap: true,
+    // Only the live build needs them: they were 6.4 of each build's 9.1 MB, and
+    // every preview kept a copy against Vercel's 10 GB free storage (12 Oct 2026).
+    sourcemap: process.env.VERCEL_ENV !== 'preview',
     target: 'es2020',
   },
   server: { port: 5173 },
