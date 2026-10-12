@@ -160,10 +160,15 @@ const MS_PER_DAY = 86_400_000;
  *
  * A rise announced for 1 October only affects the slice of a 12-month contract
  * that falls on or after that date, so its weight is the fraction of the next
- * 365 days lying past the effective date. A change already in effect (date in
- * the past) weighs nothing here — by then the rates themselves must have been
- * updated, which the freshness test enforces — and one more than a year out
- * does not touch this contract.
+ * 365 days lying past the effective date. One more than a year out does not
+ * touch this contract.
+ *
+ * A change already in effect weighs nothing once the plan's rates were read on
+ * or after its date: they are the new prices. Until then it counts in full.
+ * Energia's rise of 12 Oct 2026 showed why: on the day, the app stopped adding
+ * it while the data still held the old prices (the next read comes from the
+ * daily check), so the plan looked about EUR 160 a year cheaper on one home and
+ * jumped to the top of the ranking for a day.
  */
 export function pendingWeight(plan: Tariff, asOf: Date): number {
   const pc = plan.price_change;
@@ -171,7 +176,8 @@ export function pendingWeight(plan: Tariff, asOf: Date): number {
   const eff = Date.parse(`${pc.effective_date}T00:00:00Z`);
   if (Number.isNaN(eff)) return 0;
   const days = (eff - asOf.getTime()) / MS_PER_DAY;
-  if (days <= 0 || days >= 365) return 0;
+  if (days <= 0) return plan.verified_date && plan.verified_date < pc.effective_date ? 1 : 0;
+  if (days >= 365) return 0;
   return (365 - days) / 365;
 }
 

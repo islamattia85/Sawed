@@ -5044,14 +5044,18 @@ function latestVerifiedDate(){
  * A plan whose supplier has ANNOUNCED a price change that has not taken effect
  * yet. The rates shown are still today's; this warns the reader what is coming
  * and confirms it is already in the yearly figure (annualCost weights an
- * announced rise across the part of the contract it will apply to). Nothing is
- * shown once the date has passed — by then the rates themselves are updated.
+ * announced rise across the part of the contract it will apply to). Once the
+ * date has passed, it stays until the plan's rates are read again on or after
+ * that date, and says the new prices are counted (engine/tariff-rules.ts,
+ * pendingWeight).
  */
 function priceChangeChip(plan){
   const pc = plan && plan.price_change;
   if (!pc || !pc.effective_date) return '';
   const eff = new Date(`${pc.effective_date}T00:00:00Z`);
-  if (isNaN(eff.getTime()) || eff.getTime() <= Date.now()) return '';
+  if (isNaN(eff.getTime())) return '';
+  const started = eff.getTime() <= Date.now();
+  if (started && !(plan.verified_date && plan.verified_date < pc.effective_date)) return '';
   // The headline % is the biggest band move, since Irish rises are uneven (a
   // night rate can jump far more than the day rate); "up to" makes that honest.
   const bandPcts = pc.pct_bands ? Object.values(pc.pct_bands) : [];
@@ -5063,9 +5067,11 @@ function priceChangeChip(plan){
   const verb = rising ? 'rises' : 'falls';
   return `<div class="price-change-note ${rising ? 'is-rise' : 'is-fall'}">
     <span class="fresh-dot" aria-hidden="true"></span>
-    <span>${(plan.supplier || 'The supplier')} ${verb} this plan's rates
+    <span>${started
+      ? `${(plan.supplier || 'The supplier')}'s new prices started on ${when}. The rates shown are from before; the yearly cost above counts the new ones.`
+      : `${(plan.supplier || 'The supplier')} ${verb} this plan's rates
     ${uneven ? 'by up to ' : ''}${pct}% on ${when}
-    Already in the yearly cost above.</span>
+    Already in the yearly cost above.`}</span>
   </div>`;
 }
 

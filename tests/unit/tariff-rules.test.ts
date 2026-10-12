@@ -179,6 +179,16 @@ describe('pending price change (announced but not yet effective)', () => {
     expect(pendingWeight(withRise, new Date('2025-01-01T00:00:00Z'))).toBe(0);
   });
 
+  it('counts a change in full once it is in effect, until the rates are read again on or after its date', () => {
+    // Energia, 12 Oct 2026: the rise started, the data still held prices read on 11 Oct.
+    const readBefore = { ...withRise, verified_date: '2026-09-30' };
+    expect(pendingWeight(readBefore, new Date('2026-10-02T00:00:00Z'))).toBe(1);
+    const readAfter = { ...withRise, verified_date: '2026-10-01' };
+    expect(pendingWeight(readAfter, new Date('2026-10-02T00:00:00Z'))).toBe(0);
+    // Before the date it is still weighed by the part of the year it covers.
+    expect(pendingWeight(readBefore, new Date('2026-08-16T00:00:00Z'))).toBeLessThan(0.9);
+  });
+
   it('adds the outlook cost to net but leaves today\'s energy cost alone', () => {
     const sim = simulateBaseline(flat, cons);
     const base = annualCost(sim, flat, new Date('2026-08-16T00:00:00Z'));
