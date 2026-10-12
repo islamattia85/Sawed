@@ -486,6 +486,12 @@ def main(argv: list[str]) -> int:
         if apply:
             plan["verified_date"] = today
             plan.setdefault("source", {})["read"] = today
+            # A change that has started is now in the figures just read from the
+            # page, so its announcement goes. Left on, the app would count it a
+            # second time, and the registry checks refuse the update (12 Oct 2026).
+            pc = plan.get("price_change") or {}
+            if pc.get("effective_date") and pc["effective_date"] <= today:
+                plan.pop("price_change")
         ahead = check_future(plan, src.get("future") or [], pages, today)
         if ahead:
             announced_off += sum(1 for r in ahead if "DIFFERS" in r)
