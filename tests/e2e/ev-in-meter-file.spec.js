@@ -14,10 +14,12 @@ const HOME = { current_screen: 'result', region: 'south', heating_type: 'heatpum
   baseline: 'EN-EV', baseline_known: true, meter_type: 'smart', has_solar: false, considering_solar: false, count_A: 0, count_B: 0,
   battery_kwh: 0, ev_active: true, ev_in_bill: true, ev_km_per_year: 15000 };
 
-/** A year of readings, the car's charging in them, as the importer leaves it. */
-const giveFile = () => {
+/** A year of readings, as the importer leaves it: the car's charging in them,
+ *  or (withCar false) the home without it. */
+const giveFile = (withCar = true) => {
   const s = /** @type {any} */ (window);
-  const cons = Array.from(s.sim(s.getRecommendation().best.plan.id).cons), days = {};
+  s.rebuildBase();
+  const cons = Array.from(withCar ? s.CACHE.cons : s.CACHE.consNoEv), days = {};
   for (let i = 0; i < 365; i++){
     const k = new Date(Date.UTC(2025, 9, 1 + i)).toISOString().slice(0, 10), row = new Array(48).fill(0);
     const doy = (i + 273) % 365;
@@ -38,7 +40,7 @@ test('a car whose charging is in the meter file is in every figure: no "Leave ou
   // Home: the car's line says why it stays, and offers no switch.
   const row = page.locator('.v7-hero .v7-ev-ctl');
   await expect(row).toContainText('in your meter readings');
-  await expect(row.locator('button')).toHaveCount(0);
+  await expect(row.locator('button', { hasText: 'Leave out' })).toHaveCount(0);
   // Nor does the Car tab, and the switch itself refuses.
   await page.evaluate(() => /** @type {any} */ (window).anTab('car'));
   await expect(page.locator('body')).not.toContainText('Leave the car out of the figures');
@@ -64,4 +66,30 @@ test('a car with no meter file can still be left out, and that changes the figur
   await page.locator('.v7-hero .v7-ev-ctl button').click();
   const without = await page.evaluate(figures);
   expect(without.now).toBeLessThan(withCar.now - 100);
+});
+
+// The owner's own file (Jun 2025 to May 2026) had no car in it: the car came
+// later. Taking it as in the file left 2,700 kWh and about €300 a year out of
+// every figure (12 Oct 2026). The readings are looked at now.
+test('a meter file without the car: its charging is added on top, and can be left out; "It is" puts it back in the file', async ({ page }) => {
+  test.setTimeout(120_000);
+  await boot(page, HOME);
+  const typed = await page.evaluate(figures);
+  await page.evaluate(giveFile, false);
+  const row = page.locator('.v7-hero .v7-ev-ctl');
+  await expect(row).toContainText('Your meter readings show no car charging, so its charging is added on top');
+  const added = await page.evaluate(figures);
+  // The same home and car as typed in: the figures agree, car and all.
+  expect(Math.abs(added.now - typed.now), `${added.now} against ${typed.now}`).toBeLessThan(typed.now * 0.03);
+  await row.locator('button', { hasText: 'Leave out' }).click();
+  const without = await page.evaluate(figures);
+  expect(without.now).toBeLessThan(added.now - 100);
+  await page.locator('.hc-invite', { hasText: 'left out' }).click();
+  // The person knows better: the car is in the file after all.
+  await page.locator('.v7-hero .v7-ev-ctl button', { hasText: 'It is' }).click();
+  await expect(page.locator('.v7-hero .v7-ev-ctl')).toContainText('in your meter readings, so it’s in every figure');
+  expect((await page.evaluate(figures)).now).toBe(without.now);
+  // And back.
+  await page.locator('.v7-hero .v7-ev-ctl button', { hasText: 'It isn’t' }).click();
+  expect((await page.evaluate(figures)).now).toBe(added.now);
 });

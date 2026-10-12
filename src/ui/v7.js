@@ -342,9 +342,16 @@ export function createV7(api) {
       let ev = null; try { ev = api.evEconomics(rec.best.plan.id); } catch (e) {}
       const w = rec.best.plan.windows || {};
       const win = w.ev || w.night;
-      // A car whose charging is in the meter file is in every figure for good.
+      // An owned car and a meter file: say whether the readings have its
+      // charging (then it is in every figure for good) or not (then it is
+      // added on top, and can be left out), and let the person correct it.
       const inFile = api.carInMeterFile();
-      evRow = `<div class="v7-solar-ctl v7-ev-ctl"><span><b>${api.ic('car', 16)} ${st.ev_in_bill ? 'Your EV' : 'Planned EV'}</b><small>${ev ? `${eur(ev.evElectricityCost)} a year to charge · ${eur(ev.evVsPetrolNet)} less than petrol` : ''}${win ? ` · charge ${hhmm(win[0])}–${hhmm(win[1])}` : ''}${inFile ? '<br>Its charging is in your meter readings, so it’s in every figure here.' : ''}</small></span>
+      const fileNote = st._csv_imported && st.ev_in_bill
+        ? (inFile
+          ? `<br>Its charging is in your meter readings, so it’s in every figure here. <button class="ax-inline" onclick="setEvInFile(false)">It isn’t</button>`
+          : `<br>${api.carSeenInFile() === false && st.ev_in_file !== false ? 'Your meter readings show no car charging' : 'Not in your meter readings'}, so its charging is added on top. <button class="ax-inline" onclick="setEvInFile(true)">It is</button>`)
+        : '';
+      evRow = `<div class="v7-solar-ctl v7-ev-ctl"><span><b>${api.ic('car', 16)} ${st.ev_in_bill ? 'Your EV' : 'Planned EV'}</b><small>${ev ? `${eur(ev.evElectricityCost)} a year to charge · ${eur(ev.evVsPetrolNet)} less than petrol` : ''}${win ? ` · charge ${hhmm(win[0])}–${hhmm(win[1])}` : ''}${fileNote}</small></span>
         ${inFile ? '' : '<button onclick="toggleEvModel()">Leave out</button>'}</div>`;
     }
     let solarRow = '';

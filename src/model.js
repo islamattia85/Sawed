@@ -1005,9 +1005,11 @@ export function buildConsumption(){
   // A meter file of a home that already has the car shows the car itself, at
   // the hours it really charged. Carving it out and adding a made-up night
   // charge moved real daytime use into the cheap window and lowered the bill.
+  // A file without the car is the home without it: nothing to carve out,
+  // the car is added on top below.
   const fileHasCar = carInMeterFile();
   const evConfKwh = (+state.ev_km_per_year || 0) * (+state.ev_kwh_per_100km || 17) / 100;
-  if (state.ev_in_bill && evConfKwh > 0 && !fileHasCar){
+  if (state.ev_in_bill && evConfKwh > 0 && !state._csv_imported){
     let _tot = 0; for (let i=0;i<HOURS_IN_YEAR;i++) _tot += consNoEv[i];
     const _f = _tot > 0 ? Math.max(0.25, (_tot - evConfKwh) / _tot) : 1;
     for (let i=0;i<HOURS_IN_YEAR;i++) consNoEv[i] *= _f;
@@ -1155,12 +1157,35 @@ export function tidyNames(list){
 
 export let TARIFFS = tidyNames(EMBEDDED_TARIFFS.slice());
 /**
- * The car's charging is in the home's meter readings: an owned car, and a
- * meter file. Its kWh are mixed into the real hours, so no figure can take it
- * out, and "Leave out" is not offered (12 Oct 2026: it was, and changed
- * nothing on Home).
+ * Is an owned car's charging in the home's meter readings? Then its kWh are
+ * mixed into the real hours: every figure has it, and "Leave out" can't take
+ * it out, so it isn't offered.
+ *
+ * Owning the car doesn't mean the file has it: the owner's file (Jun 2025 to
+ * May 2026) had none, the car came later, and the app left its charging out of
+ * every figure while saying it was in (12 Oct 2026). So the file is looked at:
+ * a home charger draws 2.3 to 7 kW for hours, where this heat-pump home's
+ * heaviest hour all year was 4 kWh and only 61 reached 2.5. The person's own
+ * answer (ev_in_file) overrides what the readings suggest. A battery that
+ * filled from the grid at night while the file was recorded looks like a car
+ * here; the person's "It isn't" corrects that.
  */
-export const carInMeterFile = () => !!state._csv_imported && !!state.ev_in_bill;
+export function carInMeterFile(){
+  if (!state._csv_imported || !state.ev_in_bill) return false;
+  if (state.ev_in_file === true || state.ev_in_file === false) return state.ev_in_file;
+  return carSeenInFile() !== false;
+}
+
+/** Whether the meter year shows the car charging: true, false, or null when
+ *  the file can't say (no full year, or no distance to compare with). */
+export function carSeenInFile(){
+  const days = meterYearDays();
+  const need = (+state.ev_km_per_year || 0) * (+state.ev_kwh_per_100km || 17) / 100;
+  if (!days || !(need > 0)) return null;
+  let heavy = 0;
+  for (const row of days) if (row) for (let h = 0; h < 24; h++) if (row[h] >= 2.5) heavy += row[h];
+  return heavy >= 0.4 * need;
+}
 
 export function getPlanById(id){
   const base = TARIFFS.find(t => t.id === id);
@@ -1828,7 +1853,7 @@ export const SIM_FIELDS = [
   'azimuth_A', 'azimuth_B', 'tilt_A', 'tilt_B', 'panel_w', 'panel_degradation',
   'battery_kwh', 'strategy_mode', 'charge_from_grid', 'grid_charge_now', 'bill_names', 'export_tax_rate',
   'install_cost', 'grant_seai', 'inverter_kw',
-  'ev_active', 'ev_in_bill', 'ev_km_per_year', 'ev_kwh_per_100km',
+  'ev_active', 'ev_in_bill', 'ev_in_file', 'ev_km_per_year', 'ev_kwh_per_100km',
   'heating_type', 'hot_water_strategy', 'immersion_night', 'ev_charge_time', 'heat_time', 'region', 'area', 'meter_type',
   'baseline', 'baseline_discount_pct', 'chosen_plan', 'include_dynamic',
   // Registering for export payments is a lever the optimisation advisor trials
@@ -2145,7 +2170,7 @@ export const GOAL_BATTS  = [0, 5, 10];
 
 export function goalSweepCk(){
   return JSON.stringify(['goalsweep', state.region, state.heating_type, state.bimonthly_bill_eur,
-    JSON.stringify(state.bills), state.ev_active, state.ev_in_bill, state.ev_km_per_year,
+    JSON.stringify(state.bills), state.ev_active, state.ev_in_bill, state.ev_in_file, state.ev_km_per_year,
     state.ev_kwh_per_100km, state.azimuth_A, state.tilt_A, state.panel_w, state.hot_water_strategy, state.immersion_night, state.ev_charge_time, state.heat_time, state.area, state.house_type, state.grant_eligible !== false, state.bill_names, state.export_tax_rate,
     // The roof as it is used: one face, or two and how the panels share them.
     state.count_B > 0 ? [state.azimuth_B, state.tilt_B, +(state.count_B / Math.max(1, totalPanels())).toFixed(2)] : 0]);
