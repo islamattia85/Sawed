@@ -8,7 +8,7 @@ Raw capture by scraper/audit_dump.py; one JSON per supplier. Nothing here is int
 | Community Power | 0/1 | 0 | 0 | 0/0 | 0 |
 | Ecopower | 6/6 | 0 | 1 | 1/1 | 2 |
 | Electric Ireland | 16/18 | 47 | 0 | 0/1 | 21 |
-| Energia | 18/18 | 43 | 75 | 4/4 | 10 |
+| Energia | 18/18 | 43 | 73 | 4/4 | 10 |
 | Flogas | 17/18 | 2 | 37 | 1/1 | 0 |
 | Pinergy | 16/18 | 50 | 1 | 4/5 | 5 |
 | PrePayPower | 18/18 | 35 | 38 | 3/3 | 34 |
