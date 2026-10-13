@@ -1,5 +1,28 @@
 {
   "worked_out": "2026-10-09",
+  "typical": {
+    "panels": 12,
+    "net": 6300,
+    "payback": 5,
+    "top": [
+      [
+        "EI-SST",
+        489
+      ],
+      [
+        "SSE-DNP",
+        549
+      ],
+      [
+        "EN-SMART",
+        552
+      ],
+      [
+        "EN-SMART-24-HOUR",
+        569
+      ]
+    ]
+  },
   "big": {
     "panels": 16,
     "battery": 10,

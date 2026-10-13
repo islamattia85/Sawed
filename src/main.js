@@ -3149,6 +3149,80 @@ function howStrip(){
 }
 
 
+/**
+ * Small previews of what the app shows: real plans and a typical home
+ * (gas heating, 12 panels, a car), drawn with labels, so each card
+ * shows what the feature finds, not just a shape.
+ */
+const T = (x, y, t, o = '') => `<text x="${x}" y="${y}" ${o}>${t}</text>`;
+function showAnalysis(){
+  const now = [212, 190, 168, 136, 112, 96, 92, 98, 120, 150, 184, 210], best = [150, 128, 96, 52, 22, 6, 4, 12, 44, 86, 124, 148];
+  const y = (v) => 104 - v * .42, M = 'JFMAMJJASOND';
+  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
+    ${T(4, 12, 'A year, month by month', 'class="h"')}${T(256, 12, eur(-FIG.typical.net / FIG.typical.payback), 'class="g" text-anchor="end"')}
+    ${now.map((v, i) => `<rect x="${10 + i * 20.5}" y="${y(v)}" width="7" height="${104 - y(v)}" rx="2" class="mute"/><rect x="${18 + i * 20.5}" y="${y(best[i])}" width="7" height="${104 - y(best[i])}" rx="2" class="acc"/>${T(17 + i * 20.5, 118, M[i], 'text-anchor="middle"')}`).join('')}
+    ${T(4, 130, '■ your plan now   ', 'class="mute-t"')}${T(96, 130, '■ cheapest plan, with panels', 'class="acc-t"')}</svg>`;
+}
+/** A typical home's day with an electric car charging at 2 and 3am, coloured by an EV plan's prices. */
+function showDay(){
+  const p = getPlanById('YN-EV-DNP') || TARIFFS.find((x) => x.type === 'ev');
+  const base = [.25,.2,.2,.2,.2,.25,.4,.6,.55,.4,.35,.35,.4,.35,.35,.4,.6,.9,1.0,.9,.75,.6,.45,.3];
+  const v = base.map((x, h) => x + (h === 2 || h === 3 ? 3.5 : 0)), mx = Math.max(...v);
+  const C = { night: 'var(--bandink-night)', day: 'var(--bandink-day)', peak: 'var(--bandink-peak)', ev: 'var(--bandink-ev)' };
+  const r = (b) => `${((p.rates[b] ?? p.rates.day) * 100).toFixed(0)}c`;
+  const kind = planPlain(p).split(',')[0];
+  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
+    ${T(4, 12, `A day on ${kind[0].toLowerCase() + kind.slice(1)}`, 'class="h"')}
+    ${v.map((x, h) => { const hh = Math.max(2, x / mx * 78); return `<rect x="${8 + h * 10.3}" y="${104 - hh}" width="8" height="${hh}" rx="2" fill="${C[bandAt(h, p)] || C.day}"/>`; }).join('')}
+    ${T(56, 58, `← car ${r('ev')}`, 'class="g"')}${T(190, 46, `peak ${r('peak')}`, 'class="pk"')}
+    ${['00', '06', '12', '18', '24'].map((t, i) => T(8 + i * 61.8, 118, t, 'text-anchor="middle"')).join('')}
+    ${T(4, 130, 'kWh each hour, coloured by price', 'class="mute-t"')}</svg>`;
+}
+/** The example home's four cheapest plans with its 12 panels, from the model's figures, by kind. */
+function showPlans(){
+  const rows = (FIG.typical.top || []).map(([id, c]) => ({ p: getPlanById(id), c })).filter((r) => r.p);
+  const mx = Math.max(...rows.map((r) => r.c));
+  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
+    ${T(4, 12, 'A year with 12 panels', 'class="h"')}
+    ${rows.map((r, i) => { const y = 24 + i * 26, w = Math.max(6, r.c / mx * 80); return `${T(4, y + 8, `${i + 1}. ${planCategoryLabel(planCategory(r.p))}`, i ? '' : 'class="g"')}
+      <rect x="142" y="${y}" width="${w}" height="9" rx="4.5" class="${i ? 'mute' : 'acc'}"/>${T(266, y + 8, eur(r.c), `text-anchor="end" ${i ? '' : 'class="g"'}`)}`; }).join('')}
+    ${T(4, 130, `The example home, ${TARIFFS.filter(onOffer).length} plans checked this week`, 'class="mute-t"')}</svg>`;
+}
+function showPayback(){
+  const cost = FIG.typical.net, save = cost / FIG.typical.payback, Y = 20, x = (t) => 22 + t * 11.4, y = (v) => 70 - v / 300;
+  let d = `M${x(0)},${y(-cost)}`; for (let t = 1; t <= Y; t++) d += ` L${x(t)},${y(save * t - cost)}`;
+  const pb = cost / save;
+  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
+    ${T(4, 12, '12 panels, after the €1,800 grant', 'class="h"')}
+    <line x1="22" x2="250" y1="${y(0)}" y2="${y(0)}" class="axis"/>${T(18, y(0) + 3, '€0', 'text-anchor="end"')}
+    <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+    <circle cx="${x(pb)}" cy="${y(0)}" r="4.5" fill="var(--panel)" stroke="var(--accent)" stroke-width="2.5"/>
+    ${T(x(pb) + 4, y(0) + 18, `pays back · ${FIG.typical.payback.toFixed(1)} yrs`, 'class="g"')}
+    ${[0, 5, 10, 15, 20].map((t) => T(x(t), 118, t, 'text-anchor="middle"')).join('')}${T(4, 130, 'years from install', 'class="mute-t"')}</svg>`;
+}
+function showStress(){
+  const C = ['var(--bandink-peak)', 'var(--brand-gold)', 'var(--accent)'];
+  let r = '';
+  for (let yy = 0; yy < 5; yy++) for (let xx = 0; xx < 6; xx++){ const g = xx + (4 - yy) * .5 > 4.5 ? 2 : xx + (4 - yy) * .5 > 2.2 ? 1 : 0; r += `<rect x="${40 + xx * 26}" y="${20 + yy * 18}" width="22" height="14" rx="3" fill="${C[g]}" opacity=".85"/>`; }
+  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
+    ${T(4, 12, 'If prices change', 'class="h"')}${r}
+    <circle cx="${40 + 4 * 26 + 11}" cy="${20 + 1 * 18 + 7}" r="6" fill="none" stroke="var(--ink)" stroke-width="2"/>
+    ${['40c', '30c', '20c', '10c', '5c'].map((t, i) => T(34, 30 + i * 18, t, 'text-anchor="end"')).join('')}
+    ${['0', '5', '10', '15', '20', '25'].map((t, i) => T(51 + i * 26, 118, t, 'text-anchor="middle"')).join('')}
+    ${T(206, 34, '■ same', 'class="acc-t"')}${T(206, 50, '■ +1–4 yrs', 'class="au-t"')}${T(206, 66, '■ longer', 'class="pk"')}
+    ${T(4, 130, 'export pay (c) → · night price ↑', 'class="mute-t"')}</svg>`;
+}
+function showReport(){
+  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
+    <rect x="58" y="4" width="92" height="124" rx="6" fill="var(--brand-ink)"/>
+    ${T(66, 22, 'peakless', 'style="fill:#E8EFEB;font-weight:700"')}${T(66, 44, 'Your home', 'style="fill:#fff;font-weight:800"')}${T(66, 57, 'energy report', 'style="fill:#fff;font-weight:800"')}
+    ${T(66, 78, 'Could save', 'style="fill:var(--brand-gold)"')}${T(66, 100, '€1,822', 'style="fill:#6EE7A8;font-weight:800;font-size:20px"')}
+    <rect x="156" y="14" width="96" height="110" rx="6" fill="var(--panel)" stroke="var(--hair-strong)"/>
+    ${T(164, 30, 'At a glance', 'class="h"')}
+    ${[[100, 'mute'], [86, 'mute'], [28, 'acc'], [14, 'acc']].map(([w, c], i) => `<rect x="164" y="${42 + i * 16}" width="${w * .78}" height="7" rx="3.5" class="${c}"/>`).join('')}
+    ${T(164, 116, '13 pages', 'class="mute-t"')}</svg>`;
+}
+
 /** The website at "/": what Peakless is, shown and taught, then a way in. */
 function renderSite(){
   const done = state.onboarding_complete;
@@ -3182,6 +3256,19 @@ function renderSite(){
     </section>
     ${howStrip()}
     ${planMatters()}
+
+    <section class="wl-band wl-tint" id="get"><div class="wl-in">
+      <div class="wl-sh"><div class="wl-eyebrow">What you get</div><h2 class="wl-h2">An answer you can check, test and keep.</h2><p>Not just a ranked list. Every figure is backed by your own year, hour by hour.</p></div>
+      <div class="wl-show" role="list">
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showPayback()}</div><h3>Solar payback</h3><p>Sized for your roof's faces and tilt, battery wear included, on the best plan once the panels are in.</p></div>
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showStress()}</div><h3>The stress test</h3><p>Move export pay and night prices, and how fast they change: see which futures still pay back.</p></div>
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showPlans()}</div><h3>Every plan, ranked</h3><p>Every plan priced on your own year, with standing charges, price rises already announced and export pay counted.</p></div>
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showAnalysis()}</div><h3>Your bill, month by month</h3><p>Your plan and the best one, every month. Shows when summer solar credit pays winter bills.</p></div>
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showDay()}</div><h3>Your day, hour by hour</h3><p>Every hour of your year against each plan's price bands, so you see the car in the cheap window and the evening at peak.</p></div>
+        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showReport()}</div><h3>The report</h3><p>A PDF with your answer, every plan, the payback, month-by-month figures and the method, for you or an installer.</p></div>
+      </div>
+    </div></section>
+
     ${askList()}
 
     <section class="wl-band" id="faq"><div class="wl-in">

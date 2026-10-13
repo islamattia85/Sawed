@@ -2127,6 +2127,27 @@ html.web .screen.v7.v7-home .ax-doors-wrap { display: none; }
   .wl-hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); }
 }
 
+/* What you get: small real previews of the app; swipe on a phone, a grid on a computer. */
+.wl-show { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 14px; margin-inline: -16px; padding: 0 16px 6px; scrollbar-width: none; align-items: flex-start; }
+.wl-show::-webkit-scrollbar { display: none; }
+.wl-showcard { flex: 0 0 80%; scroll-snap-align: start; background: var(--panel); border: 1px solid var(--hair); border-radius: var(--radius-xl); padding: 22px; display: grid; gap: 10px; align-content: start; }
+.wl-showvis { background: var(--well); border-radius: var(--radius-lg); padding: 12px 10px; }
+.wl-showcard h3 { margin: 6px 0 0; font: 750 20px var(--display); }
+.wl-showcard p { margin: 0; color: var(--ink-soft); font-size: 15px; }
+@media (min-width: 900px) {
+  .wl-show { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; margin: 0; padding: 0; align-items: start; }
+}
+.wl-mini text { font: 500 12px var(--display); fill: var(--ink-soft); }
+.wl-mini text.h { font-weight: 750; font-size: 13px; fill: var(--ink); }
+.wl-mini text.g { fill: var(--accent); font-weight: 750; }
+.wl-mini text.pk { fill: var(--bandink-peak); font-weight: 750; }
+.wl-mini text.mute-t { fill: var(--ink-dim); }
+.wl-mini text.acc-t { fill: var(--accent); }
+.wl-mini text.au-t { fill: var(--brand-gold); }
+.wl-mini .mute { fill: var(--ink-dim); opacity: .45; }
+.wl-mini .acc { fill: var(--accent); }
+.wl-mini .axis { stroke: var(--ink-dim); stroke-opacity: .5; }
+
 /* ---------- website: Plans as a table of rows ---------- */
 .web-plan-cols { display: none; }
 @media (min-width: 900px) {
