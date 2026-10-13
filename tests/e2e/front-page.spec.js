@@ -5,7 +5,9 @@ import { isolate } from './support.js';
  * Direction section 4 (13 Oct 2026): the front page shows the product and
  * stops arguing for it. On a phone it is at most eight screens, in this order:
  * the hero and its three doors (solar first), the four-bill card, how it works,
- * why the plan matters (three lines), five questions, five answers, the footer.
+ * why the plan matters (three lines), the six pictures of what you get (put
+ * back the same day: without them the page was text in boxes), five questions,
+ * five answers, the footer.
  */
 
 async function open(page, width, height) {
@@ -27,7 +29,7 @@ test('on a phone the front page is at most eight screens, in the order the brief
   const { H, vh, sw } = await page.evaluate(() => ({ H: document.documentElement.scrollHeight, vh: innerHeight, sw: document.documentElement.scrollWidth - innerWidth }));
   expect(H / vh, `${H}px tall`).toBeLessThanOrEqual(8);
   expect(sw).toBeLessThanOrEqual(1);
-  expect(await parts(page)).toEqual(['wl-bar', 'wl-hero', 'wl-shot', 'how', 'plan', 'ask', 'faq', 'wl-foot']);
+  expect(await parts(page)).toEqual(['wl-bar', 'wl-hero', 'wl-shot', 'how', 'plan', 'get', 'ask', 'faq', 'wl-foot']);
 });
 
 test('the hero leads with solar and says nobody pays to be ranked', async ({ page }) => {
@@ -47,15 +49,28 @@ test('what stays is cut to size: three lines, five questions, five answers', asy
   await expect(page.locator('#faq summary')).toHaveText(['Does solar really pay back in five years?', 'Do I need to switch plan once the panels are in?',
     'Do I need a smart meter?', 'Is switching safe? Will my power go off?', 'How does Peakless make money?']);
   const text = await page.locator('.wl-site').innerText();
-  expect(text).not.toMatch(/Years to earn back|What you get|Try it on a typical|Built to be checked|The plans we compare|Plan types|sample report|Find out what your panels/i);
+  expect(text).not.toMatch(/Years to earn back|Try it on a typical|Built to be checked|The plans we compare|Plan types|sample report|Find out what your panels/i);
   // No link to a section that is gone (the legal links open app screens instead).
   expect(await page.locator('.wl-site a[href^="#"]:not([onclick])').evaluateAll((as) => as.map((a) => a.getAttribute('href')).filter((h) => !document.querySelector(h))))
     .toEqual([]);
 });
 
+test('six pictures show what you get: they swipe on a phone and sit in a grid on a computer', async ({ page }) => {
+  await open(page, 390, 844);
+  const cards = page.locator('#get .wl-showcard');
+  await expect(cards).toHaveCount(6);
+  await expect(page.locator('#get .wl-showvis svg')).toHaveCount(6);
+  await expect(page.locator('#get h3')).toHaveText(['Solar payback', 'The stress test', 'Every plan, ranked', 'Your bill, month by month', 'Your day, hour by hour', 'The report']);
+  expect(await page.locator('#get .wl-show').evaluate((el) => el.scrollWidth > el.clientWidth + 100), 'a row to swipe').toBe(true);
+  await expect(page.locator('#get button, #get input')).toHaveCount(0);   // no sample report
+  await open(page, 1280, 900);
+  const tops = await cards.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+  expect(new Set(tops).size, 'two rows of three').toBe(2);
+});
+
 test('desktop keeps the same content beside the two-column hero', async ({ page }) => {
   await open(page, 1280, 900);
-  expect(await parts(page)).toEqual(['wl-bar', 'wl-hero', 'wl-shot', 'how', 'plan', 'ask', 'faq', 'wl-foot']);
+  expect(await parts(page)).toEqual(['wl-bar', 'wl-hero', 'wl-shot', 'how', 'plan', 'get', 'ask', 'faq', 'wl-foot']);
   const copy = await page.locator('.wl-hero .wl-copy').boundingBox();
   const card = await page.locator('.wl-hero .wl-shot').boundingBox();
   expect(card.x, 'the four-bill card sits beside the words').toBeGreaterThan(copy.x + copy.width - 1);
