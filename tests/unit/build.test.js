@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
 
 /**
@@ -30,5 +30,32 @@ describe('project layout', () => {
       else seen.set(m[1], i + 1);
     });
     expect(dups).toEqual([]);
+  });
+});
+
+/** The vite config as a given environment reads it. */
+async function viteConfigIn(env) {
+  const before = process.env.VERCEL_ENV;
+  if (env == null) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = env;
+  try {
+    vi.resetModules();   // read the config afresh under this environment
+    return (await import('../../vite.config.js')).default;
+  } finally {
+    if (before == null) delete process.env.VERCEL_ENV; else process.env.VERCEL_ENV = before;
+  }
+}
+
+describe('source maps (direction section 5.1)', () => {
+  it('are made for local builds only, never on Vercel', async () => {
+    expect((await viteConfigIn(null)).build.sourcemap).toBe(true);
+    expect((await viteConfigIn('production')).build.sourcemap).toBe(false);
+    expect((await viteConfigIn('preview')).build.sourcemap).toBe(false);
+  });
+  it('function names survive minification, for readable error reports', async () => {
+    expect((await viteConfigIn('production')).esbuild.keepNames).toBe(true);
+  });
+  it('the Vercel build deletes any map that gets through', () => {
+    const v = JSON.parse(readFileSync('vercel.json', 'utf8'));
+    expect(v.buildCommand).toMatch(/^npm run build && find dist -name '\*\.map' -delete$/);
   });
 });

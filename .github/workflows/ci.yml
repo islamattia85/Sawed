@@ -1,16 +1,32 @@
 name: CI
 
+# Two jobs, so a push costs minutes, not a quarter of an hour (13 Oct 2026):
+#
+#   quick  every push to v8 and main: type check, build, unit tests and the
+#          price-check tests. About 3 minutes.
+#   full   pull requests, pushes to main, and every night: the quick job, then
+#          the browser tests and the golden households.
+#
+# Pushes that only touch docs run nothing. A newer push to the same branch
+# cancels the run still going.
+
 on:
-  pull_request:
   push:
-    branches: [main, v3, v5, v6, v7, v8]
+    branches: [main, v8]
+    paths-ignore: ['docs/**', '**/*.md']
+  pull_request:
+  schedule:
+    # 02:00 in Dublin while Irish summer time runs, 01:00 in winter: GitHub
+    # schedules are in UTC. Schedules run from the repository's default branch.
+    - cron: '0 1 * * *'
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
+  quick:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -46,9 +62,44 @@ jobs:
       - name: Scraper tests
         run: python -m pytest scraper/test_sources.py scraper/test_parsers.py scraper/test_verify_sources.py scraper/test_gas_check.py -q
 
+  full:
+    # Not on pushes to v8: those get the quick job only.
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+    needs: quick
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The browser is kept between runs, keyed on the Playwright version, so
+      # it is downloaded once per upgrade instead of on every run. The system
+      # libraries it needs are not in the cache and are installed each time.
+      - name: Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the Playwright browser
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
       - name: Install Playwright browser
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
+      - name: Install the browser's system libraries
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      # Every browser test, the golden households among them.
       - name: End-to-end tests
         run: npm run test:e2e
 
