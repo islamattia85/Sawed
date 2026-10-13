@@ -89,6 +89,7 @@ test('the first run opens on the question, not a carousel or a sign-in wall', as
   await page.getByRole('button', { name: 'Next' }).click();
   for (const pick of ['Smart meter', 'Urban']) await page.locator('.fl-opt', { hasText: pick }).first().click();
   await page.getByRole('button', { name: /not sure: assume a standard plan/i }).click();
+  await page.locator('.fl-opt', { hasText: 'Longer, or never' }).click();   // when they last switched
   for (const pick of ['Gas or oil', /^No/, /^No$/, /^No$/]) await page.locator('.fl-opt', { hasText: pick }).first().click();
   await page.getByRole('button', { name: 'See my home' }).click();
   await expect.poll(() => page.evaluate(() => window.state.current_screen)).toBe('result');

@@ -6622,6 +6622,13 @@ function renderFlow(){
       save = Math.max(0, mine - rec.best.net);
     } catch (e) {}
     const bp = getPlanById(state.baseline);
+    // Planned panels lead on their own, as on Home: what they would cut once
+    // bought, then what switching saves today. Both together only in the four
+    // bars (direction 1.6).
+    const switchNow = pl ? Math.max(0, pl.today - pl.noSolar.net) : 0, lead = pl ? Math.max(0, pl.noSolar.net - pl.best.net) : save;
+    const top = pl ? Math.max(pl.today, pl.noSolar.net, pl.mine, pl.best.net, 1) : 1;
+    const bar = (label, v, best) => `<div><span>${label}</span><b>${eur(v)}</b><i${best ? ' class="is-best"' : ''} style="width:${Math.max(8, Math.round(Math.max(0, v) / top * 100))}%"></i></div>`;
+    const bars4 = pl ? `<div class="fl-bars">${bar('Now, no solar', pl.today)}${bar(`On ${esc(pl.noSolar.plan.supplier)} ${esc(pl.noSolar.plan.plan)}, no solar`, pl.noSolar.net)}${bar('Now, with the planned panels', pl.mine)}${bar(`On ${esc(pl.best.plan.supplier)} ${esc(pl.best.plan.plan)}, with the planned panels`, pl.best.net, true)}</div>` : '';
     const bars = rec && save > 10 ? `<div class="fl-bars">
         <div><span>Now${state.baseline_known && bp ? `, ${esc(bp.supplier)} ${esc(bp.plan)}` : ''}</span><b>${eur(mine)}</b><i style="width:100%"></i></div>
         <div><span>On ${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}${pl ? ', with the solar' : ''}</span><b>${eur(rec.best.net)}</b><i class="is-best" style="width:${Math.max(8, Math.round(rec.best.net / mine * 100))}%"></i></div>
@@ -6634,8 +6641,11 @@ function renderFlow(){
       ${qv ? `<div class="fl-r-quote is-${qv.cls}"><span>${ic('clip', 16)} The quote, ${eur(state.install_cost)} for ${totalPanels()} panels${state.battery_kwh > 0 ? ` and a ${state.battery_kwh} kWh battery` : ''}</span><b>${qv.verdict}</b><small>${qv.take}</small>
         ${Math.abs(totalPanels() - _flowSuggest()) >= 3 ? `<small>For your usage we’d suggest about ${_flowSuggest()} panels.</small>` : ''}</div>` : ''}
       <div class="fl-r-k">Your answer</div>
-      ${save > 10 ? `<div class="fl-r-big is-saving">${eur(save)}<span> less a year</span></div>
-        <div class="fl-r-line">${pl ? `switching plan and adding the solar: <b>${eur(Math.max(0, pl.today - pl.noSolar.net))}</b> from switching now, <b>${eur(Math.max(0, pl.noSolar.net - pl.best.net))}</b> more once the panels are in` : `by switching to <b>${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}</b>`}</div>${bars}`
+      ${pl && lead > 10 ? `<div class="fl-r-line">Your planned panels would cut your bill by</div>
+        <div class="fl-r-big is-saving">${eur(lead)}<span> a year</span></div>
+        <div class="fl-r-line">${switchNow > 10 ? `Switching plan saves <b>${eur(switchNow)}</b> a year today: <b>${esc(pl.noSolar.plan.supplier)} ${esc(pl.noSolar.plan.plan)}</b>` : 'Your plan is already the cheapest without the panels.'}</div>${bars4}`
+        : !pl && save > 10 ? `<div class="fl-r-big is-saving">${eur(save)}<span> less a year</span></div>
+        <div class="fl-r-line">by switching to <b>${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}</b></div>${bars}`
         : `<div class="fl-r-line"><b>You’re already on a good plan.</b> Nothing on sale beats it for your home.</div>`}
       <div class="fl-r-act"><div class="fl-r-list">
         ${sd ? `<span>${state.solar_planned ? 'Solar would pay back in' : 'Your panels bring back'} <b>${state.solar_planned ? `${sd.cur.payback < 50 ? sd.cur.payback.toFixed(1) : '—'} years` : `${eur(sd.cur.solarBenefit)} a year`}</b></span>` : ''}
