@@ -1,5 +1,11 @@
 # Versions
 
+> **13 October 2026: `main` is the live line.** It now holds V8, and the live
+> site (the peakless-beta Vercel project) is built from it. Work happens on
+> `v8` and reaches `main` by pull request (README, "How a change goes live").
+> V3 stays on `v3`. Where the text below says `main` holds V3, it describes the
+> arrangement before that date.
+
 Two major lines of this application are maintained at the same time. They share
 one repository and one history, and nothing else.
 

@@ -6,7 +6,6 @@ import {
   solarPosition, erbsDiffuse, buildHourlyGhi, buildPoa, buildPvGeneration,
 } from './engine/solar';
 import { npv20 as engineNpv20 } from './engine/npv';
-import { buildReportData, renderReport } from './pdf/index.js';
 import {
   isInWindow, bandAt, rateAt as engineRateAt, isFlatPlan, staticRateAt,
   simulateBaseline as engineSimulateBaseline, sumF, WHOLESALE_CAP,
@@ -7998,6 +7997,10 @@ async function doGeneratePdf(){
     } catch(e){ accuracy = null; }
     const bandsFor = (plan) => { try { return Array.from({ length: 24 }, (_, h) => bandAt(h, plan)); } catch(e){ return null; } };
 
+    // The report code loads with the first report, not with the page: 21 kB
+    // less on a first visit (jspdf, html2canvas and the fonts were already
+    // loaded on demand; 13 Oct 2026).
+    const { buildReportData, renderReport } = await import('./pdf/index.js');
     const data = buildReportData({
       ladder, accuracy,
       bestBands: bandsFor(best.plan), currentBands: bandsFor(baselinePlan),

@@ -13,11 +13,15 @@ name: Capture supplier prices and verify the registry
 #     the change we hold   -> an issue (GitHub emails the owner), kept open
 #                             until a run comes back clean
 #
-# Scheduled runs only fire from the repository's default branch.
+# Prices go to main, which the live site is built from, so they reach it
+# daily without an app release; v8 picks them up when main is merged into it
+# (README, "How a change goes live"). Scheduled runs only fire from the
+# repository's default branch, so that must be main for this file to be the
+# one that runs.
 
 on:
   push:
-    branches: ['feat/price-**', 'v7', 'v8']
+    branches: ['feat/price-**', 'main', 'v8']
     paths: ['scraper/audit_dump.py', 'scraper/gas_check.py', '.github/workflows/audit_evidence.yml']
   workflow_dispatch:
     inputs:
@@ -105,8 +109,8 @@ jobs:
           git commit -q -m "evidence: supplier prices as published on $(date -u +%F)" || echo "no change"
           git push origin audit/evidence
 
-  # Each maintained line of the app carries its own copy of the registry, so
-  # each is checked against the same evidence and gets its own pull request.
+  # The registry on main is checked against the evidence; a changed price
+  # becomes a pull request against main.
   verify:
     needs: capture
     if: always()
@@ -114,8 +118,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # v7 is no longer maintained: its own tests failed on every run.
-        line: [v8]
+        line: [main]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -167,8 +170,7 @@ jobs:
           delete-branch: true
           body-path: verify_report.md
       - name: Raise an issue when a plan could not be read or is missing
-        # One issue, not one per line: the evidence is the same for both.
-        if: steps.verify.outputs.status != '0' && matrix.line == 'v8'
+        if: steps.verify.outputs.status != '0'
         uses: actions/github-script@v7
         with:
           script: |
@@ -195,7 +197,7 @@ jobs:
             await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body: 'Every plan read cleanly again — closing.' });
             await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'closed' });
 
-  # Gas, for dual-fuel homes (v8 only): the five gas suppliers' own pages,
+  # Gas, for dual-fuel homes: the five gas suppliers' own pages,
   # read in a browser. A changed figure becomes a pull request for review; a
   # page that can't be read raises an issue, as for electricity.
   gas:
@@ -204,7 +206,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: v8
+          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -233,10 +235,10 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           add-paths: src/gas-tariffs.json
-          base: v8
-          branch: tariffs/gas-update-v8
+          base: main
+          branch: tariffs/gas-update-main
           commit-message: "gas: prices as published by the suppliers"
-          title: "Gas price update for v8 from the suppliers' own pages"
+          title: "Gas price update from the suppliers' own pages"
           labels: tariffs
           delete-branch: true
           body-path: gas_report.md

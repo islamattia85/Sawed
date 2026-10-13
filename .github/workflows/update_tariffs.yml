@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -70,6 +72,7 @@ jobs:
             public/tariffs.json
             src/main.js
             src/model.js
+          base: main
           branch: tariffs/auto-update
           commit-message: "chore: update electricity tariffs"
           title: "Tariff update — review the numbers before merging"

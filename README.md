@@ -123,6 +123,23 @@ old numbers alone rather than writing a fresh timestamp over them.
 
 ## Deployment
 
-Vercel builds with `npm run build` and serves `dist/` (see `vercel.json`).
+Vercel builds with `npm run build` and serves `dist/` (see `vercel.json`); the
+build makes no source maps and deletes any that get through.
 `public/tariffs.json` is copied verbatim into the build and fetched at runtime,
 so a tariff update is a data commit — it does not require a code change.
+
+## How a change goes live
+
+The live site is built from `main`. Every push to `v8` makes a preview only.
+
+- **App work** happens on `v8`, through pull requests from working branches.
+  Each pull request runs the full checks (browser tests and golden households
+  included); a push to `v8` runs the quick ones.
+- **A release** is a pull request from `v8` into `main`: at most once a day, and
+  only once the full checks on it are green. Merging it puts it live.
+- **Prices** go straight to `main`: the daily price check opens a pull request
+  against `main` when a supplier changes a price, so a price reaches the site
+  without an app release. After merging one, merge `main` into `v8` so the app
+  line has the same prices.
+- **Every night** the full checks run on the default branch, which must be
+  `main` for the schedules to run from it.
