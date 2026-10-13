@@ -1,6 +1,6 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
-import { isolate } from './support.js';
+import { isolate, boot } from './support.js';
 
 /*
  * Section 1 of the 13 October direction: what a tester meets in the first
@@ -141,4 +141,23 @@ test('1.5 a reload opens no sheet; the meter sheet shows the file that is in, wi
   await page.evaluate(() => /** @type {any} */ (window).v7Sheet('meter'));
   await page.getByRole('button', { name: /Replace the file/ }).click();
   await expect(page.locator('#v7-sheet')).toContainText('Choose the file');
+});
+
+test('1.7 the front page offers "Open Peakless", not an app that does not exist; the version is 8', async ({ page }) => {
+  await fresh(page);
+  await expect(page.locator('.wl-applink').first()).toHaveText(/Open Peakless/);
+  await expect(page.locator('body')).not.toContainText('Get the app');
+  await page.getByRole('button', { name: /Just a better plan/ }).click();
+  await answer(page, { ...TYPICAL, switched: 'longer' });
+  // The version error reports and the More page give.
+  await page.evaluate(() => /** @type {any} */ (window).setScreen('more'));
+  await expect(page.locator('#app-root')).toContainText('v8.0.0-beta.1');
+});
+
+test('1.6 planned panels lead Home on their own, then switching today; the sum is only in the four bills', async ({ page }) => {
+  await boot(page, { has_solar: true, considering_solar: true, solar_planned: true, count_A: 10, battery_kwh: 0, current_screen: 'result' });
+  const hero = page.locator('.v7-hero');
+  await expect(hero.locator('.v7-eyebrow').first()).toHaveText('Your planned panels would cut your bill by');
+  await expect(hero.locator('.v7-headline')).toContainText(/Switching plan saves €[\d,]+ a year today|already the cheapest without the panels/);
+  await expect(hero).not.toContainText('Switch plan and add your planned solar');
 });

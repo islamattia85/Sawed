@@ -86,13 +86,15 @@ test('the result screen never claims every plan was checked when they were not',
   }
 });
 
-test('no screen offers a control that cannot work in this deployment', async ({ page }) => {
+test('no screen offers a control that cannot work in this deployment, nor asks for an API that is not there', async ({ page }) => {
+  // The live price refresh had no API behind it; its status call was a 404 on
+  // every load, logged on the Plans tab (13 Oct 2026). Both are gone.
+  const asked = [];
+  page.on('request', (r) => { if (/\/api\/(tariff-status|refresh-tariffs)/.test(r.url())) asked.push(r.url()); });
   await boot(page, { current_screen: 'settings' });
-  // The refresh API does not exist on a static deploy; the button must not be
-  // offered until something has confirmed one is there.
-  const btn = await page.locator('#tariff-refresh-btn').count();
-  const flag = await page.evaluate(() => window.state._refresh_api_available);
-  if (flag !== true) expect(btn, 'live-refresh button shown with no API behind it').toBe(0);
+  await page.evaluate(() => window.setScreen('plans'));
+  expect(await page.locator('#tariff-refresh-btn').count()).toBe(0);
+  expect(asked).toEqual([]);
 });
 
 test('an unknown screen is reported rather than silently rendering home', async ({ page }) => {

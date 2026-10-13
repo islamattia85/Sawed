@@ -899,6 +899,7 @@ try {
   if (!state.ev_active && state._ev_left_out && !carAddedOnTop()){ state.ev_active = true; delete state._ev_left_out; }
   delete state.ev_file_car;   // a question on Home for a few hours on 12 Oct 2026, now gone
   for (const k of NOT_KEPT) delete state[k];   // saved by builds before 13 Oct 2026
+  for (const k of ['_tariff_status', '_refresh_api_available', '_tariff_refreshing']) delete state[k];   // the live price refresh, removed 13 Oct 2026
 } catch(e){ setState(structuredClone(DEFAULT_STATE)); }
 // A home with panels but no price (an older save, or a step left half-way)
 // would show a 0-year payback. Give it the guide price instead.
@@ -3525,7 +3526,7 @@ function renderSite(){
     <header class="wl-bar">
       <a class="wl-logo" href="/" onclick="event.preventDefault();scrollTo({ top: 0, behavior: 'smooth' })" aria-label="Peakless, back to the top"><span class="pk-land-icon">${ic('logo', 22, 'stroke-width:1.6')}</span>${wordmarkHtml('pk-word-top')}</a>
       <nav class="wl-nav" aria-label="Site"><a href="#ask">Start here</a><a href="#plan">Why the plan matters</a><a href="#plans">Every plan</a><a href="#faq">Questions</a></nav>
-      <div class="wl-bar-end"><a class="wl-applink" href="${app}">${ic('mobile', 16)}<span>Get the app</span></a>
+      <div class="wl-bar-end"><a class="wl-applink" href="${app}">${ic('mobile', 16)}<span>Open Peakless</span></a>
         ${done ? '' : renderProfileNavBtn()}
         <button class="wl-btn wl-btn-p" onclick="${go}">${done ? 'My answer' : 'Check my home'}</button></div>
     </header>
@@ -4603,93 +4604,6 @@ function renderStalenessBanner(){
   </div>`;
 }
 
-/* ============================================================
-   TARIFF AUTO-REFRESH — calls server-side scraper
-   ============================================================ */
-async function refreshTariffs(){
-  if (state._tariff_refreshing) return;
-  state._tariff_refreshing = true;
-  renderApp();
-  try {
-    const res = await fetch('/api/refresh-tariffs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    // Static deployment returns 404 or HTML (not JSON) — treat as "API unavailable"
-    if (!res.ok) {
-      state._refresh_api_available = false;
-      state._tariff_refreshing = false;
-      saveState();
-      renderApp();
-      showToast('Tariff refresh runs on the dev server, not the static deploy. Showing verified-date stamps from the bundled data instead.', { type:'blue', icon:'ⓘ', title:'Live refresh unavailable' });
-      return;
-    }
-    // Confirm it's actually JSON
-    const ct = res.headers.get('content-type') || '';
-    if (!ct.includes('json')) {
-      state._refresh_api_available = false;
-      state._tariff_refreshing = false;
-      saveState();
-      renderApp();
-      showToast('Server returned non-JSON. The refresh API likely isn\u2019t wired in this deployment.', { type:'blue', icon:'ⓘ', title:'Live refresh unavailable' });
-      return;
-    }
-    const data = await res.json();
-    state._tariff_status = data;
-    state._refresh_api_available = true;
-    if (data.success) {
-      // Reload the freshly written tariffs.json
-      await loadTariffs();
-      invalidate();
-      const confirmed = data.plans_confirmed || 0;
-      const changed   = (data.potential_changes || []).length;
-      const unreached = (data.unreachable_suppliers || []).length;
-      if (changed > 0){
-        showToast(`${confirmed} plans confirmed · ${changed} possible rate change${changed>1?'s':''} detected`, { type:'amber', icon:ic('warn',16), title:'Refreshed with warnings' });
-      } else if (unreached > 0 && confirmed === 0){
-        // This used to say the suppliers had blocked us. They had not. The logs
-        // showed eleven 404s and one bad certificate chain across twelve failed
-        // requests — dead links after site reorganisations, and entirely our
-        // problem to fix. Telling users it was anti-bot defence turned a bug
-        // into a fact of life and kept anyone from looking at it for weeks.
-        showToast(`Couldn't read ${unreached} supplier site${unreached>1?'s':''}. Showing the rates we last checked.`, { type:'amber', icon:ic('warn',16), title:'Check incomplete' });
-      } else {
-        showToast(`Rates up to date · ${confirmed} plan${confirmed!==1?'s':''} confirmed`, { type:'accent', icon:ic('checkC',16), title:'Refreshed' });
-      }
-    } else {
-      showToast(`Check failed: ${(data.error || 'unknown').slice(0,80)}`, { type:'amber', icon:ic('x',16) });
-    }
-  } catch(e){
-    // Network error (offline, CORS, etc.) — also treat as API unavailable
-    state._refresh_api_available = false;
-    showToast(`Could not reach the refresh API. Showing last-verified dates instead.`, { type:'blue', icon:'ⓘ', title:'Offline or static build' });
-  }
-  state._tariff_refreshing = false;
-  saveState();
-  renderApp();
-}
-
-async function loadTariffStatus(){
-  try {
-    const res = await fetch('/api/tariff-status');
-    if (!res.ok) {
-      state._refresh_api_available = false;
-      return;
-    }
-    const ct = res.headers.get('content-type') || '';
-    if (!ct.includes('json')) {
-      state._refresh_api_available = false;
-      return;
-    }
-    const data = await res.json();
-    if (data && data.timestamp){
-      state._tariff_status = data;
-      state._refresh_api_available = true;
-    }
-  } catch(e){
-    state._refresh_api_available = false;
-  }
-}
 
 
 /* ============================================================
@@ -5907,7 +5821,7 @@ function guideFrame(inner, leave, title, rows){
   return `<div class="fl fl-guide">
     <div class="fl-top">
       <span class="fl-word"><span class="v7-brand-mark web-logo-ico">${ic('logo', 22, 'stroke-width:1.6')}</span>${wordmarkHtml('pk-word-top')}</span>
-      <span class="fl-top-end"><a class="wl-applink" href="${APP_HREF}">${ic('mobile', 16)}<span>Get the app</span></a>
+      <span class="fl-top-end"><a class="wl-applink" href="${APP_HREF}">${ic('mobile', 16)}<span>Open Peakless</span></a>
         <button class="web-theme" onclick="setTheme(state.theme==='dark'?'light':'dark')" aria-label="Switch light or dark">${ic('contrast', 20)}</button>
         <button class="fl-exit" onclick="${leave}">Leave without saving</button></span>
     </div>
@@ -6743,7 +6657,7 @@ function renderFlow(){
     <div class="fl-top">
       <button class="sg-back" onclick="flowBack()" aria-label="Back one question">${ic('chevL', 18)}</button>
       <span class="fl-word">${WEB ? `<span class="v7-brand-mark web-logo-ico">${ic('logo', 22, 'stroke-width:1.6')}</span>` : ''}${wordmarkHtml('pk-word-top')}</span>
-      ${WEB ? `<span class="fl-top-end"><a class="wl-applink" href="${APP_HREF}">${ic('mobile', 16)}<span>Get the app</span></a>
+      ${WEB ? `<span class="fl-top-end"><a class="wl-applink" href="${APP_HREF}">${ic('mobile', 16)}<span>Open Peakless</span></a>
         <button class="web-theme" onclick="setTheme(state.theme==='dark'?'light':'dark')" aria-label="Switch light or dark">${ic('contrast', 20)}</button>
         <button class="fl-exit" onclick="${leave}">${state.onboarding_complete ? 'Back to my answer' : 'Leave'}</button></span>` : ''}
     </div>
@@ -9122,32 +9036,13 @@ function renderRefine(){
         ${(() => {
           const dates = TARIFFS.map(t => t.verified_date).filter(Boolean).sort();
           const latest = dates.length ? dates[dates.length-1] : null;
-          const s = state._tariff_status;
-          let html = '';
-          if (latest){
-            html += `<b style="color:var(--ink)">Rates last updated:</b> ${fmtVerifiedDate(latest)} (${TARIFFS.length} plans)`;
-          }
-          if (s && s.timestamp){
-            const ts = new Date(s.timestamp).toLocaleString('en-IE', {day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
-            html += `<br><span style="color:var(--ink-dim)">Last live check: ${ts}</span>`;
-            const changes = (s.potential_changes || []).length;
-            if (changes > 0) html += `<br><span style="color:var(--amber)">${changes} possible rate change${changes>1?'s':''} flagged</span>`;
-          }
-          return html || '<span style="color:var(--ink-dim)">Prices as of this version.</span>';
+          return latest ? `<b style="color:var(--ink)">Rates last updated:</b> ${fmtVerifiedDate(latest)} (${planCount().label})`
+            : '<span style="color:var(--ink-dim)">Prices as of this version.</span>';
         })()}
       </div>
       <div style="padding:10px 12px;background:var(--well);border:1px solid var(--hair);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.6">
         We check every supplier’s price page each morning. A person checks any change before it goes into the app. Rates last updated on the date above.
       </div>
-      ${(state._tariff_status?.potential_changes || []).length > 0 ? `
-        <div style="margin-top:10px;padding:10px 12px;background:rgba(255,145,0,.08);border:1px solid rgba(255,145,0,.35);border-radius:8px;font-family:var(--mono);font-size:12px;line-height:1.7">
-          <b style="color:var(--amber)">Possible rate changes detected:</b><br>
-          ${(state._tariff_status.potential_changes || []).map(c =>
-            `${c.id}: ${c.stored}c → ${c.found}c (${c.diff_c > 0 ? '+' : ''}${c.diff_c}c/kWh)`
-          ).join('<br>')}
-          <br><span style="color:var(--ink-dim)">Rates shown are our last verified figures. Edit any plan in the Plans tab.</span>
-        </div>
-      ` : ''}
     `)}
 
     ${section('csv', ic('csv',17), 'Smart-meter data', csvSummary, `
@@ -13563,11 +13458,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }),
       sbInit().then(() => { if (_sbUser) renderAppDebounced(); }),
-      loadTariffStatus().then(() => {
-        // Only the settings screen shows this. Repainting the home screen for a
-        // value it never displays is pure cost.
-        if (state._tariff_status && state.onboarding_complete && state.current_screen === 'more') renderAppDebounced();
-      }),
     ];
 
     // Boot is finished once those have landed and the coalesced paint has run.
@@ -14830,7 +14720,6 @@ window.openPlanDetail = openPlanDetail;
 window.toggleNpvBreakdown = toggleNpvBreakdown;
 window.setRegion = setRegion;
 window.setObBaseline = setObBaseline;
-window.refreshTariffs = refreshTariffs;
 window.toggleMonitoring = toggleMonitoring;
 window.setContractReminder = setContractReminder;
 window.clearContractDate = clearContractDate;
