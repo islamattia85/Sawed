@@ -3039,29 +3039,6 @@ const WEB = (() => {
 try { document.documentElement.classList.toggle('web', WEB); document.documentElement.classList.toggle('app-mode', !WEB); } catch (e) {}
 const APP_HREF = '/app';
 
-/** A day of real prices on four plans: the picture of what Peakless compares. */
-function dayCard(){
-  const ids = ['EI-NB', 'YN-EV-DNP', 'EN-SMART-24-HOUR', 'BG-TOU-PLUS'];
-  const rows = ids.map(getPlanById).filter(Boolean).map((p) => {
-    const bands = Array.from({ length: 24 }, (_, h) => bandAt(h, p));
-    const cheap = Math.min(...Object.values(p.rates).filter((v) => v > 0));
-    return `<div class="wl-rib">
-      <div class="wl-who">${planCategoryLabel(planCategory(p))}<small>${planRatesLine(p)}</small></div>
-      ${rateStrip({ bands, rates: p.rates, height: 10 })}
-      <div class="wl-cost">${(cheap * 100).toFixed(1)}c</div>
-    </div>`;
-  }).join('');
-  return `<div class="wl-card" aria-label="A day on four plans">
-    <div class="wl-card-h">A day on four plans</div>
-    <div class="wl-card-sub">Each plan's prices hour by hour, and its cheapest rate</div>
-    ${rows}
-    <div class="wl-axis"><span></span><div><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div><span></span></div>
-    ${bandLegend()}
-  </div>`;
-}
-function bandLegend(){
-  return `<div class="wl-legend"><span><i style="background:var(--bandink-night)"></i>night</span><span><i style="background:var(--bandink-day)"></i>day</span><span><i style="background:var(--bandink-peak)"></i>peak</span><span><i style="background:var(--bandink-ev)"></i>EV / boost</span></div>`;
-}
 /** The three ways in. On the website each opens the app at that setup. */
 function doorsHtml(site){
   const door = (k, fn, cls, title, sub, icons, time) => `<button class="wl-door ${cls}" onclick="${fn}">
@@ -3076,139 +3053,8 @@ function doorsHtml(site){
   </section>`;
 }
 /** Every plan Peakless tracks, with its rates: public, no home needed. */
-function sitePlans(){
-  // The plans on sale today, by kind, with the spread of their rates. The
-  // front page names no supplier; the app names plans, where you choose one.
-  const live = openPlans();
-  const span = (vals, fmt) => { const lo = Math.min(...vals), hi = Math.max(...vals); return fmt(lo) === fmt(hi) ? fmt(lo) : `${fmt(lo)} to ${fmt(hi)}`; };
-  const cheap = (p) => Math.min(p.rates.night ?? 9, p.rates.ev ?? 9, p.rates.day ?? 9);
-  const kinds = ['flat', 'tou', 'ev', 'dynamic'].map((k) => ({ k, ps: live.filter((p) => planCategory(p) === k) })).filter((x) => x.ps.length);
-  const note = { flat: 'The same price every hour', tou: 'Cheaper overnight, some dearer at teatime', ev: 'A few very cheap hours in the night', dynamic: 'A base price plus the wholesale market, hour by hour' };
-  const row = ({ k, ps }) => `<tr><td><b>${planCategoryLabel(k)}</b><small>${ps.length} plan${ps.length > 1 ? 's' : ''} · ${note[k]}</small></td>
-    <td data-k="Day">${span(ps.map((p) => p.rates.day), c1)}</td><td data-k="Cheapest hours">${k === 'flat' ? '—' : span(ps.map(cheap), c1)}</td>
-    <td data-k="Export pays">${span(ps.map((p) => p.export_rate || 0), c1)}</td><td data-k="Standing a year">${span(ps.map((p) => Math.round(p.standing)), (v) => `€${v}`)}</td></tr>`;
-  return `<section class="wl-plans is-open" id="plans">
-    <h2 class="wl-h2">The plans we compare, by kind</h2>
-    <p class="wl-sec-sub">${live.length} plans from ${new Set(live.map((p) => supplierKey(p.supplier))).size} suppliers, rates read from each supplier's website and checked this week, inc VAT. Which is cheapest depends on when you use power, which is what the app works out, plan by plan.</p>
-    <div class="wl-table wl-kinds"><table>
-      <thead><tr><th>Kind of plan</th><th>Day</th><th>Cheapest hours</th><th>Export pays</th><th>Standing a year</th></tr></thead>
-      <tbody>${kinds.map(row).join('')}</tbody>
-    </table></div>
-    <div class="wl-plans-foot">
-      <button class="wl-btn wl-btn-p" onclick="siteGo('plans')">Price every plan on my home</button>
-    </div>
-  </section>`;
-}
 
-/**
- * The front page's live demo: a typical Irish home (4,200 kWh), priced on four
- * real plans with their real rates. A deliberately simple day-shape model, for
- * showing what changes the answer; the full engine prices the reader's own home.
- */
-const DEMO_PLANS = ['EN-SMART-24-HOUR', 'EI-SST', 'EI-NB', 'YN-EV-DNP'];
-let _demo = { heat: 'gas', solar: 'none', batt: '0', ev: 'no' };
-function demoProfile(o){
-  const base = [.25,.2,.2,.2,.2,.25,.4,.6,.55,.4,.35,.35,.4,.35,.35,.4,.6,.9,1.0,.9,.75,.6,.45,.3];
-  let u = base.map((v) => v * (o.heat === 'hp' ? 1.55 : 1));
-  if (o.heat === 'hp') u = u.map((v, h) => v + ([6, 7, 8, 17, 18, 19, 20].includes(h) ? .6 : 0));
-  const k = o.solar === '12' ? 1.9 : o.solar === '6' ? .95 : 0;
-  const sun = [0,0,0,0,0,0,.05,.2,.45,.75,1,1.15,1.2,1.15,1,.75,.45,.2,.05,0,0,0,0,0].map((v) => v * k);
-  const ev = new Array(24).fill(0);
-  if (o.ev === 'yes') { ev[2] = 3.5; ev[3] = 3.5; }
-  return { u, sun, ev };
-}
-function demoCost(p, o){
-  const { u, sun, ev } = demoProfile(o);
-  const rate = (h) => p.rates[bandAt(h, p)] ?? p.rates.day;
-  const need = u.map((v, h) => v + ev[h] - sun[h]);
-  const B = +o.batt || 0, EFF = .9;
-  let stored = 0, buyExtra = 0;
-  if (B > 0){
-    // Spare solar first, then the cheapest hours, if that beats the dearest hour.
-    const spare = need.reduce((a, v) => a + Math.max(0, -v), 0);
-    const want = need.reduce((a, v) => a + Math.max(0, v), 0) / EFF;
-    const fromSun = Math.min(B, spare, want);
-    let left = fromSun;
-    for (let h = 0; h < 24 && left > 0; h++) if (need[h] < 0){ const t = Math.min(-need[h], left); need[h] += t; left -= t; }
-    stored = fromSun * EFF;
-    const cheap = Math.min(...Array.from({ length: 24 }, (_, h) => rate(h)));
-    const dear = Math.max(...Array.from({ length: 24 }, (_, h) => rate(h)));
-    // Only what the dearer hours will use: the rest would sit in the battery unused.
-    const dearNeed = Array.from({ length: 24 }, (_, h) => h).filter((h) => rate(h) > cheap / EFF + .01).reduce((a, h) => a + Math.max(0, need[h]), 0);
-    if (cheap / EFF < dear - .01){ const room = Math.max(0, Math.min(B - fromSun, dearNeed / EFF - stored / EFF)); buyExtra = room * cheap; stored += room * EFF; }
-    // Empty it into the dearest hours of need.
-    [...Array(24).keys()].filter((h) => need[h] > 0).sort((a, b) => rate(b) - rate(a)).forEach((h) => {
-      const t = Math.min(need[h], stored); need[h] -= t; stored -= t; });
-  }
-  let buy = buyExtra, sell = 0;
-  for (let h = 0; h < 24; h++){
-    if (need[h] > 0) buy += need[h] * rate(h); else sell += -need[h] * (p.export_rate || .185);
-  }
-  return Math.round((buy - sell) * 365 + (p.standing || 0) + PSO_LEVY);
-}
-function demoCard(){
-  const plans = DEMO_PLANS.map(getPlanById).filter(Boolean);
-  const rows = plans.map((p) => ({ p, c: demoCost(p, _demo) })).sort((a, b) => a.c - b.c);
-  const max = Math.max(1, ...rows.map((r) => r.c));
-  const seg = (k, opts, lbl) => `<div class="wl-ctrl"><span>${lbl}</span><div class="wl-seg" role="group" aria-label="${lbl}">${opts.map(([v, l]) => `<button class="${_demo[k] === v ? 'on' : ''}" aria-pressed="${_demo[k] === v}" onclick="demoSet('${k}','${v}')">${l}</button>`).join('')}</div></div>`;
-  return `<div class="wl-demo" id="wl-demo">
-    <div class="wl-demo-h"><b>Try it on a typical Irish home</b><span>4,200 kWh a year</span></div>
-    <div class="wl-ctrls">${seg('heat', [['gas', 'Gas'], ['hp', 'Heat pump']], 'Heating')}${seg('solar', [['none', 'None'], ['6', '6'], ['12', '12']], 'Solar panels')}${seg('batt', [['0', 'None'], ['5', '5'], ['10', '10 kWh']], 'Battery')}${seg('ev', [['no', 'No'], ['yes', 'Yes']], 'Electric car')}</div>
-    <div class="wl-res">${rows.map((r, i) => `<div class="wl-rrow ${i === 0 ? 'is-best' : ''}"><div class="wl-who">${planCategoryLabel(planCategory(r.p))}<small>${planRatesLine(r.p)}</small></div>
-      <div class="wl-track"><i style="width:${Math.max(4, Math.max(0, r.c) / max * 100)}%"></i></div><b>${eur(r.c)}</b></div>`).join('')}</div>
-    <div class="wl-demo-f"><p>Cheapest here: <b>${lowerFirst(planPlain(rows[0].p))}</b>. A simple model on four real plans’ rates; the app prices your own home on every plan, hour by hour.</p>
-      <button class="wl-btn wl-btn-p" onclick="siteGo('home')">Do it for my home</button></div>
-  </div>`;
-}
-/**
- * The worked example as a real Peakless report: a sample home is priced by the
- * full engine and its PDF made by the same code as everyone's own report. The
- * reader's answers are set aside while it runs and put back after.
- */
-const SAMPLE_HOME = { onboarding_complete: true, usage_input_mode: 'kwh', annual_kwh: 5300, heating_type: 'heatpump',
-  region: 'south', baseline: 'BG-TOU-PLUS', baseline_known: true, baseline_discount_pct: 0, has_solar: true, solar_planned: true,
-  considering_solar: true, solar_is_estimate: false, count_A: 12, count_B: 0, azimuth_A: 180, tilt_A: 35, battery_kwh: 9,
-  ev_active: false, _csv_imported: false, bills: null, grant_eligible: true, grant_seai: 2400, charge_from_grid: true, strategy_mode: 'auto' };
-async function sampleReport(){
-  // With email capture on (src/features.js) the sample costs an email address.
-  let email = '';
-  if (FEATURES.emailCapture){
-    const box = document.getElementById('wl-sample-email');
-    email = box ? box.value.trim() : '';
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){
-      if (box){ box.focus(); box.setAttribute('aria-invalid', 'true'); }
-      const msg = document.getElementById('wl-sample-msg'); if (msg) msg.textContent = 'Enter an email address to get the sample report.';
-      return;
-    }
-  }
-  const saved = structuredClone(state);
-  const btn = document.getElementById('wl-sample-go'); if (btn){ btn.disabled = true; btn.textContent = 'Making the report…'; }
-  try {
-    if (email) captureEmail(email, 'sample_report');
-    const keep = structuredClone(state);
-    // The PDF library loads on first use; have it ready before the sample home
-    // goes in, or the report would run after the reader's answers are back.
-    if (typeof window.jspdf === 'undefined' && typeof window.jsPDF === 'undefined' && !(await ensureJsPdf())) throw new Error('PDF library unavailable');
-    setState(Object.assign(structuredClone(DEFAULT_STATE), SAMPLE_HOME));
-    applyRegion(state.region);
-    applyUsageInput();
-    if (typeof CACHE === 'object') CACHE.dirty = true;
-    invalidate();
-    await doGeneratePdf();
-    if (email){ saved.lead_queue = keep.lead_queue; saved.email_captured = keep.email_captured; saved.user_email = keep.user_email; }
-  } catch (e) {
-    console.error('Sample report failed', e);
-  } finally {
-    setState(saved);
-    applyRegion(state.region || 'east');
-    if (typeof CACHE === 'object') CACHE.dirty = true;
-    invalidate(); saveState(); renderApp();
-  }
-}
-window.sampleReport = sampleReport;
 
-function demoSet(k, v){ _demo[k] = v; const el = document.getElementById('wl-demo'); if (el) el.outerHTML = demoCard(); }
-window.demoSet = demoSet;
 
 /**
  * A plan by what it is, not who sells it. The front page names no supplier:
@@ -3222,13 +3068,7 @@ function planPlain(p){
   const cheap = Math.min(p.rates.night ?? 9, p.rates.ev ?? 9, p.rates.day ?? 9);
   return `${kind}, ${p.export_rate > 0 ? `${c1(p.export_rate)} for export` : 'nothing for export'}${cat === 'flat' ? '' : `, ${c1(cheap)} at its cheapest`}`;
 }
-const lowerFirst = (t) => t ? t[0].toLowerCase() + t.slice(1) : t;
 /** A plan's rates in one short line, for the demo's rows. */
-function planRatesLine(p){
-  const cheap = Math.min(p.rates.night ?? 9, p.rates.ev ?? 9, p.rates.day ?? 9);
-  return planCategory(p) === 'flat' ? `${c1(p.rates.day)} all day · ${c1(p.export_rate || 0)} export`
-    : `day ${c1(p.rates.day)} · cheapest ${c1(cheap)} · ${c1(p.export_rate || 0)} export`;
-}
 
 /**
  * Facts from the plans as they are today, for the front page's words: how
@@ -3245,12 +3085,6 @@ function planFacts(){
 // Cents as people say them: 25c, 6c, 8.6c.
 const c1 = (v) => `${+(v * 100).toFixed(v * 100 < 10 ? 1 : 0)}c`;
 /** A row of payback bars: label, the plan or note under it, years, and a tone. */
-function pbBars(rows, max){
-  return rows.map(([label, sub, y, cls]) => `<div class="wl-pb-row ${cls}">
-      <div class="wl-pb-l"><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</div>
-      <div class="wl-pb-track"><i style="width:${Math.max(6, Math.round(y / max * 72))}%"></i><em>${y.toFixed(1)} years</em></div>
-    </div>`).join('');
-}
 /**
  * The front page's picture: the same panels on the same home, paying back in
  * very different times depending on the plan, and if export pay halves. The
@@ -3279,14 +3113,11 @@ function heroArt(){
 
 /** The questions people bring, in their words, each opening the part of Peakless that answers it. */
 function askList(){
-  const F = planFacts();
   const Q = [
-    ['I have solar. Am I on the right plan?', `Export pay runs from 0c to ${c1(F.maxEx)} a unit. We find the plan that pays most for your setup.`, "siteGo('have')", 'Check my plan'],
     ['They told me five years. Is that right?', 'We work out the payback on your own home, on every plan, with the SEAI grant.', "siteGo('solar')", 'Check my payback'],
     ['Is it the right system for my roof?', 'Sized for your roof and what you use, and whether a battery is worth it.', "siteGo('solar')", 'Size my system'],
     ['Is my quote fair?', 'We compare it with the usual price for that size, and work out its payback on your home.', "siteGo('quote')", 'Check my quote'],
     ['What if export pay drops, or night rates go up?', 'The stress test shows how long the payback takes in tougher futures.', "siteGo('stress')", 'Stress-test it'],
-    ['I’m getting an electric car. What changes?', 'What it adds to the bill, the cheapest hours to charge, and whether solar pays more with it.', "siteGo('ev')", 'Check with a car'],
     ['I just want a cheaper plan.', 'Every plan priced on your home, in about a minute.', "siteGo('plans')", 'Compare plans'],
   ];
   return `<section class="wl-band wl-ask" id="ask"><div class="wl-in">
@@ -3295,31 +3126,17 @@ function askList(){
   </div></section>`;
 }
 
-/**
- * Why the plan matters as much as the panels, in real figures: what export
- * pays, what night power costs, a plan that was withdrawn, and one big system
- * on three plans.
- */
+/** Why the plan matters as much as the panels: three facts from today's plans. */
 function planMatters(){
-  const F = planFacts(), b = FIG.big, g = F.gone, best = getPlanById(b.best_plan), stay = getPlanById(b.before_plan);
-  const rows = [
-    ...(g && b.gone_payback != null ? [['On the plan that was withdrawn', planPlain(g), b.gone_payback, 'is-gone']] : []),
-    ['On today’s cheapest plan', planPlain(best), b.best_payback, 'is-good'],
-    [stay && planCategory(stay) === 'flat' ? 'Staying on a one-price plan' : 'Staying on the plan it was on', planPlain(stay), b.stay_payback, 'is-bad'],
-  ];
+  const F = planFacts(), g = F.gone;
   const gone = g && g.discontinued_date ? `One plan paid ${c1(g.export_rate)} for export and ${c1(g.rates.ev)} to charge at night. It was withdrawn on ${fmtDay(g.discontinued_date)}.` : '';
-  return `<section class="wl-band wl-tint" id="plan"><div class="wl-two"><div>
-      <div class="wl-sh"><div class="wl-eyebrow">Why the plan matters</div><h2 class="wl-h2">The plan can change the payback as much as the panels.</h2></div>
+  return `<section class="wl-band wl-tint" id="plan"><div class="wl-in">
+      <div class="wl-sh"><div class="wl-eyebrow">Why the plan matters</div></div>
       <div class="wl-points">
         <div><span>1</span><div><b>Export pay runs from 0c to ${c1(F.maxEx)} a unit</b><p>${F.zero} of the ${F.n} plans pay nothing for the power your panels send to the grid.</p></div></div>
         <div><span>2</span><div><b>Night rates decide what a battery earns</b><p>${F.minEv ? `The cheapest night-time EV rate today is ${c1(F.minEv)}. ` : ''}On a one-price plan, a battery can only store your own solar.</p></div></div>
         <div><span>3</span><div><b>Plans come and go</b><p>${gone} A system that only pays off on one plan is a gamble, so we price yours on all of them.</p></div></div>
-      </div></div>
-      <figure class="wl-card wl-pb" aria-label="Payback for 16 panels, a battery and a car on three plans">
-        <div class="wl-pb-h"><b>${b.panels} panels, a ${b.battery} kWh battery and an electric car</b><small>Years to earn back ${eur(b.net)} from today’s ${eur(b.before)} bill</small></div>
-        ${pbBars(rows, Math.max(8, Math.ceil(b.stay_payback + 1)))}
-        <p class="wl-pb-note">The same Dublin home, driving ${b.km.toLocaleString('en-IE')} km a year, after the SEAI grants. Worked out on the plans of ${fmtDay(FIG.worked_out)}, the withdrawn one priced as it was.</p>
-      </figure>
+      </div>
     </div></section>`;
 }
 
@@ -3331,77 +3148,6 @@ function howStrip(){
   return `<section class="wl-how3" id="how" aria-label="How it works">${st.map(([i, t, d], k) => `<div><span class="wl-how3-ic">${ic(i, 20)}</span><b><i>${k + 1}</i> ${t}</b><small>${d}</small></div>`).join('')}</section>`;
 }
 
-/**
- * Small previews of what the app shows: real plans and the demo's typical
- * home (gas heating, 12 panels, a car), drawn with labels, so each card
- * shows what the feature finds, not just a shape.
- */
-const T = (x, y, t, o = '') => `<text x="${x}" y="${y}" ${o}>${t}</text>`;
-function showAnalysis(){
-  const now = [212, 190, 168, 136, 112, 96, 92, 98, 120, 150, 184, 210], best = [150, 128, 96, 52, 22, 6, 4, 12, 44, 86, 124, 148];
-  const y = (v) => 104 - v * .42, M = 'JFMAMJJASOND';
-  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
-    ${T(4, 12, 'A year, month by month', 'class="h"')}${T(256, 12, eur(-FIG.typical.net / FIG.typical.payback), 'class="g" text-anchor="end"')}
-    ${now.map((v, i) => `<rect x="${10 + i * 20.5}" y="${y(v)}" width="7" height="${104 - y(v)}" rx="2" class="mute"/><rect x="${18 + i * 20.5}" y="${y(best[i])}" width="7" height="${104 - y(best[i])}" rx="2" class="acc"/>${T(17 + i * 20.5, 118, M[i], 'text-anchor="middle"')}`).join('')}
-    ${T(4, 130, '■ your plan now   ', 'class="mute-t"')}${T(96, 130, '■ cheapest plan, with panels', 'class="acc-t"')}</svg>`;
-}
-function showDay(){
-  const p = getPlanById('YN-EV-DNP') || getPlanById(DEMO_PLANS[0]);
-  const u = demoProfile({ heat: 'gas', solar: 'none', ev: 'yes' });
-  const v = u.u.map((x, h) => x + u.ev[h]), mx = Math.max(...v);
-  const C = { night: 'var(--bandink-night)', day: 'var(--bandink-day)', peak: 'var(--bandink-peak)', ev: 'var(--bandink-ev)' };
-  const r = (b) => `${((p.rates[b] ?? p.rates.day) * 100).toFixed(0)}c`;
-  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
-    ${T(4, 12, `A day on ${lowerFirst(planPlain(p).split(',')[0])}`, 'class="h"')}
-    ${v.map((x, h) => { const hh = Math.max(2, x / mx * 78); return `<rect x="${8 + h * 10.3}" y="${104 - hh}" width="8" height="${hh}" rx="2" fill="${C[bandAt(h, p)] || C.day}"/>`; }).join('')}
-    ${T(56, 58, `← car ${r('ev')}`, 'class="g"')}${T(190, 46, `peak ${r('peak')}`, 'class="pk"')}
-    ${['00', '06', '12', '18', '24'].map((t, i) => T(8 + i * 61.8, 118, t, 'text-anchor="middle"')).join('')}
-    ${T(4, 130, 'kWh each hour, coloured by price', 'class="mute-t"')}</svg>`;
-}
-/** The example home's four cheapest plans with its 12 panels, from the model's figures, by kind. */
-function showPlans(){
-  const rows = (FIG.typical.top || []).map(([id, c]) => ({ p: getPlanById(id), c })).filter((r) => r.p);
-  const mx = Math.max(...rows.map((r) => r.c));
-  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
-    ${T(4, 12, 'A year with 12 panels', 'class="h"')}
-    ${rows.map((r, i) => { const y = 24 + i * 26, w = Math.max(6, r.c / mx * 80); return `${T(4, y + 8, `${i + 1}. ${planCategoryLabel(planCategory(r.p))}`, i ? '' : 'class="g"')}
-      <rect x="142" y="${y}" width="${w}" height="9" rx="4.5" class="${i ? 'mute' : 'acc'}"/>${T(266, y + 8, eur(r.c), `text-anchor="end" ${i ? '' : 'class="g"'}`)}`; }).join('')}
-    ${T(4, 130, `The example home, ${TARIFFS.filter(onOffer).length} plans checked this week`, 'class="mute-t"')}</svg>`;
-}
-function showPayback(){
-  const cost = FIG.typical.net, save = cost / FIG.typical.payback, Y = 20, x = (t) => 22 + t * 11.4, y = (v) => 70 - v / 300;
-  let d = `M${x(0)},${y(-cost)}`; for (let t = 1; t <= Y; t++) d += ` L${x(t)},${y(save * t - cost)}`;
-  const pb = cost / save;
-  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
-    ${T(4, 12, '12 panels, after the €1,800 grant', 'class="h"')}
-    <line x1="22" x2="250" y1="${y(0)}" y2="${y(0)}" class="axis"/>${T(18, y(0) + 3, '€0', 'text-anchor="end"')}
-    <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
-    <circle cx="${x(pb)}" cy="${y(0)}" r="4.5" fill="var(--panel)" stroke="var(--accent)" stroke-width="2.5"/>
-    ${T(x(pb) + 4, y(0) + 18, `pays back · ${FIG.typical.payback.toFixed(1)} yrs`, 'class="g"')}
-    ${[0, 5, 10, 15, 20].map((t) => T(x(t), 118, t, 'text-anchor="middle"')).join('')}${T(4, 130, 'years from install', 'class="mute-t"')}</svg>`;
-}
-function showStress(){
-  const C = ['var(--bandink-peak)', 'var(--brand-gold)', 'var(--accent)'];
-  let r = '';
-  for (let yy = 0; yy < 5; yy++) for (let xx = 0; xx < 6; xx++){ const g = xx + (4 - yy) * .5 > 4.5 ? 2 : xx + (4 - yy) * .5 > 2.2 ? 1 : 0; r += `<rect x="${40 + xx * 26}" y="${20 + yy * 18}" width="22" height="14" rx="3" fill="${C[g]}" opacity=".85"/>`; }
-  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
-    ${T(4, 12, 'If prices change', 'class="h"')}${r}
-    <circle cx="${40 + 4 * 26 + 11}" cy="${20 + 1 * 18 + 7}" r="6" fill="none" stroke="var(--ink)" stroke-width="2"/>
-    ${['40c', '30c', '20c', '10c', '5c'].map((t, i) => T(34, 30 + i * 18, t, 'text-anchor="end"')).join('')}
-    ${['0', '5', '10', '15', '20', '25'].map((t, i) => T(51 + i * 26, 118, t, 'text-anchor="middle"')).join('')}
-    ${T(206, 34, '■ same', 'class="acc-t"')}${T(206, 50, '■ +1–4 yrs', 'class="au-t"')}${T(206, 66, '■ longer', 'class="pk"')}
-    ${T(4, 130, 'export pay (c) → · night price ↑', 'class="mute-t"')}</svg>`;
-}
-function showReport(){
-  return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
-    <rect x="58" y="4" width="92" height="124" rx="6" fill="var(--brand-ink)"/>
-    ${T(66, 22, 'peakless', 'style="fill:#E8EFEB;font-weight:700"')}${T(66, 44, 'Your home', 'style="fill:#fff;font-weight:800"')}${T(66, 57, 'energy report', 'style="fill:#fff;font-weight:800"')}
-    ${T(66, 78, 'Could save', 'style="fill:var(--brand-gold)"')}${T(66, 100, '€1,822', 'style="fill:#6EE7A8;font-weight:800;font-size:20px"')}
-    <rect x="156" y="14" width="96" height="110" rx="6" fill="var(--panel)" stroke="var(--hair-strong)"/>
-    ${T(164, 30, 'At a glance', 'class="h"')}
-    ${[[100, 'mute'], [86, 'mute'], [28, 'acc'], [14, 'acc']].map(([w, c], i) => `<rect x="164" y="${42 + i * 16}" width="${w * .78}" height="7" rx="3.5" class="${c}"/>`).join('')}
-    ${T(164, 116, '13 pages', 'class="mute-t"')}</svg>`;
-}
 
 /** The website at "/": what Peakless is, shown and taught, then a way in. */
 function renderSite(){
@@ -3411,11 +3157,10 @@ function renderSite(){
   const go = "siteGo('home')";
   // Someone with an answer opens the app on it, not on its start page.
   const app = done ? APP_HREF + '#result' : APP_HREF;
-  const strip = (id) => { const p = getPlanById(id); return p ? rateStrip({ bands: Array.from({ length: 24 }, (_, h) => bandAt(h, p)), rates: p.rates, height: 10 }) : ''; };
   return `<div class="pk-land wl wl-site">
     <header class="wl-bar">
       <a class="wl-logo" href="/" onclick="event.preventDefault();scrollTo({ top: 0, behavior: 'smooth' })" aria-label="Peakless, back to the top"><span class="pk-land-icon">${ic('logo', 22, 'stroke-width:1.6')}</span>${wordmarkHtml('pk-word-top')}</a>
-      <nav class="wl-nav" aria-label="Site"><a href="#ask">Start here</a><a href="#plan">Why the plan matters</a><a href="#plans">Every plan</a><a href="#faq">Questions</a></nav>
+      <nav class="wl-nav" aria-label="Site"><a href="#ask">Start here</a><a href="#plan">Why the plan matters</a><a href="#faq">Questions</a></nav>
       <div class="wl-bar-end"><a class="wl-applink" href="${app}">${ic('mobile', 16)}<span>Open Peakless</span></a>
         ${done ? '' : renderProfileNavBtn()}
         <button class="wl-btn wl-btn-p" onclick="${go}">${done ? 'My answer' : 'Check my home'}</button></div>
@@ -3425,76 +3170,32 @@ function renderSite(){
       <div class="wl-copy">
         <div class="wl-eyebrow wl-motto">${ic('sun', 15)} Solar and electricity plans, priced on your home</div>
         <h1 class="wl-h1">The right plan, <em>with or without</em> solar.</h1>
-        <p class="wl-lede">${n} plans from ${nSup} Irish suppliers, ${planCount('smart').n} of them for smart meters, priced hour by hour on your own home. Free${unpaid() ? ', no commission from anyone' : ''}.</p>
+        <p class="wl-lede">${n} plans from ${nSup} Irish suppliers, ${planCount('smart').n} of them for smart meters, priced hour by hour on your own home. Free. No supplier pays to be ranked.</p>
         <div class="wl-j-k">Where are you?</div>
         <div class="wl-journeys" role="group" aria-label="Where are you?">
-          <button class="wl-journey is-have" onclick="siteGo('have')"><span class="wl-j-ic">${ic('sun', 22)}</span><span><b>I have solar</b><small>Am I on the best plan for my panels?</small></span>${ic('chevR', 18)}</button>
           <button class="wl-journey is-plan" onclick="siteGo('solar')"><span class="wl-j-ic">${ic('battery', 22)}</span><span><b>I’m thinking about solar</b><small>Will it pay back, what size, and on which plan?</small></span>${ic('chevR', 18)}</button>
+          <button class="wl-journey is-have" onclick="siteGo('have')"><span class="wl-j-ic">${ic('sun', 22)}</span><span><b>I have solar</b><small>Am I on the best plan for my panels?</small></span>${ic('chevR', 18)}</button>
           <button class="wl-journey is-bill" onclick="siteGo('plans')"><span class="wl-j-ic">${ic('plans', 22)}</span><span><b>Just a better plan</b><small>No solar: every plan priced on my bill, in a minute</small></span>${ic('chevR', 18)}</button>
         </div>
-        <div class="wl-proof"><div><b>${n}</b><span>plans, rates checked this week</span></div><div><b>8,760</b><span>hours priced, not averages</span></div><div><b>€0</b><span>commission from suppliers</span></div></div>
       </div>
       ${heroArt()}
     </section>
-    ${askList()}
     ${howStrip()}
     ${planMatters()}
-
-    <section class="wl-band wl-tint" id="get"><div class="wl-in">
-      <div class="wl-sh"><div class="wl-eyebrow">What you get</div><h2 class="wl-h2">An answer you can check, test and keep.</h2><p>Not just a ranked list. Every figure is backed by your own year, hour by hour.</p></div>
-      <div class="wl-show" role="list">
-        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showPayback()}</div><h3>Solar payback</h3><p>Sized for your roof's faces and tilt, battery wear included, on the best plan once the panels are in.</p></div>
-        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showStress()}</div><h3>The stress test</h3><p>Move export pay and night prices, and how fast they change: see which futures still pay back.</p></div>
-        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showPlans()}</div><h3>Every plan, ranked</h3><p>Every plan priced on your own year, with standing charges, price rises already announced and export pay counted.</p></div>
-        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showAnalysis()}</div><h3>Your bill, month by month</h3><p>Your plan and the best one, every month. Shows when summer solar credit pays winter bills.</p></div>
-        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showDay()}</div><h3>Your day, hour by hour</h3><p>Every hour of your year against each plan's price bands, so you see the car in the cheap window and the evening at peak.</p></div>
-        <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showReport()}</div><h3>The report</h3><p>A PDF with your answer, every plan, the payback, month-by-month figures and the method, for you or an installer.</p>
-</div>
-      </div>
-      <div class="wl-sample ${FEATURES.emailCapture ? '' : 'is-plain'}"><span><b>Get a sample report.</b> The full PDF for an example home.</span>
-          ${FEATURES.emailCapture ? `<form class="wl-sample-f" novalidate onsubmit="event.preventDefault();sampleReport()">
-            <label class="sr-only" for="wl-sample-email">Email address</label>
-            <input id="wl-sample-email" type="email" autocomplete="email" placeholder="Email for a sample PDF" aria-describedby="wl-sample-msg">
-            <button id="wl-sample-go" class="wl-btn wl-btn-p" type="submit">Get it</button>
-          </form>
-          <small id="wl-sample-msg" class="wl-sample-msg" role="status">A real report for an example home.</small>`
-          : `<button id="wl-sample-go" class="wl-btn wl-btn-p" type="button" onclick="sampleReport()">Download it</button>`}</div>
-    </div></section>
-
-    <section class="wl-band wl-demo-band" id="try"><div class="wl-in"><div class="wl-sh"><div class="wl-eyebrow">Try it</div><h2 class="wl-h2">See how one home changes the answer.</h2><p>Pick heating, panels, a battery and a car. Four real plans re-rank as you go, on a simple model of a typical home. Your own answer is worked out hour by hour.</p></div>${demoCard()}</div></section>
-
-    <section class="wl-band wl-tint" id="types"><div class="wl-in">
-      <div class="wl-sh"><div class="wl-eyebrow">Plan types, explained</div><h2 class="wl-h2">Four kinds of plan. One suits you best.</h2><p>Each bar is a real plan's day, midnight to midnight. The colour shows what an hour costs.</p></div>
-      <div class="wl-types">
-        <div class="wl-type"><h3>One price</h3>${strip('EN-SMART-24-HOUR')}<p>The same rate every hour. Simple, but no cheap hours to use.</p><small>Suits: <b>steady use, no timers</b></small></div>
-        <div class="wl-type"><h3>Night saver</h3>${strip('EI-SST')}<p>Cheaper overnight, dearer from 5 to 7pm on weekdays.</p><small>Suits: <b>storage heaters, timers, batteries</b></small></div>
-        <div class="wl-type"><h3>EV plans</h3>${strip('YN-EV-DNP')}<p>A very cheap window of a few hours in the early morning.</p><small>Suits: <b>electric cars and home batteries</b></small></div>
-        <div class="wl-type"><h3>Changes hourly</h3>${strip(TARIFFS.find((t) => t.type === 'dynamic') ? TARIFFS.find((t) => t.type === 'dynamic').id : 'EN-DYN')}<p>Follows the wholesale market every hour. Can be great or painful.</p><small>Suits: <b>people who shift use by app</b></small></div>
-      </div></div></section>
-
-    <section class="wl-band wl-tint" id="trust"><div class="wl-in">
-      <div class="wl-sh"><div class="wl-eyebrow">Why trust it</div><h2 class="wl-h2">Built to be checked, not trusted blindly.</h2></div>
-      <div class="wl-trust4"><div><b>Rates read from suppliers</b><span>Each plan dated and linked to its source.</span></div><div><b>Price rises counted</b><span>Announced increases are in the yearly figure.</span></div><div><b>Your data stays yours</b><span>Saved on your device unless you make an account.</span></div><div><b>Accuracy shown</b><span>Every answer says how sure it is.</span></div></div>
-    </div></section>
-
-    ${sitePlans()}
+    ${askList()}
 
     <section class="wl-band" id="faq"><div class="wl-in">
       <div class="wl-sh"><div class="wl-eyebrow">Questions</div><h2 class="wl-h2">Good to know.</h2></div>
       <div class="wl-faq">
         <details><summary>Does solar really pay back in five years?</summary><p>For many homes, about that, on the right plan. On a plan that pays nothing for export it can take nearly twice as long. Your roof, your usage, a battery and an electric car all change it, which is why we work it out on your own home.</p></details>
         <details><summary>Do I need to switch plan once the panels are in?</summary><p>Often, yes. The cheapest plan before panels is not always the cheapest after them, because export pay and cheap hours start to matter. We rank every plan with your panels in.</p></details>
-        <details><summary>What if my plan is withdrawn?</summary><p>It happens: plans close to new customers, and prices change. If you're on one, your supplier tells you what happens next. We price every plan on your home, so you can see the next best straight away, and Updates tell you when a cheaper plan comes along.</p></details>
         <details><summary>Do I need a smart meter?</summary><p>For time-of-day and EV plans, yes. Most Irish homes have one now. Without one, we compare only the plans you can move to.</p></details>
         <details><summary>Is switching safe? Will my power go off?</summary><p>No. Your supply never stops. The new supplier handles the switch with ESB Networks.</p></details>
         <details><summary>How does Peakless make money?</summary><p>${unpaid() ? `It doesn't, for now. No supplier or installer pays us, and there are no ads. If that ever changes, we'll say so here first, and it will never change the order plans are ranked in.` : PAID_LINE}</p></details>
-        <details><summary>What is the ESB meter file and why is it better?</summary><p>Your real half-hourly readings, free from esbnetworks.ie: My Meter, Downloads, “30-minute readings in kW”. With it we price your own year of use, not a typical home’s.</p></details>
-        <details><summary>Does it work for solar I already have?</summary><p>Yes. We count what the panels make, what you sell back and what the battery shifts, and rank the plans with all of that in.</p></details>
       </div></div></section>
 
-    <section class="wl-in wl-endwrap"><div class="wl-endcta"><div><h2 class="wl-h2">${done ? 'Your answer is saved on this device.' : 'Find out what your panels would really pay back.'}</h2><p>Free, no account needed. Prefer an app? <a href="${app}">The Peakless mobile app</a> gives the same answers on your phone’s home screen.</p></div><button class="wl-btn wl-btn-gold wl-btn-lg" onclick="${done ? go : "siteGo('solar')"}">${done ? 'See my answer' : 'Check my payback'}</button></div></section>
     <footer class="wl-foot"><span>Peakless · ${unpaid() ? 'independent, no commissions' : 'free to use'}</span>
-      <nav><a href="#how">How it works</a><a href="#plans">Every plan</a><a href="${app}">Mobile app</a>${footLegal()}</nav>
+      <nav><a href="#how">How it works</a><a href="${app}">Mobile app</a>${footLegal()}</nav>
       <p class="wl-company">${companyLine()}</p></footer>
     ${renderHomeCheck()}
   </div>`;

@@ -181,8 +181,8 @@ the privacy page, the terms and probably a company (step 1, option B) first.
   Updates and Profile (`installerQuotes`).
 - **Partner suppliers**: "Switch with Peakless", the commission note and referral
   links (`partners`).
-- **Email capture** for the sample report and the PDF report (`emailCapture`).
-  Nothing sends these emails yet.
+- **Email capture** before the PDF report (`emailCapture`). Nothing sends these
+  emails yet.
 - **The quote reader**: AI reading of an uploaded quote PDF or photo
   (`quoteReader`). While it is off, people type the figures from their quote, and
   `/api/extract-quote` answers 404.
