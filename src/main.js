@@ -7502,7 +7502,7 @@ function openTariffPopup(planId){
         <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)">${fmtCurrency(plan.standing)}/yr</div>
       </div>
       ${plan.type === 'dynamic' ? `<div style="padding:9px 12px;background:var(--blue-soft);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:4px">Plus a price that changes every half hour with the wholesale market.</div>` : ''}
-      ${plan.notes ? `<div style="padding:9px 12px;background:var(--well);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.55;margin-top:8px"><b style="color:var(--ink)">Supplier note.</b> ${plan.notes}</div>` : ''}
+      ${plan.public_note ? `<div style="padding:9px 12px;background:var(--well);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.55;margin-top:8px">${esc(plan.public_note)}</div>` : ''}
       <button class="modal-btn" style="margin-top:14px" onclick="document.getElementById('tariff-popup').remove(); openPlanDetail('${planId}')">Full details &amp; edit rates →</button>
       <button class="modal-skip" onclick="document.getElementById('tariff-popup').remove()">Close</button>
     </div>`;
@@ -7755,11 +7755,8 @@ function renderPlanDetail(){
       </div>
     </div>
 
-    ${plan.notes ? `
-      <div class="pd-notes-card">
-        <b>Supplier note</b>
-        ${plan.notes}
-      </div>
+    ${plan.public_note ? `
+      <div class="pd-notes-card">${esc(plan.public_note)}</div>
     ` : ''}
 
     <div class="pd-section-title"><span>Actions</span></div>

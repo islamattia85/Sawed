@@ -1534,6 +1534,12 @@ export function createV7(api) {
         ${plan.export_rate ? `<div class="v7-rate"><i class="v7-dot" style="background:var(--accent)"></i>Export<b>${api.fmtCent(plan.export_rate)}</b></div>` : ''}
       </div>
       ${(() => {
+        // The contract, from the registry: "12-month contract · €50 exit fee".
+        const terms = [plan.length > 0 ? `${plan.length}-month contract` : '', plan.exit > 0 ? `${api.fmtCurrency(plan.exit)} exit fee` : ''].filter(Boolean);
+        return terms.length ? `<div class="v7-fine v7-terms">${terms.join(' · ')}</div>` : '';
+      })()}
+      ${plan.public_note ? `<div class="v7-fine">${esc(plan.public_note)}</div>` : ''}
+      ${(() => {
         const wc = welcomeFor(plan), intro = introDiscount(plan);
         if (!wc && !intro) return '';
         const lines = [];

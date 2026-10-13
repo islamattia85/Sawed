@@ -97,3 +97,22 @@ test('1.3 one plan count: Home, Plans and the front page agree for the home’s 
   await expect(page.locator('.v7-page-head')).toContainText(c.label);
   await expect(page.locator('.plan-filter-pill').first().locator('.count')).toHaveText(String(c.n));
 });
+
+test('1.4 audit notes never show; a plan’s public note does. 1.7 the sheet gives the contract and exit fee', async ({ page }) => {
+  await fresh(page);
+  await page.getByRole('button', { name: /Just a better plan/ }).click();
+  await answer(page, { ...TYPICAL, switched: 'longer' });
+  const W = (f, a) => page.evaluate(f, a);
+  const notes = await W((id) => /** @type {any} */ (window).getPlanById(id).notes, 'EI-24');
+  expect(notes.length).toBeGreaterThan(20);
+  // The full rate card and the plan sheet: none of the audit note.
+  await W(() => /** @type {any} */ (window).showPlanDetail('EI-24'));
+  await expect(page.locator('body')).not.toContainText(notes.slice(0, 40));
+  await W(() => { document.querySelectorAll('.modal-overlay, #plan-detail').forEach((e) => e.remove()); /** @type {any} */ (window).v7Sheet('plan', 'EI-24'); });
+  await expect(page.locator('#v7-sheet')).not.toContainText(notes.slice(0, 40));
+  await expect(page.locator('#v7-sheet .v7-terms')).toHaveText('12-month contract · €50 exit fee');
+  // A standard plan: no contract to show, and its public note.
+  await W(() => /** @type {any} */ (window).v7Sheet('plan', 'EI-STD-24'));
+  await expect(page.locator('#v7-sheet .v7-terms')).toHaveCount(0);
+  await expect(page.locator('#v7-sheet')).toContainText('where most customers end up when a discount runs out');
+});
