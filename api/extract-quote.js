@@ -8,19 +8,23 @@
  * The reply is a draft for the person to confirm — the app never models a
  * quote it has not shown them first.
  *
- * Needs ANTHROPIC_API_KEY in the Vercel project's environment variables.
+ * Needs ANTHROPIC_API_KEY in the Vercel project's environment variables, and
+ * FEATURES.quoteReader on (src/features.js); off, it answers 404.
  */
 
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { guard, rateLimited } from './_server.js';
 import { QuoteSchema, SYSTEM_PROMPT, checkUpload, reconcile } from './_quote.js';
+import { FEATURES } from '../src/features.js';
 
 export const config = { maxDuration: 60 };
 
 const client = new Anthropic();
 
 export default async function handler(req, res) {
+  // Switched off for the first launch (src/features.js): no file is read.
+  if (!FEATURES.quoteReader) return res.status(404).json({ error: 'Not available.' });
   if (guard(req, res)) return;
   if (await rateLimited(req, res, 'quote', 10)) return;
   if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'Quote reading is not switched on yet.' });

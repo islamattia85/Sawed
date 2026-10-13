@@ -44,6 +44,7 @@ test('a link inside a sheet leaves for its screen, and Back returns to Me', asyn
 });
 
 test('uploading a quote and editing the EV happen on Me, like home and system', async ({ page }) => {
+  await page.addInitScript(() => { window.__SAWED_FEATURES = { quoteReader: true }; });   // off for the first launch
   await boot(page, { current_screen: 'result', ev_active: true, ev_in_bill: true, ev_km_per_year: 16000 });
   await page.evaluate(() => window.setScreen('profile'));
   await page.locator('.me-add', { hasText: 'Upload an installer' }).click();

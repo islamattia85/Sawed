@@ -81,7 +81,7 @@ test('the quote route ends on whether the price is fair', async ({ page }) => {
 
 const ANSWERED = [
   ['They told me five years', 'solar'],
-  ['Is my quote fair', 'solar'],
+  ['Is my quote fair', 'auditor'],   // the typed check while the quote reader is off
   ['What if export pay drops', 'flow'],
   ['Just a better plan', 'plans'],
   ['getting an electric car', 'ev-guide'],
@@ -94,7 +94,7 @@ for (const [button, screen] of ANSWERED) {
     await page.getByRole('button', { name: button }).first().click();
     await confirmHome(page);
     await page.waitForFunction((s) => window.state.current_screen === s, screen);
-    if (button === 'Is my quote fair') await expect(page.locator('#v7-sheet')).toContainText('quote');
+    if (button === 'Is my quote fair') await expect(page.locator('#aud-price')).toBeVisible();
     if (button === 'What if export pay drops') await expect(page.locator('.fl-route b')).toHaveText('What if prices change?');
   });
 }

@@ -1,9 +1,11 @@
 # Switching on leads, events and the installer portal
 
 **Switched off for the first launch.** Quote requests, the installer portal,
-partner suppliers and email capture are built and kept, but hidden: see
-`FEATURES` in `src/features.js`. While `installerQuotes` is off, `/api/lead`
-refuses every request. To turn a part on for a release: set its switch to
+partner suppliers, email capture and the quote reader are built and kept, but
+hidden: see `FEATURES` in `src/features.js`. While `installerQuotes` is off,
+`/api/lead` refuses every request. While `quoteReader` is off,
+`/api/extract-quote` answers 404, no upload is offered, and a quote is checked
+from the figures the person types in. To turn a part on for a release: set its switch to
 `true`, then update the privacy page, the terms and `docs/launch-checklist.md`,
 because each part changes what we tell people we do. The tests in
 `tests/e2e/monetisation.spec.js` cover both states.
@@ -16,7 +18,7 @@ because each part changes what we tell people we do. The tests in
 | `RESEND_API_KEY` | Secret | Optional. resend.com API key, for the emails to homeowners and installers. |
 | `MAIL_FROM` | Config | Optional. e.g. `Sawed <quotes@yourdomain.ie>` (a domain verified in Resend). |
 | `APP_URL` | Config | `https://sawed-zeta.vercel.app` — used in installer emails to link the portal. |
-| `ANTHROPIC_API_KEY` | Secret | Already added for the quote reader. |
+| `ANTHROPIC_API_KEY` | Secret | Only for the quote reader (`quoteReader`). Already added; unused while the reader is off. |
 
 Redeploy after adding them.
 
