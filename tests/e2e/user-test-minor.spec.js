@@ -90,7 +90,6 @@ test('the front page names no supplier, and says Peakless earns nothing today', 
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.waitForFunction(() => window.__bootSettled === true, null, { timeout: 10_000 });
-  for (const v of [['solar', '12'], ['ev', 'yes']]) await page.evaluate(([k, x]) => window.demoSet(k, x), v);
   const found = await page.evaluate(() => {
     const text = document.querySelector('.wl-site').textContent;
     const names = [...new Set(window.TARIFFS.map((p) => p.supplier)), 'Bord Gáis', 'Yuno', 'SSE', 'Airtricity', 'Pinergy'];

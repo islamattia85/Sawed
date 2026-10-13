@@ -11,8 +11,8 @@ export const FEATURES = {
   // Suppliers that pay us for a switch: "Switch with Peakless", the
   // commission note, and referral links with a click ID.
   partners: false,
-  // Asking for an email: the sample report and the PDF report. Nothing sends
-  // these yet (LEAD_ENDPOINT in src/main.js is empty).
+  // Asking for an email before the PDF report. Nothing sends it yet
+  // (LEAD_ENDPOINT in src/main.js is empty).
   emailCapture: false,
   // Reading an uploaded quote with AI (api/extract-quote.js): the upload
   // buttons, the file picker in the quote sheet, and the endpoint. Off, a
