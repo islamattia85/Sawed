@@ -3,7 +3,7 @@ import { checkSummary, AdviceSchema } from '../../api/_advice.js';
 
 describe('advice request', () => {
   it('accepts a plain household summary', () => {
-    expect(checkSummary({ summary: { home: { kwh_year: 4200 }, score: 70 } })).toBeNull();
+    expect(checkSummary({ summary: { home: { kwh_year: 4200 } } })).toBeNull();
   });
   it('refuses a summary carrying personal details, or none at all', () => {
     expect(checkSummary({ summary: { email: 'a@b.ie' } })).toMatch(/personal/);

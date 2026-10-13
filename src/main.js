@@ -14,8 +14,7 @@ import {
 import { moneyBar, dayProfile, paybackCurve, yearRibbon, bandDonut, rateStrip, billAmt } from './ui/charts.js';
 import { createV7 } from './ui/v7.js';
 import { houseScene } from './ui/house.js';
-import { NO_SYNC, cloudCopy, sentKey } from './sync.js';
-import { checkSwitch, timingFit } from './engine/meter';
+import { NO_SYNC, RETIRED, cloudCopy, sentKey } from './sync.js';
 import { installErrorReporting } from './errors';
 import { dualFuelChoices, gasPlanFor, gasKwhFromBill, inFirstYear, supplierKey } from './gas.js';
 import { GAS_TARIFFS } from './gas-tariffs.js';
@@ -900,6 +899,7 @@ try {
   delete state.ev_file_car;   // a question on Home for a few hours on 12 Oct 2026, now gone
   for (const k of NOT_KEPT) delete state[k];   // saved by builds before 13 Oct 2026
   for (const k of ['_tariff_status', '_refresh_api_available', '_tariff_refreshing']) delete state[k];   // the live price refresh, removed 13 Oct 2026
+  for (const k of RETIRED) delete state[k];   // the score and the tally, removed 13 Oct 2026 (src/sync.js)
 } catch(e){ setState(structuredClone(DEFAULT_STATE)); }
 // A home with panels but no price (an older save, or a step left half-way)
 // would show a 0-year payback. Give it the guide price instead.
@@ -1677,8 +1677,8 @@ function plannedSolarSplit(){
  * tabs never re-simulates a year. A few "_" keys are the model: the meter
  * file's hourly shape changes every hour of the year without touching the bills.
  */
-// Keys that change nothing in any figure: a page, the theme, which alerts were seen, the score toast.
-const UI_ONLY = new Set(['current_screen', 'theme', 'alerts_seen', 'score_seen', 'switch_clicks', 'gas_same_supplier', 'gas_bill_eur']);
+// Keys that change nothing in any figure: a page, the theme, which alerts were seen.
+const UI_ONLY = new Set(['current_screen', 'theme', 'alerts_seen', 'switch_clicks', 'gas_same_supplier', 'gas_bill_eur']);
 const MODEL_PRIVATE = new Set(['_csv_imported', '_csv_hourly_shape', '_ghi_override']);
 function modelKey(){
   return JSON.stringify(state, (key, v) => (key && !MODEL_PRIVATE.has(key) && (key[0] === '_' || UI_ONLY.has(key)) ? undefined : v)) + '|' + _tariffGen;
@@ -4645,105 +4645,7 @@ function renderEvSavingsCard(best){
   </div>`;
 }
 
-/* ============================================================
-   ENERGY HEALTH SCORE — one number people can improve, built
-   only from values the engine already defends elsewhere.
-   ============================================================ */
-function computeEnergyScore(best, baseCost){
-  const clamp = (v) => Math.max(1, Math.min(100, Math.round(v)));
-  const parts = [];
-  // Plan efficiency: the best plan's cost as a share of your current plan's,
-  // both on the home as it is — solar and battery included. It compared your
-  // bill WITHOUT solar against the best plan WITH it, so a solar home scored
-  // 23 for "plan efficiency" when switching was worth €148 of a €551 bill:
-  // the panels' earnings were being blamed on the tariff.
-  const basePlanNow = getPlanById(state.baseline);
-  const mineNow = annualCost(sim(basePlanNow.id), basePlanNow).net;
-  const gap = mineNow - best.net;
-  const planScore = gap <= 1 ? 100
-    : mineNow <= 0 ? clamp(100 - gap / 10)       // already a net earner: score the euros left on the table
-    : clamp(100 * Math.max(0, best.net) / mineNow);
-  parts.push({ key:'plan', label:'Plan efficiency', score:planScore,
-    why: planScore >= 99 ? "You're on the best plan for your usage" : `You pay ${fmtCurrency(Math.round(mineNow))}. The best plan is ${fmtCurrency(Math.round(best.net))}.`,
-    fix: planScore >= 99 ? null : { label:`Switch and save ${fmtCurrency(Math.round(gap))}/yr`, go:"setScreen('plans')" } });
-  // Solar: performance if installed, potential if not
-  if (state.has_solar && totalPanels() > 0){
-    const s = best.sim;
-    const gen = sumF(CACHE.solar.total);
-    const selfUse = gen > 0 ? Math.max(0, (gen - sumF(s.grid_export) - sumF(s.curtailed)) / gen) * 100 : 0;
-    parts.push({ key:'solar', label:'Solar performance', score: clamp(35 + selfUse * 0.6 + (state.export_enabled !== false ? 8 : 0)),
-      why: `${Math.round(selfUse)}% of generation used on-site${state.export_enabled === false ? ' · export payments OFF' : ''}`,
-      fix: { label:'See the free changes that raise this', go:"setScreen('solar')" } });
-  } else {
-    const mult = (IRISH_REGIONS[state.region] || {}).ghi_multiplier || 1;
-    parts.push({ key:'solar', label:'Solar potential', score: clamp(80 + (mult - 1) * 200),
-      why: `${IRISH_REGIONS[state.region] ? IRISH_REGIONS[state.region].name : 'Your region'} yield ${mult >= 1 ? '+' : ''}${Math.round((mult-1)*100)}% vs national`,
-      fix: { label:'Add solar', go:"setScreen('solar')" } });
-  }
-  // EV readiness: is the charging actually landing in a cheap window?
-  if (state.ev_active){
-    const basePlan = getPlanById(state.baseline);
-    const baseHasWindow = !!(basePlan.windows && (basePlan.windows.ev || basePlan.windows.night));
-    const bestHasWindow = !!(best.plan.windows && (best.plan.windows.ev || best.plan.windows.night));
-    const evScore = clamp(baseHasWindow ? 92 : (bestHasWindow ? 58 : 45));
-    parts.push({ key:'ev', label:'EV readiness', score:evScore,
-      why: baseHasWindow ? 'Your plan has a cheap charging window' : 'Your plan has no cheap night hours. The best plan does.',
-      fix: baseHasWindow ? null : { label:'See plans with a cheap EV window', go:"setScreen('plans')" } });
-  }
-  // Export optimisation
-  if (state.has_solar && totalPanels() > 0){
-    const bestExport = Math.max(...TARIFFS.filter(onOffer).map(t=>t.export_rate || 0));
-    const cur = (getPlanById(state.baseline).export_rate || 0);
-    parts.push({ key:'export', label:'Export optimisation',
-      score: state.export_enabled === false ? 15 : clamp(100 * cur / Math.max(0.01, bestExport)),
-      why: state.export_enabled === false ? 'You’re not being paid for the solar you sell' : `Your export rate ${fmtCent(cur)} vs best available ${fmtCent(bestExport)}`,
-      fix: state.export_enabled === false ? { label:'How to register for export payments', go:"setScreen('how-to-switch')" } : null });
-  }
-  const overall = clamp(parts.reduce((a,p)=>a+p.score,0) / parts.length);
-  return { overall, parts };
-}
 
-/**
- * The health score, with its weakest factor stated up front.
- *
- * Collapsed, this used to read "58/100 — Energy health score, 3 factors" and
- * nothing else: an unexplained scale, unnamed factors and no action, delivered
- * immediately below the switch button. That is a criticism at the moment of
- * commitment. It now names what is dragging the score down and offers the one
- * thing that would raise it.
- */
-function renderEnergyScore(best, baseCost){
-  const s = computeEnergyScore(best, baseCost);
-  const open = !!state._score_open;
-  const tone = (v) => v >= 80 ? 'var(--accent)' : v >= 55 ? 'var(--amber)' : 'var(--loss)';
-  const weakest = s.parts.reduce((a, p) => (p.score < a.score ? p : a), s.parts[0]);
-  return `
-    <div class="card" style="margin-bottom:14px">
-      <div style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:10px 0;margin:-10px 0" onclick="state._score_open=!state._score_open;renderApp();">
-        <div style="font-family:var(--mono);font-size:25px;font-weight:700;color:${tone(s.overall)}">${s.overall}<span style="font-size:12px;color:var(--ink-dim);font-weight:400">/100</span></div>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:700;color:var(--ink)">Energy health score</div>
-          <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.03em;margin-top:2px">${s.overall >= 80 ? 'Little left on the table' : 'Weakest: ' + weakest.label.toLowerCase()}</div>
-        </div>
-        <span style="font-family:var(--mono);font-size:12px;color:var(--ink-dim)">${open ? '▴' : '▾'}</span>
-      </div>
-      ${!open && weakest && weakest.score < 80 ? `
-        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line-soft)">
-          <div style="font-size:13px;color:var(--ink-soft);line-height:1.5">${weakest.why}.</div>
-          ${weakest.fix && weakest.key !== 'plan' ? `<button class="btn-secondary" style="margin-top:8px" onclick="${weakest.fix.go}">${weakest.fix.label} →</button>` : ''}
-        </div>` : ''}
-      ${open ? s.parts.map(p => `
-        <div style="margin-top:11px">
-          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
-            <span style="color:var(--ink);font-weight:600">${p.label}</span>
-            <span style="font-family:var(--mono);font-weight:700;color:${tone(p.score)}">${p.score}</span>
-          </div>
-          <div style="height:5px;background:var(--track-soft);border-radius:999px;overflow:hidden"><div style="height:100%;width:${p.score}%;background:${tone(p.score)};border-radius:999px"></div></div>
-          <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.5">${p.why}.</div>
-          ${p.fix ? `<div style="margin-top:6px"><a href="#" onclick="event.preventDefault();${p.fix.go}" style="font-size:12px;color:var(--accent);text-decoration:underline;text-underline-offset:2px">${p.fix.label} →</a></div>` : ''}
-        </div>`).join('') : ''}
-    </div>`;
-}
 
 /* ============================================================
    GOAL DESIGNER CARD — pick a goal, get the best design for it.
@@ -4905,46 +4807,6 @@ function renderLogicBreakdown(){
     </div>`;
 }
 
-/* ============================================================
-   NIGHT RATE / ARBITRAGE VISIBILITY CARD
-   Surfaces hidden savings from night-rate plans and battery
-   arbitrage — shown prominently on the result screen.
-   ============================================================ */
-function renderNightRateCard(best, baseCost){
-  // Find the best plan that has a genuine night rate (night < day * 0.6)
-  const nightPlans = TARIFFS.filter(t => onOffer(t) && t.rates && t.rates.night && t.rates.night < (t.rates.day || 99) * 0.6);
-  if (!nightPlans.length) return '';
-
-  // What does the best night-rate plan cost at the user's current usage?
-  // Use already-cached sim results (no extra computation)
-  let bestNight = null, bestNightCost = Infinity;
-  for (const p of nightPlans){
-    try {
-      const s = sim(p.id);
-      const c = annualCost(s, p).net;
-      if (c < bestNightCost){ bestNightCost = c; bestNight = p; }
-    } catch(e){}
-  }
-  if (!bestNight) return '';
-
-  const alreadyOnNight = best.plan.rates && best.plan.rates.night && best.plan.rates.night < (best.plan.rates.day || 99) * 0.6;
-  if (alreadyOnNight) return ''; // user is already on a night rate plan, no need to prompt
-
-  const extraSaving = best.net - bestNightCost;
-  if (extraSaving < 80) return ''; // not worth showing unless meaningful uplift
-
-  const nightRate = (bestNight.rates.night * 100).toFixed(1);
-  const dayRate   = (bestNight.rates.day   * 100).toFixed(1);
-
-  return `<div style="margin-top:14px;padding:14px 16px;background:var(--amber-faint);border:1.5px solid var(--amber);border-radius:12px">
-    <div style="font-family:var(--mono);font-size:12px;color:var(--amber);letter-spacing:.08em;text-transform:uppercase;font-weight:700;margin-bottom:6px">${ic('bolt',12,'vertical-align:-2px')} Night-rate savings unlocked</div>
-    <div style="font-size:13px;font-weight:700;color:var(--ink);line-height:1.4">An extra <span style="color:var(--amber)">${fmtCurrency(Math.round(extraSaving))}/yr</span> if you shift loads to off-peak</div>
-    <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:6px;line-height:1.65">
-      ${bestNight.supplier} — ${bestNight.plan} has a <b style="color:var(--ink)">${nightRate}c/kWh night rate</b> vs ${dayRate}c/kWh day.<br>
-      Run dishwasher, washing machine &amp; hot water at <b style="color:var(--ink)">2am–8am</b> to capture this saving.
-    </div>
-  </div>`;
-}
 
 /**
  * Freshness as an object rather than a paragraph.
@@ -9984,17 +9846,12 @@ function myPlanCost(){
   return annualCost(sim(plan.id), plan).net;
 }
 
-/* ── ALERTS AND THE SAVINGS TALLY ─────────────────────────────
+/* ── ALERTS ────────────────────────────────────────────────────
  * Alerts are worked out from the household and the price data whenever the
  * app opens, so they are always current: a price change on the plan this
  * home is on, a plan that would save real money, a contract about to end.
  * Each has a stable id; reading it marks it seen, and a new situation (a
- * different cheaper plan, a new price change) is a new alert.
- *
- * The tally is what the household has actually done — switched, installed
- * — each with the yearly saving the model gave at that moment, counted up
- * by the days since. It is an estimate, and says so; smart-meter data is
- * what will check it. */
+ * different cheaper plan, a new price change) is a new alert. */
 const ALERT_MIN_SAVING = 50;   // €/yr: below this a switch is not worth a message
 
 function todayIso(){ return new Date().toISOString().slice(0, 10); }
@@ -10042,14 +9899,6 @@ function computeAlerts(){
         body: 'Against what your plan costs this home today. Switching takes about ten minutes and there is nothing to cancel.',
         go: "setScreen('result')", cta: 'See the switch' });
     }
-    const old = (state.journey || []).filter((e) => (Date.now() - Date.parse(e.at)) / 864e5 > 30);
-    const lastDay = Object.keys(meterDays()).sort().pop() || '';
-    if (old.length && old.some((e) => lastDay < addDays(e.at, 14))){
-      out.push({ id: `meter:${quarterKey()}`, kind: 'meter', level: 'info',
-        title: 'Check your savings against your meter',
-        body: 'Download your meter file from esbnetworks.ie (My Meter, then Downloads, “30-minute readings in kW”) and add it here. We’ll show what you really saved.',
-        go: "v7Sheet('meter')", cta: 'Upload meter data' });
-    }
     if (state.contract_end){
       const days = Math.round((Date.parse(state.contract_end) - Date.parse(today)) / 864e5);
       if (days <= 45 && days >= -60) out.push({ id: `contract:${state.contract_end}`, kind: 'contract', level: 'warn',
@@ -10069,109 +9918,22 @@ function markAlertsSeen(){
   saveState();
 }
 
-/* The tally. */
-function journeyTotal(){
-  const now = Date.now();
-  let total = 0;
-  for (const e of state.journey || []){
-    const days = Math.max(0, (now - Date.parse(e.at + 'T00:00:00')) / 864e5);
-    total += (e.per_year || 0) * days / 365;
-  }
-  return total;
-}
 
-/** "I switched": the plan becomes the home's plan, and the saving goes on the tally. */
-function recordSwitch(planId, when){
+/** "I switched": the plan becomes the home's plan, its contract end counted from today. */
+function recordSwitch(planId){
   const to = getPlanById(planId);
   if (!to) return;
-  const at = when || todayIso();
-  let per = 0;
-  // A second switch within two weeks of the last is a correction (the first
-  // was the wrong plan, or changed before it began), not a further saving:
-  // it replaces that entry, priced from the plan before it.
-  const j = state.journey = state.journey || [];
-  const lastIdx = j.map((e) => e.type).lastIndexOf('switch');
-  const last = lastIdx >= 0 ? j[lastIdx] : null;
-  const correcting = last && Math.abs(Date.parse(at) - Date.parse(last.at)) <= 14 * 864e5;
-  if (correcting){ j.splice(lastIdx, 1); state.baseline = last.from; }
-  try {
-    const from = getPlanById(state.baseline);
-    const fromCost = sumF(sim(state.baseline).cost) + from.standing + PSO_LEVY;
-    const toCost = annualCost(sim(to.id), to).net;
-    per = Math.max(0, fromCost - toCost);
-    (state.journey = state.journey || []).push({ type: 'switch', at, from: from.id, to: to.id,
-      label: `Switched to ${to.supplier} ${to.plan}`, per_year: Math.round(per) });
-  } catch (e) {}
+  const at = todayIso();
   state.baseline = to.id;
   state.baseline_known = true;
   state.baseline_discount_pct = 0;
   state.chosen_plan = null;
+  state.last_switched = 'year';
   if (to.length > 0) state.contract_end = addDays(at, Math.round(to.length * 30.44));
   invalidate(); saveState();
   state._sheet = null;
-  showToast(`On the tally: ${eur(per)} a year from ${fmtDay(at)}`, { type: 'accent', icon: ic('checkC', 16) });
+  showToast(`Your plan is now ${to.supplier} ${to.plan}`, { type: 'accent', icon: ic('checkC', 16) });
   renderApp();
-}
-
-/** "It's installed": the panels' yearly saving goes on the tally. */
-function recordInstall(when){
-  const at = when || todayIso();
-  let per = 0;
-  try {
-    const plan = getPlanById(state.baseline);
-    per = Math.max(0, sumF(baselineSim(state.baseline).cost) - sumF(sim(state.baseline).cost));
-    void plan;
-  } catch (e) {}
-  (state.journey = state.journey || []).push({ type: 'install', at, label: `Installed ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` + ${state.battery_kwh} kWh` : ''}`, per_year: Math.round(per) });
-  state.solar_planned = false; state.solar_is_estimate = false;
-  if ((state.solar_view || 'mine') === 'mine') snapshotMySystem();
-  invalidate(); saveState();
-  state._sheet = null;
-  showToast(`On the tally: ${eur(per)} a year from ${fmtDay(at)}`, { type: 'accent', icon: ic('checkC', 16) });
-  renderApp();
-}
-
-function removeJourney(i){
-  (state.journey || []).splice(i, 1);
-  saveState(); renderApp();
-}
-
-function journeyCommit(kind){
-  const d = (document.getElementById('jr-date') || {}).value || todayIso();
-  if (kind === 'install') return recordInstall(d);
-  const p = (document.getElementById('jr-plan') || {}).value;
-  recordSwitch(p, d);
-}
-
-/** The sheet that asks what happened and when. */
-function renderJourneySheet(kind){
-  const today = todayIso();
-  if (kind === 'install'){
-    return `<div class="v7-sheet-head"><div class="v7-eyebrow">The tally</div><h2 class="v7-h">When were the panels switched on?</h2></div>
-      <p class="me-p">The system becomes your installed system, and its yearly saving is counted from this date.</p>
-      <label class="sy-field"><span><b>Date</b></span><input type="date" id="jr-date" value="${today}" max="${today}"></label>
-      <button class="v7-cta-2" onclick="journeyCommit('install')">Add to my total</button>`;
-  }
-  // The plans ranked best for this home come first, the top one chosen: that
-  // is almost always the one the person just switched to. Every other plan
-  // follows. The current plan is not offered: a switch is to something else.
-  // The plan the app recommends everywhere else comes first: the one the
-  // person chose by hand if they did, otherwise the cheapest. The ranking's
-  // next two follow it.
-  const rec = getRecommendation();
-  const ranked = (rec.ranked || []).map((r) => r.plan).filter((p) => p && p.id !== state.baseline);
-  const lead = rec.best && rec.best.plan && rec.best.plan.id !== state.baseline ? [rec.best.plan] : [];
-  const top = [...lead, ...ranked.filter((p) => !lead.some((l) => l.id === p.id))].slice(0, 3);
-  const rest = activeTariffsSorted().filter((p) => p.id !== state.baseline && !top.some((t) => t.id === p.id));
-  const opt = (p, i) => `<option value="${p.id}" ${i === 0 ? 'selected' : ''}>${esc(p.supplier)} — ${esc(p.plan)}</option>`;
-  return `<div class="v7-sheet-head"><div class="v7-eyebrow">The tally</div><h2 class="v7-h">Which plan did you switch to?</h2></div>
-    <p class="me-p">It becomes your plan here, and the yearly saving against your old one is counted from the date.</p>
-    <label class="sy-field sy-field-stack"><span><b>Plan</b></span><select id="jr-plan">
-      <optgroup label="${rec.isManualChoice ? 'Your chosen plan, then the cheapest' : 'Cheapest for your home'}">${top.map(opt).join('')}</optgroup>
-      <optgroup label="All other plans">${rest.map((p) => opt(p, -1)).join('')}</optgroup>
-    </select></label>
-    <label class="sy-field"><span><b>Date</b></span><input type="date" id="jr-date" value="${today}" max="${today}"></label>
-    <button class="v7-cta-2" onclick="journeyCommit('switch')">Add to my total</button>`;
 }
 
 function renderAlertsBlock(){
@@ -10190,164 +9952,10 @@ function renderAlertsBlock(){
   return `<section class="me-list al-list">${body}${email}</section>`;
 }
 
-function renderTallyBlock(){
-  const j = state.journey || [];
-  const sysPlanned = state.has_solar && totalPanels() > 0 && (state.solar_planned || state.solar_is_estimate);
-  const total = journeyTotal();
-  const perYear = j.reduce((a, e) => a + (e.per_year || 0), 0);
-  return `<section class="me-tally">
-    ${j.length ? `<div class="me-tally-fig">${eur(total)}<small>saved so far</small></div>
-      <div class="me-tally-sub">About ${eur(perYear)} a year saved so far (estimated)</div>
-      <div class="me-tally-list">${j.map((e, i) => `<div class="me-tally-row"><span><b>${esc(e.label)}</b><small>${fmtDay(e.at)} · ${eur(e.per_year)} a year</small></span>
-        <button class="me-mini me-x" aria-label="Remove" onclick="removeJourney(${i})">${ic('x', 14)}</button></div>`).join('')}</div>`
-      : `<div class="me-tally-empty"><b>Your savings tally</b><small>Tell us when you switch plan or your panels go in, and we'll keep count of what it's saving you.</small></div>`}
-    <div class="me-tally-actions">
-      <button class="me-mini" onclick="v7Sheet('journey','switch')">${ic('swap', 14)} I switched plan</button>
-      ${sysPlanned ? `<button class="me-mini" onclick="v7Sheet('journey','install')">${ic('sun', 14)} My panels are in</button>` : ''}
-    </div>
-    ${j.length ? `<div class="me-fine">These are estimates. Add your ESB meter file and we’ll check them against what really happened.</div>` : ''}
-  </section>`;
-}
 
-/* ── WHAT REALLY HAPPENED ──────────────────────────────────────
- * With the meter's own readings the app can check itself. Each switch on
- * the tally is re-priced on the real recorded use — the old plan against
- * the new, from the switch date — and the panels are checked by how much
- * less the home bought from the grid than the same days the year before
- * (or than the model expected, when there is no year before). */
+/** The meter file's days, by date. */
 function meterDays(){ return (state.meter && state.meter.days) || {}; }
 
-function realityChecks(){
-  const days = meterDays();
-  if (!Object.keys(days).length) return [];
-  const out = [];
-  for (const e of state.journey || []){
-    if (e.type === 'switch'){
-      const from = getPlanById(e.from), to = getPlanById(e.to);
-      if (!from || !to) continue;
-      const r = checkSwitch(days, e, from, to);
-      out.push({ e, r, kind: 'switch' });
-    } else if (e.type === 'install'){
-      // Grid bought per day after the install, against the model's own
-      // expectation for those calendar days with the panels in.
-      const after = Object.entries(days).filter(([d]) => d >= e.at);
-      if (after.length < 14){ out.push({ e, r: null, kind: 'install' }); continue; }
-      let real = 0, modelled = 0;
-      try {
-        const s = sim(state.baseline);
-        for (const [d, v] of after){
-          const doy = Math.min(364, Math.max(0, Math.floor((Date.parse(d + 'T00:00:00Z') - Date.UTC(+d.slice(0, 4), 0, 1)) / 864e5)));
-          for (let h = 0; h < 24; h++){ real += v[h] || 0; modelled += s.grid_import[doy * 24 + h] || 0; }
-        }
-      } catch (err) {}
-      out.push({ e, r: { days: after.length, realKwh: real, modelKwh: modelled, ratio: real > 0 ? modelled / real : null }, kind: 'install' });
-    }
-  }
-  return out;
-}
-
-/**
- * The household's score, out of 100, played as a game.
- *
- * Four parts, each something the household can move: being on a plan close
- * to the cheapest (40), how much of the home the model knows rather than
- * assumes (20), use falling in the plan's cheap hours (20, from the meter),
- * and installed panels doing what they should (20, from the meter). A part
- * not yet measurable scores nothing and shows as a challenge to unlock it,
- * so the score always has somewhere to go and says how to get there.
- */
-const SCORE_LEVELS = [[0, 'Starter'], [40, 'Saver'], [65, 'Smart saver'], [85, 'Peakless']];
-/** "a, b and c" */
-function andList(a){ return a.length > 1 ? `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}` : (a[0] || ''); }
-const PLAN_GAP_OK = 50;   // €/yr: closer than this to the cheapest counts as the best plan
-
-function householdScore(){
-  const parts = [], quests = [], done = [];
-  try {
-    const rec = getRecommendation();
-    const plan = getPlanById(state.baseline);
-    const cheapest = rec.cheapest || rec.best;
-    const gap = Math.max(0, myPlanCost() - cheapest.net);
-    const planPts = gap <= PLAN_GAP_OK ? 40 : Math.round(40 * Math.max(0, 1 - (gap - PLAN_GAP_OK) / 550));
-    parts.push({ key: 'plan', label: 'Right plan', max: 40, pts: planPts });
-    if (gap <= PLAN_GAP_OK) done.push(gap > 1 && cheapest.plan.id !== plan.id
-      ? `On a plan within ${eur(gap)} of the cheapest` : 'On the cheapest plan for your home');
-    else quests.push({ pts: 40 - planPts, eur: gap, icon: 'swap', title: `Switch to ${esc(cheapest.plan.supplier)} ${esc(cheapest.plan.plan)}`,
-      sub: `${planKindText(cheapest.plan)} · ${eur(cheapest.net)} a year against ${eur(myPlanCost())} on yours`, go: `v7Sheet('plan','${cheapest.plan.id}')` });
-
-    const acc = modelAccuracy();
-    const knowPts = Math.round(20 * Math.max(0, Math.min(1, (15 - acc.pct) / 12)));
-    parts.push({ key: 'know', label: 'Home known', max: 20, pts: knowPts });
-    // The meter file has a to-do of its own below, worth what it adds here
-    // too: the same step twice, at two different scores, read as two tasks.
-    if (acc.tip && !/smart-meter|meter data/i.test(acc.tip.tip) && !/v7Sheet\('meter'\)/.test(acc.tip.go)) quests.push({ pts: Math.max(2, Math.round((20 - knowPts) / 2)), icon: 'spark',
-      title: acc.tip.tip, sub: `Tightens every figure, now ±${acc.pct}%`, go: acc.tip.go });
-    if (knowPts >= 16) done.push(`Figures accurate to ±${acc.pct}%`);
-
-    const days = meterDays();
-    const hasMeter = Object.keys(days).length > 0;
-    const since = (state.journey || []).filter((e) => e.type === 'switch').map((e) => e.at).sort().pop() || '0000';
-    const fit = hasMeter ? timingFit(days, plan, since) : null;
-    const timePts = fit ? Math.round(20 * fit.fit) : 0;
-    parts.push({ key: 'timing', label: 'Cheap-hour habits', max: 20, pts: timePts });
-    const installed = state.has_solar && totalPanels() > 0 && !(state.solar_planned || state.solar_is_estimate);
-    const inst = installed ? realityChecks().find((c) => c.kind === 'install' && c.r && c.r.ratio) : null;
-    const panelPts = inst ? Math.round(20 * Math.min(1, inst.r.ratio)) : 0;
-    // Panels only count once the meter can check them; until then they are a
-    // challenge to unlock, not a zero that drags the score down.
-    if (installed && inst) parts.push({ key: 'panels', label: 'Panels working', max: 20, pts: panelPts });
-    if (installed && !inst && hasMeter && !(state.journey || []).some((e) => e.type === 'install'))
-      quests.push({ pts: 0, icon: 'sun', title: 'Tell us when your panels went in', sub: 'So your meter readings can check they’re doing what they should', go: "v7Sheet('journey','install')" });
-
-    // Meter data also replaces the usage estimate, so it lifts "home known" too.
-    const knowAfter = state._csv_imported ? knowPts : Math.round(20 * Math.max(0, Math.min(1, (15 - Math.max(2, acc.pct - 6)) / 12)));
-    if (!hasMeter) quests.push({ pts: 20 + (installed ? 20 : 0) + Math.max(0, knowAfter - knowPts), icon: 'csv', title: 'Upload your ESB meter file',
-      sub: `Unlocks cheap-hour habits${installed ? ' and panel checks' : ''}, sharpens every figure, and checks your savings for real`, go: "v7Sheet('meter')" });
-    else {
-      done.push(`Meter data in · ${Object.keys(days).length} days`);
-      const habitsDone = (state.quests_done || {}).habits && (Date.now() - Date.parse(state.quests_done.habits)) < 60 * 864e5;
-      if (habitsDone) done.push('Timers set for the cheap hours');
-      if (fit && fit.fit < 0.8 && !isFlatPlan(plan) && !habitsDone) quests.push({ pts: 20 - timePts, icon: 'clock', title: 'Move use out of the dear hours',
-        sub: `You pay ${fmtCent(fit.avgRate)} a kWh on average${fit.peakShare > 0.02 ? `, ${Math.round(fit.peakShare * 100)}% of it at peak` : ''}`, go: "v7Sheet('habits')" });
-      else if (fit) done.push('Good cheap-hour habits');
-      if (installed && inst && inst.r.ratio < 0.85) quests.push({ pts: 20 - panelPts, icon: 'battery', title: 'Get more from your panels',
-        sub: `You bought ${Math.round(inst.r.realKwh).toLocaleString('en-IE')} kWh; the model expected ${Math.round(inst.r.modelKwh).toLocaleString('en-IE')}`, go: 'openMySystem()' });
-    }
-    if (!state.contract_end) quests.push({ pts: 0, icon: 'calendar', title: 'Add your contract end date', sub: "So we can remind you before you're moved to a dearer rate", go: 'openMyHome()' });
-    if ((state.journey || []).length) done.push('Keeping a savings tally');
-  } catch (e) {}
-  const max = parts.reduce((a, p) => a + p.max, 0);
-  const score = max ? Math.round(parts.reduce((a, p) => a + p.pts, 0) / max * 100) : 0;
-  quests.sort((a, b) => b.pts - a.pts || (b.eur || 0) - (a.eur || 0));
-  return { score, parts, quests, done };
-}
-
-/** A challenge, explained before it is started: what, why, what it is worth. */
-function renderQuestSheet(i){
-  const sc = householdScore();
-  const q = sc.quests[+i];
-  if (!q) return '';
-  const lv = scoreLevel(sc.score), after = scoreLevel(Math.min(100, sc.score + (q.pts || 0)));
-  return `<div class="v7-sheet-head"><div class="v7-eyebrow">Challenge</div><h2 class="v7-h">${q.title}</h2></div>
-    <p class="me-p">${q.sub}</p>
-    <div class="qs-worth">
-      ${q.pts ? `<span><b>+${q.pts}</b>points</span>` : ''}
-      ${q.eur ? `<span><b>${eur(q.eur)}</b>a year</span>` : ''}
-      ${q.pts && after.name !== lv.name ? `<span><b>${after.name}</b>new level</span>` : ''}
-      ${!q.pts && !q.eur ? `<span><b>Reminder</b>no points, just peace of mind</span>` : ''}
-    </div>
-    <button class="v7-cta-2" onclick="${/^v7Sheet\(/.test(q.go) ? q.go : `v7Sheet(null);${q.go}`}">Do it now ${ic('chevR', 16)}</button>
-    <div class="v7-fine">Your score updates as soon as it’s done.</div>`;
-}
-
-/** Mark a challenge that only the person can confirm (timers set) as done for 60 days. */
-function questDone(key){
-  (state.quests_done = state.quests_done || {})[key] = todayIso();
-  state._sheet = null; state._quest_sel = 0;
-  saveState();
-  showToast('Marked done. Your next meter upload shows what moved.', { type: 'accent', icon: ic('checkC', 16), title: 'Challenge done' });
-  renderApp();
-}
 
 /**
  * Upload the ESB file without leaving the screen: the steps, the button, the
@@ -10383,114 +9991,10 @@ function renderMeterSheet(){
     <div class="v7-fine">The file stays on this device, and in your account if you’re signed in. Less than a year is fine.</div>`;
 }
 
-/**
- * The cheap-hours habit, as moves with a price on each: what to run when,
- * on this home's own plan, and what moving it is worth over a year.
- */
-function renderHabitsSheet(){
-  const plan = getPlanById(state.baseline);
-  const r = plan.rates, w = plan.windows || {};
-  const hh = (h) => `${String(h % 24).padStart(2, '0')}:00`;
-  const cheapBand = r.ev != null && w.ev ? 'ev' : r.night != null && w.night ? 'night' : null;
-  const cheap = cheapBand ? r[cheapBand] : r.day;
-  const dear = r.peak != null && w.peak ? r.peak : r.day;
-  const cheapWin = cheapBand ? `${hh(w[cheapBand][0])}–${hh(w[cheapBand][1])}` : null;
-  const dearWin = w.peak ? `${hh(w.peak[0])}–${hh(w.peak[1])}` : 'the day';
-  const gap = Math.max(0, dear - cheap);
-  if (!cheapBand || gap < 0.02){
-    return `<div class="v7-sheet-head"><div class="v7-eyebrow">Cheap hours</div><h2 class="v7-h">Your plan has one price all day</h2></div>
-      <p class="me-p">On ${esc(plan.supplier)} ${esc(plan.plan)} it doesn't matter when you use power, so there is nothing to move. A plan with cheap night hours could pay you to move it.</p>
-      <button class="v7-cta-2" onclick="v7Sheet(null);setScreen('plans')">See plans with cheap hours ${ic('chevR', 16)}</button>`;
-  }
-  const moves = [
-    ['Dishwasher', 'Set its delay timer', 1.1 * 5 * 52],
-    ['Washing machine', 'Start it on a timer', 0.9 * 4 * 52],
-    ['Tumble dryer', 'Run it overnight', 2.5 * 3 * 52],
-    ...(state.ev_active ? [['Car charging', 'Schedule it in the car or charger app', (state.ev_km_per_year || 0) * (state.ev_kwh_per_100km || 17) / 100 * 0.5]] : []),
-    ...(['storage', 'direct', 'heatpump'].includes(state.heating_type) || state.hot_water_strategy !== 'none' ? [['Hot water', 'Set the immersion timer', 3 * 365]] : []),
-  ].map(([what, how, kwh]) => ({ what, how, kwh, eur: kwh * gap }));
-  const total = moves.reduce((a, m) => a + m.eur, 0);
-  return `<div class="v7-sheet-head"><div class="v7-eyebrow">Cheap hours</div><h2 class="v7-h">Move these to ${cheapWin}</h2></div>
-    <div class="ms-rates">
-      <span class="is-cheap"><b>${fmtCent(cheap)}</b>${cheapWin}</span>
-      <span class="is-dear"><b>${fmtCent(dear)}</b>${dearWin}</span>
-    </div>
-    <div class="me-list">${moves.map((m) => `<div class="me-row"><span><b>${m.what}</b><small>${m.how}</small></span><b class="ms-eur">${eur(m.eur)}/yr</b></div>`).join('')}</div>
-    <p class="me-p">Together: about <b>${eur(total)} a year</b>, on ${esc(plan.supplier)} ${esc(plan.plan)}. Your next meter upload shows how much moved, and your score goes up with it.</p>
-    <button class="v7-cta-2" onclick="questDone('habits')">Done, my timers are set</button>`;
-}
-
-/* Reward feedback: when something the person did raises the score, say so. */
-let _scoreSeen = null, _scoreTimer = null;
-function checkScoreRise(){
-  if (!state.onboarding_complete || NO_SHEET_SCREENS.includes(state.current_screen)) return;
-  clearTimeout(_scoreTimer);
-  _scoreTimer = setTimeout(() => {
-    let sc; try { sc = householdScore().score; } catch (e) { return; }
-    // Only for someone who knows there is a score: a newcomer tapping around
-    // was getting "+1 points" with no idea what it meant.
-    if (_scoreSeen != null && sc > _scoreSeen && state.score_seen){
-      const a = scoreLevel(_scoreSeen), b = scoreLevel(sc);
-      showToast(b.name !== a.name ? `Level up: ${b.name}. Your savings score is ${sc} of 100.` : `Your savings score is now ${sc} of 100.`,
-        { type: 'accent', icon: ic('spark', 16), title: `+${sc - _scoreSeen} points` });
-    }
-    _scoreSeen = sc;
-  }, 600);
-}
-
-function scoreLevel(score){
-  let i = 0;
-  SCORE_LEVELS.forEach(([min], k) => { if (score >= min) i = k; });
-  const next = SCORE_LEVELS[i + 1];
-  return { name: SCORE_LEVELS[i][1], next: next ? next[1] : null, toNext: next ? next[0] - score : 0,
-    within: next ? (score - SCORE_LEVELS[i][0]) / (next[0] - SCORE_LEVELS[i][0]) : 1 };
-}
-
-/** What kind of plan it is, in words: told apart when names look alike. */
-function planKindText(p){
-  if (!p) return '';
-  if (p.type === 'dynamic') return 'price changes hourly';
-  if (p.type === 'flat' || isFlatPlan(p)) return 'one price all day';
-  if (p.type === 'ev' || (p.windows && p.windows.ev)) return 'cheap EV-charging hours';
-  return p.windows && p.windows.peak ? 'day, night and peak prices' : 'day and night prices';
-}
-
-function renderScoreBlock(opts = {}){
-  state.score_seen = true;   // from here on, a rise in the score is news worth a toast
-  const sc = householdScore();
-  const lv = scoreLevel(sc.score);
-  const tone = sc.score >= 85 ? 'is-gain' : sc.score >= 40 ? 'is-maybe' : 'is-warn';
-  const checks = realityChecks();
-  return `<section class="gm">
-    <div class="gm-top">
-      <div class="sc-ring ${tone}" style="--p:${Math.max(3, sc.score)}"><b>${sc.score}</b><small>of 100</small></div>
-      <div class="gm-level">
-        <span class="gm-level-name ${tone}">${lv.name}</span>
-        ${lv.next ? `<small>${lv.toNext} point${lv.toNext === 1 ? '' : 's'} to <b>${lv.next}</b></small>
-          <div class="gm-bar"><i style="width:${Math.round(lv.within * 100)}%"></i></div>` : '<small>The top level. Keep it there.</small>'}
-      </div>
-    </div>
-    <div class="gm-parts">${sc.parts.map((p) => `<span class="gm-part"><b>${p.pts}</b>/${p.max} ${p.label.toLowerCase()}</span>`).join('')}</div>
-    <p class="v7-fine">Your savings score, out of 100: how much your home already does of what saves money (${andList(sc.parts.map((p) => p.label.toLowerCase()))}). The right plan counts most. Each to-do says how many points it adds.</p>
-
-    ${sc.quests.length && !opts.noQuests ? `<div class="gm-h">Next challenges</div>
-    ${sc.quests.map((q, qi) => `<button class="gm-q ${(state._quest_sel ?? 0) === qi ? 'is-sel' : ''}" onclick="state._quest_sel=${qi};v7Sheet('quest','${qi}')">
-        <span class="gm-q-ico">${ic(q.icon, 18)}</span>
-        <span class="gm-q-text"><b>${q.title}</b><small>${q.sub}</small></span>
-        <span class="gm-q-gain">${q.pts ? `<b>+${q.pts}</b><small>points</small>` : `<small>reminder</small>`}${q.eur ? `<em>${eur(q.eur)}/yr</em>` : ''}</span>
-      </button>`).join('')}` : ''}
-
-    ${sc.done.length ? `<div class="gm-h">Done</div><div class="gm-done">${sc.done.map((d) => `<span>${ic('checkC', 14)} ${d}</span>`).join('')}</div>` : ''}
-
-    ${checks.filter((c) => c.kind === 'switch').map(({ e, r }) => r
-      ? `<div class="sc-check"><b>${esc(e.label)}</b><small>Your meter, over ${r.days} days: ${eur(r.perYear)} a year, against ${eur(e.per_year)} expected${r.ratio != null ? ` (${Math.round(r.ratio * 100)}%)` : ''}.</small></div>`
-      : `<div class="sc-check"><b>${esc(e.label)}</b><small>Not checked yet. We need two weeks of meter data from ${fmtDay(e.at)}.</small></div>`).join('')}
-  </section>`;
-}
 
 /* ── THIS QUARTER'S SUGGESTIONS ─────────────────────────────────
  * Claude reads a short summary of the household — the plan and its prices,
- * the alternatives, the use by hour, the score — and suggests up to three
+ * the alternatives, the use by hour — and suggests up to three
  * things to do, each grounded in those figures. Nothing personal is sent:
  * no name, address, email or meter number. Kept for the quarter. */
 function quarterKey(d = new Date()){ return `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`; }
@@ -10502,7 +10006,6 @@ function adviceSummary(){
   const keys = Object.keys(days).sort().slice(-90);
   const hourly = new Array(24).fill(0);
   keys.forEach((d) => { for (let h = 0; h < 24; h++) hourly[h] += days[d][h] || 0; });
-  const sc = householdScore();
   const p = (x) => ({ name: `${x.supplier} ${x.plan}`, type: x.type, rates_c: Object.fromEntries(Object.entries(x.rates).map(([k, v]) => [k, Math.round(v * 1000) / 10])),
     windows: x.windows, standing_eur: x.standing, export_c: Math.round((x.export_rate || 0) * 1000) / 10 });
   return {
@@ -10513,8 +10016,6 @@ function adviceSummary(){
     current_plan: { ...p(plan), yearly_cost_eur: Math.round(myPlanCost()), upcoming_change: plan.price_change ? plan.price_change.note || null : null },
     best_plans: rec.ranked.slice(0, 3).map((r) => ({ ...p(r.plan), yearly_cost_eur: Math.round(r.net) })),
     meter_last_90_days: keys.length ? { days: keys.length, kwh_by_hour: hourly.map((v) => Math.round(v)) } : null,
-    score: sc.score, score_parts: sc.parts.map((x) => ({ part: x.label, points: x.pts, of: x.max, note: x.note })),
-    done: (state.journey || []).map((e) => ({ what: e.label, when: e.at, per_year_eur: e.per_year })),
   };
 }
 
@@ -11098,10 +10599,6 @@ function renderMe(){
     ${state.onboarding_complete ? `<div class="section-title">Alerts${unseenAlerts().length ? ` <span class="al-count">${unseenAlerts().length} new</span>` : ''}</div>
     ${renderAlertsBlock()}
     <button class="me-row me-link me-pricewatch" onclick="setScreen('monitor')"><span><b>Price watch</b><small>We check the plans we compare daily for price rises, cheaper plans and your contract end</small></span>${ic('chevR', 16)}</button>
-    <div class="section-title">Savings</div>
-    ${renderTallyBlock()}
-    <div class="section-title">Your ${BRAND.name} score</div>
-    ${renderScoreBlock()}
     <div class="section-title">This quarter</div>
     ${renderAdviceBlock()}` : ''}
 
@@ -11150,50 +10647,45 @@ function renderMe(){
  * for: Updates (what changed, what to do next), Profile (the home itself),
  * and Account (rarely needed, behind the icon at the top). */
 
-/** One feed: alerts and challenges merged, each thing once, with its points. */
+/** News first (a price rise, a cheaper plan, a contract ending), the warnings at the top. */
 function updatesFeed(){
   const alerts = state.onboarding_complete ? computeAlerts() : [];
-  const sc = householdScore();
-  // A challenge that says the same as an alert adds its points to it instead.
-  const twin = { swap: 'cheaper', csv: 'meter', calendar: 'contract' };
-  const items = alerts.map((a) => ({ ...a, pts: 0 }));
-  sc.quests.forEach((q, qi) => {
-    // A withdrawn plan's alert carries the switch, so the "swap" challenge joins it.
-    const t = items.find((a) => a.kind === twin[q.icon]) || (q.icon === 'swap' ? items.find((a) => a.kind === 'withdrawn') : null);
-    if (t){ t.pts = Math.max(t.pts, q.pts || 0); if (q.eur) t.eur = q.eur; return; }
-    items.push({ id: 'quest:' + q.title, kind: 'quest', level: q.eur ? 'gain' : 'info', icon: q.icon, title: q.title, body: q.sub,
-      go: `state._quest_sel=${qi};v7Sheet('quest','${qi}')`, cta: 'Do it', pts: q.pts || 0, eur: q.eur || 0 });
-  });
   const order = { warn: 0, gain: 1, info: 2 };
-  return items.sort((a, b) => (order[a.level] ?? 2) - (order[b.level] ?? 2) || (b.pts || 0) - (a.pts || 0));
+  return alerts.sort((a, b) => (order[a.level] ?? 2) - (order[b.level] ?? 2));
 }
+
+/** What the person can add to make the figures their own: the meter file, the
+ *  next thing that would sharpen the estimate, the contract end date. */
+function updatesTodo(){
+  const out = [];
+  try {
+    if (!Object.keys(meterDays()).length) out.push({ title: 'Upload your ESB meter file', body: 'Your real use, hour by hour, in place of an estimate', go: "v7Sheet('meter')" });
+    const acc = modelAccuracy();
+    if (acc.tip && !/smart-meter|meter data/i.test(acc.tip.tip) && !/v7Sheet\('meter'\)/.test(acc.tip.go))
+      out.push({ title: acc.tip.tip, body: `Your figures are within ±${acc.pct}% now`, go: acc.tip.go });
+    if (!state.contract_end) out.push({ title: 'Add your contract end date', body: 'So we can remind you before you’re moved to a dearer rate', go: 'openMyHome()' });
+  } catch (e) {}
+  return out;
+}
+
 function renderUpdates(){
   if (state.onboarding_complete && unseenAlerts().length) setTimeout(markAlertsSeen, 1500);
   const seen = state.alerts_seen || {};
-  const sc = householdScore(), lv = scoreLevel(sc.score);
-  const perYear = (state.journey || []).reduce((a, e) => a + (e.per_year || 0), 0);
-  const feed = updatesFeed();
+  const news = updatesFeed(), todo = state.onboarding_complete ? updatesTodo() : [];
   const cls = { warn: 'is-warn', gain: 'is-gain', info: '' };
-  const icons = { price: 'warn', cheaper: 'bolt', contract: 'calendar', meter: 'chart', withdrawn: 'warn' };
-  // News (a price rise, a cheaper plan, a contract ending) gets a card of its own.
+  const icons = { price: 'warn', cheaper: 'bolt', contract: 'calendar', withdrawn: 'warn' };
+  // News gets a card of its own.
   const card = (a) => `<div class="al up-card ${cls[a.level] || ''} ${seen[a.id] ? '' : 'is-new'}">
-      <div class="up-card-top"><span class="up-ico">${ic(icons[a.kind] || 'bell', 16)}</span>${a.pts ? `<i class="up-pts">+${a.pts} points</i>` : ''}</div>
+      <div class="up-card-top"><span class="up-ico">${ic(icons[a.kind] || 'bell', 16)}</span></div>
       <b>${a.title}</b>${a.body ? `<small>${a.body}</small>` : ''}
       <button class="al-go up-btn" onclick="${a.go}">${a.cta}</button>
     </div>`;
   // Things to do are one tappable line each.
   const row = (a) => `<div class="al up-row"><button class="al-go" onclick="${a.go}">
-      <span><b>${a.title}</b>${a.body ? `<small>${a.body}</small>` : ''}</span>
-      ${a.pts ? `<i class="up-pts">+${a.pts}</i>` : ''}${ic('chevR', 16)}</button></div>`;
-  const news = feed.filter((a) => a.kind !== 'quest'), todo = feed.filter((a) => a.kind === 'quest');
+      <span><b>${a.title}</b>${a.body ? `<small>${a.body}</small>` : ''}</span>${ic('chevR', 16)}</button></div>`;
   return `${topbar('Updates', 'sage')}
   <div class="screen me updates">
     ${_handover ? `<button class="me-warn" onclick="v7Sheet('handover')">${ic('warn', 16)} This device and your account have different homes. Choose which to keep.</button>` : ''}
-    <details class="up-progress">
-      <summary><span class="up-score"><b>${sc.score}</b> of 100<small>Savings score · ${lv.name}</small></span><span>${perYear > 0 ? `${eur(perYear)} a year saved so far` : 'Your progress'}</span>${ic('chevD', 16)}</summary>
-      ${renderTallyBlock()}
-      ${renderScoreBlock({ noQuests: true })}
-    </details>
     <section class="al-list up-news">${news.length ? news.map(card).join('') : `<div class="me-empty">Nothing new. We check every plan daily.</div>`}</section>
     ${todo.length ? `<div class="section-title">To do</div><section class="me-list up-todo">${todo.map(row).join('')}</section>` : ''}
     <div class="section-title">This quarter</div>
@@ -11721,16 +11213,15 @@ const V7 = createV7({
   tariffCounts: () => { const live = TARIFFS.filter((p) => onOffer(p) && fitsMeter(p)); const dyn = live.filter((p) => p.type === 'dynamic').length; return { live: live.length, dynamicLeftOut: state.include_dynamic ? 0 : dyn }; },
   planCount,
   plannedLadder: () => plannedLadder(),
-  householdScore: () => householdScore(),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
-  getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,
+  getRecommendation, computeSolarPaybackScenarios,
   getPlanById, carInMeterFile, carSeenInFile, carFileState, carAddedOnTop, nowPlanWords, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, withoutGridCharge, currentGridGain, infoTip, renderStressCard, stressHomeLine, fileSolar, fileBasis, fileSummary, meterYearDays, batteryReplacement, batterySwapYear, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, FEATURES, renderConsentBar,
   fmtCurrency, fmtCent, fmtVerifiedDate, latestVerifiedLabel, planDataFlag, planCategoryLabel,
   freshnessChip, priceChangeChip, priceChangeStatus, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
   renderSavingsBreakdown, renderAssumptions,
-  renderTrustPanel, renderLogicBreakdown, renderNightRateCard, renderEvSavingsCard, evEconomics,
+  renderTrustPanel, renderLogicBreakdown, renderEvSavingsCard, evEconomics,
   renderDayInspector,
-  renderSystemSheet, renderQuickSystem, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet, renderJourneySheet, renderQuestSheet, renderMeterSheet, renderHabitsSheet, renderShareSheet,
+  renderSystemSheet, renderQuickSystem, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet, renderMeterSheet, renderShareSheet,
   alertCount: () => { try { return unseenAlerts().length; } catch (e) { return 0; } },
 });
 
@@ -13305,7 +12796,6 @@ function renderApp(){
   restorePlace(root, held, sameSheet, !screenChanged);
   paintAuthModal();
   syncScreenHistory();
-  checkScoreRise();
 }
 
 /**
@@ -14310,8 +13800,8 @@ function applyImportedBills(){
     return;
   }
   if (state._sheet && state._sheet.kind === 'meter'){
-    // Uploaded from a challenge or an alert: stay where you were; the score
-    // and the figures update around you.
+    // Uploaded from Updates or a sheet: stay where you were; the figures
+    // update around you.
     state._sheet = null;
     showToast('Meter data added. Your figures now use it.', { type: 'accent', icon: ic('checkC', 16) });
     renderApp();
@@ -14579,7 +14069,6 @@ window.sysTypicalPrice = sysTypicalPrice;
 window.openMySystem = openMySystem;
 window.homeSet = homeSet;
 window.openMyHome = openMyHome;
-window.questDone = questDone;
 window.sgCancel = sgCancel;
 window.flowSupplier = flowSupplier;
 window.sgKeep = sgKeep;
@@ -14613,15 +14102,9 @@ window.sgDone = sgDone;
 window.sgRoof = sgRoof;
 window.sgBattery = sgBattery;
 window.getAdvice = getAdvice;
-window.householdScore = householdScore;
-window.realityChecks = realityChecks;
 window.recordSwitch = recordSwitch;
-window.recordInstall = recordInstall;
-window.removeJourney = removeJourney;
-window.journeyCommit = journeyCommit;
 window.markAlertsSeen = markAlertsSeen;
 window.computeAlerts = computeAlerts;
-window.journeyTotal = journeyTotal;
 window.setSolarInstalled = setSolarInstalled;
 window.handoverKeep = handoverKeep;
 // Pure sync rules, exposed for the tests.

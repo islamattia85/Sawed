@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error - plain JS module, no types
-import { savingsLadder, rateStrip, scoreRing, monthBars, billAmt } from '../../src/ui/charts.js';
+import { savingsLadder, rateStrip, monthBars, billAmt } from '../../src/ui/charts.js';
 
 /**
  * The V7 objects carry the answer itself, not just its working — the ladder is
@@ -61,21 +61,6 @@ describe('rateStrip', () => {
   });
 });
 
-describe('scoreRing', () => {
-  it('fills the ring in proportion to the score', () => {
-    const svg = scoreRing({ value: 50, size: 100 });
-    const r = 100 / 2 - 6;
-    const c = 2 * Math.PI * r;
-    const dash = parseFloat(svg.match(/stroke-dasharray="([\d.]+)/)![1]!);
-    expect(dash).toBeCloseTo(c / 2, 1);
-  });
-
-  it('clamps out-of-range scores', () => {
-    expect(scoreRing({ value: 140 })).toContain('data-value="100"');
-    expect(scoreRing({ value: -5 })).toContain('data-value="0"');
-  });
-});
-
 describe('monthBars', () => {
   it('draws twelve months with both series', () => {
     const a = [1, 2, 3, 4, 5, 6, 6, 5, 4, 3, 2, 1].map((v) => v * 100);
@@ -90,7 +75,6 @@ describe('the V7 objects follow the same rules as the V6 ones', () => {
   const all = [
     savingsLadder({ rungs: [{ label: 'x', value: 1, token: '--accent' }] }),
     rateStrip({ bands: ['day'] }),
-    scoreRing({ value: 40 }),
     monthBars({ a: [1], b: [1] }),
   ].join('');
   it('uses tokens, never hex literals', () => {

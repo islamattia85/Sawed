@@ -253,28 +253,6 @@ export function rateStrip({ bands = [], rates = {}, width = 320, height = 20 } =
 }
 
 /**
- * A score out of 100 as a ring. The number sits in the middle, so the ring
- * adds the one thing the number cannot: how far there is still to go.
- *
- * @param {{value:number, size?:number, token?:string}} o
- */
-export function scoreRing({ value = 0, size = 88, token = '--accent' } = {}) {
-  const v = Math.max(0, Math.min(100, Number(value) || 0));
-  const r = size / 2 - 6;
-  const c = 2 * Math.PI * r;
-  const dash = (v / 100) * c;
-  return `<svg class="v7-ring" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}"
-    role="img" aria-label="Score ${Math.round(v)} of 100" data-value="${Math.round(v)}">
-    <circle cx="${size / 2}" cy="${size / 2}" r="${n(r)}" fill="none" stroke="var(--track-soft)" stroke-width="8"/>
-    <circle cx="${size / 2}" cy="${size / 2}" r="${n(r)}" fill="none" stroke="var(${token})" stroke-width="8"
-      stroke-linecap="round" stroke-dasharray="${n(dash)} ${n(c)}"
-      transform="rotate(-90 ${size / 2} ${size / 2})"/>
-    <text x="50%" y="50%" dy="0.35em" text-anchor="middle" font-size="${size < 64 ? 13 : 25}" font-weight="700"
-      fill="var(--ink)">${Math.round(v)}</text>
-  </svg>`;
-}
-
-/**
  * Twelve months, two series side by side — what the panels make against what
  * the home uses. Winter's gap is the whole case for a battery or a night rate.
  *

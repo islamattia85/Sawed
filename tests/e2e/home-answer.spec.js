@@ -106,11 +106,9 @@ test('nothing was deleted — the working and the health sheet hold all of it', 
     expect(working, `${what} is gone from the answer, not moved`).toMatch(re);
   }
 
-  // …and the health score, which left the working, is a row on the Bill tab.
+  // The health score, once a row on the Bill tab, was removed on 13 Oct 2026.
   await page.locator('.ax-tab', { hasText: 'Bill' }).click();
-  await page.locator('.ax-health').click();
-  const sheet = await page.evaluate(() => document.getElementById('v7-sheet')?.innerText || '');
-  expect(sheet, 'the health score is gone, not moved').toMatch(/Plan health/i);
+  await expect(page.locator('.screen')).not.toContainText(/Plan health|of 100/);
 
   expect(errors).toEqual([]);
 });

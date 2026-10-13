@@ -222,16 +222,6 @@ test('Bord Gáis is one supplier, not two', async ({ page }) => {
   expect(await page.evaluate(() => [...new Set(window.TARIFFS.filter((p) => /Bord G/.test(p.supplier)).map((p) => p.supplier))])).toEqual(['Bord Gáis Energy']);
 });
 
-test('Updates names the score and says what it is out of', async ({ page }) => {
-  await boot(page, { current_screen: 'updates' });
-  const sum = page.locator('.up-progress > summary');
-  await expect(sum).toContainText('of 100');
-  await expect(sum).toContainText('Savings score');
-  await expect(sum).not.toContainText('points');
-  await sum.click();
-  await expect(page.locator('.up-progress')).toContainText('out of 100');
-});
-
 test('on Updates the bell has no count; elsewhere it shows what is new', async ({ page }) => {
   const soon = new Date(Date.now() + 10 * 864e5).toISOString().slice(0, 10);
   await page.setViewportSize({ width: 1440, height: 900 });
