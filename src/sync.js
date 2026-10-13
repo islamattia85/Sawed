@@ -16,10 +16,10 @@ export const NO_SYNC = ['_flow', '_flow_edit', '_flow_intent', '_flow_given', '_
 
 /**
  * Saved by features since removed: the household score, its challenges and the
- * savings tally (13 Oct 2026). Dropped when a home loads, never sent, and never
- * taken back from an account copy saved before.
+ * savings tally, and the quarterly suggestions (13 Oct 2026). Dropped when a
+ * home loads, never sent, and never taken back from an account copy saved before.
  */
-export const RETIRED = ['score_seen', 'quests_done', 'journey', '_quest_sel', '_score_open'];
+export const RETIRED = ['score_seen', 'quests_done', 'journey', '_quest_sel', '_score_open', 'advice'];
 
 /** The household's copy for the account: the state without what is only this screen's. */
 export function cloudCopy(src){

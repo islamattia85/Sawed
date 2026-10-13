@@ -14,4 +14,8 @@ export const FEATURES = {
   // Asking for an email: the sample report and the PDF report. Nothing sends
   // these yet (LEAD_ENDPOINT in src/main.js is empty).
   emailCapture: false,
+  // Reading an uploaded quote with AI (api/extract-quote.js): the upload
+  // buttons, the file picker in the quote sheet, and the endpoint. Off, a
+  // quote is checked from the figures the person types in.
+  quoteReader: false,
 };

@@ -1255,7 +1255,7 @@ export function createV7(api) {
           </ol>
         </section>
         ${cta('Estimate it for my roof', 'startSolarGuide()')}
-        <button class="v7-cta-2 v7-cta-alt ax-cta2 v7-quote-tile" onclick="v7Sheet('quote')">${api.ic('clip', 16)} I already have a quote</button>`;
+        <button class="v7-cta-2 v7-cta-alt ax-cta2 v7-quote-tile" onclick="openQuoteCheck()">${api.ic('clip', 16)} I already have a quote</button>`;
     }
     const planned = st.solar_planned || st.solar_is_estimate;
     const sd = api.solarDataFor(d.plan.id);
@@ -1335,8 +1335,8 @@ export function createV7(api) {
       ${more ? `<div class="ax-fold">${api.renderDayInspector()}</div>` : ''}
       ${planned
         ? (api.FEATURES.installerQuotes
-          ? `${cta('Get 3 quotes for this system', 'openLeadForm()')}${cta2('Check a quote you already have', "v7Sheet('quote')", 'clip')}`
-          : `${cta('Check an installer’s quote', "v7Sheet('quote')")}${cta2('Compare plans with your panels', "setScreen('plans')")}`)
+          ? `${cta('Get 3 quotes for this system', 'openLeadForm()')}${cta2('Check a quote you already have', 'openQuoteCheck()', 'clip')}`
+          : `${cta('Check an installer’s quote', 'openQuoteCheck()')}${cta2('Compare plans with your panels', "setScreen('plans')")}`)
         : cta('Compare plans with your panels', "setScreen('plans')")}`;
   }
 
@@ -1697,6 +1697,13 @@ export function createV7(api) {
         <div class="v7-eyebrow">Installer quote</div>
         <h2 class="v7-h">${q.status === 'review' ? 'Check what we read' : 'Try my home with a quote'}</h2>
       </div>`;
+    // With the quote reader off (src/features.js) there is no file to choose:
+    // the quote is checked from the figures typed in.
+    if (!api.FEATURES.quoteReader) {
+      return `${head}
+        <p class="v7-muted">Type the price, the number of panels and the battery size from your quote. We compare the price with the usual one for that size, and work out its payback on your home.</p>
+        <button class="switch-cta v7-cta" onclick="v7Sheet(null);setScreen('auditor')">Check my quote</button>`;
+    }
     if (q.status === 'reading') {
       return `${head}<div class="v7-quote-wait" role="status"><span class="v7-spin" aria-hidden="true"></span>Reading ${esc(q.name || 'your quote')}… this takes up to half a minute.</div>`;
     }

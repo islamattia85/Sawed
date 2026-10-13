@@ -63,7 +63,6 @@ each (a PDF in a folder is enough).
 
 - Vercel (hosts the site)
 - Supabase (database: accounts and saved homes)
-- Anthropic (reads uploaded quotes, writes the quarterly suggestions)
 - Resend (sends the alert emails)
 
 **Who:** you, about 1 hour. **Cost:** €0.
@@ -95,21 +94,14 @@ backups. Since accounts hold people's saved homes, I recommend Pro from launch.
 
 **Who:** you choose and pay. **Cost:** **€0** (Free) or about **€22 a month** (Pro, $25).
 
-### Step 10. Anthropic spending limit
-Pay as you go. Reading one quote costs my estimate of 5 to 15 cent; the quarterly
-suggestions cost about the same each. Set a monthly limit in the Anthropic console,
-say €20, so a busy month can never surprise you.
-
-**Who:** you, 5 minutes. **Cost:** **€0 to €20 a month** at launch.
-
-### Step 11. Resend (alert emails)
+### Step 10. Resend (alert emails)
 The free plan sends up to 3,000 emails a month (100 a day), plenty for launch.
 Verify peakless.ie in Resend: it gives 2 or 3 DNS records to add at the
 registrar, so emails don't land in spam.
 
 **Who:** you add the records (I tell you exactly which), 30 minutes. **Cost:** **€0**.
 
-### Step 12. Run the database clean-up script
+### Step 11. Run the database clean-up script
 The privacy page says error reports are deleted after 30 days, usage counts after
 26 months, and so on. The function that deletes them was never created on the
 live database, so nothing has been deleted yet. `supabase/security_2026_10.sql`
@@ -122,7 +114,7 @@ and press Run. 10 minutes. **Cost:** €0.
 
 ## Part 4. Connect the domain (both)
 
-### Step 13. Point peakless.ie at the site
+### Step 12. Point peakless.ie at the site
 1. Me: add peakless.ie and www.peakless.ie to the Vercel project (or you, in Vercel
    → Settings → Domains) and give you the 2 DNS records.
 2. You: add those records at the registrar. It takes a few minutes to a few hours.
@@ -131,7 +123,7 @@ and press Run. 10 minutes. **Cost:** €0.
 
 **Who:** both, about 1 hour plus waiting. **Cost:** €0.
 
-### Step 14. Tell the sign-in services the new address
+### Step 13. Tell the sign-in services the new address
 1. Supabase → Authentication → URL configuration: Site URL `https://peakless.ie`,
    add `https://peakless.ie/**` to redirect URLs. Turn on leaked-password
    protection (Authentication → Passwords) if your plan includes it.
@@ -146,14 +138,14 @@ and press Run. 10 minutes. **Cost:** €0.
 
 ## Part 5. Check and open (both)
 
-### Step 15. Test the live site end to end
+### Step 14. Test the live site end to end
 On peakless.ie: create an account, sync a home, download my data, delete the
-account, make a PDF report, upload a quote, and check the daily job ran its
+account, make a PDF report, check a quote, and check the daily job ran its
 clean-up.
 
-**Who:** me, with you watching, about 1 hour. **Cost:** a few cent of Anthropic usage.
+**Who:** me, with you watching, about 1 hour. **Cost:** €0.
 
-### Step 16. Soft launch
+### Step 15. Soft launch
 Share the link with 10 to 20 people you know first. Ask them one question: "what
 confused you?" Fix what comes back, then share it widely.
 
@@ -165,8 +157,8 @@ confused you?" Fix what comes back, then share it widely.
 
 | | One-off | Each month |
 |---|---|---|
-| **Cheapest** (sole trader, free plans) | about €330 to €1,070 (business name €20, domain €7 to €45, solicitor €300 to €1,000) | about €0 to €20 (Anthropic) |
-| **Recommended** (sole trader, Supabase Pro, Vercel Pro) | the same | about €40 to €60 |
+| **Cheapest** (sole trader, free plans) | about €330 to €1,070 (business name €20, domain €7 to €45, solicitor €300 to €1,000) | €0 |
+| **Recommended** (sole trader, Supabase Pro, Vercel Pro) | the same | about €40 |
 | **As a company** | add €50 | add accountant and annual return (my estimate: a few hundred to €1,500 a year) |
 
 The solicitor is most of the one-off cost. Everything else is small.
@@ -174,7 +166,7 @@ The solicitor is most of the one-off cost. Everything else is small.
 ## How long it takes
 
 About **one to two weeks**, set by the solicitor (step 7) and, for a company,
-the CRO. Steps 2 to 6 and 8 to 15 fit in one or two days between us.
+the CRO. Steps 2 to 6 and 8 to 14 fit in one or two days between us.
 
 ---
 
@@ -191,6 +183,20 @@ the privacy page, the terms and probably a company (step 1, option B) first.
   links (`partners`).
 - **Email capture** for the sample report and the PDF report (`emailCapture`).
   Nothing sends these emails yet.
+- **The quote reader**: AI reading of an uploaded quote PDF or photo
+  (`quoteReader`). While it is off, people type the figures from their quote, and
+  `/api/extract-quote` answers 404.
+
+### When the quote reader is switched on
+
+1. Accept Anthropic's data processing agreement and keep a copy, as in step 6.
+2. Set a spending limit in the Anthropic console, say €20 a month, so a busy
+   month can never surprise you. Pay as you go: reading one quote costs my
+   estimate of 5 to 15 cent. **Cost:** €0 to €20 a month.
+3. Check `ANTHROPIC_API_KEY` is set in Vercel (Production).
+4. Put back the AI paragraphs in the privacy page and the terms, and Anthropic in
+   the list of services that receive data: they were taken out on 13 October 2026
+   (direction section 3) and are in that commit's history in `src/legal.js`.
 
 The database keeps the tables for quote requests. There are 2 rows in them from
 testing; delete them if they are yours.

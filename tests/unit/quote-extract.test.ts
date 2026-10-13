@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { checkUpload, reconcile, QuoteSchema, MAX_BYTES } from '../../api/_quote.js';
 import handler from '../../api/extract-quote.js';
+import { FEATURES } from '../../src/features.js';
 
 const base = {
   is_solar_quote: true, installer: 'Acme Solar', quote_date: null, panel_count: 12, panel_watts: 440,
@@ -50,7 +51,17 @@ function call(req: any) {
   });
 }
 
-describe('endpoint guards (no network)', () => {
+describe('endpoint while the quote reader is off', () => {
+  it('answers 404 and reads nothing', async () => {
+    expect(FEATURES.quoteReader).toBe(false);
+    const r = await call({ method: 'POST', body: { media_type: 'application/pdf', data: 'JVBE' } });
+    expect(r).toEqual({ status: 404, body: { error: 'Not available.' } });
+  });
+});
+
+describe('endpoint guards with the quote reader on (no network)', () => {
+  beforeAll(() => { FEATURES.quoteReader = true; });
+  afterAll(() => { FEATURES.quoteReader = false; });
   it('only accepts POST', async () => { expect((await call({ method: 'GET' })).status).toBe(405); });
   it('refuses other websites', async () => {
     expect((await call({ method: 'POST', headers: { origin: 'https://evil.example' } })).status).toBe(403);

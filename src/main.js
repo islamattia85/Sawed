@@ -899,7 +899,7 @@ try {
   delete state.ev_file_car;   // a question on Home for a few hours on 12 Oct 2026, now gone
   for (const k of NOT_KEPT) delete state[k];   // saved by builds before 13 Oct 2026
   for (const k of ['_tariff_status', '_refresh_api_available', '_tariff_refreshing']) delete state[k];   // the live price refresh, removed 13 Oct 2026
-  for (const k of RETIRED) delete state[k];   // the score and the tally, removed 13 Oct 2026 (src/sync.js)
+  for (const k of RETIRED) delete state[k];   // the score, the tally and the quarterly suggestions, removed 13 Oct 2026 (src/sync.js)
 } catch(e){ setState(structuredClone(DEFAULT_STATE)); }
 // A home with panels but no price (an older save, or a step left half-way)
 // would show a 0-year payback. Give it the guide price instead.
@@ -2208,116 +2208,6 @@ function applyOptimisation(id){
     showToast('That setting doesn\'t apply to your current setup.', { type:'amber', icon:ic('warn',16) });
   }
   renderApp();
-}
-
-function generateAdvice(best){
-  const advice = [];
-  if (!best || !best.sim) return advice;
-  const s = best.sim;
-  const totalImport = sumF(s.grid_import);
-  const totalExport = sumF(s.grid_export);
-  const totalGen = sumF(s.gen);
-  const totalCons = sumF(s.cons);
-  // Summer = months 5-8 (Jun-Sep), Winter = months 0-2 + 10-11
-  const HOURS_PER_MONTH = HOURS_IN_YEAR / 12;
-  let summerExport = 0, winterImport = 0, peakImport = 0;
-  for (let i=0; i<HOURS_IN_YEAR; i++){
-    const month = Math.floor(i / HOURS_PER_MONTH);
-    const hour = i % 24;
-    if (month >= 5 && month <= 8) summerExport += s.grid_export[i];
-    if (month <= 2 || month >= 10) winterImport += s.grid_import[i];
-    if (hour >= 17 && hour < 19) peakImport += s.grid_import[i];
-  }
-  const winterImportShare = totalCons > 0 ? winterImport / totalCons : 0;
-  const peakImportShare = totalCons > 0 ? peakImport / totalCons : 0;
-
-  // Battery SoC reach: rough proxy — fraction of hours we hit ≥95% capacity
-  let highSocHours = 0;
-  if (state.battery_kwh > 0){
-    const threshold = state.battery_kwh * 0.95;
-    for (let i=0; i<HOURS_IN_YEAR; i++) if (s.soc[i] >= threshold) highSocHours++;
-  }
-  const socFillRate = state.battery_kwh > 0 ? highSocHours / HOURS_IN_YEAR : 0;
-
-  // ADVICE 1: high summer export + significant 5-7 PM peak imports → MORE BATTERY
-  // Honesty gate: only recommend if the marginal battery actually pays for
-  // itself within a sane horizon — must agree with the Hardware upgrades rows.
-  if (summerExport > 500 && peakImport > 200){
-    const _kwpAdv = totalKwp();
-    const _b1 = state.battery_kwh || 0;
-    const _battMarg = estimateInstallCost(_kwpAdv, _b1 + 5) - estimateInstallCost(_kwpAdv, _b1);
-    const _battGrantExtra = calcSeaiGrant(_kwpAdv, _b1 + 5).total - calcSeaiGrant(_kwpAdv, _b1).total;
-    const _battNet = _battMarg - _battGrantExtra;
-    // crude benefit ceiling: every peak kWh shifted saves ~(peak − day) ≈ 18c
-    const _battBenefit = Math.min(peakImport, 5 * 250) * 0.18;
-    const _battPayback = _battBenefit > 0 ? _battNet / _battBenefit : 999;
-    if (_battPayback <= 12){
-      advice.push({
-        kind: 'battery',
-        headline: state.battery_kwh > 0 ? 'Prioritise more battery storage' : 'A battery would earn its keep here',
-        body: `Your roof array is performing excellently — you're exporting ${summerExport.toFixed(0)} kWh of summer surplus — but you're still pulling ${peakImport.toFixed(0)} kWh from the grid at premium evening peak rates (5-7 PM). Adding 5 kWh of storage (~${fmtCurrency(_battNet)} after grant) would bank that cheap daytime energy and pay for itself in roughly ${_battPayback.toFixed(0)} years.`
-      });
-    } else {
-      advice.push({
-        kind: 'battery-hold',
-        headline: state.battery_kwh > 0 ? 'More battery? Not at current prices' : 'A battery? Not at current prices',
-        body: `You're exporting ${summerExport.toFixed(0)} kWh of summer surplus and still importing ${peakImport.toFixed(0)} kWh at evening peak — the classic case for ${state.battery_kwh > 0 ? 'more storage' : 'storage'}. But at today's battery prices (~${fmtCurrency(_battNet)} for ${state.battery_kwh > 0 ? '+5 kWh' : 'a 5 kWh battery'} after grant) ${state.battery_kwh > 0 ? 'the extra capacity' : 'it'} wouldn't pay for itself within a reasonable horizon. Worth revisiting when battery prices fall.`
-      });
-    }
-  }
-
-  // ADVICE 2: battery rarely full + winter import > 80% → MORE PANELS
-  if (state.battery_kwh > 0 && socFillRate < 0.10 && winterImportShare > 0.30){
-    advice.push({
-      kind: 'panels',
-      headline: 'Prioritise more solar panels',
-      body: `Your battery is barely filling up (only ${(socFillRate*100).toFixed(0)}% of hours at high SoC) and winter import remains at ${(winterImportShare*100).toFixed(0)}% of your total consumption. Your storage capacity is fine — the bottleneck is raw generation. Adding 2-4 panels will accelerate winter self-sufficiency.`
-    });
-  }
-
-  // ADVICE 3: heavy export + no battery — but ONLY recommend if the simulated
-  // marginal benefit clears the gate. A battery earns the SPREAD between the
-  // export rate you're paid and the evening rate you avoid — not the full
-  // export revenue. The Hardware-upgrades row simulates this properly; this
-  // card must agree with it. (One battery card max: skip if ADVICE 1 spoke.)
-  if (state.battery_kwh === 0 && totalExport > 800 && !advice.some(a => a.kind === 'battery' || a.kind === 'battery-hold')){
-    const _bUp = (computeOptimisations().upgrades || []).find(u => /battery/i.test(u.label || ''));
-    const _bBenefit = _bUp ? _bUp.gain : 0;
-    const _bNet = _bUp ? _bUp.netExtra : (estimateInstallCost(totalKwp(), 5) - estimateInstallCost(totalKwp(), 0) - (calcSeaiGrant(totalKwp(), 5).total - calcSeaiGrant(totalKwp(), 0).total));
-    const _bPayback = _bBenefit > 0 ? _bNet / _bBenefit : 999;
-    if (_bPayback <= 12){
-      advice.push({
-        kind: 'battery',
-        headline: 'A battery would earn its keep here',
-        body: `You export ${totalExport.toFixed(0)} kWh/yr at ${fmtCent(best.plan.export_rate || 0.20)} while buying evening power at day rates. A 5 kWh battery captures that spread — simulated at ${fmtCurrency(Math.round(_bBenefit))}/yr, paying for itself in roughly ${_bPayback.toFixed(0)} years (~${fmtCurrency(Math.round(_bNet))} after grant).`
-      });
-    } else {
-      advice.push({
-        kind: 'battery-hold',
-        headline: 'A battery? Not at current prices',
-        body: `You export ${totalExport.toFixed(0)} kWh/yr — but you're paid ${fmtCent(best.plan.export_rate || 0.20)} for it, close to what storage would save you, so the simulated gain is only ${fmtCurrency(Math.round(_bBenefit))}/yr against ~${fmtCurrency(Math.round(_bNet))} after grant. The honest call: it doesn't pay yet. Worth revisiting when battery prices fall or export rates drop.`
-      });
-    }
-  }
-
-  // ADVICE 4: high self-consumption, no upgrades needed
-  if (advice.length === 0 && totalGen > 0){
-    // Unified definition (same as Solar + Analytics tabs): solar that wasn't
-    // exported or curtailed counts as self-consumed, whether direct or via battery.
-    // (Do NOT add battery_discharge — on arbitrage strategies it includes
-    // grid-charged energy and overstates the ratio.)
-    const selfUseKwh = Math.max(0, totalGen - sumF(s.grid_export) - sumF(s.curtailed));
-    const selfConsumPct = (selfUseKwh / totalGen) * 100;
-    if (selfConsumPct > 60){
-      advice.push({
-        kind: 'optimal',
-        headline: 'Your system is well-balanced',
-        body: `${selfConsumPct.toFixed(0)}% of generation is consumed on-site. The current sizing is appropriate for your usage pattern — no obvious upgrade lever.`
-      });
-    }
-  }
-
-  return advice;
 }
 
 /* ============================================================
@@ -3807,7 +3697,7 @@ function renderWelcome(){
     </section>
     ${doorsHtml(false)}
     <section class="wl-app-foot">
-      <button class="pk-link wl-quote" onclick="${done ? "setScreen('solar');v7Sheet('quote')" : "startFlow('full', 'quote')"}">${ic('clip', 14)} Already have a solar quote? Check it</button>
+      <button class="pk-link wl-quote" onclick="${done ? 'openQuoteCheck()' : "startFlow('full', 'quote')"}">${ic('clip', 14)} Already have a solar quote? Check it</button>
     </section>
   </div>`;
 }
@@ -5537,7 +5427,7 @@ function renderSolarGuide(){
       <button class="v7-switch-row sg-grant" role="switch" aria-checked="${(state.grant_seai || 0) > 0}" onclick="sgGrant()">
         <span class="v7-switch-text"><b>SEAI grant</b><small>${(state.grant_seai || 0) > 0 ? `${eur(state.grant_seai)} taken off` : 'This home doesn’t qualify: built in 2021 or later, or already claimed'}</small></span>
         <span class="v7-switch ${(state.grant_seai || 0) > 0 ? 'on' : ''}" aria-hidden="true"><i></i></span></button>
-      <button class="sg-link" onclick="v7Sheet('quote')">${ic('clip', 14)} I have a quote: read it for me</button>
+      ${FEATURES.quoteReader ? `<button class="sg-link" onclick="v7Sheet('quote')">${ic('clip', 14)} I have a quote: read it for me</button>` : ''}
       ${next('Show me the answer')}`;
   } else {
     let d = null; try { d = v7SolarData(); } catch (e) {}
@@ -5949,6 +5839,15 @@ const flowChap = (k) => ((FLOW_INTENT[state._flow_intent] || {}).chap || {})[k]
  * question the button promised. Someone with an answer already goes to the
  * matching part of it, never back to the first question.
  */
+/** "Check a quote": the quote reader when it is on (src/features.js), otherwise
+ *  the typed check, which compares the price with the usual one for that size
+ *  and works out its payback on this home. */
+function openQuoteCheck(){
+  if (!FEATURES.quoteReader) return setScreen('auditor');
+  if (state.current_screen !== 'solar') setScreen('solar');
+  v7Sheet('quote');
+}
+
 function siteGo(intent, sure){
   if (state.onboarding_complete){
     // The first way in this visit shows the saved home first: the person
@@ -5956,7 +5855,7 @@ function siteGo(intent, sure){
     // link, a visit long ago), and nothing should be worked out on answers
     // they don't recognise.
     if (!sure && !homeOkThisVisit()){ _homeCheck = intent || 'home'; renderApp(); return; }
-    if (intent === 'quote'){ setScreen('solar'); v7Sheet('quote'); }
+    if (intent === 'quote') openQuoteCheck();
     else if (intent === 'stress'){
       // A system to test: straight to the test. None yet: its questions first, ending on the test.
       if (!(state.has_solar && totalPanels() > 0)) return startTopicFlow('stress');
@@ -5974,6 +5873,7 @@ function siteGo(intent, sure){
   startFlow(intent === 'plans' || intent === 'meter' ? 'quick' : 'full', intent || 'home');
 }
 window.siteGo = siteGo;
+window.openQuoteCheck = openQuoteCheck;
 
 let _homeCheck = null;
 const homeOkThisVisit = () => { try { return sessionStorage.getItem('pk_home_ok') === '1'; } catch (e) { return false; } };
@@ -6431,10 +6331,10 @@ function renderFlow(){
         <div class="fl-opts">${opt('price', 0, 'I don’t know', `We’ll use a guide price, about ${eur(guide)} for this size`)}</div>`;
       if (state._flow_intent === 'quote') return `${own('price', '€', 60000, 'e.g. 11500', 'Price on the quote, incl. VAT')}
         <div class="fl-opts">${opt('price', 0, 'I don’t have it to hand', `We’ll use a guide price, about ${eur(guide)} for this size`)}</div>
-        <p class="fl-note">You can upload the quote itself later, and we’ll read the details for you.</p>`;
+        ${FEATURES.quoteReader ? '<p class="fl-note">You can upload the quote itself later, and we’ll read the details for you.</p>' : ''}`;
       return `<div class="fl-opts">${opt('price', 0, 'Not yet: use a guide price', `About ${eur(guide)} for this size in Ireland, before any grant`)}</div>
         ${own('price', '€', 60000, 'e.g. 11500', 'I have a quote, incl. VAT')}
-        <p class="fl-note">You can upload the quote itself later in My system.</p>`;
+        <p class="fl-note">${FEATURES.quoteReader ? 'You can upload the quote itself later in My system.' : 'You can change the price later in My system.'}</p>`;
     }
     if (q === 'grant') return `<div class="fl-opts">${opt('grant', 'yes', 'Yes')}${opt('grant', 'no', 'No')}${opt('grant', 'unsure', 'Not sure', 'We’ll assume yes')}</div>`;
     if (q === 'ev') return `<div class="fl-opts">${opt('ev', 'no', 'No')}${opt('ev', 'have', 'I have one', state._csv_imported ? 'Charged at home' : 'It’s already in my bill')}${opt('ev', 'thinking', 'Thinking about one', 'We’ll show the cost and petrol saved')}</div>`;
@@ -8703,11 +8603,11 @@ function renderAuditor(){
       <div class="qr-sub">Compared with our guide price for that size. We have no ties to installers.</div>
     </div>
 
-    <button class="v7-tile v7-tile-wide" style="margin-bottom:14px" onclick="v7Sheet('quote')">
+    ${FEATURES.quoteReader ? `<button class="v7-tile v7-tile-wide" style="margin-bottom:14px" onclick="v7Sheet('quote')">
       <span class="v7-tile-ico">${ic('clip', 18)}</span>
       <span class="v7-tile-big">Upload the quote instead</span>
       <span class="v7-tile-sub">Upload the PDF or a photo and we’ll check it against your home</span>
-    </button>
+    </button>` : ''}
     <div class="card" style="padding:18px">
       <div class="aud-input-row">
         <label>Total quoted price (€)</label>
@@ -8766,8 +8666,8 @@ function runAudit(){
   }
   _aud_result = auditQuote(_aud_quote, _aud_panels, _aud_battery);
   document.getElementById('audit-result').innerHTML = renderAuditResult(_aud_result);
-  // Scroll to result
-  setTimeout(() => document.getElementById('audit-result').scrollIntoView({behavior:'smooth', block:'start'}), 50);
+  // Scroll to the result, if the screen is still open by then.
+  setTimeout(() => document.getElementById('audit-result')?.scrollIntoView({behavior:'smooth', block:'start'}), 50);
 }
 
 function renderAuditResult(r){
@@ -9992,69 +9892,6 @@ function renderMeterSheet(){
 }
 
 
-/* ── THIS QUARTER'S SUGGESTIONS ─────────────────────────────────
- * Claude reads a short summary of the household — the plan and its prices,
- * the alternatives, the use by hour — and suggests up to three
- * things to do, each grounded in those figures. Nothing personal is sent:
- * no name, address, email or meter number. Kept for the quarter. */
-function quarterKey(d = new Date()){ return `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`; }
-
-function adviceSummary(){
-  const rec = getRecommendation();
-  const plan = getPlanById(state.baseline);
-  const days = meterDays();
-  const keys = Object.keys(days).sort().slice(-90);
-  const hourly = new Array(24).fill(0);
-  keys.forEach((d) => { for (let h = 0; h < 24; h++) hourly[h] += days[d][h] || 0; });
-  const p = (x) => ({ name: `${x.supplier} ${x.plan}`, type: x.type, rates_c: Object.fromEntries(Object.entries(x.rates).map(([k, v]) => [k, Math.round(v * 1000) / 10])),
-    windows: x.windows, standing_eur: x.standing, export_c: Math.round((x.export_rate || 0) * 1000) / 10 });
-  return {
-    home: { region: state.region, heating: state.heating_type, kwh_year: Math.round(v7AnnualKwh()), hot_water: state.hot_water_strategy,
-      ev_km_year: state.ev_active ? state.ev_km_per_year : 0,
-      solar: state.has_solar && totalPanels() > 0 ? { kwp: +totalKwp().toFixed(1), battery_kwh: state.battery_kwh || 0, status: state.solar_planned || state.solar_is_estimate ? 'planned' : 'installed', battery_strategy: state.strategy_mode } : null,
-      contract_end: state.contract_end || null },
-    current_plan: { ...p(plan), yearly_cost_eur: Math.round(myPlanCost()), upcoming_change: plan.price_change ? plan.price_change.note || null : null },
-    best_plans: rec.ranked.slice(0, 3).map((r) => ({ ...p(r.plan), yearly_cost_eur: Math.round(r.net) })),
-    meter_last_90_days: keys.length ? { days: keys.length, kwh_by_hour: hourly.map((v) => Math.round(v)) } : null,
-  };
-}
-
-let _adviceBusy = false;
-async function getAdvice(){
-  if (_adviceBusy) return;
-  _adviceBusy = true; renderApp();
-  try {
-    const res = await fetch('/api/advice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ summary: adviceSummary() }) });
-    const out = await res.json().catch(() => ({}));
-    if (!res.ok || !out.advice) throw new Error(out.error || 'Suggestions are not available just now.');
-    state.advice = { quarter: quarterKey(), key: setupKey(state), at: new Date().toISOString(), items: out.advice.items || [] };
-    saveState();
-  } catch (e){
-    showToast((e && e.message) || 'Suggestions are not available just now.', { type: 'warn', icon: ic('warn', 16) });
-  }
-  _adviceBusy = false; renderApp();
-}
-
-function renderAdviceBlock(){
-  // Suggestions belong to the plan and setup they were written for: change
-  // either and they are set aside rather than shown as if still true.
-  const a0 = state.advice;
-  const stale = !!(a0 && a0.items && a0.items.length && a0.key !== setupKey(state));
-  const a = stale ? null : a0;
-  const fresh = a && a.quarter === quarterKey();
-  const effort = { easy: 'Easy', some: 'Some effort', big: 'A bigger step' };
-  return `<section class="adv">
-    ${stale ? `<div class="me-empty">Your plan or setup changed, so these tips are out of date. Get new ones.</div>` : ''}
-    ${fresh && a.items.length ? a.items.map((x) => `<div class="adv-item">
-        <div class="adv-item-top"><b>${esc(x.title)}</b>${x.saving_eur ? `<em>${eur(x.saving_eur)}/yr</em>` : ''}</div>
-        <small>${esc(x.why)}</small>
-        <span class="adv-tag">${effort[x.effort] || ''}</span>
-      </div>`).join('') : `${stale ? '' : `<div class="me-empty">${fresh ? 'Nothing more to suggest. You’re already doing what saves most.' : 'Three things worth doing this quarter, worked out from your plan, your prices and how your home uses power.'}</div>`}`}
-    <button class="me-add" ${_adviceBusy ? 'disabled' : ''} onclick="getAdvice()">${_adviceBusy ? 'Working it out…' : `${ic('spark', 16)} ${fresh ? 'Ask again' : "Get this quarter's suggestions"}`}</button>
-    <div class="adv-fine">Written by AI (Anthropic's Claude) from the figures here, with no personal details sent. Check anything before acting on it.</div>
-  </section>`;
-}
-
 /** The current system, filed as a saved entry so it can be brought back. */
 function fileCurrentSystem(){
   if (!v7HasModelledSystem()) return null;
@@ -10598,9 +10435,7 @@ function renderMe(){
 
     ${state.onboarding_complete ? `<div class="section-title">Alerts${unseenAlerts().length ? ` <span class="al-count">${unseenAlerts().length} new</span>` : ''}</div>
     ${renderAlertsBlock()}
-    <button class="me-row me-link me-pricewatch" onclick="setScreen('monitor')"><span><b>Price watch</b><small>We check the plans we compare daily for price rises, cheaper plans and your contract end</small></span>${ic('chevR', 16)}</button>
-    <div class="section-title">This quarter</div>
-    ${renderAdviceBlock()}` : ''}
+    <button class="me-row me-link me-pricewatch" onclick="setScreen('monitor')"><span><b>Price watch</b><small>We check the plans we compare daily for price rises, cheaper plans and your contract end</small></span>${ic('chevR', 16)}</button>` : ''}
 
     <div class="section-title">My household</div>
     ${state.onboarding_complete ? householdScene() : ''}
@@ -10616,7 +10451,7 @@ function renderMe(){
         const nq = quotes.filter((q) => q.source !== 'previous').length, ny = (state.saved_systems || []).length;
         return [nq ? `${nq} quote${nq > 1 ? 's' : ''}` : '', ny ? `${ny} saved` : '', 'Peakless suggestions'].filter(Boolean).join(' · ') + ', each run on your home';
       })()}</small></span>${ic('chevR', 16)}</button>
-      <button class="me-add" onclick="v7Sheet('quote')">${ic('clip', 16)} Upload an installer's quote</button>
+      ${FEATURES.quoteReader ? `<button class="me-add" onclick="v7Sheet('quote')">${ic('clip', 16)} Upload an installer's quote</button>` : ''}
     </section>
 
 
@@ -10688,8 +10523,6 @@ function renderUpdates(){
     ${_handover ? `<button class="me-warn" onclick="v7Sheet('handover')">${ic('warn', 16)} This device and your account have different homes. Choose which to keep.</button>` : ''}
     <section class="al-list up-news">${news.length ? news.map(card).join('') : `<div class="me-empty">Nothing new. We check every plan daily.</div>`}</section>
     ${todo.length ? `<div class="section-title">To do</div><section class="me-list up-todo">${todo.map(row).join('')}</section>` : ''}
-    <div class="section-title">This quarter</div>
-    ${renderAdviceBlock()}
     <section class="me-list">
       <button class="me-row me-link" onclick="setScreen('monitor')"><span><b>Price watch</b><small>Daily, for price rises, cheaper plans and your contract end</small></span>${ic('chevR', 16)}</button>
       ${_sbUser ? `<label class="sy-toggle al-email"><span><b>Email me these</b><small>No marketing</small></span>
@@ -10717,7 +10550,7 @@ function renderProfile(){
       ${gasSub ? row('openMyHome()', 'flame', 'Gas', gasSub, state.gas_same_supplier === 'yes' && !(+state.gas_bill_eur > 0) ? 'guess' : '') : ''}
       ${row('openMySystem()', 'sun', 'Solar and battery', hasSys ? `${totalPanels()} panels${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh battery` : ''}${quotes ? ` · ${quotes} quote${quotes > 1 ? 's' : ''}` : ''}${saved ? ` · ${saved} saved` : ''}` : 'No solar yet', hasSys ? (state.cost_is_manual ? 'quoted' : 'guess') : '')}
       ${row('startEvGuide()', 'car', 'EV', state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No EV', '')}
-      <button class="me-add" onclick="v7Sheet('quote')">${ic('clip', 16)} Upload an installer's quote</button>
+      ${FEATURES.quoteReader ? `<button class="me-add" onclick="v7Sheet('quote')">${ic('clip', 16)} Upload an installer's quote</button>` : ''}
     </section>
     ${leads}
     <section class="me-list">
@@ -10765,7 +10598,8 @@ function renderMore(){
       [ic('csv',19),'Import smart-meter data','Your ESB meter file: the closest figures','csv-import'],
     ]],
     ['Do it', [
-      [ic('clip',19),"Upload an installer's quote",'We’ll read it and check it against your home', null, "v7Sheet('quote')"],
+      FEATURES.quoteReader ? [ic('clip',19),"Upload an installer's quote",'We’ll read it and check it against your home', null, "v7Sheet('quote')"]
+        : [ic('clip',19),'Check an installer’s quote','Is the price fair, and does it pay back on your home?','auditor'],
       [ic('swap',19),'How to switch supplier','About ten minutes, nothing to cancel','how-to-switch'],
     ]],
   ];
@@ -10773,7 +10607,7 @@ function renderMore(){
     [ic('tune',19),'Advanced','Battery, plan options, usage pattern','refine'],
     [ic('sun',19),'Start page','Quick answer, full setup, quote check','welcome'],
     [ic('scales',19),'Saved quotes', nQuotes ? nQuotes + ' saved, compared side by side' : 'Compare quotes side by side','quotes'],
-    [ic('clip',19),'Type a quote in by hand','Check it against 2026 Irish prices','auditor'],
+    ...(FEATURES.quoteReader ? [[ic('clip',19),'Type a quote in by hand','Check it against 2026 Irish prices','auditor']] : []),
     [ic('flask',19),'How the figures are worked out','Data sources and the method','methodology'],
     [ic('shield',19),'Our independence','How we make money','independence'],
     ...LEGAL_SCREENS.map(([k, t, sub]) => [ic({ privacy: 'shield', ranking: 'scales' }[k] || 'doc', 19), t, sub, k]),
@@ -11988,7 +11822,7 @@ ${state.has_solar && !state.solar_planned && !state._csv_imported ? `
       <div class="sy-net">${state.cost_is_manual ? 'You pay' : 'Guide price, you’d pay about'} <b>${eur(net)}</b></div>
     </section>
 
-    <button class="v7-cta-2" onclick="v7Sheet('quote')">${ic('clip', 16)} Fill this in from an installer's quote</button>
+    ${FEATURES.quoteReader ? `<button class="v7-cta-2" onclick="v7Sheet('quote')">${ic('clip', 16)} Fill this in from an installer's quote</button>` : ''}
     <div class="v7-sheet-links"><a href="#" onclick="event.preventDefault();v7Sheet('home')">My home: where it is, heating, your plan</a></div>`;
 }
 
@@ -12141,7 +11975,7 @@ function renderEverything(){
       ['sun', 'Would solar pay off?', 'Payback after the SEAI grant, and money ahead over 20 years.', "state._an_from=null;anTab('solar')"],
       ['tune', 'Your system: panels, battery, inverter', 'Roof faces, panel count and rating, battery size and settings.', 'openMySystem()'],
       ['trendUp', 'If prices change', 'A stress test: export pay halving, cheap nights ending, and when.', "state._an_from=null;anTab('solar')"],
-      ['clip', 'Check an installer’s quote', 'Is the price fair for the system, and does it pay back?', "setScreen('solar');v7Sheet('quote')"],
+      ['clip', 'Check an installer’s quote', 'Is the price fair for the system, and does it pay back?', 'openQuoteCheck()'],
     ]],
     ['Your home', [
       ['home', 'Usage, heating and current plan', 'Every answer the figures rest on. Change any of them.', "setScreen('myhome')"],
@@ -12885,7 +12719,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
       setTimeout(() => {
         if (_go[1] === 'full') startFlow('full');
-        else if (_go[1] === 'quote') { if (state.onboarding_complete){ setScreen('solar'); v7Sheet('quote'); } else startFlow('full', 'quote'); }
+        else if (_go[1] === 'quote') { if (state.onboarding_complete) openQuoteCheck(); else startFlow('full', 'quote'); }
         else if (_go[1] === 'meter') startFlow('quick', 'meter');
         else startFlow('quick');
       }, 0);
@@ -14101,7 +13935,6 @@ window.sgGo = sgGo;
 window.sgDone = sgDone;
 window.sgRoof = sgRoof;
 window.sgBattery = sgBattery;
-window.getAdvice = getAdvice;
 window.recordSwitch = recordSwitch;
 window.markAlertsSeen = markAlertsSeen;
 window.computeAlerts = computeAlerts;

@@ -24,7 +24,7 @@ export const CONTROLLER = {
   number: '',        // CRO number, given on incorporation
   address: '',       // registered office in Ireland
   email: '',         // privacy contact, e.g. privacy@peakless.ie once the domain is ours
-  updated: '11 October 2026',
+  updated: '13 October 2026',
 } as const;
 
 /** The wordmark as markup. Styled by .pk-word in v7.css. */

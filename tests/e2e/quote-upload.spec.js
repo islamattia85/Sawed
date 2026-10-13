@@ -18,6 +18,9 @@ const READ = {
   warnings: [],
 };
 
+// The reader is off for the first launch (src/features.js); these test it switched on.
+test.beforeEach(async ({ page }) => { await page.addInitScript(() => { window.__SAWED_FEATURES = { quoteReader: true }; }); });
+
 const NO_SOLAR = { has_solar: false, considering_solar: false, count_A: 0, count_B: 0, battery_kwh: 0,
   install_cost: 0, grant_seai: 0, current_screen: 'solar' };
 

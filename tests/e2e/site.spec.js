@@ -116,7 +116,7 @@ test('Everything in Peakless lists every part, and each link goes somewhere', as
   await page.locator('.web-menu-list a', { hasText: 'Everything' }).click();
   await expect(page.locator('.web-all-it')).toHaveCount(20);
   await page.locator('.web-all-it', { hasText: 'Check an installer' }).click();
-  expect(await page.evaluate(() => window.state._sheet && window.state._sheet.kind)).toBe('quote');
+  expect(await page.evaluate(() => window.state.current_screen)).toBe('auditor');   // the typed check while the reader is off
 });
 
 test('the logo on the front page stays on the front page', async ({ page }) => {

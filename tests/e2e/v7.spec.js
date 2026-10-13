@@ -473,6 +473,7 @@ test('account sync: screen state stays local, quotes are never lost, the same ho
 });
 
 test('a quote is saved without touching the system; modelling it keeps the old system to bring back', async ({ page }) => {
+  await page.addInitScript(() => { window.__SAWED_FEATURES = { quoteReader: true }; });   // off for the first launch
   await boot(page, { current_screen: 'solar', has_solar: true, considering_solar: true, count_A: 14, battery_kwh: 10,
     install_cost: 13000, cost_is_manual: true, solar_planned: false, solar_quotes: [] });
   const read = { is_solar_quote: true, installer: 'Bright Roofs', panel_count: 10, panel_watts: 440, battery_kwh: 5,
@@ -541,38 +542,11 @@ test('step 5: an ESB file keeps dated hourly readings, imports and exports, end-
   expect(m[24 + 13]).toBeCloseTo(1.5); // export, kept separately
 });
 
-test('step 5: suggestions are fetched once, kept for the quarter, and carry no personal details', async ({ page }) => {
-  await boot(page, { current_screen: 'updates', user_email: 'me@example.ie', address: '1 Main St' });
-  let sent = null;
-  await page.route('**/api/advice', async (route) => {
-    sent = route.request().postDataJSON();
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ advice: { items: [
-      { title: 'Run the dishwasher after 11pm', why: 'Night is 16.9c against 30.8c day.', saving_eur: 40, effort: 'easy' }] } }) });
-  });
-  await page.getByRole('button', { name: /Get this quarter's suggestions/ }).click();
-  await expect(page.locator('.adv')).toContainText('Run the dishwasher after 11pm');
-  const raw = JSON.stringify(sent);
-  expect(raw).not.toContain('example.ie');
-  expect(raw).not.toContain('Main St');
-  expect(await page.evaluate(() => window.state.advice.items.length)).toBe(1);
-});
-
 test('the alert count shows on the My Peakless card in More, not only on the tab', async ({ page }) => {
   const soon = new Date(Date.now() + 10 * 864e5).toISOString().slice(0, 10);
   await boot(page, { current_screen: 'more', contract_end: soon, alerts_seen: {} });
   await expect(page.locator('.me-entry-badge')).toBeVisible();
   await expect(page.locator('.me-entry')).toContainText('new alert');
-});
-
-test('suggestions written for another plan are set aside, not shown as current', async ({ page }) => {
-  await boot(page, { current_screen: 'updates' });
-  await page.evaluate(() => {
-    const d = new Date(); const q = d.getFullYear() + '-Q' + (Math.floor(d.getMonth() / 3) + 1);
-    window.state.advice = { quarter: q, key: 'some other setup', items: [{ title: 'Old tip', why: 'x', saving_eur: 1, effort: 'easy' }] };
-    window.renderApp();
-  });
-  await expect(page.locator('.adv')).not.toContainText('Old tip');
-  await expect(page.locator('.adv')).toContainText('out of date');
 });
 
 test('v8 Home: one answer first, then four doors into the analysis, nothing lost', async ({ page }) => {

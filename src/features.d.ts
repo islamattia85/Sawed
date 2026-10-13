@@ -1,1 +1,1 @@
-export declare const FEATURES: { installerQuotes: boolean; partners: boolean; emailCapture: boolean };
+export declare const FEATURES: { installerQuotes: boolean; partners: boolean; emailCapture: boolean; quoteReader: boolean };

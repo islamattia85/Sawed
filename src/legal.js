@@ -51,37 +51,34 @@ export function termsHtml(){
     <h3>4. It isn’t advice</h3>
     <p>Peakless isn’t a regulated financial adviser, an energy supplier, a broker or a switching service. The plan we rank first is the cheapest for the figures you gave us. Whether it suits you, and whether to switch or buy, is your decision.</p>
 
-    <h3>5. Parts written by AI</h3>
-    <p>Reading an installer’s quote and writing your quarterly suggestions use an AI model (Claude, made by Anthropic). AI can misread. We always show you what it read before using it, and you should check it against the quote.</p>
-
-    <h3>6. Switching and installers</h3>
+    <h3>5. Switching and installers</h3>
     <p>You switch on the supplier’s own website, under the supplier’s terms. We aren’t part of that contract and we send the supplier nothing. Our quote check compares a price with typical prices for that size of system. It says nothing about an installer’s work, products or guarantees: check that the installer is SEAI-registered and read the quote yourself.</p>
 
-    <h3>7. Your account</h3>
+    <h3>6. Your account</h3>
     <p>You don’t need an account. If you make one, you must be 18 or over, give an email address you use, and keep your sign-in to yourself. You can delete the account at any time in ${go('privacy', 'Privacy')}.</p>
 
-    <h3>8. What you upload</h3>
-    <p>Only upload quotes and meter files that are yours, or that you have the right to share. They stay yours. You let us use them only to work out your figures, as the ${go('privacy', 'privacy notice')} explains.</p>
+    <h3>7. What you add</h3>
+    <p>Only add meter files and quote figures that are yours, or that you have the right to share. They stay yours. You let us use them only to work out your figures, as the ${go('privacy', 'privacy notice')} explains.</p>
 
-    <h3>9. Fair use</h3>
+    <h3>8. Fair use</h3>
     <p>Don’t try to break, overload or copy Peakless or its plan data in bulk, or use it to mislead anyone. We may block use that does, and close an account that does, after telling you why where we reasonably can.</p>
 
-    <h3>10. Our content</h3>
+    <h3>9. Our content</h3>
     <p>The app, its text, designs and plan data belong to ${esc(C.name)}. You may use them for your own home and share your own results. Anything else needs our written permission.</p>
 
-    <h3>11. Changes to Peakless</h3>
+    <h3>10. Changes to Peakless</h3>
     <p>We may change, add or stop features. If we stop something account holders rely on, we’ll tell them by email at least 30 days before, where we can, so they can download their data.</p>
 
-    <h3>12. Our responsibility to you</h3>
+    <h3>11. Our responsibility to you</h3>
     <p>We build Peakless with care and offer it free. We are responsible for loss you suffer that was a foreseeable result of our breaking these terms or not taking reasonable care. We aren’t responsible for loss that wasn’t foreseeable, for business losses (Peakless is for homes), or for decisions you make after checking the supplier’s or installer’s own price. Nothing in these terms limits your rights as a consumer, or our responsibility for death or injury caused by negligence, for fraud, or for anything else the law doesn’t let us limit.</p>
 
-    <h3>13. Complaints</h3>
+    <h3>12. Complaints</h3>
     <p>Email ${mail()}. We’ll reply within 10 working days and aim to sort it within 30. Our ${go('complaints', 'complaints procedure')} says more. You can also use the Small Claims procedure of the District Court, or contact the Competition and Consumer Protection Commission (ccpc.ie).</p>
 
-    <h3>14. Changes to these terms</h3>
+    <h3>13. Changes to these terms</h3>
     <p>The date below shows the latest version. If a change affects account holders in a way that matters, we’ll email them at least 30 days before it applies. If you don’t agree, you can delete your account before then.</p>
 
-    <h3>15. Law</h3>
+    <h3>14. Law</h3>
     <p>Irish law applies. You can bring a claim in the Irish courts or, if you live elsewhere in the EU, in the courts where you live.</p>
     ${updated()}`;
 }
@@ -106,8 +103,7 @@ export function privacyHtml(o){
         ${row('Account: email, name, your home’s answers, the meter readings you load, saved quotes', 'To keep your home on every device you sign in on (contract)', 'Until you delete the account')}
         ${Q ? row('Quote request: name, email, phone, county, system', 'To get you installer quotes (your consent)', '24 months') : ''}
         ${row('Alert emails, and the record of which were sent', 'You turned them on (consent)', 'Until you turn them off; the record 13 months')}
-        ${row('An installer’s quote you upload', 'To read it for you (contract). The file goes to Anthropic to read and isn’t kept by us; what we read from it is saved with your quotes', 'The file: not kept')}
-        ${row('A summary of your home for quarterly suggestions', 'To write them (contract). It has no name, email or address', 'Not kept')}
+        ${row('Figures you type in from an installer’s quote: price, panels, battery', 'To check the price and work out its payback (contract). We never see the quote itself', 'On your device, and in your account if you have one')}
         ${row('Anonymous usage counts', 'To see which parts help people, so we can improve them (consent)', '26 months')}
         ${row('The record of your consent choices', 'To show we asked (legal obligation)', '36 months')}
         ${row('A scrambled form of your internet address', 'To stop abuse of the app (legitimate interest)', '1 day')}
@@ -120,7 +116,7 @@ export function privacyHtml(o){
     <p>Half-hourly readings can show when a home is busy or empty. We use them only to work out your figures. They stay on your device unless you make an account, and we never share them.</p>
 
     <h3>Where it comes from</h3>
-    <p>From you. A quote you upload may also hold the installer’s details and yours; a meter file comes from ESB Networks through you. If you sign in with Google, Google gives us your name and email.</p>
+    <p>From you. Quote figures are what you type in; a meter file comes from ESB Networks through you. If you sign in with Google, Google gives us your name and email.</p>
 
     <h3>Who receives it</h3>
     <p>Only these services, each bound by a data processing agreement to use it only for us:</p>
@@ -128,14 +124,13 @@ export function privacyHtml(o){
       ${Q ? '<li><b>Installers</b>: up to three SEAI-registered installers, only if you ask for quotes. Each then uses your details as its own, to quote for you.</li>' : ''}
       <li><b>Supabase</b>: our database: accounts, saved homes, consent records, error reports. In Ireland.</li>
       <li><b>Vercel</b>: hosts the app and, if you allow it, counts visits without cookies. EU and USA.</li>
-      <li><b>Anthropic</b>: reads quotes you upload and writes quarterly suggestions. It doesn’t train its models on what it reads for us and keeps it only briefly, as its business terms set out. USA.</li>
       <li><b>Resend</b>: sends our emails. USA.</li>
       <li><b>Google</b>: sign-in, only if you choose it.</li>
     </ul>
     <p>Transfers to the USA are covered by the EU–US Data Privacy Framework where the service is certified, and otherwise by the EU’s standard contractual clauses. We send nothing to suppliers: you switch on their own website.${Q ? '' : ' Installers receive nothing from us.'}</p>
 
-    <h3>AI</h3>
-    <p>The two AI features are listed above. Nothing about you is decided by a computer in a way that has legal or similar effects on you: plan rankings are calculations to help you choose.</p>
+    <h3>Automated decisions</h3>
+    <p>Peakless uses no AI on your data. Nothing about you is decided by a computer in a way that has legal or similar effects on you: plan rankings are calculations to help you choose.</p>
 
     <h3>On your device</h3>
     <p>We set no cookies. The app keeps a few things in your browser’s own storage. Only usage counts need your yes; the rest are needed for what you asked the app to do.</p>
