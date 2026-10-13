@@ -224,15 +224,19 @@ function contents(d: Doc, r: ReportData) {
 
   // The Home screen's headline, as a card: the one number the report is about.
   {
+    // Planned panels lead on their own, as on Home: what they would cut once
+    // bought. What switching saves today is the first point below; the two
+    // together are only in the four bars.
     const Lh = r.ladder || [];
-    const most = Lh.length > 3 ? Lh[0]!.value - Lh[3]!.value : r.savings.total;
-    const say = Lh.length > 3 ? 'Switch plan and add your planned solar to save' : most > 1 ? 'Switch plan to save' : 'You are already on the best value plan';
+    const planned = Lh.length > 3;
+    const most = planned ? Lh[1]!.value - Lh[3]!.value : r.savings.total;
+    const say = planned ? 'Your planned panels would cut your bill by' : most > 1 ? 'Switch plan to save' : 'You are already on the best value plan';
     const top = d.y - 2, hh = 30;
     box(d, d.left, top, d.width, hh, ACCENT_TINT, 4);
     d.text(say, d.left + 6, top + 8, { ...TYPE.body!, color: INK_MID });
     if (most > 1) {
       const w = d.text(eur(most), d.left + 6, top + 22, { face: 'helvetica', style: 'bold', size: 30, color: ACCENT });
-      d.text('less a year', d.left + 9 + w, top + 22, { ...TYPE.lead!, color: INK_MID });
+      d.text(planned ? 'a year' : 'less a year', d.left + 9 + w, top + 22, { ...TYPE.lead!, color: INK_MID });
     }
     d.y = top + hh + lines(1.6);
   }

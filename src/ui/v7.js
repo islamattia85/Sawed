@@ -154,7 +154,7 @@ export function createV7(api) {
   function nowLabel() {
     const st = S();
     const p = api.getPlanById(st.baseline);
-    return st.baseline_known && p ? `Now, ${p.supplier} ${p.plan}` : 'Now, a standard plan';
+    return p ? `Now, ${api.nowPlanWords()}` : 'Now, a standard plan';
   }
 
   function ladderData(rec) {
@@ -176,7 +176,7 @@ export function createV7(api) {
       };
     }
     const mineWithSolar = api.sameHomeCost(st.baseline);
-    const solarWord = st.solar_planned ? 'the planned solar' : 'your solar';
+    const solarWord = st.solar_planned || st.solar_is_estimate ? 'the planned solar' : 'your solar';
     return {
       rungs: [
         { label: 'Your plan, without solar', value: today, token: '--ink-dim' },
@@ -242,11 +242,16 @@ export function createV7(api) {
     ] : null;
     let rungs = stair || (withSolar ? lad.rungs.slice(1) : lad.rungs);
     const saving = pl ? pl.today - pl.best.net : withSolar ? fromSwitch : rec.annualSavings;
+    // Planned panels lead on their own: what they would cut once bought, then
+    // what switching saves today. The two together, money not yet spent mixed
+    // with a saving open now, are only in the four-bill breakdown (13 Oct 2026).
+    const switchToday = pl ? pl.today - pl.noSolar.net : 0;
+    const lead = pl ? pl.noSolar.net - pl.best.net : saving;
     const mineNow = rungs[0].value;
     const switchName = jsAttr(`${best.plan.supplier} ${best.plan.plan}`);
     const split = fromSolar > 1
       ? `<div class="v7-split">
-          <span><i class="v7-dot" style="background:var(--v7-mid)"></i>${eur(fromSolar)} from ${st.solar_planned ? 'the planned solar' : 'your solar'}</span>
+          <span><i class="v7-dot" style="background:var(--v7-mid)"></i>${eur(fromSolar)} from ${st.solar_planned || st.solar_is_estimate ? 'the planned solar' : 'your solar'}</span>
           <span><i class="v7-dot" style="background:var(--accent)"></i>${eur(fromSwitch)} from switching</span>
         </div>` : '';
 
@@ -264,9 +269,12 @@ export function createV7(api) {
           : gap >= 0 ? `No plan on the market costs less for this home. The next best is <b>${esc(next.plan.supplier)}</b> ${esc(next.plan.plan)}, ${eur(gap)} a year more.`
           : `<b>${esc(next.plan.supplier)}</b> ${esc(next.plan.plan)} would save only ${eur(-gap)} a year: not worth a switch.`}</div>`
       : `
-        <div class="v7-eyebrow">${pl ? 'Switch plan and add your planned solar to save' : saving > 10 ? (withSolar ? 'Switching plan could save, with your solar' : 'You could pay less') : 'Your cheapest plan'}</div>
-        <div class="qr-value v7-figure ${saving > 10 ? 'is-saving' : ''}" data-countup="${Math.round(Math.max(0, saving))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, saving))}</span><span class="v7-figure-unit">${saving > 10 ? 'less a year' : 'a year'}</span></div>
-        ${pl ? '' : `<div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Cheapest for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`}
+        <div class="v7-eyebrow">${pl ? 'Your planned panels would cut your bill by' : saving > 10 ? (withSolar ? 'Switching plan could save, with your solar' : 'You could pay less') : 'Your cheapest plan'}</div>
+        <div class="qr-value v7-figure ${lead > 10 ? 'is-saving' : ''}" data-countup="${Math.round(Math.max(0, lead))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, lead))}</span><span class="v7-figure-unit">${pl ? 'a year' : saving > 10 ? 'less a year' : 'a year'}</span></div>
+        ${pl ? `<div class="v7-headline">${switchToday > 10
+            ? `Switching plan saves ${eur(switchToday)} a year today: <b>${esc(pl.noSolar.plan.supplier)}</b> ${esc(pl.noSolar.plan.plan)}`
+            : 'Your plan is already the cheapest without the panels.'}</div>`
+          : `<div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Cheapest for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`}
         ${(() => {
           // An answer that rests on charging the battery from the grid says so,
           // with what it would be if the battery only takes solar.
@@ -528,8 +536,8 @@ export function createV7(api) {
         <div class="plan-compare v7-compare">
           <div class="plan-row current">
             <div>
-              <div class="plan-label">${st.baseline_known ? 'Your current plan' : 'Estimated baseline'}</div>
-              <div class="plan-value">${esc(base.supplier)} — ${esc(base.plan)}${st.baseline_known ? '' : ' <span class="v7-muted">(not confirmed)</span>'}</div>
+              <div class="plan-label">${st.baseline_known ? 'Your current plan' : 'Assumed plan'}</div>
+              <div class="plan-value">${st.baseline_known ? `${esc(base.supplier)} — ${esc(base.plan)}` : esc(api.nowPlanWords())}</div>
             </div>
             <div class="plan-amount">${api.fmtCurrency(rec.baseCost)}/yr</div>
           </div>
@@ -1058,7 +1066,7 @@ export function createV7(api) {
     const bill = monthBills(T, mo, d.sys, monthTitle, hiI);
     const R = d.ref, B = d.best;
     const vsNow = R.net - T.total;
-    const nowName = `${esc(R.plan.supplier)} · ${esc(R.plan.plan)}`;
+    const nowName = st.baseline_known ? `${esc(R.plan.supplier)} · ${esc(R.plan.plan)}` : esc(api.nowPlanWords());
     const cmpRows = [
       { name: `Now, as billed: ${nowName}${planned ? ', no panels yet' : ''}${st.ev_active && !st.ev_in_bill ? ', with the planned car' : ''}`, val: billAmt(R.net), v: R.net, token: '--bandink-day' },
       { name: `This home on ${esc(plan.supplier)} · ${esc(plan.plan)}`, val: billAmt(T.total), v: T.total, token: d.picked ? '--v7-mid' : '--accent' },
@@ -1423,7 +1431,7 @@ export function createV7(api) {
     const T = d.today;
     const ch = d.ref;
     const line2 = (x, credit) => `${eur(x.energy)} electricity + ${eur(x.standing)} standing + ${eur(x.pso)} levy${x.outlook > 0.5 ? ` + ${eur(x.outlook)} announced rise` : ''}${credit > 0.5 ? ` − ${eur(credit)} export` : ''}`;
-    const sums = [{ name: `Now, as billed: ${esc(ch.plan.supplier)} · ${esc(ch.plan.plan)}`, line: line2(ch, ch.credit), total: eur(ch.net) },
+    const sums = [{ name: `Now, as billed: ${S().baseline_known ? `${esc(ch.plan.supplier)} · ${esc(ch.plan.plan)}` : esc(api.nowPlanWords())}`, line: line2(ch, ch.credit), total: eur(ch.net) },
       { name: `This home on ${esc(d.plan.supplier)} · ${esc(d.plan.plan)}`, line: line2(T, T.credit), total: eur(T.total) }];
     const rec = api.getRecommendation();
     return `${anHead('accuracy')}
