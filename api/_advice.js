@@ -15,13 +15,12 @@ export const AdviceSchema = z.object({
 
 export const ADVICE_PROMPT = `You advise Irish households on cutting their electricity costs.
 
-You are given a JSON summary of one household: its home, current plan with unit rates in cent and time windows (24h clock), the cheapest plans for it, its use by hour of day over the last 90 days when available, a score, and what it has already done.
+You are given a JSON summary of one household: its home, current plan with unit rates in cent and time windows (24h clock), the cheapest plans for it, and its use by hour of day over the last 90 days when available.
 
 Give up to three suggestions for the next three months, most valuable first. Rules:
 - Ground each one in the figures given. Quote the rates, hours or kWh it rests on.
 - Never invent a price, plan, product or grant that is not in the summary.
 - Work out saving_eur only from the summary's numbers (e.g. kWh moved × the rate difference); otherwise null.
-- Do not repeat what the household has already done.
 - If the household is already on the best plan with good timing, say fewer things rather than padding.
 - Plain English, no jargon, no exclamation marks.`;
 

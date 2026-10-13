@@ -13,7 +13,7 @@
  * the same figure the engine tests already hold.
  */
 import {
-  savingsLadder, rateStrip, scoreRing, monthBars, paybackCurve, dayProfile, eur, billAmt,
+  savingsLadder, rateStrip, monthBars, paybackCurve, dayProfile, eur, billAmt,
 } from './charts.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
@@ -1076,8 +1076,6 @@ export function createV7(api) {
       `${hbars(cmpRows)}${d.picked ? `<button class="ax-inline ax-go" onclick="anPick('')">Go back to the best plan, ${eur(T.total - B.net)} a year less ${api.ic('chevR', 14)}</button>
         <button class="ax-inline ax-go" onclick="choosePlan('${plan.id}');anPick('')">Use ${esc(plan.supplier)} everywhere, Home included ${api.ic('chevR', 14)}</button>` : ''}`);
 
-    let health = null;
-    try { const rec = api.getRecommendation(); health = api.computeEnergyScore(rec.best, rec.baseCost); } catch (e) { health = null; }
     return `${anHead('bill')}
       ${anAnswer({
         // Export can pay more than the bill: then the home is paid, not paying.
@@ -1089,11 +1087,6 @@ export function createV7(api) {
       ${anCard(partsTitle, `${stack(parts, parts.map((p) => `${p.label} ${p.val}`).join(', '))}${rows(parts)}${credit}`)}
       ${anCard(bill.title, bill.html)}
       ${cheap}
-      ${health ? `<button class="ax-link-row ax-health" onclick="v7Sheet('score')" aria-label="Plan health ${health.overall} of 100">
-        ${scoreRing({ value: health.overall, size: 44 })}
-        <span><b>Plan health: ${health.overall} of 100</b><small>How well your plan fits, and how to raise it</small></span>
-        ${api.ic('chevR', 18)}
-      </button>` : ''}
       ${cta('See every plan', "setScreen('plans')")}`;
   }
 
@@ -1475,7 +1468,6 @@ export function createV7(api) {
     let body = '';
     if (sh.kind === 'plan') body = planSheet(sh.id);
     else if (sh.kind === 'assume') body = assumeSheet();
-    else if (sh.kind === 'score') body = scoreSheet();
     else if (sh.kind === 'anplan') body = anPlanSheet();
     else if (sh.kind === 'months') body = monthsSheet();
     else if (sh.kind === 'life') body = lifeSheet();
@@ -1486,10 +1478,7 @@ export function createV7(api) {
     else if (sh.kind === 'quicksys') body = api.renderQuickSystem();
     else if (sh.kind === 'home') body = api.renderHomeSheet();
     else if (sh.kind === 'handover') body = api.renderHandoverSheet();
-    else if (sh.kind === 'journey') body = api.renderJourneySheet(sh.id);
-    else if (sh.kind === 'quest') body = api.renderQuestSheet(sh.id);
     else if (sh.kind === 'meter') body = api.renderMeterSheet();
-    else if (sh.kind === 'habits') body = api.renderHabitsSheet();
     else if (sh.kind === 'share') body = api.renderShareSheet();
     if (!body) return '';
     return `<div class="v7-sheet-root" id="v7-sheet">
@@ -1694,34 +1683,6 @@ export function createV7(api) {
     try { host = new URL(src.url).hostname.replace(/^www\./, ''); } catch (e) { /* keep the raw url */ }
     const when = src.read || plan.verified_date;
     return `<div class="v7-fine">Rates read from <a href="${esc(src.url)}" target="_blank" rel="noopener">${esc(host)}</a>${when ? ` on ${fmtDate(when)}` : ''}, inc VAT.</div>`;
-  }
-
-  /**
-   * The health score and what would raise it. The night-rate prompt and the
-   * EV sum are its "how to improve" — they were cards on the Solar tab, where
-   * a home without panels found advice that had nothing to do with panels.
-   */
-  function scoreSheet() {
-    const rec = api.getRecommendation();
-    const best = rec.best;
-    const score = api.computeEnergyScore(best, rec.baseCost);
-    const weakest = score.parts.slice().sort((a, b) => a.score - b.score)[0];
-    return `<div class="v7-sheet-head">
-        <div class="v7-eyebrow">Your home</div>
-        <h2 class="v7-h">Plan health</h2>
-        <p class="v7-muted">How well your plan and habits suit this home. Your ${api.brand} score in Me is different: it counts what you’ve done.</p>
-      </div>
-      <section class="v7-score">
-        ${scoreRing({ value: score.overall })}
-        <div class="v7-score-body">
-          <div class="v7-score-weak">${weakest && weakest.score < 90 ? `Weakest: <b>${esc(weakest.label)}</b> — ${esc(weakest.why)}` : 'Little left on the table.'}</div>
-          <div class="v7-score-parts">${score.parts.map((p) => `
-            <div class="v7-part"><span>${esc(p.label)}</span><span class="v7-part-bar"><i style="width:${p.score}%"></i></span><b>${p.score}</b></div>`).join('')}</div>
-        </div>
-      </section>
-      ${api.renderNightRateCard(best, rec.baseCost)}
-      ${S().ev_active ? `<button class="v7-cta-2" onclick="v7Sheet(null);anTab('car')">${api.ic('car', 16)} Your EV: charging and petrol ${api.ic('chevR', 16)}</button>`
-        : `<button class="v7-link" onclick="startEvGuide()">${api.ic('car', 14)} Thinking about an EV? See what it would change</button>`}`;
   }
 
   /**

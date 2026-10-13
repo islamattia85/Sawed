@@ -206,34 +206,10 @@ test('a home without panels sees only solar on the Solar tab', async ({ page }) 
   await expect(page.getByRole('button', { name: /Estimate it for my roof/ })).toBeVisible();
 });
 
-test('the health sheet carries its own advice', async ({ page }) => {
-  await boot(page, { current_screen: 'analytics', _an_tab: 'bill' });
-  await page.locator('.ax-health').click();
-  await expect(page.locator('#v7-sheet .v7-ring')).toBeVisible();
-  await expect(page.locator('#v7-sheet')).toContainText(/Weakest:|Little left on the table/);
-});
-
 test('Price watch is reachable from More; the hours live in Analytics, not twice', async ({ page }) => {
   await boot(page, { current_screen: 'more' });
   await expect(page.getByText('Price watch', { exact: true })).toBeVisible();
   await expect(page.getByText('Hour by hour', { exact: true })).toHaveCount(0);
-});
-
-test('the health score judges the plan on the same home the ladder does', async ({ page }) => {
-  // It compared the bill WITHOUT solar with the best plan WITH it, scoring a
-  // solar home 23 for plan efficiency when switching was worth €148 of €551.
-  await boot(page);
-  const mine = await page.evaluate(() =>
-    Math.round(+document.querySelectorAll('.v7-full-ladder .v7-ladder [data-rung]')[1].dataset.value));
-  await page.evaluate(() => window.anTab('bill'));
-  await page.locator('.ax-health').click();
-  const weak = await page.locator('#v7-sheet').innerText();
-  const m = weak.match(/You pay €([\d,]+)/);
-  if (m) expect(+m[1].replace(/,/g, '')).toBe(mine);
-  const plan = await page.evaluate(() => [...document.querySelectorAll('#v7-sheet .v7-part')]
-    .map((el) => el.innerText.split('\n')).find((p) => /Plan efficiency/.test(p[0])));
-  expect(plan, 'no plan-efficiency factor').toBeTruthy();
-  expect(+plan[plan.length - 1]).toBeGreaterThan(50);
 });
 
 test('the month chart opens a swipeable month-by-month sheet', async ({ page }) => {
@@ -548,24 +524,6 @@ test('alerts: a contract ending shows in My Peakless with a badge that clears on
   await expect(page.locator('.nav-badge')).toHaveCount(0);
 });
 
-test('the tally: recording a switch makes it the plan, sets the contract, and counts the saving from the date', async ({ page }) => {
-  await boot(page, { current_screen: 'updates', journey: [] });
-  await page.locator('.up-progress > summary').click();
-  await page.getByRole('button', { name: /I switched plan/ }).click();
-  const sheet = page.locator('#v7-sheet');
-  const to = await sheet.locator('#jr-plan').inputValue();
-  const monthAgo = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
-  await sheet.locator('#jr-date').fill(monthAgo);
-  await sheet.getByRole('button', { name: 'Add to my total' }).click();
-  const st = await page.evaluate(() => ({ base: window.state.baseline, j: window.state.journey, end: window.state.contract_end, total: window.journeyTotal() }));
-  expect(st.base).toBe(to);
-  expect(st.j).toHaveLength(1);
-  expect(st.j[0].at).toBe(monthAgo);
-  expect(st.end > monthAgo).toBe(true);
-  expect(st.total).toBeCloseTo(st.j[0].per_year * 30 / 365, -1);
-  await expect(page.locator('.me-tally')).toContainText('saved so far');
-});
-
 test('step 5: an ESB file keeps dated hourly readings, imports and exports, end-of-interval aware', async ({ page }) => {
   await boot(page);
   const m = await page.evaluate(() => {
@@ -581,23 +539,6 @@ test('step 5: an ESB file keeps dated hourly readings, imports and exports, end-
   expect(m[0]).toBeCloseTo(1);        // 2 kW for half an hour
   expect(m[23]).toBeCloseTo(2);       // the 00:00 reading belongs to the day before
   expect(m[24 + 13]).toBeCloseTo(1.5); // export, kept separately
-});
-
-test('step 5: a recorded switch is checked against the meter, and the score shows its parts', async ({ page }) => {
-  const days = {};
-  for (let i = 0; i < 40; i++) {
-    const d = new Date(Date.now() - (40 - i) * 864e5).toISOString().slice(0, 10);
-    days[d] = [...Array.from({ length: 24 }, (_, h) => (h < 7 ? 1.5 : h >= 17 && h < 19 ? 1 : 0.4)), ...new Array(24).fill(0)];
-  }
-  const at = Object.keys(days)[10];
-  await boot(page, { current_screen: 'updates', baseline: 'EN-SMART', meter: { days },
-    journey: [{ type: 'switch', at, from: 'BG-24', to: 'EN-SMART', label: 'Switched to Energia Smart Data', per_year: 250 }] });
-  const sc = await page.evaluate(() => window.householdScore());
-  expect(sc.parts.map((p) => p.key)).toEqual(expect.arrayContaining(['plan', 'know', 'timing']));
-  expect(sc.parts.find((p) => p.key === 'timing').pts).toBeGreaterThan(0);
-  const chk = await page.evaluate(() => window.realityChecks()[0].r);
-  expect(chk.days).toBe(30);
-  await expect(page.locator('.gm')).toContainText('Your meter, over 30 days');
 });
 
 test('step 5: suggestions are fetched once, kept for the quarter, and carry no personal details', async ({ page }) => {
@@ -623,52 +564,6 @@ test('the alert count shows on the My Peakless card in More, not only on the tab
   await expect(page.locator('.me-entry')).toContainText('new alert');
 });
 
-test('"I switched plan" opens with the best plan for the home already chosen', async ({ page }) => {
-  await boot(page, { current_screen: 'updates', journey: [] });
-  const best = await page.evaluate(() => window.getRecommendation().ranked.map((r) => r.plan.id).find((id) => id !== window.state.baseline));
-  await page.locator('.up-progress > summary').click();
-  await page.getByRole('button', { name: /I switched plan/ }).click();
-  await expect(page.locator('#jr-plan')).toHaveValue(best);
-});
-
-test('"I switched plan" starts on the plan the person chose, when they chose one', async ({ page }) => {
-  await boot(page, { current_screen: 'updates', journey: [] });
-  const pick = await page.evaluate(() => window.getRecommendation().ranked.map((r) => r.plan.id).filter((id) => id !== window.state.baseline)[4]);
-  await page.evaluate((id) => { window.state.chosen_plan = id; window.renderApp(); }, pick);
-  await page.locator('.up-progress > summary').click();
-  await page.getByRole('button', { name: /I switched plan/ }).click();
-  await expect(page.locator('#jr-plan')).toHaveValue(pick);
-});
-
-test('a second switch within two weeks corrects the first instead of adding to it', async ({ page }) => {
-  await boot(page, { current_screen: 'updates', journey: [] });
-  const orig = await page.evaluate(() => window.state.baseline);
-  const ids = await page.evaluate(() => window.getRecommendation().ranked.map((r) => r.plan.id).filter((id) => id !== window.state.baseline));
-  await page.evaluate((id) => window.recordSwitch(id), ids[0]);
-  await page.evaluate((id) => window.recordSwitch(id), ids[1]);
-  const j = await page.evaluate(() => window.state.journey);
-  expect(j).toHaveLength(1);
-  expect(j[0].from).toBe(orig);
-  expect(j[0].to).toBe(ids[1]);
-});
-
-test('the score is a game: a dial and level always, challenges worth points, and the plan gap matches the Plans tab', async ({ page }) => {
-  await boot(page, { current_screen: 'updates', has_solar: true, considering_solar: true, count_A: 12, battery_kwh: 5, solar_planned: true });
-  await page.locator('.up-progress > summary').click();   // the score sits folded under the one-line progress
-  await expect(page.locator('.gm .sc-ring')).toBeVisible();
-  await expect(page.locator('.gm-level-name')).toHaveText(/Starter|Saver|Smart saver|Peakless/);
-  const r = await page.evaluate(() => {
-    const rec = window.getRecommendation();
-    const mine = window.annualCost(window.sim(window.state.baseline), window.getPlanById(window.state.baseline)).net;
-    const q = window.householdScore().quests.find((x) => x.icon === 'swap');
-    return { gap: Math.round(mine - rec.cheapest.net), qEur: q ? Math.round(q.eur) : null };
-  });
-  // The gap is measured on the same home as the Plans tab: panels on both sides.
-  if (r.qEur != null) expect(r.qEur).toBe(r.gap);
-  await expect(page.locator('.up-pts').first()).toContainText('+');   // challenges sit in the feed with their points
-  await expect(page.locator('.al', { hasText: 'Upload your ESB meter file' }).locator('.al-go')).toBeVisible();
-});
-
 test('suggestions written for another plan are set aside, not shown as current', async ({ page }) => {
   await boot(page, { current_screen: 'updates' });
   await page.evaluate(() => {
@@ -689,9 +584,9 @@ test('v8 Home: one answer first, then four doors into the analysis, nothing lost
   await expect(page.locator('.ax-door b')).toHaveText(['Bill', 'Hours', 'Solar', 'Accuracy']);
   await expect(page.locator('.ax-door', { hasText: 'Accuracy' })).toContainText(/±\d+%/);
   await expect(page.locator('.v7-carousel, .v7-deep, .v7-tiles')).toHaveCount(0);
-  // Nothing deleted: the health sheet and the working are a door away.
+  // Nothing deleted: the bill and the working are a door away.
   await page.locator('.ax-door', { hasText: 'Bill' }).click();
-  await expect(page.locator('.ax-health')).toBeVisible();
+  await expect(page.locator('h1.ax-h')).toHaveText('Where does your money go?');
   await page.locator('.ax-tab', { hasText: 'Accuracy' }).click();
   await expect(page.locator('.working-toggle').first()).toBeVisible();
   // The bars stay on the answer.

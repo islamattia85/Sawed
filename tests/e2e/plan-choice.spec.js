@@ -260,21 +260,6 @@ test('the report is on Home, one tap to download, and the novelty tile is gone',
   expect(errors).toEqual([]);
 });
 
-test('the health score names its weakest factor instead of just scoring you', async ({ page }) => {
-  // It has moved three times: the working panel, then Simulate, then — once
-  // the Solar tab showed it to homes with no panels — a tile on Home that
-  // opens a sheet. It scores the whole home, so it lives with the answer. It
-  // still has to name the weakest factor wherever it lives.
-  // v8: a row on the Bill tab, which asks where the money goes.
-  const errors = await boot(page);
-  await page.evaluate(() => window.anTab('bill'));
-  await page.locator('.ax-health').click();
-  const card = page.locator('#v7-sheet');
-  await expect(card).toContainText(/Plan health/);
-  await expect(card).toContainText(/Weakest:|Little left on the table/);
-  expect(errors).toEqual([]);
-});
-
 test('the solar screen puts free advice above the instrument', async ({ page }) => {
   const errors = await boot(page, { current_screen: 'solar' });
   const order = await page.evaluate(() => {

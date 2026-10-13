@@ -93,16 +93,12 @@ test('solar left out, and back @shots', async ({ page }) => {
   await page.screenshot({ path: 'screenshots/18-switch-off.png' });
 });
 
-test('no-solar Solar tab, home doors, health sheet @shots', async ({ page }) => {
+test('no-solar Solar tab, home doors @shots', async ({ page }) => {
   await boot(page, { has_solar: false, considering_solar: false, battery_kwh: 0, current_screen: 'solar' });
   await page.screenshot({ path: 'screenshots/19-solar-empty.png' });
   await boot(page);
   await page.locator('.ax-doors').scrollIntoViewIfNeeded();
   await page.screenshot({ path: 'screenshots/20-home-doors.png' });
-  await page.evaluate(() => window.anTab('bill'));
-  await page.locator('.ax-health').click();
-  await page.waitForTimeout(350);
-  await page.screenshot({ path: 'screenshots/21-health-sheet.png' });
 });
 
 test('month by month sheet @shots', async ({ page }) => {

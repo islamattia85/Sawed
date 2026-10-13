@@ -3,7 +3,7 @@ import { boot, bootFresh } from './support.js';
 
 /**
  * Journeys, not screens: where a tap lands, where Back goes, and that a
- * promise ("+30 points", "Switch") leads to what it promised. Written after a
+ * promise ("Switch", "Upload your ESB meter file") leads to what it promised. Written after a
  * crawl of every button on every screen found journeys that went sideways.
  */
 
@@ -54,23 +54,10 @@ test('every switch button opens the same "before you switch" panel, from any scr
   }
 });
 
-test('a challenge is explained before it starts, and finishing it says what was earned', async ({ page }) => {
+test('a to-do opens the place it is done, with nothing in between', async ({ page }) => {
   await boot(page, { current_screen: 'updates', contract_end: null });
-  const quest = page.locator('.al', { hasText: 'contract end date' }).locator('.al-go');
-  await quest.click();
-  const sheet = page.locator('#v7-sheet');
-  await expect(sheet).toContainText('Challenge');
-  await expect(sheet).toContainText('Do it now');
-  await sheet.getByRole('button', { name: /Do it now/ }).click();
-  await expect(page.locator('#v7-sheet')).toContainText('My home');   // the place to do it
-});
-
-test('a rising score is announced with the points earned', async ({ page }) => {
-  await boot(page, { current_screen: 'updates', baseline: 'EI-24', chosen_plan: null, grid_charge_now: 'yes' });
-  await page.waitForTimeout(900);
-  const best = await page.evaluate(() => window.getRecommendation().cheapest.plan.id);
-  await page.evaluate((id) => { window.state.baseline = id; window.invalidate(); window.renderApp(); }, best);
-  await expect(page.locator('.toast, .v7-toast').filter({ hasText: /points/ })).toBeVisible({ timeout: 4000 });
+  await page.locator('.up-row', { hasText: 'contract end date' }).locator('.al-go').click();
+  await expect(page.locator('#v7-sheet')).toContainText('My home');
 });
 
 test('no tap on the four tabs throws an error or leaves the app', async ({ page }) => {
@@ -98,34 +85,33 @@ test('no tap on the four tabs throws an error or leaves the app', async ({ page 
   expect(errors).toEqual([]);
 });
 
-test('"Do it now" acts where you are: no challenge sends you to another tab', async ({ page }) => {
+test('every to-do acts where you are: none sends you to another tab', async ({ page }) => {
   const days = {};
   for (let i = 0; i < 30; i++) { const d = new Date(Date.now() - (30 - i) * 864e5).toISOString().slice(0, 10);
     days[d] = [...Array.from({ length: 24 }, (_, h) => (h >= 17 && h < 19 ? 2 : 0.5)), ...new Array(24).fill(0)]; }
   for (const st of [{}, { baseline: 'EN-SMART', meter: { days } }]) {
-    await boot(page, { current_screen: 'updates', contract_end: '2027-06-01', ...st });
-    const quests = await page.locator('.gm-q').count();
-    for (let i = 0; i < quests; i++) {
-      await page.evaluate(() => { window.state._sheet = null; window.state.current_screen = 'me'; window.renderApp(); });
-      await page.locator('.gm-q').nth(i).click();
-      await page.locator('#v7-sheet').getByRole('button', { name: /Do it now/ }).click();
+    await boot(page, { current_screen: 'updates', contract_end: null, ...st });
+    const todos = await page.locator('.up-todo .al-go').count();
+    expect(todos, 'no to-do to check').toBeGreaterThan(0);
+    for (let i = 0; i < todos; i++) {
+      await page.evaluate(() => { window.state._sheet = null; window.state.current_screen = 'updates'; window.renderApp(); });
+      await page.locator('.up-todo .al-go').nth(i).click();
       await page.waitForTimeout(150);
       const where = await page.evaluate(() => [window.state.current_screen, window.state._sheet && window.state._sheet.kind]);
-      expect(where[0], `challenge ${i} left My Peakless for ${where[0]}`).toBe('me');
-      expect(where[1], `challenge ${i} opened nothing`).toBeTruthy();
+      expect(where[0], `to-do ${i} left Updates for ${where[0]}`).toBe('updates');
+      expect(where[1], `to-do ${i} opened nothing`).toBeTruthy();
     }
   }
 });
 
-test('the meter challenge uploads in place and stays on My Peakless', async ({ page }) => {
+test('the meter-file to-do opens the upload itself', async ({ page }) => {
   await boot(page, { current_screen: 'updates' });
-  await page.locator('.al', { hasText: 'ESB meter file' }).locator('.al-go').click();
-  await page.locator('#v7-sheet').getByRole('button', { name: /Do it now/ }).click();
+  await page.locator('.up-row', { hasText: 'ESB meter file' }).locator('.al-go').click();
   await expect(page.locator('#v7-sheet')).toContainText('myaccount.esbnetworks.ie');
   await expect(page.locator('#v7-sheet #csv-file-input')).toHaveCount(1);
 });
 
-test('a file uploaded from the challenge is applied, and you are still on My Peakless', async ({ page }) => {
+test('a file uploaded from Updates is applied, and you are still on Updates', async ({ page }) => {
   await boot(page, { current_screen: 'updates' });
   await page.evaluate(() => window.v7Sheet('meter'));
   const rows = ['MPRN,Meter Serial Number,Read Value,Read Type,Read Date and End Time'];

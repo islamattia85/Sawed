@@ -39,9 +39,9 @@ test('each plan family is written one way', async ({ page }) => {
   expect(spaced).toEqual([]);
 });
 
-test('the meter file is one to-do, not two with different points', async ({ page }) => {
+test('the meter file is one to-do, not two', async ({ page }) => {
   await boot(page, { current_screen: 'updates', usage_input_mode: 'kwh', annual_kwh: 4200, _csv_imported: false });
-  const titles = await page.evaluate(() => window.householdScore().quests.map((q) => q.title));
+  const titles = await page.locator('.up-todo .up-row b').allInnerTexts();
   expect(titles.filter((t) => /meter (file|data)/i.test(t)), titles.join(' | ')).toHaveLength(1);
 });
 

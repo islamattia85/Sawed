@@ -2,7 +2,7 @@
  * POST /api/advice — this quarter's suggestions for one household.
  *
  * Body: { summary } (built by adviceSummary() in the app: plans, rates, use by
- * hour, score — no personal details). Reply: { advice: { items } } or
+ * hour — no personal details). Reply: { advice: { items } } or
  * { error }. Nothing is stored here. Needs ANTHROPIC_API_KEY.
  */
 import Anthropic from '@anthropic-ai/sdk';
