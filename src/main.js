@@ -871,6 +871,10 @@ if (/[?&]fresh\b/.test(location.search)) {
   try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
   history.replaceState(null, '', location.pathname);
 }
+// Where the person was, not what they told us: kept for this visit only. Saved,
+// a reload or a return days later reopened the last sheet, the meter upload
+// among them, with no sign a file was in (13 Oct 2026).
+const NOT_KEPT = ['_sheet', '_an_tab', '_return_to'];
 try {
   const raw = localStorage.getItem("solarAppState_v2");
   setState(raw ? JSON.parse(raw) : structuredClone(DEFAULT_STATE));
@@ -894,6 +898,7 @@ try {
   // only hid the car: bring it back (12 Oct 2026).
   if (!state.ev_active && state._ev_left_out && !carAddedOnTop()){ state.ev_active = true; delete state._ev_left_out; }
   delete state.ev_file_car;   // a question on Home for a few hours on 12 Oct 2026, now gone
+  for (const k of NOT_KEPT) delete state[k];   // saved by builds before 13 Oct 2026
 } catch(e){ setState(structuredClone(DEFAULT_STATE)); }
 // A home with panels but no price (an older save, or a step left half-way)
 // would show a 0-year payback. Give it the guide price instead.
@@ -935,7 +940,7 @@ function deepMerge(target, source){
 }
 function saveState(){
   state._saved_at = Date.now();
-  try { localStorage.setItem("solarAppState_v2", JSON.stringify(state)); } catch(e){}
+  try { const keep = { ...state }; for (const k of NOT_KEPT) delete keep[k]; localStorage.setItem("solarAppState_v2", JSON.stringify(keep)); } catch(e){}
   queueCloudSave();
 }
 
@@ -10439,8 +10444,28 @@ function questDone(key){
   renderApp();
 }
 
-/** Upload the ESB file without leaving the screen: the steps, the button, the result. */
+/**
+ * Upload the ESB file without leaving the screen: the steps, the button, the
+ * result. With a file already in, what it holds and "Replace the file": the
+ * empty upload card gave no sign a file was loaded (13 Oct 2026).
+ */
+let _meterReplace = false;
+function meterReplace(){ _meterReplace = true; renderApp(); }
 function renderMeterSheet(){
+  const days = state._csv_imported && state.meter && state.meter.days ? Object.keys(state.meter.days).sort() : [];
+  if (days.length && !_meterReplace){
+    const day = (k) => new Date(k + 'T12:00:00Z').toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
+    const kwh = Math.round(Object.values(state.bills || {}).reduce((a, b) => a + b, 0));
+    const sold = Math.round(state._csv_export_kwh || 0);
+    return `<div class="v7-sheet-head"><div class="v7-eyebrow">Your meter data</div><h2 class="v7-h">Your ESB file is in</h2></div>
+    <div class="me-list ms-loaded">
+      <div class="me-row"><span><b>Dates</b><small>${day(days[0])} to ${day(days[days.length - 1])}</small></span></div>
+      <div class="me-row"><span><b>${sold > 0 ? 'Bought from the grid' : 'Used'}</b><small>${kwh.toLocaleString('en-IE')} kWh a year</small></span></div>
+      <div class="me-row"><span><b>Power sent to the grid</b><small>${sold > 0 ? `${sold.toLocaleString('en-IE')} kWh a year` : 'None in the file'}</small></span></div>
+    </div>
+    <button class="v7-cta-2" onclick="meterReplace()">${ic('csv', 16)} Replace the file</button>
+    <div class="v7-fine">The file stays on this device, and in your account if you’re signed in.</div>`;
+  }
   return `<div class="v7-sheet-head"><div class="v7-eyebrow">Your meter data</div><h2 class="v7-h">Upload your ESB smart-meter file</h2></div>
     <ol class="ms-steps">
       <li>Sign in at <b>myaccount.esbnetworks.ie</b> (free; your MPRN is on your bill).</li>
@@ -14292,6 +14317,7 @@ function parseCsvHdf(text, filename){
 
     state.bills = bills;
     state._csv_imported = true;
+    _meterReplace = false;
     delete state.ev_in_file;   // a new file: asked again on its card
     state._file_split = false;
     state._csv_filename = filename;
@@ -14664,6 +14690,7 @@ window.removeEv = removeEv;
 window.toggleEvModel = toggleEvModel;
 window.setEvInFile = setEvInFile;
 window.planCount = planCount;
+window.meterReplace = meterReplace;
 window.undoLast = undoLast;
 window._undoKeep = _undoKeep;
 window.useGoalDesign = useGoalDesign;

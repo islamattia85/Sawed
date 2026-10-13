@@ -116,3 +116,29 @@ test('1.4 audit notes never show; a plan’s public note does. 1.7 the sheet giv
   await expect(page.locator('#v7-sheet .v7-terms')).toHaveCount(0);
   await expect(page.locator('#v7-sheet')).toContainText('where most customers end up when a discount runs out');
 });
+
+test('1.5 a reload opens no sheet; the meter sheet shows the file that is in, with Replace the file', async ({ page }) => {
+  await fresh(page);
+  await page.getByRole('button', { name: /Just a better plan/ }).click();
+  await answer(page, { ...TYPICAL, switched: 'longer' });
+  // A year of readings, as the importer leaves them.
+  await page.evaluate(() => {
+    const W = /** @type {any} */ (window), days = {};
+    for (let i = 0; i < 365; i++) { const k = new Date(Date.UTC(2025, 5, 1 + i)).toISOString().slice(0, 10); days[k] = Array(24).fill(0.5).concat(Array(24).fill(0)); }
+    Object.assign(W.state, { meter: { days }, _csv_imported: true, usage_input_mode: 'csv', _csv_export_kwh: 0 });
+    W.invalidate(); W.saveState(); W.setScreen('result'); W.v7Sheet('meter');
+  });
+  const sheet = page.locator('#v7-sheet');
+  await expect(sheet).toContainText('Your ESB file is in');
+  await expect(sheet).toContainText('1 June 2025 to 31 May 2026');
+  await expect(sheet).toContainText('None in the file');
+  // A reload, or a return days later, opens Home, not the sheet.
+  await page.evaluate(() => /** @type {any} */ (window).saveState());
+  expect(await page.evaluate(() => 'sheet' in JSON.parse(localStorage.getItem('solarAppState_v2') || '{}') || '_sheet' in JSON.parse(localStorage.getItem('solarAppState_v2') || '{}'))).toBe(false);
+  await page.reload();
+  await page.waitForFunction(() => /** @type {any} */ (window).__bootSettled === true);
+  await expect(page.locator('#v7-sheet')).toHaveCount(0);
+  await page.evaluate(() => /** @type {any} */ (window).v7Sheet('meter'));
+  await page.getByRole('button', { name: /Replace the file/ }).click();
+  await expect(page.locator('#v7-sheet')).toContainText('Choose the file');
+});

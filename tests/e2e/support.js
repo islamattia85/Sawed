@@ -82,8 +82,9 @@ export async function boot(page, overrides = {}, path = '/app') {
   // something a coin flip. Wait for boot to settle.
   await page.waitForFunction(() => window.__bootSettled === true, null, { timeout: 10_000 });
   // Analytics' folds open closed on every visit, and nothing claims the
-  // reader came from Home; tests that need either set it again here.
-  const again = Object.fromEntries(['_solar_more', '_an_day_open', '_an_from']
+  // reader came from Home; the open sheet and Analytics tab are not kept
+  // across a load either. Tests that need any of them set it again here.
+  const again = Object.fromEntries(['_solar_more', '_an_day_open', '_an_from', '_an_tab', '_sheet']
     .filter((k) => k in state).map((k) => [k, state[k]]));
   if (Object.keys(again).length) await page.evaluate((f) => { Object.assign(window.state, f); window.renderApp(); }, again);
   return errors;
