@@ -78,3 +78,22 @@ test('1.2 the standard plans are kept out of Plans and every count; each supplie
   expect(r.assumedOnly.length).toBe(8);
   for (const id of r.assumedOnly) expect(r.ranked).not.toContain(id);
 });
+
+test('1.3 one plan count: Home, Plans and the front page agree for the home’s meter', async ({ page }) => {
+  await fresh(page);
+  const lede = await page.locator('.wl-lede').first().textContent();
+  await page.getByRole('button', { name: /Just a better plan/ }).click();
+  await answer(page, { ...TYPICAL, switched: 'longer' });
+  const c = await page.evaluate(() => /** @type {any} */ (window).planCount());
+  expect(c.label).toBe(`${c.n} plans for a smart meter`);
+  expect(lede).toContain(`${c.n} of them for smart meters`);
+  // Every count on Home, Analytics and Updates is the same one.
+  for (const scr of ['result', 'analytics', 'updates']) {
+    await page.evaluate((s) => /** @type {any} */ (window).setScreen(s), scr);
+    const text = await page.locator('#app-root').innerText();
+    for (const m of text.matchAll(/(\d+) plans\b/g)) expect(+m[1], `${scr}: "${m[0]}"`).toBe(c.n);
+  }
+  await page.evaluate(() => /** @type {any} */ (window).setScreen('plans'));
+  await expect(page.locator('.v7-page-head')).toContainText(c.label);
+  await expect(page.locator('.plan-filter-pill').first().locator('.count')).toHaveText(String(c.n));
+});

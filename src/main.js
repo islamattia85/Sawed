@@ -3529,7 +3529,7 @@ function renderSite(){
       <div class="wl-copy">
         <div class="wl-eyebrow wl-motto">${ic('sun', 15)} Solar and electricity plans, priced on your home</div>
         <h1 class="wl-h1">The right plan, <em>with or without</em> solar.</h1>
-        <p class="wl-lede">${n} plans from ${nSup} Irish suppliers, priced hour by hour on your own home. Free${unpaid() ? ', no commission from anyone' : ''}.</p>
+        <p class="wl-lede">${n} plans from ${nSup} Irish suppliers, ${planCount('smart').n} of them for smart meters, priced hour by hour on your own home. Free${unpaid() ? ', no commission from anyone' : ''}.</p>
         <div class="wl-j-k">Where are you?</div>
         <div class="wl-journeys" role="group" aria-label="Where are you?">
           <button class="wl-journey is-have" onclick="siteGo('have')"><span class="wl-j-ic">${ic('sun', 22)}</span><span><b>I have solar</b><small>Am I on the best plan for my panels?</small></span>${ic('chevR', 18)}</button>
@@ -6777,7 +6777,7 @@ const FLOW_SHORT = { bill: 'Usage', plan: 'Plan now', disc: 'Discount', house: '
   gridnow: 'Battery charging', km: 'Driving', car: 'Car' };
 function flowSide(steps, f, open, shown){
   const got = steps.filter((k) => k in f && k !== open);
-  const n = openPlans().length;
+  const n = f.meter ? planCount(f.meter).n : openPlans().length;
   const val = (k) => { try { return esc(shown[k] ? shown[k](f[k]) : String(f[k])); } catch (e) { return esc(String(f[k])); } };
   return `<aside class="fl-side ${got.length ? '' : 'is-empty'}" aria-label="Your home so far">
     <div class="fl-card"><b class="fl-card-h">Your home so far</b><small>Change any answer at any time.</small>
@@ -8553,7 +8553,7 @@ async function doGeneratePdf(){
             ? 'Your stated annual kWh, shaped by heating profile'
             : 'Estimated from your bill, calibrated to your current plan'),
       switchSteps,
-      tariffCount: rec.rankedCount,
+      tariffCount: planCount().n,
       verifiedDate: vdates.length ? fmtVerifiedDate(vdates[vdates.length-1]) : null,
     });
 
@@ -9619,7 +9619,7 @@ function renderMonitor(){
       <div class="mon-status-line">Switching to <b>${best.plan.supplier} — ${best.plan.plan}</b> could save you about <b style="color:var(--amber)">${fmtCurrency(savings)}/yr</b> versus your current plan.</div>
       <!-- countLabel already reads "22 of 25 — 3 dynamic plans excluded", so
            interpolating it after "of" produced "ranks #20 of 22 of 25". -->
-      <div class="mon-status-meta">${rank ? `Your current plan ranks #${rank} of ${rec.rankedCount} for your usage` : `Your current plan isn’t in the ranking (dynamic plans are left out unless you turn them on in Settings)`}</div>
+      <div class="mon-status-meta">${rank ? `Your current plan ranks #${rank} of ${planCount().n} for your usage` : `Your current plan isn’t in the ranking (dynamic plans are left out unless you turn them on in Settings)`}</div>
       <button class="switch-cta" style="margin-top:13px;margin-bottom:0;font-size:13px;padding:13px"
         onclick="v7Sheet('switch','${best.plan.id}')">
         See the switch</button>
@@ -9661,7 +9661,7 @@ function renderMonitor(){
     sub: onBest ? `${countLabel} plans checked. You’re already on the best one.`
                 : `${best.plan.supplier} ${best.plan.plan} now leads for your home.` });
   events.push({ c:'var(--blue)', when:'Your ranking',
-    title: rank ? `Your plan is #${rank} of ${rec.rankedCount} for your home` : `Your plan isn’t in the ranking`,
+    title: rank ? `Your plan is #${rank} of ${planCount().n} for your home` : `Your plan isn’t in the ranking`,
     sub:`Top 3 for your profile: ${top3.map(t => { const p = getPlanById(t.id); return `${p.supplier} ${p.plan}`; }).join('; ')}.` });
   if (state.switched_to){
     const sp = getPlanById(state.switched_to);
@@ -9669,7 +9669,7 @@ function renderMonitor(){
       title:`You switched to ${sp.supplier}`, sub:`We'll keep watching in case something better appears.` });
   }
   events.push({ c:'var(--ink-dim)', when:'Ongoing',
-    title:'Watching '+rec.rankedCount+' tariffs for rate changes',
+    title:`Watching ${planCount().label} for rate changes`,
     sub:'New EV and dynamic plans are checked the day they launch.' });
 
   const timelineHtml = events.map((e,i) => `<div class="mon-event">
@@ -11791,7 +11791,8 @@ const V7 = createV7({
   quoteFaces: (x) => quoteFaces(x),
   renderSolarWorking: () => renderSolarWorking(),
   isFlatPlan,
-  tariffCounts: () => { const live = TARIFFS.filter((p) => !p.discontinued && fitsMeter(p)); const dyn = live.filter((p) => p.type === 'dynamic').length; return { live: live.length, dynamicLeftOut: state.include_dynamic ? 0 : dyn }; },
+  tariffCounts: () => { const live = TARIFFS.filter((p) => onOffer(p) && fitsMeter(p)); const dyn = live.filter((p) => p.type === 'dynamic').length; return { live: live.length, dynamicLeftOut: state.include_dynamic ? 0 : dyn }; },
+  planCount,
   plannedLadder: () => plannedLadder(),
   householdScore: () => householdScore(),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
@@ -11979,6 +11980,16 @@ const PAID_LINE = 'Some suppliers or installers pay us when you switch or ask fo
 
 /** The plans a new customer can join today: the count every page gives. */
 const openPlans = () => TARIFFS.filter((t) => onOffer(t) && !t.on_hold);
+/**
+ * The plans compared for this home: on offer and fit for its meter. The one
+ * count Home, Plans, Analytics, Updates and the PDF give (13 Oct 2026: the
+ * front page said 50, Plans 35, Home and the PDF 33).
+ */
+function planCount(meter = state.meter_type || 'smart'){
+  const n = TARIFFS.filter((p) => onOffer(p) && fitsMeter(p, meter)).length;
+  const kind = meter === '24hr' ? 'a standard meter' : meter === 'nightsaver' ? 'a day/night meter' : 'a smart meter';
+  return { n, label: `${n} plans for ${kind}` };
+}
 
 /** The legal pages as footer links, short names. */
 const footLegal = () => [['privacy', 'Privacy'], ['terms', 'Terms'], ['ranking', 'How we rank'], ['accessibility', 'Accessibility'], ['complaints', 'Complaints']]
@@ -14655,6 +14666,7 @@ window.anPick = anPick;
 window.removeEv = removeEv;
 window.toggleEvModel = toggleEvModel;
 window.setEvInFile = setEvInFile;
+window.planCount = planCount;
 window.undoLast = undoLast;
 window._undoKeep = _undoKeep;
 window.useGoalDesign = useGoalDesign;

@@ -445,7 +445,7 @@ export function createV7(api) {
         <b>${api.ic(icon, 18)}${label}</b><small>${sub}</small></button>`;
     const acc = api.modelAccuracy().pct;
     return `<section class="ax-doors-wrap" aria-label="Why these figures?">
-      <div class="ax-doors-h"><b>Why these figures?</b><small>Every hour of your year, on ${rec.ranked.length} plans</small></div>
+      <div class="ax-doors-h"><b>Why these figures?</b><small>Every hour of your year, on ${api.planCount().label}</small></div>
       <div class="ax-doors">
         ${door('bill', 'euro', 'Bill', T ? eur(T.total) : 'in parts', `Bill${T ? `, ${eur(T.total)} a year` : ''}`)}
         ${door('hours', 'clock', 'Hours', hours, `Hours, ${hours}`)}
@@ -674,7 +674,7 @@ export function createV7(api) {
     <div class="screen v7 v7-plans">
       <div class="v7-page-head">
         <h2 class="v7-h">Every plan, priced on your home</h2>
-        <div class="v7-muted">Differences are against your current plan on the same home${st.has_solar ? ', solar included' : ''}.</div>
+        <div class="v7-muted">${api.planCount().label}. Differences are against your current plan on the same home${st.has_solar ? ', solar included' : ''}.</div>
         ${homeChips()}
       </div>
       ${api.renderStalenessBanner()}
@@ -1517,7 +1517,7 @@ export function createV7(api) {
     const pcs = api.priceChangeStatus(plan), pc = pcs && pcs.pc;
     const switchName = jsAttr(`${plan.supplier} ${plan.plan}`);
     return `<div class="v7-sheet-head">
-        <div class="v7-eyebrow">${rank ? `#${rank} of ${api.plansData().counts.all} for your home` : 'Not ranked'}</div>
+        <div class="v7-eyebrow">${rank ? `#${rank} of ${api.planCount().n} for your home` : 'Not ranked'}</div>
         <h2 class="v7-h">${esc(plan.supplier)}</h2>
         <div class="v7-muted">${esc(plan.plan)}</div>
       </div>
