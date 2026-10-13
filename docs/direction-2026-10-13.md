@@ -129,6 +129,8 @@ already loaded.
 - The plan sheet shows no contract length or exit fee. The registry has
   `length` and `exit`; show both on the sheet under the rates ("12-month
   contract · €50 exit fee"). Where a plan has neither, show nothing.
+- `package.json` still says `7.0.0-beta.1`. Set `8.0.0-beta.1`; it is what
+  error reports and the account page show.
 
 ## 2. Remove the savings score, levels, challenges and points
 
@@ -244,7 +246,16 @@ private repo cannot afford on the free plan.
   still deployed; ask the owner.
 - Keep `concurrency: cancel-in-progress`.
 
-### 5.3 Production comes from `main`
+### 5.3 Load the PDF code only when it is asked for
+
+The front page loads 884 kB of JavaScript (286 kB compressed), of which the
+PDF libraries (`jspdf`, `html2canvas`, the PDF fonts) are about a third and
+are used only when someone taps Download report. Import them with a dynamic
+`import()` inside the download handler, so the first load drops by roughly
+a third. Measure before and after on a throttled connection and put both
+figures in the PR. Do not split anything else in this PR.
+
+### 5.4 Production comes from `main`
 
 Today every push to `v8` deploys to the live site, up to 36 times a day; the
 6 October regression went live that way.
@@ -327,9 +338,22 @@ and server errors through Resend (count, first line, screen, build), only when
 there are any. Needs `RESEND_API_KEY`, `MAIL_FROM` and `DIGEST_TO`; without
 them it logs and exits.
 
+### 7.4 The first real golden household
+
+The golden homes are synthetic. `tests/fixtures/meter-scenarios/real/` has a
+slot for real files that stay out of git. The owner supplies his own ESB file
+and the Sigenergy app's generation, import and export totals for the same
+months. Add it as a scenario with those totals as the truth, run it with the
+golden set, and report its errors in the PR. Do not change the model to fit
+it; the number is the point.
+
 ## 8. For the owner, alongside the PRs
 
 - Vercel: set the production branch to `main` (after PR 5); move to Pro.
+- Supply the ESB file and Sigenergy totals for 7.4.
+- The steps in `docs/launch-checklist.md` that only you can do: file the
+  company, the solicitor's review of the privacy notice and terms, the
+  processor agreements, `peakless.ie`, the privacy address.
 - GitHub: make the repository private after PR 5 is merged; add a payment
   method with a $10 monthly Actions budget.
 - Supabase: Pro plan; turn on leaked-password protection.
@@ -354,8 +378,13 @@ them it logs and exits.
 - PostHog receives the events in the tracking plan, consent-gated as described.
 - Full suite green; golden households unchanged; test count reported.
 
-## 10. Not in this brief
+## 10. Not in this brief, on purpose
 
-Desktop layout, the App Store wrapper and Sign in with Apple, installer quotes
-and partners (stay flagged off), new futures or EV work, renaming tabs, more
-competitor benchmarks, model or engine changes, CRU paperwork.
+- A desktop layout for Plans and Analytics: real, but it waits for testers
+  to show whether they come on a laptop.
+- The remaining solar-saving gap on battery homes (the fixes report of
+  9 October, question 5): full-year homes are now within 1%; the battery
+  cases wait for real files, not more synthetic ones.
+- The App Store wrapper and Sign in with Apple; installer quotes and
+  partners (stay flagged off); new futures or EV work; renaming tabs; more
+  competitor benchmarks; model or engine changes; CRU paperwork.
