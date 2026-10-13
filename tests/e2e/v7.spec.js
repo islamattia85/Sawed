@@ -723,6 +723,7 @@ test('first visit: one revealing page, answers fold into lines you can change, t
   await page.locator('.fl-opt', { hasText: 'Smart meter' }).click();
   await page.locator('.fl-opt', { hasText: 'Urban' }).click();
   await page.getByRole('button', { name: /not sure: assume a standard plan/i }).click();
+  await page.locator('.fl-opt', { hasText: 'Longer, or never' }).click();   // when they last switched
   await page.locator('.fl-opt', { hasText: 'Heat pump' }).click();
   await page.locator('.fl-opt', { hasText: 'Through the day' }).click();
   await page.locator('.fl-opt', { hasText: 'Thinking about it' }).click();
@@ -796,13 +797,14 @@ test('v8 EV guide: four steps, then what it costs and saves; backing out changes
   await expect(page.locator('.v7-home-back')).toBeVisible();
 });
 
-test('the flow reveal: planned solar leads with the most you could save, the same figure Home shows', async ({ page }) => {
+test('the flow reveal: planned solar leads with what the panels would cut, the same figure Home shows', async ({ page }) => {
   await bootFresh(page);
   await page.getByRole('button', { name: /Planning solar, a battery or an EV/ }).click();
   await page.locator('#flow-bill').fill('420'); await page.getByRole('button', { name: 'Next' }).click();
   await page.locator('.fl-opt', { hasText: 'Smart meter' }).click();
   await page.locator('.fl-opt', { hasText: 'Urban' }).click();
   await page.getByRole('button', { name: /not sure: assume a standard plan/i }).click();
+  await page.locator('.fl-opt', { hasText: 'Longer, or never' }).click();   // when they last switched
   await page.locator('.fl-opt', { hasText: 'Gas or oil' }).click();
   await page.locator('.fl-opt', { hasText: /^No/ }).first().click();          // no immersion at night
   await page.locator('.fl-opt', { hasText: 'Thinking about it' }).click();

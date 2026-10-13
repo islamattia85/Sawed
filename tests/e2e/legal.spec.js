@@ -52,7 +52,7 @@ test('How we rank plans: one sum, nobody pays to move up, and it counts the plan
   const copy = page.locator('.privacy-copy');
   await expect(copy).toContainText('Nobody pays us to show a plan, or to move it up.');
   // The plans a new customer can join: the same count the front page and How it works give (withdrawn ones are not compared).
-  const n = await page.evaluate(() => window.TARIFFS ? window.TARIFFS.filter((t) => !t.discontinued && !t.on_hold).length : null);
+  const n = await page.evaluate(() => window.TARIFFS ? window.TARIFFS.filter((t) => !t.discontinued && !t.assumed_only && !t.on_hold).length : null);
   const text = await copy.innerText();
   const m = text.match(/(\d+) plans from (\d+) suppliers/);
   expect(m, text).not.toBeNull();

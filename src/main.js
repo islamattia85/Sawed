@@ -25,7 +25,7 @@ import { LEGAL_SCREENS, companyLine, termsHtml, privacyHtml, rankingHtml, access
 import { IC, ic } from './icons';
 import FIG from './data/front-figures.json';
 import {
-  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileIsNet, fileDays, fileOwnShape, shapeBuckets, seasonalShape, SEASONAL_SHAPE, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, getPlanById, carInMeterFile, carSeenInFile, carFileState, carAddedOnTop, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, tidyNames, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
+  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileIsNet, fileDays, fileOwnShape, shapeBuckets, seasonalShape, SEASONAL_SHAPE, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, onOffer, getPlanById, carInMeterFile, carSeenInFile, carFileState, carAddedOnTop, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, tidyNames, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
   outcomeAgainst, sweepSetup, evaluateDesign, finishSweep, readBillAsRun, syncFileBills,
 } from './model';
 
@@ -871,6 +871,10 @@ if (/[?&]fresh\b/.test(location.search)) {
   try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
   history.replaceState(null, '', location.pathname);
 }
+// Where the person was, not what they told us: kept for this visit only. Saved,
+// a reload or a return days later reopened the last sheet, the meter upload
+// among them, with no sign a file was in (13 Oct 2026).
+const NOT_KEPT = ['_sheet', '_an_tab', '_return_to'];
 try {
   const raw = localStorage.getItem("solarAppState_v2");
   setState(raw ? JSON.parse(raw) : structuredClone(DEFAULT_STATE));
@@ -894,6 +898,8 @@ try {
   // only hid the car: bring it back (12 Oct 2026).
   if (!state.ev_active && state._ev_left_out && !carAddedOnTop()){ state.ev_active = true; delete state._ev_left_out; }
   delete state.ev_file_car;   // a question on Home for a few hours on 12 Oct 2026, now gone
+  for (const k of NOT_KEPT) delete state[k];   // saved by builds before 13 Oct 2026
+  for (const k of ['_tariff_status', '_refresh_api_available', '_tariff_refreshing']) delete state[k];   // the live price refresh, removed 13 Oct 2026
 } catch(e){ setState(structuredClone(DEFAULT_STATE)); }
 // A home with panels but no price (an older save, or a step left half-way)
 // would show a 0-year payback. Give it the guide price instead.
@@ -935,7 +941,7 @@ function deepMerge(target, source){
 }
 function saveState(){
   state._saved_at = Date.now();
-  try { localStorage.setItem("solarAppState_v2", JSON.stringify(state)); } catch(e){}
+  try { const keep = { ...state }; for (const k of NOT_KEPT) delete keep[k]; localStorage.setItem("solarAppState_v2", JSON.stringify(keep)); } catch(e){}
   queueCloudSave();
 }
 
@@ -3340,7 +3346,7 @@ function planRatesLine(p){
  * cheapest EV-hours rate, and the withdrawn plan the figures mention.
  */
 function planFacts(){
-  const live = TARIFFS.filter((t) => !t.discontinued);
+  const live = TARIFFS.filter(onOffer);
   const ex = live.map((t) => t.export_rate || 0);
   const evs = live.filter((t) => t.windows && t.windows.ev && t.rates.ev > 0).map((t) => t.rates.ev);
   return { n: live.length, zero: ex.filter((x) => !(x > 0)).length, maxEx: Math.max(...ex), minEv: evs.length ? Math.min(...evs) : null,
@@ -3470,7 +3476,7 @@ function showPlans(){
     ${T(4, 12, 'A year with 12 panels', 'class="h"')}
     ${rows.map((r, i) => { const y = 24 + i * 26, w = Math.max(6, r.c / mx * 80); return `${T(4, y + 8, `${i + 1}. ${planCategoryLabel(planCategory(r.p))}`, i ? '' : 'class="g"')}
       <rect x="142" y="${y}" width="${w}" height="9" rx="4.5" class="${i ? 'mute' : 'acc'}"/>${T(266, y + 8, eur(r.c), `text-anchor="end" ${i ? '' : 'class="g"'}`)}`; }).join('')}
-    ${T(4, 130, `The example home, ${TARIFFS.filter((t) => !t.discontinued).length} plans checked this week`, 'class="mute-t"')}</svg>`;
+    ${T(4, 130, `The example home, ${TARIFFS.filter(onOffer).length} plans checked this week`, 'class="mute-t"')}</svg>`;
 }
 function showPayback(){
   const cost = FIG.typical.net, save = cost / FIG.typical.payback, Y = 20, x = (t) => 22 + t * 11.4, y = (v) => 70 - v / 300;
@@ -3520,7 +3526,7 @@ function renderSite(){
     <header class="wl-bar">
       <a class="wl-logo" href="/" onclick="event.preventDefault();scrollTo({ top: 0, behavior: 'smooth' })" aria-label="Peakless, back to the top"><span class="pk-land-icon">${ic('logo', 22, 'stroke-width:1.6')}</span>${wordmarkHtml('pk-word-top')}</a>
       <nav class="wl-nav" aria-label="Site"><a href="#ask">Start here</a><a href="#plan">Why the plan matters</a><a href="#plans">Every plan</a><a href="#faq">Questions</a></nav>
-      <div class="wl-bar-end"><a class="wl-applink" href="${app}">${ic('mobile', 16)}<span>Get the app</span></a>
+      <div class="wl-bar-end"><a class="wl-applink" href="${app}">${ic('mobile', 16)}<span>Open Peakless</span></a>
         ${done ? '' : renderProfileNavBtn()}
         <button class="wl-btn wl-btn-p" onclick="${go}">${done ? 'My answer' : 'Check my home'}</button></div>
     </header>
@@ -3529,7 +3535,7 @@ function renderSite(){
       <div class="wl-copy">
         <div class="wl-eyebrow wl-motto">${ic('sun', 15)} Solar and electricity plans, priced on your home</div>
         <h1 class="wl-h1">The right plan, <em>with or without</em> solar.</h1>
-        <p class="wl-lede">${n} plans from ${nSup} Irish suppliers, priced hour by hour on your own home. Free${unpaid() ? ', no commission from anyone' : ''}.</p>
+        <p class="wl-lede">${n} plans from ${nSup} Irish suppliers, ${planCount('smart').n} of them for smart meters, priced hour by hour on your own home. Free${unpaid() ? ', no commission from anyone' : ''}.</p>
         <div class="wl-j-k">Where are you?</div>
         <div class="wl-journeys" role="group" aria-label="Where are you?">
           <button class="wl-journey is-have" onclick="siteGo('have')"><span class="wl-j-ic">${ic('sun', 22)}</span><span><b>I have solar</b><small>Am I on the best plan for my panels?</small></span>${ic('chevR', 18)}</button>
@@ -3778,7 +3784,7 @@ function webDash(){
       ${card('s4 wd-x', hd('Top plans for you', '', `<button class="wd-link" onclick="setScreen('plans')">All ${v7PlansData().counts.all} ${ic('chevR', 14)}</button>`), plans)}
       ${card('s4 wd-acc wd-x', hd('How sure we are', ''), `<div class="wd-big">±${acc.pct}%</div><div class="wd-bar"><i style="width:${Math.max(8, 100 - acc.pct * 4)}%"></i></div>${state._csv_imported ? '<p class="wd-note">Measured from your ESB meter file.</p>' : `<button class="wd-link" onclick="setScreen('csv-import')">Add your ESB meter file ${ic('chevR', 14)}</button>`}`)}
       ${card('s8 wd-if wd-x', hd('What if…', 'see your answer with it'), `<div class="wd-ifs">
-        <button onclick="state._an_from=null;anTab('solar')"><b>${state.has_solar && totalPanels() > 0 ? 'Change your solar' : 'Add solar panels'}</b><span>Payback after the SEAI grant</span></button>
+        <button onclick="state._an_from=null;anTab('solar')"><b>${state.has_solar && totalPanels() > 0 ? (state.solar_planned || state.solar_is_estimate ? 'Change the planned panels' : 'Change your solar') : 'Add solar panels'}</b><span>Payback after the SEAI grant</span></button>
         <button onclick="setScreen('myhome')"><b>${state.battery_kwh > 0 ? 'Change the battery' : 'Add a battery'}</b><span>Fills on cheap hours, empties at peak</span></button>
         <button onclick="setScreen('myhome')"><b>${state.ev_active ? 'Change the car' : 'Get an electric car'}</b><span>What it costs to charge here</span></button></div>`)}
     </div>
@@ -4598,93 +4604,6 @@ function renderStalenessBanner(){
   </div>`;
 }
 
-/* ============================================================
-   TARIFF AUTO-REFRESH — calls server-side scraper
-   ============================================================ */
-async function refreshTariffs(){
-  if (state._tariff_refreshing) return;
-  state._tariff_refreshing = true;
-  renderApp();
-  try {
-    const res = await fetch('/api/refresh-tariffs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    // Static deployment returns 404 or HTML (not JSON) — treat as "API unavailable"
-    if (!res.ok) {
-      state._refresh_api_available = false;
-      state._tariff_refreshing = false;
-      saveState();
-      renderApp();
-      showToast('Tariff refresh runs on the dev server, not the static deploy. Showing verified-date stamps from the bundled data instead.', { type:'blue', icon:'ⓘ', title:'Live refresh unavailable' });
-      return;
-    }
-    // Confirm it's actually JSON
-    const ct = res.headers.get('content-type') || '';
-    if (!ct.includes('json')) {
-      state._refresh_api_available = false;
-      state._tariff_refreshing = false;
-      saveState();
-      renderApp();
-      showToast('Server returned non-JSON. The refresh API likely isn\u2019t wired in this deployment.', { type:'blue', icon:'ⓘ', title:'Live refresh unavailable' });
-      return;
-    }
-    const data = await res.json();
-    state._tariff_status = data;
-    state._refresh_api_available = true;
-    if (data.success) {
-      // Reload the freshly written tariffs.json
-      await loadTariffs();
-      invalidate();
-      const confirmed = data.plans_confirmed || 0;
-      const changed   = (data.potential_changes || []).length;
-      const unreached = (data.unreachable_suppliers || []).length;
-      if (changed > 0){
-        showToast(`${confirmed} plans confirmed · ${changed} possible rate change${changed>1?'s':''} detected`, { type:'amber', icon:ic('warn',16), title:'Refreshed with warnings' });
-      } else if (unreached > 0 && confirmed === 0){
-        // This used to say the suppliers had blocked us. They had not. The logs
-        // showed eleven 404s and one bad certificate chain across twelve failed
-        // requests — dead links after site reorganisations, and entirely our
-        // problem to fix. Telling users it was anti-bot defence turned a bug
-        // into a fact of life and kept anyone from looking at it for weeks.
-        showToast(`Couldn't read ${unreached} supplier site${unreached>1?'s':''}. Showing the rates we last checked.`, { type:'amber', icon:ic('warn',16), title:'Check incomplete' });
-      } else {
-        showToast(`Rates up to date · ${confirmed} plan${confirmed!==1?'s':''} confirmed`, { type:'accent', icon:ic('checkC',16), title:'Refreshed' });
-      }
-    } else {
-      showToast(`Check failed: ${(data.error || 'unknown').slice(0,80)}`, { type:'amber', icon:ic('x',16) });
-    }
-  } catch(e){
-    // Network error (offline, CORS, etc.) — also treat as API unavailable
-    state._refresh_api_available = false;
-    showToast(`Could not reach the refresh API. Showing last-verified dates instead.`, { type:'blue', icon:'ⓘ', title:'Offline or static build' });
-  }
-  state._tariff_refreshing = false;
-  saveState();
-  renderApp();
-}
-
-async function loadTariffStatus(){
-  try {
-    const res = await fetch('/api/tariff-status');
-    if (!res.ok) {
-      state._refresh_api_available = false;
-      return;
-    }
-    const ct = res.headers.get('content-type') || '';
-    if (!ct.includes('json')) {
-      state._refresh_api_available = false;
-      return;
-    }
-    const data = await res.json();
-    if (data && data.timestamp){
-      state._tariff_status = data;
-      state._refresh_api_available = true;
-    }
-  } catch(e){
-    state._refresh_api_available = false;
-  }
-}
 
 
 /* ============================================================
@@ -4773,7 +4692,7 @@ function computeEnergyScore(best, baseCost){
   }
   // Export optimisation
   if (state.has_solar && totalPanels() > 0){
-    const bestExport = Math.max(...TARIFFS.filter(t=>!t.discontinued).map(t=>t.export_rate || 0));
+    const bestExport = Math.max(...TARIFFS.filter(onOffer).map(t=>t.export_rate || 0));
     const cur = (getPlanById(state.baseline).export_rate || 0);
     parts.push({ key:'export', label:'Export optimisation',
       score: state.export_enabled === false ? 15 : clamp(100 * cur / Math.max(0.01, bestExport)),
@@ -4847,7 +4766,7 @@ function renderGoalDesigner(){
   let body = '';
   if (busy){
     body = `<div style="margin-top:12px;padding:14px;background:var(--well);border-radius:12px;text-align:center">
-      <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.04em">Simulating ${GOAL_PANELS.length * GOAL_BATTS.length} system designs × ${TARIFFS.filter(t=>!t.discontinued).length} plans on your usage…</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.04em">Simulating ${GOAL_PANELS.length * GOAL_BATTS.length} system designs × ${TARIFFS.filter(onOffer).length} plans on your usage…</div>
       <div style="height:4px;background:var(--track-soft);border-radius:999px;margin-top:10px;overflow:hidden"><div style="height:100%;width:55%;background:var(--accent);border-radius:999px;animation:pulse 1.1s ease infinite"></div></div>
     </div>`;
   } else if (view !== 'mine' && haveResults){
@@ -4993,7 +4912,7 @@ function renderLogicBreakdown(){
    ============================================================ */
 function renderNightRateCard(best, baseCost){
   // Find the best plan that has a genuine night rate (night < day * 0.6)
-  const nightPlans = TARIFFS.filter(t => !t.discontinued && t.rates && t.rates.night && t.rates.night < (t.rates.day || 99) * 0.6);
+  const nightPlans = TARIFFS.filter(t => onOffer(t) && t.rates && t.rates.night && t.rates.night < (t.rates.day || 99) * 0.6);
   if (!nightPlans.length) return '';
 
   // What does the best night-rate plan cost at the user's current usage?
@@ -5572,6 +5491,7 @@ function flowFromState(){
     ev: state.ev_active ? (state.ev_in_bill ? 'have' : 'thinking') : 'no',
     meter: state.meter_type || 'smart', area: state.area || 'urban' };
   if (state.ev_in_file === true || state.ev_in_file === false) f.evfile = state.ev_in_file ? 'yes' : 'no';
+  if (!state.baseline_known && state.last_switched) f.switched = state.last_switched;
   if (state.region_asked) f.where = state.region;
   if (f.heat === 'gas' && f.bill !== 'meter') f.night = state.immersion_night ? 'immersion' : 'no';
   if ((f.heat === 'heatpump' || f.heat === 'storage') && f.bill !== 'meter') f.heattime = state.heat_time === 'night' ? 'night' : 'day';
@@ -5901,7 +5821,7 @@ function guideFrame(inner, leave, title, rows){
   return `<div class="fl fl-guide">
     <div class="fl-top">
       <span class="fl-word"><span class="v7-brand-mark web-logo-ico">${ic('logo', 22, 'stroke-width:1.6')}</span>${wordmarkHtml('pk-word-top')}</span>
-      <span class="fl-top-end"><a class="wl-applink" href="${APP_HREF}">${ic('mobile', 16)}<span>Get the app</span></a>
+      <span class="fl-top-end"><a class="wl-applink" href="${APP_HREF}">${ic('mobile', 16)}<span>Open Peakless</span></a>
         <button class="web-theme" onclick="setTheme(state.theme==='dark'?'light':'dark')" aria-label="Switch light or dark">${ic('contrast', 20)}</button>
         <button class="fl-exit" onclick="${leave}">Leave without saving</button></span>
     </div>
@@ -6002,6 +5922,9 @@ function flowSteps(f = state._flow || {}, fbIn){
       if (f.solar === 'have'){ const b = fb(); if ((b && b.ask) || f.filewhen !== undefined) out.push('filewhen'); }
     }
     if (q === 'plan' && f.plan && f.plan !== 'unsure' && !String(f.plan).startsWith('guess:')) out.push('disc');
+    // Not sure of the plan: when they last switched decides between the
+    // supplier's discounted plan and its standard rates (direction, 1.2).
+    if (q === 'plan' && (f.plan === 'unsure' || String(f.plan || '').startsWith('guess:'))) out.push('switched');
     if (q === 'heat' && f.heat === 'gas' && askGas()){ out.push('gas'); if (f.gas === 'yes') out.push('gasbill'); }
     // Without a meter file we assume a typical home's hours. One question
     // catches the commonest exception: water heated overnight on a timer.
@@ -6217,7 +6140,7 @@ function homeRows(){
   const heat = { gas: 'Gas or oil', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heaters' }[state.heating_type || 'gas'];
   const use = `${Math.round(v7AnnualKwh()).toLocaleString('en-IE')} kWh a year${state._csv_imported ? ', from your meter file' : state.usage_input_mode === 'kwh' ? '' : `, from a ${eur(state.bimonthly_bill_eur || 0)} bill`}`;
   const sol = state.has_solar && totalPanels() > 0 ? `${totalPanels()} panels${state.solar_planned ? ', planned' : ''}${state.battery_kwh > 0 ? `, ${state.battery_kwh} kWh battery` : ''}` : 'No panels';
-  return [['Usage', use], ['Heating', heat], ['Plan now', state.baseline_known && plan ? `${plan.supplier} ${plan.plan}` : 'Not sure, a standard plan assumed'],
+  return [['Usage', use], ['Heating', heat], ['Plan now', nowPlanWords()],
     ['Where', R ? R.name : ''], ['Solar', sol], ['Car', state.ev_active ? `Electric, ${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No electric car']].filter(([, v]) => v);
 }
 function renderHomeCheck(){
@@ -6265,12 +6188,22 @@ function flowAnswer(q, v){
     state.usage_input_mode = 'kwh'; state.annual_kwh = Math.max(500, Math.min(40000, Math.round(+String(v).slice(4)) || 4200));
     f[q] = 'kwh:' + state.annual_kwh;
   } else if (q === 'bill'){ state.usage_input_mode = 'bill'; state.bimonthly_bill_eur = Math.max(30, Math.round(+v) || 250); }
-  if (q === 'plan') state._flow_sup = null;
+  if (q === 'plan'){ state._flow_sup = null; if (was !== v) clear(['switched']); delete state.baseline_assumed; }
   if (q === 'plan' && String(v).startsWith('guess:')){
     const g = getPlanById(String(v).slice(6));
     if (g && !['ev', 'dynamic'].includes(g.type)){ state.baseline = g.id; state.baseline_known = false; }
     else { state.baseline = 'EI-24'; state.baseline_known = false; }
   } else if (q === 'plan'){ if (v === 'unsure'){ state.baseline = 'EI-24'; state.baseline_known = false; } else { state.baseline = v; state.baseline_known = true; } }
+  if (q === 'switched'){
+    // Within a year: the supplier's current discounted plan. Longer, or not
+    // sure: its standard rates, where most homes are once a discount ends;
+    // the discounted plan, said as such, where a supplier publishes none.
+    state.last_switched = v;
+    const guess = String(f.plan || '').startsWith('guess:') ? getPlanById(String(f.plan).slice(6)) : getPlanById('EI-24');
+    const std = v === 'year' ? null : standardPlanFor(guess.supplier);
+    state.baseline = (std || guess).id; state.baseline_known = false;
+    state.baseline_assumed = v === 'year' ? 'discounted' : std ? 'standard' : 'no-standard';
+  }
   if (q === 'gas') state.gas_same_supplier = v;
   if (q === 'meter') state.meter_type = v;
   // A new house type re-sizes the suggested systems; a quote's own system stays.
@@ -6429,6 +6362,7 @@ function renderFlow(){
   const label = {
     bill: ['What’s your electricity bill?', 'Every two months, electricity only.'],
     plan: ['Who do you pay now?', 'Not sure? We’ll estimate.'],
+    switched: ['When did you last switch supplier or sign up to a plan?', 'Discounts usually last a year. After that, most homes pay the supplier’s standard rates.'],
     disc: ['Any discount on your bill?', 'It’s on your bill, as a % off the unit rates.'],
     house: ['What kind of house is it?', 'It tells us how many panels the roof can take.'],
     system: ['Pick a system', 'Model your own, or take one Peakless sized for your home.'],
@@ -6508,6 +6442,7 @@ function renderFlow(){
     price: (v) => (+v > 0 ? `Quote €${(+v).toLocaleString('en-IE')}` : 'Guide price'),
     grant: (v) => (v === 'no' ? 'No grant' : v === 'unsure' ? 'Grant assumed' : 'Grant'),
     ev: (v) => ({ no: 'No EV', have: 'EV', thinking: 'EV planned' })[v],
+    switched: (v) => ({ year: 'Switched in the last year', '1-3': 'Switched one to three years ago', longer: 'Not switched in years', unsure: 'Last switch not sure' })[v],
     evfile: (v) => (v === 'yes' ? 'Car in the ESB file' : 'Car added to the ESB file'),
     km: (v) => `${(+v).toLocaleString('en-IE')} km a year`, car: (v) => ({ 14: 'Small', 17: 'Family car', 20: 'SUV or large' })[v],
   };
@@ -6570,10 +6505,10 @@ function renderFlow(){
         return `<button class="fl-crumb" onclick="state._flow_sup=null;state._flow_allplans=false;renderApp()">${ic('chevL', 14)} All suppliers</button>
           <div class="fl-k">${esc(sup)}: which plan? It’s on your bill, near the top.</div>
           <div class="fl-opts">${mine.map((p) => opt('plan', p.id, esc(p.plan), p.discontinued ? `No longer on sale${p.discontinued_date ? ` since ${fmtDay(p.discontinued_date)}` : ''}` : '')).join('')}
-          ${(() => { const g = mine.find((p) => !p.discontinued) || mine[0];
+          ${(() => { const g = mine.find((p) => onOffer(p) && !p.standard) || mine.find(onOffer) || mine[0];
             return !['ev', 'dynamic'].includes(g.type)
-              ? opt('plan', 'guess:' + g.id, 'Not sure which plan', `We’ll assume ${esc(g.plan)}`)
-              : opt('plan', 'unsure', 'Not sure which plan', 'We’ll assume a standard plan'); })()}</div>
+              ? opt('plan', 'guess:' + g.id, 'Not sure which plan', 'One more question, then we’ll estimate')
+              : opt('plan', 'unsure', 'Not sure which plan', 'One more question, then we’ll estimate'); })()}</div>
           ${others && !state._flow_allplans && fit.length ? `<button class="sg-link" onclick="state._flow_allplans=true;renderApp()">Show ${others} plan${others > 1 ? 's' : ''} for other meters</button>` : ''}`;
       }
       return `<div class="fl-sups">${sups.map((n, i) => `<button class="fl-sup ${f.plan && f.plan !== 'unsure' && (getPlanById(f.plan) || {}).supplier === n ? 'on' : ''}" onclick="flowSupplier(${i})"><span class="fl-sup-mark">${esc(n.split(/\s+/).map((w) => w[0]).join('').slice(0, 2))}</span>${esc(n)}</button>`).join('')}</div>
@@ -6584,6 +6519,7 @@ function renderFlow(){
       <button class="fl-next" onclick="flowAnswer('gasbill', document.getElementById('flow-gas').value)">Next</button>
       <button class="v7-link" onclick="flowAnswer('gasbill', 0)">Not sure</button>`;
     if (q === 'gas') return `<div class="fl-opts">${opt('gas', 'yes', 'Yes, both with them')}${opt('gas', 'no', 'No, or oil')}</div>`;
+    if (q === 'switched') return `<div class="fl-opts">${opt('switched', 'year', 'Within the last year', 'We’ll assume the supplier’s current discounted plan')}${opt('switched', '1-3', 'One to three years ago', 'We’ll assume its standard rates')}${opt('switched', 'longer', 'Longer, or never', 'We’ll assume its standard rates')}${opt('switched', 'unsure', 'Not sure', 'We’ll assume its standard rates')}</div>`;
     if (q === 'hotwater') return `<div class="fl-opts">${opt('hotwater', 'day', 'During the day, when it needs to', 'The heat pump’s own schedule')}${opt('hotwater', 'night', 'Overnight, on a timer', 'For the night rate')}</div>`;
     if (q === 'heattime') return state.heating_type === 'storage'
       ? `<div class="fl-opts">${opt('heattime', 'night', 'Overnight only', 'On the night rate, the usual way')}${opt('heattime', 'day', 'Also during the day', 'A daytime boost, or other electric heaters')}</div>`
@@ -6686,6 +6622,13 @@ function renderFlow(){
       save = Math.max(0, mine - rec.best.net);
     } catch (e) {}
     const bp = getPlanById(state.baseline);
+    // Planned panels lead on their own, as on Home: what they would cut once
+    // bought, then what switching saves today. Both together only in the four
+    // bars (direction 1.6).
+    const switchNow = pl ? Math.max(0, pl.today - pl.noSolar.net) : 0, lead = pl ? Math.max(0, pl.noSolar.net - pl.best.net) : save;
+    const top = pl ? Math.max(pl.today, pl.noSolar.net, pl.mine, pl.best.net, 1) : 1;
+    const bar = (label, v, best) => `<div><span>${label}</span><b>${eur(v)}</b><i${best ? ' class="is-best"' : ''} style="width:${Math.max(8, Math.round(Math.max(0, v) / top * 100))}%"></i></div>`;
+    const bars4 = pl ? `<div class="fl-bars">${bar('Now, no solar', pl.today)}${bar(`On ${esc(pl.noSolar.plan.supplier)} ${esc(pl.noSolar.plan.plan)}, no solar`, pl.noSolar.net)}${bar('Now, with the planned panels', pl.mine)}${bar(`On ${esc(pl.best.plan.supplier)} ${esc(pl.best.plan.plan)}, with the planned panels`, pl.best.net, true)}</div>` : '';
     const bars = rec && save > 10 ? `<div class="fl-bars">
         <div><span>Now${state.baseline_known && bp ? `, ${esc(bp.supplier)} ${esc(bp.plan)}` : ''}</span><b>${eur(mine)}</b><i style="width:100%"></i></div>
         <div><span>On ${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}${pl ? ', with the solar' : ''}</span><b>${eur(rec.best.net)}</b><i class="is-best" style="width:${Math.max(8, Math.round(rec.best.net / mine * 100))}%"></i></div>
@@ -6698,8 +6641,11 @@ function renderFlow(){
       ${qv ? `<div class="fl-r-quote is-${qv.cls}"><span>${ic('clip', 16)} The quote, ${eur(state.install_cost)} for ${totalPanels()} panels${state.battery_kwh > 0 ? ` and a ${state.battery_kwh} kWh battery` : ''}</span><b>${qv.verdict}</b><small>${qv.take}</small>
         ${Math.abs(totalPanels() - _flowSuggest()) >= 3 ? `<small>For your usage we’d suggest about ${_flowSuggest()} panels.</small>` : ''}</div>` : ''}
       <div class="fl-r-k">Your answer</div>
-      ${save > 10 ? `<div class="fl-r-big is-saving">${eur(save)}<span> less a year</span></div>
-        <div class="fl-r-line">${pl ? `switching plan and adding the solar: <b>${eur(Math.max(0, pl.today - pl.noSolar.net))}</b> from switching now, <b>${eur(Math.max(0, pl.noSolar.net - pl.best.net))}</b> more once the panels are in` : `by switching to <b>${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}</b>`}</div>${bars}`
+      ${pl && lead > 10 ? `<div class="fl-r-line">Your planned panels would cut your bill by</div>
+        <div class="fl-r-big is-saving">${eur(lead)}<span> a year</span></div>
+        <div class="fl-r-line">${switchNow > 10 ? `Switching plan saves <b>${eur(switchNow)}</b> a year today: <b>${esc(pl.noSolar.plan.supplier)} ${esc(pl.noSolar.plan.plan)}</b>` : 'Your plan is already the cheapest without the panels.'}</div>${bars4}`
+        : !pl && save > 10 ? `<div class="fl-r-big is-saving">${eur(save)}<span> less a year</span></div>
+        <div class="fl-r-line">by switching to <b>${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}</b></div>${bars}`
         : `<div class="fl-r-line"><b>You’re already on a good plan.</b> Nothing on sale beats it for your home.</div>`}
       <div class="fl-r-act"><div class="fl-r-list">
         ${sd ? `<span>${state.solar_planned ? 'Solar would pay back in' : 'Your panels bring back'} <b>${state.solar_planned ? `${sd.cur.payback < 50 ? sd.cur.payback.toFixed(1) : '—'} years` : `${eur(sd.cur.solarBenefit)} a year`}</b></span>` : ''}
@@ -6721,7 +6667,7 @@ function renderFlow(){
     <div class="fl-top">
       <button class="sg-back" onclick="flowBack()" aria-label="Back one question">${ic('chevL', 18)}</button>
       <span class="fl-word">${WEB ? `<span class="v7-brand-mark web-logo-ico">${ic('logo', 22, 'stroke-width:1.6')}</span>` : ''}${wordmarkHtml('pk-word-top')}</span>
-      ${WEB ? `<span class="fl-top-end"><a class="wl-applink" href="${APP_HREF}">${ic('mobile', 16)}<span>Get the app</span></a>
+      ${WEB ? `<span class="fl-top-end"><a class="wl-applink" href="${APP_HREF}">${ic('mobile', 16)}<span>Open Peakless</span></a>
         <button class="web-theme" onclick="setTheme(state.theme==='dark'?'light':'dark')" aria-label="Switch light or dark">${ic('contrast', 20)}</button>
         <button class="fl-exit" onclick="${leave}">${state.onboarding_complete ? 'Back to my answer' : 'Leave'}</button></span>` : ''}
     </div>
@@ -6733,7 +6679,7 @@ function renderFlow(){
 
 /** The setup's stages, named, with where you are among them. */
 const FLOW_CHAPTER = { bill: 'Your usage', meter: 'Your usage', area: 'Your usage', filewhen: 'Your usage', billwhen: 'Solar', billmonths: 'Solar',
-  plan: 'Your plan', disc: 'Your plan', heat: 'Heating', heattime: 'Heating', hotwater: 'Heating', night: 'Heating', gas: 'Heating', gasbill: 'Heating',
+  plan: 'Your plan', switched: 'Your plan', disc: 'Your plan', heat: 'Heating', heattime: 'Heating', hotwater: 'Heating', night: 'Heating', gas: 'Heating', gasbill: 'Heating',
   where: 'Solar', house: 'Solar', solar: 'Solar', roof: 'Solar', tilt: 'Solar', panels: 'Solar', battery: 'Solar', system: 'Solar',
   price: 'Solar', grant: 'Solar', gridnow: 'Solar', fileexp: 'Your usage', ev: 'Car', evfile: 'Car', evtime: 'Car', km: 'Car', car: 'Car' };
 /** The route's stages, in the order its questions come. */
@@ -6754,13 +6700,13 @@ function flowChapters(steps, f, open){
 
 /** The website's side card beside each question: the answers so far, and what it leads to. */
 const FLOW_SHORT = { bill: 'Usage', plan: 'Plan now', disc: 'Discount', house: 'House', system: 'System', where: 'Region',
-  meter: 'Meter', area: 'Area', heat: 'Heating', evfile: 'Car in the file', evtime: 'Car charging', heattime: 'Heating hours', hotwater: 'Hot water', night: 'Water at night',
+  meter: 'Meter', area: 'Area', switched: 'Last switch', heat: 'Heating', evfile: 'Car in the file', evtime: 'Car charging', heattime: 'Heating hours', hotwater: 'Hot water', night: 'Water at night',
   gas: 'Gas', gasbill: 'Gas bill', solar: 'Solar', tilt: 'Roof pitch', price: 'Price', grant: 'SEAI grant', roof: 'Roof faces',
   panels: 'Panels', battery: 'Battery', filewhen: 'Meter file date', fileexp: 'Power sold in the file', billwhen: 'Bill date', billmonths: 'Bill months',
   gridnow: 'Battery charging', km: 'Driving', car: 'Car' };
 function flowSide(steps, f, open, shown){
   const got = steps.filter((k) => k in f && k !== open);
-  const n = openPlans().length;
+  const n = f.meter ? planCount(f.meter).n : openPlans().length;
   const val = (k) => { try { return esc(shown[k] ? shown[k](f[k]) : String(f[k])); } catch (e) { return esc(String(f[k])); } };
   return `<aside class="fl-side ${got.length ? '' : 'is-empty'}" aria-label="Your home so far">
     <div class="fl-card"><b class="fl-card-h">Your home so far</b><small>Change any answer at any time.</small>
@@ -7058,7 +7004,7 @@ function makeShareCardCanvas(savings, opts = {}){
   });
 
   // Footer.
-  let live = 0; try { live = getRecommendation().ranked.length; } catch (e) { live = TARIFFS.filter(tt => !tt.discontinued).length; }
+  let live = 0; try { live = getRecommendation().ranked.length; } catch (e) { live = TARIFFS.filter(onOffer).length; }
   let acc = null; if (sections.length) try { acc = modelAccuracy().pct; } catch (e) { acc = null; }
   t(fit('My whole year, priced on all ' + live + ' Irish plans' + (acc ? `, accurate to ±${acc}%.` : '.'), W - 144, 28, 500), 72, H - 96, 28, '#A2ACA6', 500);
   t('Check yours free at peakless', 72, H - 52, 34, '#ffd166', 700);
@@ -7485,7 +7431,7 @@ function openTariffPopup(planId){
         <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)">${fmtCurrency(plan.standing)}/yr</div>
       </div>
       ${plan.type === 'dynamic' ? `<div style="padding:9px 12px;background:var(--blue-soft);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:4px">Plus a price that changes every half hour with the wholesale market.</div>` : ''}
-      ${plan.notes ? `<div style="padding:9px 12px;background:var(--well);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.55;margin-top:8px"><b style="color:var(--ink)">Supplier note.</b> ${plan.notes}</div>` : ''}
+      ${plan.public_note ? `<div style="padding:9px 12px;background:var(--well);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.55;margin-top:8px">${esc(plan.public_note)}</div>` : ''}
       <button class="modal-btn" style="margin-top:14px" onclick="document.getElementById('tariff-popup').remove(); openPlanDetail('${planId}')">Full details &amp; edit rates →</button>
       <button class="modal-skip" onclick="document.getElementById('tariff-popup').remove()">Close</button>
     </div>`;
@@ -7738,11 +7684,8 @@ function renderPlanDetail(){
       </div>
     </div>
 
-    ${plan.notes ? `
-      <div class="pd-notes-card">
-        <b>Supplier note</b>
-        ${plan.notes}
-      </div>
+    ${plan.public_note ? `
+      <div class="pd-notes-card">${esc(plan.public_note)}</div>
     ` : ''}
 
     <div class="pd-section-title"><span>Actions</span></div>
@@ -8536,7 +8479,7 @@ async function doGeneratePdf(){
             ? 'Your stated annual kWh, shaped by heating profile'
             : 'Estimated from your bill, calibrated to your current plan'),
       switchSteps,
-      tariffCount: rec.rankedCount,
+      tariffCount: planCount().n,
       verifiedDate: vdates.length ? fmtVerifiedDate(vdates[vdates.length-1]) : null,
     });
 
@@ -9103,32 +9046,13 @@ function renderRefine(){
         ${(() => {
           const dates = TARIFFS.map(t => t.verified_date).filter(Boolean).sort();
           const latest = dates.length ? dates[dates.length-1] : null;
-          const s = state._tariff_status;
-          let html = '';
-          if (latest){
-            html += `<b style="color:var(--ink)">Rates last updated:</b> ${fmtVerifiedDate(latest)} (${TARIFFS.length} plans)`;
-          }
-          if (s && s.timestamp){
-            const ts = new Date(s.timestamp).toLocaleString('en-IE', {day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
-            html += `<br><span style="color:var(--ink-dim)">Last live check: ${ts}</span>`;
-            const changes = (s.potential_changes || []).length;
-            if (changes > 0) html += `<br><span style="color:var(--amber)">${changes} possible rate change${changes>1?'s':''} flagged</span>`;
-          }
-          return html || '<span style="color:var(--ink-dim)">Prices as of this version.</span>';
+          return latest ? `<b style="color:var(--ink)">Rates last updated:</b> ${fmtVerifiedDate(latest)} (${planCount().label})`
+            : '<span style="color:var(--ink-dim)">Prices as of this version.</span>';
         })()}
       </div>
       <div style="padding:10px 12px;background:var(--well);border:1px solid var(--hair);border-radius:8px;font-size:12px;color:var(--ink-soft);line-height:1.6">
         We check every supplier’s price page each morning. A person checks any change before it goes into the app. Rates last updated on the date above.
       </div>
-      ${(state._tariff_status?.potential_changes || []).length > 0 ? `
-        <div style="margin-top:10px;padding:10px 12px;background:rgba(255,145,0,.08);border:1px solid rgba(255,145,0,.35);border-radius:8px;font-family:var(--mono);font-size:12px;line-height:1.7">
-          <b style="color:var(--amber)">Possible rate changes detected:</b><br>
-          ${(state._tariff_status.potential_changes || []).map(c =>
-            `${c.id}: ${c.stored}c → ${c.found}c (${c.diff_c > 0 ? '+' : ''}${c.diff_c}c/kWh)`
-          ).join('<br>')}
-          <br><span style="color:var(--ink-dim)">Rates shown are our last verified figures. Edit any plan in the Plans tab.</span>
-        </div>
-      ` : ''}
     `)}
 
     ${section('csv', ic('csv',17), 'Smart-meter data', csvSummary, `
@@ -9602,7 +9526,7 @@ function renderMonitor(){
       <div class="mon-status-line">Switching to <b>${best.plan.supplier} — ${best.plan.plan}</b> could save you about <b style="color:var(--amber)">${fmtCurrency(savings)}/yr</b> versus your current plan.</div>
       <!-- countLabel already reads "22 of 25 — 3 dynamic plans excluded", so
            interpolating it after "of" produced "ranks #20 of 22 of 25". -->
-      <div class="mon-status-meta">${rank ? `Your current plan ranks #${rank} of ${rec.rankedCount} for your usage` : `Your current plan isn’t in the ranking (dynamic plans are left out unless you turn them on in Settings)`}</div>
+      <div class="mon-status-meta">${rank ? `Your current plan ranks #${rank} of ${planCount().n} for your usage` : `Your current plan isn’t in the ranking (dynamic plans are left out unless you turn them on in Settings)`}</div>
       <button class="switch-cta" style="margin-top:13px;margin-bottom:0;font-size:13px;padding:13px"
         onclick="v7Sheet('switch','${best.plan.id}')">
         See the switch</button>
@@ -9644,7 +9568,7 @@ function renderMonitor(){
     sub: onBest ? `${countLabel} plans checked. You’re already on the best one.`
                 : `${best.plan.supplier} ${best.plan.plan} now leads for your home.` });
   events.push({ c:'var(--blue)', when:'Your ranking',
-    title: rank ? `Your plan is #${rank} of ${rec.rankedCount} for your home` : `Your plan isn’t in the ranking`,
+    title: rank ? `Your plan is #${rank} of ${planCount().n} for your home` : `Your plan isn’t in the ranking`,
     sub:`Top 3 for your profile: ${top3.map(t => { const p = getPlanById(t.id); return `${p.supplier} ${p.plan}`; }).join('; ')}.` });
   if (state.switched_to){
     const sp = getPlanById(state.switched_to);
@@ -9652,7 +9576,7 @@ function renderMonitor(){
       title:`You switched to ${sp.supplier}`, sub:`We'll keep watching in case something better appears.` });
   }
   events.push({ c:'var(--ink-dim)', when:'Ongoing',
-    title:'Watching '+rec.rankedCount+' tariffs for rate changes',
+    title:`Watching ${planCount().label} for rate changes`,
     sub:'New EV and dynamic plans are checked the day they launch.' });
 
   const timelineHtml = events.map((e,i) => `<div class="mon-event">
@@ -9736,13 +9660,41 @@ function saveContractDate(){
 }
 function cancelContractEdit(){ state._contract_edit = false; renderApp(); }
 function clearContractDate(){ state.contract_end_date = ''; state._contract_edit = false; saveState(); renderApp(); }
+/**
+ * A supplier's standard plan for a meter: its published rates without a
+ * discount, where most homes are once a discount runs out (`standard` in the
+ * registry). The plan for that meter type first, then a flat one. null when
+ * the supplier publishes none.
+ */
+function standardPlanFor(supplier, meter = state.meter_type || 'smart'){
+  const key = supplierKey(supplier);
+  const fits = (p) => (meter === 'smart' ? p.meter !== 'nightsaver' : meter === '24hr' ? p.meter === '24hr' : p.meter !== 'smart');
+  const c = TARIFFS.filter((p) => p.standard && !p.discontinued && supplierKey(p.supplier) === key && fits(p));
+  c.sort((a, b) => (b.meter === meter) - (a.meter === meter) || (a.type === 'flat' ? 0 : 1) - (b.type === 'flat' ? 0 : 1));
+  return c[0] || null;
+}
+
+/**
+ * The plan a home is assumed to be on, said as such wherever "Now" is named:
+ * "on Electric Ireland's standard plan (assumed; change it if you know your
+ * plan)". A supplier with no published standard rates says so.
+ */
+function assumedPlanWords(){
+  const p = getPlanById(state.baseline);
+  if (!p) return 'a standard plan (assumed; change it if you know your plan)';
+  if (state.baseline_assumed === 'no-standard') return `on ${p.supplier}’s discounted plan (assumed: ${p.supplier} publishes no standard rates; change it if you know your plan)`;
+  return `on ${p.standard ? `${p.supplier}’s standard plan` : `${p.supplier} ${p.plan}`} (assumed; change it if you know your plan)`;
+}
+/** "Now" named: the plan, or the assumption. */
+const nowPlanWords = () => { const p = getPlanById(state.baseline); return state.baseline_known && p ? `${p.supplier} ${p.plan}` : assumedPlanWords(); };
+
 // What rolling over actually costs: simulate the user's load on their
 // supplier's STANDARD plan (where discounts typically land you) vs today.
 function rolloverProjection(){
   const cur = getPlanById(state.baseline);
   if (!cur) return null;
-  if (cur.id.endsWith('-24')) return { std: null, delta: 0, onStandard: true };
-  const std = TARIFFS.find(t => !t.discontinued && t.supplier === cur.supplier && t.id.endsWith('-24'));
+  if (cur.standard) return { std: null, delta: 0, onStandard: true };
+  const std = standardPlanFor(cur.supplier);
   if (!std) return null;
   if (CACHE.dirty) rebuildBase();
   const baseCons = (state.ev_active && state.ev_in_bill) ? CACHE.cons : CACHE.consNoEv;
@@ -10397,8 +10349,28 @@ function questDone(key){
   renderApp();
 }
 
-/** Upload the ESB file without leaving the screen: the steps, the button, the result. */
+/**
+ * Upload the ESB file without leaving the screen: the steps, the button, the
+ * result. With a file already in, what it holds and "Replace the file": the
+ * empty upload card gave no sign a file was loaded (13 Oct 2026).
+ */
+let _meterReplace = false;
+function meterReplace(){ _meterReplace = true; renderApp(); }
 function renderMeterSheet(){
+  const days = state._csv_imported && state.meter && state.meter.days ? Object.keys(state.meter.days).sort() : [];
+  if (days.length && !_meterReplace){
+    const day = (k) => new Date(k + 'T12:00:00Z').toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
+    const kwh = Math.round(Object.values(state.bills || {}).reduce((a, b) => a + b, 0));
+    const sold = Math.round(state._csv_export_kwh || 0);
+    return `<div class="v7-sheet-head"><div class="v7-eyebrow">Your meter data</div><h2 class="v7-h">Your ESB file is in</h2></div>
+    <div class="me-list ms-loaded">
+      <div class="me-row"><span><b>Dates</b><small>${day(days[0])} to ${day(days[days.length - 1])}</small></span></div>
+      <div class="me-row"><span><b>${sold > 0 ? 'Bought from the grid' : 'Used'}</b><small>${kwh.toLocaleString('en-IE')} kWh a year</small></span></div>
+      <div class="me-row"><span><b>Power sent to the grid</b><small>${sold > 0 ? `${sold.toLocaleString('en-IE')} kWh a year` : 'None in the file'}</small></span></div>
+    </div>
+    <button class="v7-cta-2" onclick="meterReplace()">${ic('csv', 16)} Replace the file</button>
+    <div class="v7-fine">The file stays on this device, and in your account if you’re signed in.</div>`;
+  }
   return `<div class="v7-sheet-head"><div class="v7-eyebrow">Your meter data</div><h2 class="v7-h">Upload your ESB smart-meter file</h2></div>
     <ol class="ms-steps">
       <li>Sign in at <b>myaccount.esbnetworks.ie</b> (free; your MPRN is on your bill).</li>
@@ -11072,7 +11044,7 @@ function householdScene(){
       },
       taps: { system: 'openMySystem()', home: 'openMyHome()', grid: "setScreen('plans')", ev: 'startEvGuide()' } })}
     <div class="hs-actions">
-      ${sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('sun', 14)} Add solar</button>`}
+      ${sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('sun', 14)} Plan solar</button>`}
       ${batt || !sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('battery', 14)} Add a battery</button>`}
       ${ev ? '' : `<button class="me-mini" onclick="startEvGuide()">${ic('car', 14)} Add an EV</button>`}
       <span class="hs-hint">Tap any part to change it</span>
@@ -11137,7 +11109,7 @@ function renderMe(){
     ${state.onboarding_complete ? householdScene() : ''}
     <div class="me-cards">
       ${card('openMyHome()', ic('home', 18), 'My home', `${esc(region ? region.name : '')} · ${kwh.toLocaleString('en-IE')} kWh a year`, 'Edit')}
-      ${card('openMySystem()', ic('sun', 18), 'My system', hasSys ? `${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh` : ''}` : 'No solar yet', hasSys ? 'Edit' : 'Add solar')}
+      ${card('openMySystem()', ic('sun', 18), 'My system', hasSys ? `${totalPanels()} panels · ${totalKwp().toFixed(1)} kWp${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh` : ''}` : 'No solar yet', hasSys ? 'Edit' : 'Plan solar')}
       ${card('startEvGuide()', ic('car', 18), 'My EV', state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No EV', state.ev_active ? 'Edit' : 'Add one')}
     </div>
 
@@ -11648,7 +11620,7 @@ function v7SetupLabel(){
 function v7PlansData(){
   if (CACHE.dirty) rebuildBase();
   if (!state._plans_filter) state._plans_filter = 'all';
-  const ranked = TARIFFS.filter(p => !p.discontinued && fitsMeter(p)).map(plan => {
+  const ranked = TARIFFS.filter(p => onOffer(p) && fitsMeter(p)).map(plan => {
     const s = sim(plan.id);
     const c = annualCost(s, plan);
     const onHold = plan.type === 'dynamic' && !state.include_dynamic;
@@ -11746,12 +11718,13 @@ const V7 = createV7({
   quoteFaces: (x) => quoteFaces(x),
   renderSolarWorking: () => renderSolarWorking(),
   isFlatPlan,
-  tariffCounts: () => { const live = TARIFFS.filter((p) => !p.discontinued && fitsMeter(p)); const dyn = live.filter((p) => p.type === 'dynamic').length; return { live: live.length, dynamicLeftOut: state.include_dynamic ? 0 : dyn }; },
+  tariffCounts: () => { const live = TARIFFS.filter((p) => onOffer(p) && fitsMeter(p)); const dyn = live.filter((p) => p.type === 'dynamic').length; return { live: live.length, dynamicLeftOut: state.include_dynamic ? 0 : dyn }; },
+  planCount,
   plannedLadder: () => plannedLadder(),
   householdScore: () => householdScore(),
   sameHomeCost: (id) => { const p = getPlanById(id); return annualCost(sim(p.id), p).net; },
   getRecommendation, computeSolarPaybackScenarios, computeEnergyScore,
-  getPlanById, carInMeterFile, carSeenInFile, carFileState, carAddedOnTop, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, withoutGridCharge, currentGridGain, infoTip, renderStressCard, stressHomeLine, fileSolar, fileBasis, fileSummary, meterYearDays, batteryReplacement, batterySwapYear, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, FEATURES, renderConsentBar,
+  getPlanById, carInMeterFile, carSeenInFile, carFileState, carAddedOnTop, nowPlanWords, PSO_LEVY, supplierKey, dualFuelNote, dualFuel, withoutGridCharge, currentGridGain, infoTip, renderStressCard, stressHomeLine, fileSolar, fileBasis, fileSummary, meterYearDays, batteryReplacement, batterySwapYear, sim, annualCost, bandAt, totalKwp, totalPanels, quoteRead, isPartnerPlan, FEATURES, renderConsentBar,
   fmtCurrency, fmtCent, fmtVerifiedDate, latestVerifiedLabel, planDataFlag, planCategoryLabel,
   freshnessChip, priceChangeChip, priceChangeStatus, renderContractAlert, renderChoiceStrip, renderStalenessBanner,
   renderSavingsBreakdown, renderAssumptions,
@@ -11933,7 +11906,17 @@ const unpaid = () => !FEATURES.partners && !FEATURES.installerQuotes;
 const PAID_LINE = 'Some suppliers or installers pay us when you switch or ask for quotes. Every plan or quote that touches is marked, and it never changes the order plans are ranked in.';
 
 /** The plans a new customer can join today: the count every page gives. */
-const openPlans = () => TARIFFS.filter((t) => !t.discontinued && !t.on_hold);
+const openPlans = () => TARIFFS.filter((t) => onOffer(t) && !t.on_hold);
+/**
+ * The plans compared for this home: on offer and fit for its meter. The one
+ * count Home, Plans, Analytics, Updates and the PDF give (13 Oct 2026: the
+ * front page said 50, Plans 35, Home and the PDF 33).
+ */
+function planCount(meter = state.meter_type || 'smart'){
+  const n = TARIFFS.filter((p) => onOffer(p) && fitsMeter(p, meter)).length;
+  const kind = meter === '24hr' ? 'a standard meter' : meter === 'nightsaver' ? 'a day/night meter' : 'a smart meter';
+  return { n, label: `${n} plans for ${kind}` };
+}
 
 /** The legal pages as footer links, short names. */
 const footLegal = () => [['privacy', 'Privacy'], ['terms', 'Terms'], ['ranking', 'How we rank'], ['accessibility', 'Accessibility'], ['complaints', 'Complaints']]
@@ -12354,6 +12337,11 @@ function openMySystem(){
   if (NO_SHEET_SCREENS.includes(state.current_screen)) state.current_screen = 'solar';
   if ((state.solar_view || 'mine') !== 'mine'){ state.solar_view = 'mine'; snapshotMySystem(); }
   if (!state.considering_solar || totalPanels() === 0){
+    // Panels are installed only when the person said so (setup, or the "I have
+    // solar" door). Otherwise this is a plan: a gas home that tapped "Add
+    // solar" got ten panels marked installed, and Home said "your solar"
+    // (13 Oct 2026).
+    if (state.has_solar !== true){ state.solar_planned = true; state.solar_is_estimate = false; }
     state.considering_solar = true; state.has_solar = true;
     if (totalPanels() === 0) state.count_A = 10;
     applyEstimatedSolarCost(); invalidate(); saveState();
@@ -13480,11 +13468,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }),
       sbInit().then(() => { if (_sbUser) renderAppDebounced(); }),
-      loadTariffStatus().then(() => {
-        // Only the settings screen shows this. Repainting the home screen for a
-        // value it never displays is pure cost.
-        if (state._tariff_status && state.onboarding_complete && state.current_screen === 'more') renderAppDebounced();
-      }),
     ];
 
     // Boot is finished once those have landed and the coalesced paint has run.
@@ -13650,7 +13633,7 @@ function renderHowToSwitch(){
           <li>First bill arrives ~4–6 weeks after switch</li>
         </ol>
       </div>
-      ${TARIFFS.filter(t => !t.discontinued && getSupplierKey(t.id)).map(t => {
+      ${TARIFFS.filter(t => onOffer(t) && getSupplierKey(t.id)).map(t => {
         const key = getSupplierKey(t.id);
         const g = SWITCH_GUIDES[key];
         if (!g) return '';
@@ -14234,6 +14217,7 @@ function parseCsvHdf(text, filename){
 
     state.bills = bills;
     state._csv_imported = true;
+    _meterReplace = false;
     delete state.ev_in_file;   // a new file: asked again on its card
     state._file_split = false;
     state._csv_filename = filename;
@@ -14605,6 +14589,8 @@ window.anPick = anPick;
 window.removeEv = removeEv;
 window.toggleEvModel = toggleEvModel;
 window.setEvInFile = setEvInFile;
+window.planCount = planCount;
+window.meterReplace = meterReplace;
 window.undoLast = undoLast;
 window._undoKeep = _undoKeep;
 window.useGoalDesign = useGoalDesign;
@@ -14744,7 +14730,6 @@ window.openPlanDetail = openPlanDetail;
 window.toggleNpvBreakdown = toggleNpvBreakdown;
 window.setRegion = setRegion;
 window.setObBaseline = setObBaseline;
-window.refreshTariffs = refreshTariffs;
 window.toggleMonitoring = toggleMonitoring;
 window.setContractReminder = setContractReminder;
 window.clearContractDate = clearContractDate;

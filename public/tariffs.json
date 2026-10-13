@@ -378,6 +378,46 @@
     "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found"
   },
   {
+    "id": "EI-STD-24",
+    "supplier": "Electric Ireland",
+    "plan": "Standard 24 hour (no discount)",
+    "type": "flat",
+    "meter": "24hr",
+    "rates": {
+      "day": 0.3583,
+      "night": 0.3583,
+      "peak": 0.3583,
+      "ev": 0.3583
+    },
+    "windows": {
+      "ev": null
+    },
+    "standing": 250.77,
+    "exit": 0,
+    "length": 0,
+    "green": false,
+    "export_rate": 0.195,
+    "verified_date": "2026-10-12",
+    "standard": true,
+    "public_note": "The supplier's standard rates: where most customers end up when a discount runs out.",
+    "notes": "Standard (undiscounted) rates from the supplier's own page. Used only as the assumed current plan for a home that has not switched in a year (direction 13 Oct 2026); not ranked, not counted.",
+    "source": {
+      "url": "https://www.electricireland.ie/residential/products/smart-meters/24hour",
+      "anchor": [
+        "Current Standard Plan"
+      ],
+      "fields": {
+        "day": "Unit price:",
+        "standing": "Standing Charge Urban:",
+        "standing_rural": "Standing Charge Rural:"
+      },
+      "read": "2026-10-12"
+    },
+    "standing_rural": 314.98,
+    "standing_rural_source": "www.electricireland.ie, 12 Oct 2026 (checked daily)",
+    "assumed_only": true
+  },
+  {
     "id": "EI-WKND",
     "supplier": "Electric Ireland",
     "plan": "Home Electric+ Weekender",
@@ -932,7 +972,130 @@
     },
     "notes": "No discount, no fixed term. Standing €244.77 inc VAT urban (bordgaisenergy.ie/home/our-tariffs), rising to €262.38 on 9 Oct 2026. Microgen export 18.5c (bordgaisenergy.ie/home/microgeneration). From 9 Oct 2026 the rates and standing charge carry Bord Gáis's announced rise (its price-change notice and new tariff tables); not yet re-read from the plan page.",
     "standing_rural": 329.42,
-    "standing_rural_source": "bordgaisenergy.ie/home/our-tariffs, 9 Oct 2026 (checked daily)"
+    "standing_rural_source": "bordgaisenergy.ie/home/our-tariffs, 9 Oct 2026 (checked daily)",
+    "standard": true
+  },
+  {
+    "id": "BG-STD-24",
+    "supplier": "Bord Gáis Energy",
+    "plan": "Standard 24 Hour (no discount)",
+    "type": "flat",
+    "meter": "24hr",
+    "rates": {
+      "day": 0.4538,
+      "night": 0.4538,
+      "peak": 0.4538,
+      "ev": 0.4538
+    },
+    "windows": {
+      "ev": null
+    },
+    "standing": 262.38,
+    "exit": 0,
+    "length": 0,
+    "green": true,
+    "export_rate": 0.185,
+    "verified_date": "2026-10-12",
+    "standard": true,
+    "public_note": "The supplier's standard rates: where most customers end up when a discount runs out.",
+    "notes": "Standard (undiscounted) rates from the supplier's own page. Used only as the assumed current plan for a home that has not switched in a year (direction 13 Oct 2026); not ranked, not counted.",
+    "source": {
+      "url": "https://www.bordgaisenergy.ie/home/our-tariffs",
+      "in": "rows",
+      "match": {
+        "Price Plan": "Urban 24 Hour",
+        "Rate Type": "24 Hr Rate"
+      },
+      "fields": {
+        "day": "Unit Rate (Inc VAT)",
+        "standing": "Annual Standing Charge (Inc VAT)"
+      },
+      "plus": [
+        {
+          "url": "https://www.bordgaisenergy.ie/home/our-tariffs",
+          "in": "rows",
+          "match": {
+            "Price Plan": "Rural 24 Hour",
+            "Rate Type": "24 Hr Rate"
+          },
+          "fields": {
+            "standing_rural": "Annual Standing Charge (Inc VAT)"
+          }
+        }
+      ],
+      "read": "2026-10-12"
+    },
+    "standing_rural": 329.42,
+    "standing_rural_source": "www.bordgaisenergy.ie, 12 Oct 2026 (checked daily)",
+    "assumed_only": true
+  },
+  {
+    "id": "BG-STD-NS",
+    "supplier": "Bord Gáis Energy",
+    "plan": "Standard Nightsaver (no discount)",
+    "type": "tou",
+    "meter": "nightsaver",
+    "rates": {
+      "day": 0.4879,
+      "night": 0.2415
+    },
+    "windows": {
+      "peak": null,
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
+    "standing": 345.02,
+    "exit": 0,
+    "length": 0,
+    "green": true,
+    "export_rate": 0.185,
+    "verified_date": "2026-10-12",
+    "standard": true,
+    "public_note": "The supplier's standard rates: where most customers end up when a discount runs out.",
+    "notes": "Standard (undiscounted) rates from the supplier's own page. Used only as the assumed current plan for a home that has not switched in a year (direction 13 Oct 2026); not ranked, not counted.",
+    "source": {
+      "url": "https://www.bordgaisenergy.ie/home/our-tariffs",
+      "in": "rows",
+      "match": {
+        "Price Plan": "Urban Nightsaver",
+        "Rate Type": "Day Rate"
+      },
+      "fields": {
+        "day": "Unit Rate (Inc VAT)",
+        "standing": "Annual Standing Charge (Inc VAT)"
+      },
+      "plus": [
+        {
+          "url": "https://www.bordgaisenergy.ie/home/our-tariffs",
+          "in": "rows",
+          "match": {
+            "Price Plan": "Urban Nightsaver",
+            "Rate Type": "Night Rate"
+          },
+          "fields": {
+            "night": "Unit Rate (Inc VAT)"
+          }
+        },
+        {
+          "url": "https://www.bordgaisenergy.ie/home/our-tariffs",
+          "in": "rows",
+          "match": {
+            "Price Plan": "Rural Nightsaver",
+            "Rate Type": "Day Rate"
+          },
+          "fields": {
+            "standing_rural": "Annual Standing Charge (Inc VAT)"
+          }
+        }
+      ],
+      "read": "2026-10-12"
+    },
+    "standing_rural": 427.49,
+    "standing_rural_source": "www.bordgaisenergy.ie, 12 Oct 2026 (checked daily)",
+    "assumed_only": true
   },
   {
     "id": "BG-DYN",
@@ -1450,6 +1613,46 @@
     "standing_rural_source": "energia.ie/about-energia/our-tariffs, 9 Oct 2026 (checked daily)"
   },
   {
+    "id": "EN-STD-24",
+    "supplier": "Energia",
+    "plan": "Standard 24 hour (no discount)",
+    "type": "flat",
+    "meter": "24hr",
+    "rates": {
+      "day": 0.435,
+      "night": 0.435,
+      "peak": 0.435,
+      "ev": 0.435
+    },
+    "windows": {
+      "ev": null
+    },
+    "standing": 278.27,
+    "exit": 0,
+    "length": 0,
+    "green": true,
+    "export_rate": 0.185,
+    "verified_date": "2026-10-12",
+    "standard": true,
+    "public_note": "The supplier's standard rates: where most customers end up when a discount runs out.",
+    "notes": "Standard (undiscounted) rates from the supplier's own page. Used only as the assumed current plan for a home that has not switched in a year (direction 13 Oct 2026); not ranked, not counted.",
+    "source": {
+      "url": "https://www.energia.ie/about-energia/our-tariffs",
+      "anchor": [
+        "Standard electricity tariffs offer straightforward pricing"
+      ],
+      "fields": {
+        "day": "Standard 24hr unit price",
+        "standing": "Standing charge 24 hour urban per year",
+        "standing_rural": "Standing charge 24 hour rural per year"
+      },
+      "read": "2026-10-12"
+    },
+    "standing_rural": 353.87,
+    "standing_rural_source": "www.energia.ie, 12 Oct 2026 (checked daily)",
+    "assumed_only": true
+  },
+  {
     "id": "EN-EV-PLUS",
     "supplier": "Energia",
     "plan": "EV Smart Drive Plus",
@@ -1790,6 +1993,99 @@
     },
     "standing_rural": 474.5,
     "standing_rural_source": "sseairtricity.com price sheet, rates valid from 5 Oct 2026"
+  },
+  {
+    "id": "SSE-STD-24",
+    "supplier": "SSE Airtricity",
+    "plan": "Standard 24hr (no discount)",
+    "type": "flat",
+    "meter": "24hr",
+    "rates": {
+      "day": 0.45,
+      "night": 0.45,
+      "peak": 0.45,
+      "ev": 0.45
+    },
+    "windows": {
+      "ev": null
+    },
+    "standing": 279.99,
+    "exit": 0,
+    "length": 0,
+    "green": true,
+    "export_rate": 0.195,
+    "verified_date": "2026-10-12",
+    "standard": true,
+    "public_note": "The supplier's standard rates: where most customers end up when a discount runs out.",
+    "notes": "Standard (undiscounted) rates from the supplier's own page. Used only as the assumed current plan for a home that has not switched in a year (direction 13 Oct 2026); not ranked, not counted.",
+    "source": {
+      "url": "https://www.sseairtricity.com/ie/home/products/electricity-top-discount",
+      "anchor": [
+        "Our electricity prices"
+      ],
+      "fields": {
+        "day": {
+          "label": "24hr meter",
+          "col": 2
+        },
+        "standing": "Urban 24hr",
+        "standing_rural": "Rural 24hr"
+      },
+      "read": "2026-10-12"
+    },
+    "standing_rural": 351.46,
+    "standing_rural_source": "www.sseairtricity.com, 12 Oct 2026 (checked daily)",
+    "assumed_only": true
+  },
+  {
+    "id": "SSE-STD-NS",
+    "supplier": "SSE Airtricity",
+    "plan": "Standard Nightsaver (no discount)",
+    "type": "tou",
+    "meter": "nightsaver",
+    "rates": {
+      "day": 0.4626,
+      "night": 0.2799
+    },
+    "windows": {
+      "peak": null,
+      "night": [
+        23,
+        8
+      ],
+      "ev": null
+    },
+    "standing": 359.71,
+    "exit": 0,
+    "length": 0,
+    "green": true,
+    "export_rate": 0.195,
+    "verified_date": "2026-10-12",
+    "standard": true,
+    "public_note": "The supplier's standard rates: where most customers end up when a discount runs out.",
+    "notes": "Standard (undiscounted) rates from the supplier's own page. Used only as the assumed current plan for a home that has not switched in a year (direction 13 Oct 2026); not ranked, not counted.",
+    "source": {
+      "url": "https://www.sseairtricity.com/ie/home/products/electricity-top-discount",
+      "anchor": [
+        "Our electricity prices"
+      ],
+      "fields": {
+        "day": {
+          "label": "Night Saver meter (Day)",
+          "col": 2
+        },
+        "night": {
+          "label": "Night Saver meter (Night)",
+          "col": 2
+        },
+        "standing": "Urban Night saver",
+        "standing_rural": "Rural Night saver"
+      },
+      "read": "2026-10-12"
+    },
+    "standing_rural": 438.07,
+    "standing_rural_source": "www.sseairtricity.com, 12 Oct 2026 (checked daily)",
+    "assumed_only": true
   },
   {
     "id": "YN-24",
@@ -2487,6 +2783,43 @@
     "standing_rural_source": "flogas.ie pricing API, 9 Oct 2026 (checked daily)"
   },
   {
+    "id": "FL-STD-VAR",
+    "supplier": "Flogas",
+    "plan": "Standard Variable Electricity (no discount)",
+    "type": "flat",
+    "meter": "24hr",
+    "rates": {
+      "day": 0.44,
+      "night": 0.44,
+      "peak": 0.44,
+      "ev": 0.44
+    },
+    "windows": {
+      "ev": null
+    },
+    "standing": 305.68,
+    "exit": 0,
+    "length": 0,
+    "green": true,
+    "export_rate": 0.185,
+    "verified_date": "2026-10-12",
+    "standard": true,
+    "public_note": "The supplier's standard rates: where most customers end up when a discount runs out.",
+    "notes": "Standard (undiscounted) rates from the supplier's own page. Used only as the assumed current plan for a home that has not switched in a year (direction 13 Oct 2026); not ranked, not counted.",
+    "source": {
+      "url": "https://www.flogas.ie/price-plan/electricity-standard-rate/",
+      "anchor": [
+        "Standard Variable Electricity"
+      ],
+      "fields": {
+        "day": "Day Unit Rate",
+        "standing": "Standing Charge"
+      },
+      "read": "2026-10-12"
+    },
+    "assumed_only": true
+  },
+  {
     "id": "PIN-LF",
     "supplier": "Pinergy",
     "plan": "Lifestyle Standard Smart Tariff",
@@ -2534,7 +2867,8 @@
     },
     "notes": " Pinergy 'Lifestyle & Smart Tariffs', correct as at 14 Sep 2026, inc VAT; standing €283.47 excludes the €19.10 PSO. Export 25c not re-read in this check.",
     "standing_rural": 283.47,
-    "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026"
+    "standing_rural_source": "bonkers.ie rural (DG2) result, 5 Oct 2026",
+    "standard": true
   },
   {
     "id": "PIN-WFH",
@@ -2721,7 +3055,8 @@
     "notes": "Early termination €11.25 per remaining month. PrepayPower rates page, 'correct as of 1st June 2026', urban, inc VAT. Standing shown here is the standing charge plus the prepayment service charge, both unavoidable on this product; PSO excluded. No export payment published.",
     "welcome_credit": 100.0,
     "standing_rural": 543.98,
-    "standing_rural_source": "estimated: a typical urban-to-rural difference (about €70); PrepayPower publishes urban prices only"
+    "standing_rural_source": "estimated: a typical urban-to-rural difference (about €70); PrepayPower publishes urban prices only",
+    "standard": true
   },
   {
     "id": "PPP-NS",
@@ -2777,7 +3112,8 @@
     "notes": "Day & night meter. PrepayPower rates page, 'correct as of 1st June 2026', urban, inc VAT. Standing shown here is the standing charge plus the prepayment service charge, both unavoidable on this product; PSO excluded. No export payment published.",
     "welcome_credit": 100.0,
     "standing_rural": 657.58,
-    "standing_rural_source": "estimated: a typical urban-to-rural difference (about €70); PrepayPower publishes urban prices only"
+    "standing_rural_source": "estimated: a typical urban-to-rural difference (about €70); PrepayPower publishes urban prices only",
+    "standard": true
   },
   {
     "id": "PPP-TOU",
@@ -2842,7 +3178,8 @@
     "notes": "Smart pay-as-you-go time of use. PrepayPower rates page, 'correct as of 1st June 2026', urban, inc VAT. Standing shown here is the standing charge plus the prepayment service charge, both unavoidable on this product; PSO excluded. No export payment published.",
     "welcome_credit": 100.0,
     "standing_rural": 577.1,
-    "standing_rural_source": "estimated: a typical urban-to-rural difference (about €70); PrepayPower publishes urban prices only"
+    "standing_rural_source": "estimated: a typical urban-to-rural difference (about €70); PrepayPower publishes urban prices only",
+    "standard": true
   },
   {
     "id": "WP-24",
@@ -2883,7 +3220,8 @@
     },
     "notes": "waterpower.ie/current-electricity-rates, urban, e-billing, inc VAT; standing excludes the €19.10 PSO, listed separately. The page carries no date. Waterpower does not publish a Clean Export Guarantee rate, so export is 0 here and a home with solar is understated on this plan. Exit fee and contract length not published.",
     "standing_rural": 322.26,
-    "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found"
+    "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found",
+    "standard": true
   },
   {
     "id": "WP-DN",
@@ -2928,7 +3266,8 @@
     },
     "notes": "waterpower.ie/current-electricity-rates, urban, e-billing, inc VAT; standing excludes the €19.10 PSO, listed separately. The page carries no date. Waterpower does not publish a Clean Export Guarantee rate, so export is 0 here and a home with solar is understated on this plan. Exit fee and contract length not published.",
     "standing_rural": 322.26,
-    "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found"
+    "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found",
+    "standard": true
   },
   {
     "id": "WP-SST",
@@ -2994,7 +3333,8 @@
     },
     "notes": "waterpower.ie/current-electricity-rates, urban, e-billing, inc VAT; standing excludes the €19.10 PSO, listed separately. The page carries no date. Waterpower does not publish a Clean Export Guarantee rate, so export is 0 here and a home with solar is understated on this plan. Exit fee and contract length not published.",
     "standing_rural": 322.26,
-    "standing_rural_source": "waterpower.ie/current-electricity-rates, 9 Oct 2026 (checked daily)"
+    "standing_rural_source": "waterpower.ie/current-electricity-rates, 9 Oct 2026 (checked daily)",
+    "standard": true
   },
   {
     "id": "CP-24",
@@ -3034,7 +3374,8 @@
     },
     "notes": "communitypower.ie/tariffs, inc VAT, urban. UNVERIFIED from 1 Oct 2026: the page states these prices are effective 1 Oct 2025 to 30 Sep 2026 and no later list is published yet. Export not published.",
     "standing_rural": 353.73,
-    "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found"
+    "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found",
+    "standard": true
   },
   {
     "id": "CP-DN",
@@ -3078,7 +3419,8 @@
     },
     "notes": "communitypower.ie/tariffs, inc VAT, urban. UNVERIFIED from 1 Oct 2026: the page states these prices are effective 1 Oct 2025 to 30 Sep 2026 and no later list is published yet. Export not published.",
     "standing_rural": 353.73,
-    "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found"
+    "standing_rural_source": "estimated: the same supplier's urban-to-rural difference on its smart plans; no rural figure for this plan was found",
+    "standard": true
   },
   {
     "id": "CP-SST",
@@ -3143,7 +3485,8 @@
     },
     "notes": "communitypower.ie/tariffs, inc VAT, urban. UNVERIFIED from 1 Oct 2026: the page states these prices are effective 1 Oct 2025 to 30 Sep 2026 and no later list is published yet. Export not published.",
     "standing_rural": 352.36,
-    "standing_rural_source": "communitypower.ie/tariffs, 9 Oct 2026 (checked daily)"
+    "standing_rural_source": "communitypower.ie/tariffs, 9 Oct 2026 (checked daily)",
+    "standard": true
   },
   {
     "id": "EP-SST",
@@ -3290,6 +3633,80 @@
     "notes": "Ecopower's own price page, urban, 10% off for a 12-month fixed term, direct debit and email billing. The page prints prices excluding VAT (converted here at 9%) and says 'Standard Unit Rate Price valid as of the 8th October 2024'. bonkers.ie shows lower unit rates for these plans on 5 Oct 2026 (about 35.5c inc VAT on the 24-hour plan); the supplier's page is used. Export 15.2c inc VAT. Exit fee not published.",
     "standing_rural": 334.19,
     "standing_rural_source": "ecopower.ie price page, Rural Smart Meter €306.60 ex VAT"
+  },
+  {
+    "id": "EP-STD-24",
+    "supplier": "Ecopower",
+    "plan": "Smart 24hr Electricity (no discount)",
+    "type": "flat",
+    "meter": "smart",
+    "rates": {
+      "day": 0.4218,
+      "night": 0.4218,
+      "peak": 0.4218,
+      "ev": 0.4218
+    },
+    "windows": {
+      "ev": null
+    },
+    "standing": 302.37,
+    "exit": 0,
+    "length": 0,
+    "green": true,
+    "export_rate": 0.152,
+    "verified_date": "2026-10-12",
+    "standard": true,
+    "public_note": "The supplier's standard rates: where most customers end up when a discount runs out.",
+    "notes": "Standard (undiscounted) rates from the supplier's own page. Used only as the assumed current plan for a home that has not switched in a year (direction 13 Oct 2026); not ranked, not counted.",
+    "source": {
+      "url": "https://ecopower.ie/price-plan-26/",
+      "anchor": [
+        "Urban – 24 Hour Smart Meter – Domestic",
+        "1. Unit rates"
+      ],
+      "whole": true,
+      "vat": 1.09,
+      "fields": {
+        "day": {
+          "label": "Urban 24 Hour Smart Meter",
+          "col": 2
+        }
+      },
+      "plus": [
+        {
+          "url": "https://ecopower.ie/price-plan-26/",
+          "anchor": [
+            "Urban – 24 Hour Smart Meter – Domestic",
+            "(Including VAT)"
+          ],
+          "whole": true,
+          "fields": {
+            "standing": {
+              "label": "Urban 24 Hour Smart Meter",
+              "col": 2
+            }
+          }
+        },
+        {
+          "url": "https://ecopower.ie/price-plan-26/",
+          "anchor": [
+            "Rural – 24 Hour Smart Meter – Domestic Customer",
+            "(Including VAT)"
+          ],
+          "whole": true,
+          "fields": {
+            "standing_rural": {
+              "label": "Rural 24 Hour Smart Meter",
+              "col": 2
+            }
+          }
+        }
+      ],
+      "read": "2026-10-12"
+    },
+    "standing_rural": 334.19,
+    "standing_rural_source": "ecopower.ie, 12 Oct 2026 (checked daily)",
+    "assumed_only": true
   },
   {
     "id": "BG-SMART-ALL-DAY-ELECTRICITY",
