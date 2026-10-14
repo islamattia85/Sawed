@@ -1901,6 +1901,13 @@ function fileMonths(){
   } catch (e) { return ''; }
 }
 
+/** The person's answer on the upload card: did the panels go in when the file's sales begin (model.js, fileBasis)? */
+function setFileWhen(v, el){
+  state.file_when = v;
+  refreshFileBills(); invalidate(); saveState();
+  if (el) el.parentNode.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === el));
+}
+
 /** The person's answer: is the car's charging in the meter file (model.js, carFileState)? */
 function setEvInFile(v, el){
   state.ev_in_file = !!v;
@@ -13335,6 +13342,10 @@ function parseCsvHdf(text, filename){
     state._csv_imported = true;
     _meterReplace = false;
     delete state.ev_in_file;   // a new file: asked again on its card
+    // What was said about the old file's dates is not about this one: asked
+    // again, on the card or in setup (14 Oct 2026).
+    delete state.file_when;
+    if (state._flow) delete state._flow.filewhen;
     state._file_split = false;
     state._csv_filename = filename;
     state._csv_first = firstDay;
@@ -13377,6 +13388,12 @@ function parseCsvHdf(text, filename){
     // A car already in the home: is its charging in this file? Asked here, once.
     const carHtml = state.ev_active && state.ev_in_bill ? `<div data-ask="car" style="margin-top:10px;padding:10px 12px;background:var(--surface,#fff);border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--ink);line-height:1.6"><b>Is your car’s charging in this file?</b> It runs from ${fileMonths()}. Was the car charging at home then?
           <div class="fl-opts" style="margin-top:8px"><button class="btn-secondary" data-car-in="yes" onclick="setEvInFile(true, this)">Yes, it’s in the file</button> <button class="btn-secondary" data-car-in="no" onclick="setEvInFile(false, this)">No, I got it after</button></div></div>` : '';
+    // Panels whose sales begin partway through the file, outside setup (setup
+    // asks this itself): asked here, as the car is. Left for later, it sat as a
+    // to-do and the figures were marked less sure than they were.
+    const fbNow = (() => { try { return state.current_screen === 'flow' ? null : fileBasis(); } catch (e) { return null; } })();
+    const panelsHtml = fbNow && fbNow.ask === 'since' ? `<div data-ask="since" style="margin-top:10px;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--ink);line-height:1.6"><b>Did your panels go in around ${fmtDay(fbNow.since)}?</b> Your file shows power sent to the grid from then. A battery can hold winter’s spare solar, so they may have been up before.
+          <div class="fl-opts" style="margin-top:8px"><button class="btn-secondary" data-since="yes" onclick="setFileWhen('sinceyes', this)">Yes, around then</button> <button class="btn-secondary" data-since="no" onclick="setFileWhen('allyear', this)">No, they were up for the whole file</button></div></div>` : '';
     if (resultEl) resultEl.innerHTML = `
       <div class="card" style="background:var(--accent-faint);border-color:var(--accent)">
         <div class="card-label" style="color:var(--accent)">✓ Imported ${rowsRead.toLocaleString()} readings</div>
@@ -13391,6 +13408,7 @@ function parseCsvHdf(text, filename){
         ${readHtml}
         ${(() => { try { const t = fileSummary(); return t ? `<div style="margin-top:8px;font-size:12px;color:var(--ink-soft);line-height:1.6">${esc(t)}</div>` : ''; } catch (e) { return ''; } })()}
         ${typedHtml}
+        ${panelsHtml}
         ${carHtml}
         <div style="margin-top:12px;font-size:13px;font-weight:600;color:var(--ink)">Is this file from the home you live in now?</div>
         <button class="switch-cta" style="margin-top:8px;font-size:13px;padding:12px 16px" data-filehome="yes"${typedOff ? ' data-keep-typed="no"' : ''} onclick="applyImportedBills()">Yes, use this data →</button>
@@ -13704,6 +13722,7 @@ window.anPick = anPick;
 window.removeEv = removeEv;
 window.toggleEvModel = toggleEvModel;
 window.setEvInFile = setEvInFile;
+window.setFileWhen = setFileWhen;
 window.planCount = planCount;
 window.meterReplace = meterReplace;
 window.undoLast = undoLast;
