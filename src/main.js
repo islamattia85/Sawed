@@ -2649,6 +2649,7 @@ function fileSummary(){
   if (fs.exportFrom) t += ` Panels show from ${d(fs.exportFrom)}, sending ${fs.exportKwh.toLocaleString('en-IE')} kWh to the grid.`;
   else if (fb.start) t += ` Panels show from ${d(fb.start)}.`;
   else t += ' No solar shows in it.';
+  if (fb.batteryFrom) t += ` Your battery shows charging from the grid from ${d(fb.batteryFrom)}: we work out your own use from then.`;
   if (fb.mode === 'net') t += fb.from === fs.first ? ' It is priced as recorded, panels included.' : ` We price the readings from ${d(fb.from)}, with the panels running.`;
   else if (fb.from !== fs.first || fb.to !== fs.last) t += ` We use ${d(fb.from)} to ${d(fb.to)}, before the panels, and add them on top.`;
   return t;
@@ -11257,7 +11258,7 @@ function modelAccuracy(){
           // No sales on the file yet: the home's use and what the panels sell are both the model's.
           if (fb && fb.unsold) return { label: 'Your meter file has no sales on it yet. What the panels sell is our estimate', err: UNSOLD_ERR, tip: 'Add your file again once ESB records your sales', go: "v7Sheet('meter')" };
           // The months since the panels went in are worked back from what was bought and sold.
-          if (fb && fb.rebuilt) return { label: `Your meter data; from ${fmtDay(fb.rebuilt)}, when the panels began, worked back to what the home used`, err: 3 };
+          if (fb && fb.rebuilt) return { label: `Your meter data; from ${fmtDay(fb.rebuilt)}, when the ${fb.batteryFrom ? 'battery' : 'panels'} began, worked back to what the home used`, err: 3 };
           return { label: 'Your meter data', err: 1 }; })()
       : state.usage_input_mode === 'kwh'
         ? { label: 'Usage from your yearly kWh', err: 5, tip: 'Add your ESB meter file', go: "v7Sheet('meter')" }

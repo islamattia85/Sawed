@@ -287,7 +287,28 @@ export function fileSolar(){
       if (f < 0.5 && f < best){ best = f; dropFrom = keys[i]; }
     }
   }
-  const val = { first: keys[0], last: keys[keys.length - 1], days: keys.length, exportFrom, dropFrom,
+  // A battery that went in before the panels' first sales: from one night
+  // on, what is bought between midnight and 7am jumps by a battery's worth
+  // and stays up. Looked for only in the two months before the sales begin;
+  // used only where the person says there is a battery and no car charging
+  // in the file (fileBasis), since a car charged each night looks the same.
+  // One home's battery charged ~10 kWh a night from 7 June, its sales began
+  // on 19 June, and those twelve days were read as its own use (14 Oct 2026).
+  let chargeFrom = null, chargeKwh = 0;
+  const e = exportFrom ? keys.indexOf(exportFrom) : -1;
+  if (e >= 28){
+    const night = keys.map((k) => days[k].slice(0, 7).reduce((a, b) => a + b, 0));
+    const med = (a) => { const s = a.slice().sort((x, y) => x - y); return s[Math.floor(s.length / 2)] || 0; };
+    for (let i = Math.max(28, e - 60); i < e; i++){
+      const usual = med(night.slice(i - 28, i));
+      if (night[i] - usual < 3) continue;
+      const next = night.slice(i, i + 14);
+      if (next.length < 14 || next.filter((v) => v - usual >= 3).length < 10) continue;
+      chargeFrom = keys[i]; chargeKwh = Math.round((med(next) - usual) * 10) / 10;
+      break;
+    }
+  }
+  const val = { first: keys[0], last: keys[keys.length - 1], days: keys.length, exportFrom, dropFrom, chargeFrom, chargeKwh,
     exportKwh: Math.round(exp.reduce((a, b) => a + b, 0)) };
   _fsMemo = { key, days, val };
   return val;
@@ -346,6 +367,14 @@ export function fileBasis(){
     const cur = pickSystem(state);
     const same = cur.has_solar && !cur.planned && ['count_A', 'count_B', 'battery_kwh', 'azimuth_A', 'azimuth_B', 'tilt_A', 'tilt_B'].every((k) => cur[k] === own[k]);
     if (allYear && same && !_rebuildNet) return { mode: 'net', ...all, start: since, since };
+    // A battery charging from the grid before the first sales: its nights are
+    // not the home's use, so the working back starts with it, those days with
+    // no panels (rebuiltDays). Only with a battery stated, a night's charge no
+    // more than twice its size, and no car whose charging may be in the file.
+    const carMaybeIn = state.ev_active && state.ev_in_bill && state.ev_in_file !== false;
+    const battFrom = fs.chargeFrom && state.file_when !== 'allyear' && own.battery_kwh > 0 && !carMaybeIn
+      && fs.chargeKwh <= 2 * own.battery_kwh && fs.chargeFrom < since ? fs.chargeFrom : null;
+    if (battFrom) return { mode: 'gross', ...all, start: since, since, rebuilt: battFrom, batteryFrom: battFrom, solarFrom: since, ask };
     return { mode: 'gross', ...all, start: since, since, rebuilt: since, ask };
   }
   if (daysBetween(fs.first, start) <= 14) return { mode: 'net', ...all, start };
@@ -459,10 +488,10 @@ function fillHours(rows){
  * heating profile for the season.
  */
 let _grossMemo = { key: null, val: null };
-function rebuiltDays(days, from, unsold){
+function rebuiltDays(days, from, unsold, solarFrom){
   const sys = statedSystem();
   const keys = Object.keys(days).sort();
-  const key = [keys.length, keys[0], keys[keys.length - 1], from, !!unsold, JSON.stringify(sys), state.region, state.heating_type,
+  const key = [keys.length, keys[0], keys[keys.length - 1], from, !!unsold, solarFrom || '', JSON.stringify(sys), state.region, state.heating_type,
     state.heat_time, state.hot_water_strategy, state._shape_user ? JSON.stringify(state._shape_buckets || null) : '',
     state.battery_eff, state.battery_min, state.battery_max, state.inverter_kw].join('|');
   if (_grossMemo.key === key) return _grossMemo.val;
@@ -475,13 +504,17 @@ function rebuiltDays(days, from, unsold){
     const t = preShape.reduce((a, b) => a + b, 0);
     preShape = t > 0 ? preShape.map((v) => v / t) : null;
   }
+  // Days before `solarFrom` (a battery in, the panels not yet: fileBasis)
+  // are a month of their own, with nothing generated.
+  const noSun = new Float64Array(24);
   const months = {};
   for (const k of keys){
     if (k < from) continue;
-    const M = months[k.slice(0, 7)] || (months[k.slice(0, 7)] = { keys: [], imp: 0, exp: 0, gen: 0, genH: new Array(24).fill(0) });
+    const dark = !!solarFrom && k < solarFrom, mk = k.slice(0, 7) + (dark ? '<' : '');
+    const M = months[mk] || (months[mk] = { keys: [], imp: 0, exp: 0, gen: 0, genH: new Array(24).fill(0), dark });
     const r = days[k], j = modelDay(k) * 24;
     M.keys.push(k);
-    for (let h = 0; h < 24; h++){ M.imp += r[h]; M.exp += r[24 + h]; M.gen += gen[j + h]; M.genH[h] += gen[j + h]; }
+    for (let h = 0; h < 24; h++){ const g = dark ? 0 : gen[j + h]; M.imp += r[h]; M.exp += r[24 + h]; M.gen += g; M.genH[h] += g; }
   }
   const out = { ...days };
   let soc = batt > 0 ? (state.battery_min || 0) * batt : 0;
@@ -508,7 +541,7 @@ function rebuiltDays(days, from, unsold){
         // at night as well, it lost the same on that (10 Oct 2026).
         const imp = r.slice(0, 24).reduce((a, b) => a + b, 0);
         const before = imp + used, j = modelDay(k) * 24;
-        const day = solarBatteryDay(shape.map((v) => v * before), gen.subarray ? gen.subarray(j, j + 24) : gen.slice(j, j + 24), batt, soc);
+        const day = solarBatteryDay(shape.map((v) => v * before), M.dark ? noSun : gen.subarray ? gen.subarray(j, j + 24) : gen.slice(j, j + 24), batt, soc);
         soc = day.soc;
         const F = M.fill || (M.fill = fillHours(M.keys.map((x) => days[x])));
         let grid = 0; for (let h = 0; h < 24; h++) if (F.fill[h]) grid += Math.max(0, r[h] - F.usual);
@@ -548,7 +581,7 @@ export function syncFileBills(){
   const from = b && (b.rebuilt || b.since);
   if (!from) return syncYearBills();
   if (!state.meter || !state.meter.days) return false;
-  const all = rebuiltDays(state.meter.days, from, b.unsold), days = {};
+  const all = rebuiltDays(state.meter.days, from, b.unsold, b.solarFrom), days = {};
   for (const k of Object.keys(all)) if (k >= b.from && k <= b.to) days[k] = all[k];
   // The importer's figures, kept once per file, so this can run again and again.
   const fk = (state.meter && state.meter.imported_at) || Object.keys(state.meter.days).length;
@@ -615,7 +648,7 @@ export function fileDays(){
   let days = state.meter && state.meter.days;
   const b = fileBasis();
   if (!days || !b) return null;
-  if (b.rebuilt) days = rebuiltDays(days, b.rebuilt, b.unsold);
+  if (b.rebuilt) days = rebuiltDays(days, b.rebuilt, b.unsold, b.solarFrom);
   const out = {};
   for (const k of Object.keys(days)) if (k >= b.from && k <= b.to) out[k] = days[k];
   return out;
