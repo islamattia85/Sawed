@@ -1523,9 +1523,13 @@ export function rebuildBase(){
 function creditFileExport(r, plan){
   // Credited when the readings are priced as they are, or for a home that has
   // not said it has panels. Not in a what-if without the home's panels: those
-  // sales were the panels'.
-  const own = statedSystem();
+  // sales were the panels'. Nor when only the days before the panels are used
+  // (fileBasis): those days sold nothing. Crediting the later sales there paid
+  // a home whose panels were marked planned for them twice, once as recorded
+  // and once as modelled: about €360 a year off every bill (14 Oct 2026).
+  const own = statedSystem(), b = fileBasis();
   if (!(fileIsNet() || !(own.has_solar && !own.planned)) || !state._csv_imported || !(state._csv_export_kwh > 0)) return r;
+  if (b && b.start && b.to < b.start) return r;
   const n = r.cost.length, per = state._csv_export_kwh * (plan.export_rate || 0) / n;
   const rev = new Float32Array(n);
   for (let i = 0; i < n; i++) rev[i] = per + (r.revenue ? r.revenue[i] : 0);
