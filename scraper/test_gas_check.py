@@ -65,8 +65,12 @@ def test_compare_updates_only_what_changed():
 
 
 def test_the_stored_data_matches_what_the_pages_said():
+    # The captured page gives the rate on 4 Oct and the rise it announced for
+    # 9 Oct (12.36c). Data checked on or after that day carries the new rate.
     import json
     data = {g["supplier"]: g for g in json.loads(G.DATA.read_text(encoding="utf-8"))}
     p = G.PAGES["Bord Gáis Energy"]
     bg = G.parse_bord_gais({p[0]: page("bg_tariffs"), p[1]: page("bg_dual"), p[2]: ["Get 9% off gas"]})
-    assert abs(bg["unit"] - data["Bord Gáis Energy"]["unit"]) < 1e-5
+    stored, pc = data["Bord Gáis Energy"], bg["price_change"]
+    unit = bg["unit"] * (1 + pc["pct"]) if stored["verified_date"] >= pc["effective_date"] else bg["unit"]
+    assert abs(unit - stored["unit"]) < 1e-5
