@@ -128,7 +128,12 @@ already loaded.
 - A 404 is logged on the Plans tab. Find the missing asset and fix it.
 - The plan sheet shows no contract length or exit fee. The registry has
   `length` and `exit`; show both on the sheet under the rates ("12-month
-  contract · €50 exit fee"). Where a plan has neither, show nothing.
+  contract · €50 exit fee"). Where a plan has neither, show nothing. One
+  rule from the CRU's winter 2026/27 measures (12 October 2026): a customer
+  moving from a 24-hour tariff to a smart tariff with the same supplier pays
+  no termination fee. When the home is on a 24-hour plan and the sheet is a
+  smart plan from the same supplier, say "No exit fee for this move (CRU
+  winter rule)" instead of the fee.
 - `package.json` still says `7.0.0-beta.1`. Set `8.0.0-beta.1`; it is what
   error reports and the account page show.
 
