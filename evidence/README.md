@@ -1,12 +1,12 @@
-# Supplier price evidence — captured 2026-10-13
+# Supplier price evidence — captured 2026-10-14
 
 Raw capture by scraper/audit_dump.py; one JSON per supplier. Nothing here is interpreted.
 
 | Supplier | pages read | tables | JSON payloads | PDFs read | c/kWh figures seen |
 |---|---|---|---|---|---|
 | Bord Gáis Energy | 18/18 | 6 | 18 | 10/10 | 8 |
-| Community Power | 0/1 | 0 | 0 | 0/0 | 0 |
-| Ecopower | 6/6 | 0 | 1 | 1/1 | 2 |
+| Community Power | 3/3 | 2 | 0 | 1/1 | 12 |
+| Ecopower | 6/6 | 0 | 0 | 1/1 | 2 |
 | Electric Ireland | 16/18 | 47 | 0 | 0/1 | 21 |
 | Energia | 18/18 | 43 | 73 | 4/4 | 10 |
 | Flogas | 17/18 | 2 | 37 | 1/1 | 0 |
