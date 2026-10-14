@@ -1,6 +1,6 @@
 // @ts-check
 import { test, expect } from '@playwright/test';
-import { boot } from './support.js';
+import { boot, esbKwFile as esbFile, uploadMeterFile as upload } from './support.js';
 
 /*
  * Someone sets up with an ESB file from before their panels, then later
@@ -16,31 +16,6 @@ const HOME = { current_screen: 'updates', region: 'south', heating_type: 'heatpu
   install_cost: 10000, cost_is_manual: true, grant_eligible: false, grant_seai: 0, ev_active: false, ev_in_bill: false };
 
 const PANELS = '2026-06-19';
-
-/** An ESB 30-minute kW file, `days` long, ending on `last`; sales from `panels` if given. */
-function esbFile(last, days, panels) {
-  const rows = ['MPRN,Meter Serial Number,Read Value,Read Type,Read Date and End Time'];
-  const pad = (n) => String(n).padStart(2, '0');
-  const stamp = (t) => `${pad(t.getUTCDate())}-${pad(t.getUTCMonth() + 1)}-${t.getUTCFullYear()} ${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}`;
-  const end = Date.parse(last + 'T00:00:00Z') + 864e5;
-  for (let i = days * 48 - 1; i >= 0; i--) {
-    const t = new Date(end - (days * 48 - i - 1) * 18e5 - 18e5 + 18e5);
-    const startHour = new Date(t.getTime() - 18e5).getUTCHours(), day = new Date(t.getTime() - 18e5).toISOString().slice(0, 10);
-    const use = startHour < 7 ? 0.3 : startHour >= 17 && startHour < 22 ? 1.2 : 0.6;   // kW
-    const sun = panels && day >= panels && startHour >= 10 && startHour < 16;
-    rows.push(`10000000000,000000000000000000,${(sun ? 0.1 : use).toFixed(3)},Active Import Interval (kW),${stamp(t)}`);
-    if (panels) rows.push(`10000000000,000000000000000000,${(sun ? 2.5 : 0).toFixed(3)},Active Export Interval (kW),${stamp(t)}`);
-  }
-  return rows.join('\n');
-}
-
-async function upload(page, name, text) {
-  await page.evaluate(() => { window.state._sheet = null; window.renderApp(); window.v7Sheet('meter'); });
-  const replace = page.getByRole('button', { name: /Replace the file/ });
-  if (await replace.count()) await replace.click();
-  await page.locator('#csv-file-input').setInputFiles({ name, mimeType: 'text/csv', buffer: Buffer.from(text) });
-  await expect(page.locator('#csv-parse-result')).toContainText('Imported', { timeout: 30000 });
-}
 
 test('a newer file with the panels in it: the card asks about them, and the old answer is not carried over', async ({ page }) => {
   test.setTimeout(180_000);
