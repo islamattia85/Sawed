@@ -82,3 +82,26 @@ test('in setup the card leaves the question to setup, which asks it in turn', as
   await expect(page.locator('#csv-parse-result [data-ask="since"]')).toHaveCount(0);
   expect(await page.evaluate(() => window.fileBasis().ask), 'setup still has it to ask').toBe('since');
 });
+
+test('"Say when the panels went up" on Accuracy opens the question, and answering it closes the matter', async ({ page }) => {
+  test.setTimeout(180_000);
+  const errors = await boot(page, HOME);
+  await upload(page, 'HDF_kW_old.csv', esbFile('2026-05-26', 400));
+  await page.getByRole('button', { name: /Yes, use this data/ }).click();
+  // The new file, accepted without answering on the card.
+  await upload(page, 'HDF_kW_new.csv', esbFile('2026-10-13', 400, PANELS));
+  await page.getByRole('button', { name: /Yes, use this data/ }).click();
+  await page.evaluate(() => { window.state._sheet = null; window.anTab('accuracy'); });
+  // The sentence over the figure: written as a sentence, dates and units as they are.
+  const line = await page.locator('.screen').innerText();
+  const unknown = (line.match(/The biggest unknown is[^\n]*/) || [''])[0];
+  expect(unknown, unknown).not.toMatch(/\b(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)\b|\bkwh\b|\.\./);
+  await page.getByRole('button', { name: 'Say when the panels went up' }).first().click();   // on its row; the tab's foot has it too
+  const sheet = page.locator('#v7-sheet');
+  await expect(sheet).toContainText('Did your panels go in around 19 Jun 2026?');
+  await sheet.getByRole('button', { name: /Yes, around then/ }).click();
+  await expect(page.locator('#v7-sheet')).toHaveCount(0);
+  expect(await page.evaluate(() => [window.state.file_when, window.fileBasis().ask])).toEqual(['sinceyes', null]);
+  await expect(page.getByRole('button', { name: 'Say when the panels went up' })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

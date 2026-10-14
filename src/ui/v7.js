@@ -1404,9 +1404,13 @@ export function createV7(api) {
     const fill = Math.max(8, Math.min(100, Math.round(100 - (a.pct - 2) * 6)));
     const sorted = a.parts.slice().sort((x, y) => y.err - x.err);
     const worst = accRow(sorted[0]);
+    // Into a sentence: a capital that only starts the phrase goes, dates,
+    // "kWh" and "ESB" stay as written, and one full stop ends it. Lower-cased
+    // whole, it read "14 oct 2024 ... 1,930 kwh to the grid.." (14 Oct 2026).
+    const mid = (s) => String(s || '').replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase()).replace(/\.+\s*$/, '');
     const line = /^Weather/.test(sorted[0].label)
       ? 'Built on your real meter readings: only the weather is left to vary.'
-      : `The biggest unknown is ${worst.name.toLowerCase()}: ${worst.how.toLowerCase()}.${meter && meter < a.pct ? ` Your meter file would bring it to ±${meter}%.` : ''}`;
+      : `The biggest unknown is ${mid(worst.name)}: ${mid(worst.how)}.${meter && meter < a.pct ? ` Your meter file would bring it to ±${meter}%.` : ''}`;
     const list = sorted.map((p) => {
       const r = accRow(p);
       return `<div class="ax-acc">
@@ -1479,6 +1483,7 @@ export function createV7(api) {
     else if (sh.kind === 'home') body = api.renderHomeSheet();
     else if (sh.kind === 'handover') body = api.renderHandoverSheet();
     else if (sh.kind === 'meter') body = api.renderMeterSheet();
+    else if (sh.kind === 'filewhen') body = api.renderFileWhenSheet();
     else if (sh.kind === 'share') body = api.renderShareSheet();
     if (!body) return '';
     return `<div class="v7-sheet-root" id="v7-sheet">

@@ -1901,6 +1901,26 @@ function fileMonths(){
   } catch (e) { return ''; }
 }
 
+/**
+ * "Say when the panels went up", from Analytics or Updates: setup's question
+ * about the meter file, asked in a sheet. The button sent people into setup's
+ * question by name without opening setup, so it did nothing (14 Oct 2026).
+ */
+function renderFileWhenSheet(){
+  const fb = fileBasis();
+  const head = (h, sub) => `<div class="v7-sheet-head"><div class="v7-eyebrow">Your meter file</div><h2 class="v7-h">${h}</h2></div><p class="me-p">${sub}</p>`;
+  const opt = (v, title, sub) => `<button class="me-row me-link" data-filewhen="${v}" onclick="setFileWhen('${v}');v7Sheet(null)"><span><b>${title}</b><small>${sub}</small></span>${ic('chevR', 16)}</button>`;
+  const list = (...rows) => `<section class="me-list">${rows.join('')}</section>`;
+  const unsold = opt('notrecorded', 'No, they were up the whole time. My sales aren’t on it yet', 'We’ll estimate what the panels sell');
+  if (!fb || !fb.ask) return head('Nothing to ask', 'We know when your panels went up from your meter file.');
+  if (fb.ask === 'since') return head(`Did your panels go in around ${fmtDay(fb.since)}?`, 'Your meter file shows power sent to the grid from then. A battery can hold winter’s spare solar, so they may have been up before.')
+    + list(opt('sinceyes', 'Yes, around then', 'The days before are your home without panels'), opt('allyear', 'No, they were up for the whole file', 'We’ll use your readings as they are'));
+  if (fb.ask === 'drop') return head(`Did your panels go in around ${fmtDay(fb.dropFrom)}?`, 'Your meter file shows daytime buying dropping from then, with nothing sent to the grid.')
+    + list(opt('dropyes', 'Yes, around then', 'We’ll use the readings after that date'), unsold, opt('before', 'No, it’s from before them', 'We’ll add the panels to it'));
+  return head('Is your meter file from before the panels went up?', 'It shows no solar going to the grid, which panels usually do.')
+    + list(opt('before', 'Yes, from before them', 'We’ll add the panels to it'), unsold, opt('noexport', 'No, my system never sends power to the grid', 'We’ll use it as it is'));
+}
+
 /** The person's answer on the upload card: did the panels go in when the file's sales begin (model.js, fileBasis)? */
 function setFileWhen(v, el){
   state.file_when = v;
@@ -10854,7 +10874,7 @@ const V7 = createV7({
   renderSavingsBreakdown, renderAssumptions,
   renderTrustPanel, renderLogicBreakdown, renderEvSavingsCard, evEconomics,
   renderDayInspector,
-  renderSystemSheet, renderQuickSystem, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet, renderMeterSheet, renderShareSheet,
+  renderSystemSheet, renderQuickSystem, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet, renderMeterSheet, renderFileWhenSheet, renderShareSheet,
   alertCount: () => { try { return unseenAlerts().length; } catch (e) { return 0; } },
 });
 
@@ -11255,7 +11275,7 @@ function modelAccuracy(){
           if (cov.days < 330) fileParts.push({ label: `Your meter file covers ${cov.days} day${cov.days === 1 ? '' : 's'}. We filled in the rest of the year`, err: Math.max(1, cov.err), tip: 'Add a whole year from ESB Networks', go: "v7Sheet('meter')" });
           const unread = +state._csv_unread_pct || 0;
           if (unread > 5) fileParts.push({ label: `We couldn’t read ${Math.round(unread)}% of the readings in your file`, err: Math.min(15, Math.round(unread / 4)), tip: 'Download the file again and add it unopened', go: "v7Sheet('meter')" });
-          if (fb && fb.ask) return { label: 'Meter file: before or after the panels?', err: 8, tip: 'Say when the panels went up', go: "flowEdit('filewhen')" };
+          if (fb && fb.ask) return { label: 'Meter file: before or after the panels?', err: 8, tip: 'Say when the panels went up', go: "v7Sheet('filewhen')" };
           // No panels said, and the file shows power sold from its first weeks:
           // what it shows bought is what was left after panels, a third or so
           // less than the home uses (tests/fixtures/meter-scenarios, B6: -34%).
