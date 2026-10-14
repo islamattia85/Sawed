@@ -1901,6 +1901,33 @@ function fileMonths(){
   } catch (e) { return ''; }
 }
 
+/**
+ * "Say when the panels went up", from Analytics or Updates: setup's question
+ * about the meter file, asked in a sheet. The button sent people into setup's
+ * question by name without opening setup, so it did nothing (14 Oct 2026).
+ */
+function renderFileWhenSheet(){
+  const fb = fileBasis();
+  const head = (h, sub) => `<div class="v7-sheet-head"><div class="v7-eyebrow">Your meter file</div><h2 class="v7-h">${h}</h2></div><p class="me-p">${sub}</p>`;
+  const opt = (v, title, sub) => `<button class="me-row me-link" data-filewhen="${v}" onclick="setFileWhen('${v}');v7Sheet(null)"><span><b>${title}</b><small>${sub}</small></span>${ic('chevR', 16)}</button>`;
+  const list = (...rows) => `<section class="me-list">${rows.join('')}</section>`;
+  const unsold = opt('notrecorded', 'No, they were up the whole time. My sales aren’t on it yet', 'We’ll estimate what the panels sell');
+  if (!fb || !fb.ask) return head('Nothing to ask', 'We know when your panels went up from your meter file.');
+  if (fb.ask === 'since') return head(`Did your panels go in around ${fmtDay(fb.since)}?`, 'Your meter file shows power sent to the grid from then. A battery can hold winter’s spare solar, so they may have been up before.')
+    + list(opt('sinceyes', 'Yes, around then', 'The days before are your home without panels'), opt('allyear', 'No, they were up for the whole file', 'We’ll use your readings as they are'));
+  if (fb.ask === 'drop') return head(`Did your panels go in around ${fmtDay(fb.dropFrom)}?`, 'Your meter file shows daytime buying dropping from then, with nothing sent to the grid.')
+    + list(opt('dropyes', 'Yes, around then', 'We’ll use the readings after that date'), unsold, opt('before', 'No, it’s from before them', 'We’ll add the panels to it'));
+  return head('Is your meter file from before the panels went up?', 'It shows no solar going to the grid, which panels usually do.')
+    + list(opt('before', 'Yes, from before them', 'We’ll add the panels to it'), unsold, opt('noexport', 'No, my system never sends power to the grid', 'We’ll use it as it is'));
+}
+
+/** The person's answer on the upload card: did the panels go in when the file's sales begin (model.js, fileBasis)? */
+function setFileWhen(v, el){
+  state.file_when = v;
+  refreshFileBills(); invalidate(); saveState();
+  if (el) el.parentNode.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === el));
+}
+
 /** The person's answer: is the car's charging in the meter file (model.js, carFileState)? */
 function setEvInFile(v, el){
   state.ev_in_file = !!v;
@@ -2649,6 +2676,7 @@ function fileSummary(){
   if (fs.exportFrom) t += ` Panels show from ${d(fs.exportFrom)}, sending ${fs.exportKwh.toLocaleString('en-IE')} kWh to the grid.`;
   else if (fb.start) t += ` Panels show from ${d(fb.start)}.`;
   else t += ' No solar shows in it.';
+  if (fb.batteryFrom) t += ` Your battery shows charging from the grid from ${d(fb.batteryFrom)}: we work out your own use from then.`;
   if (fb.mode === 'net') t += fb.from === fs.first ? ' It is priced as recorded, panels included.' : ` We price the readings from ${d(fb.from)}, with the panels running.`;
   else if (fb.from !== fs.first || fb.to !== fs.last) t += ` We use ${d(fb.from)} to ${d(fb.to)}, before the panels, and add them on top.`;
   return t;
@@ -10846,7 +10874,7 @@ const V7 = createV7({
   renderSavingsBreakdown, renderAssumptions,
   renderTrustPanel, renderLogicBreakdown, renderEvSavingsCard, evEconomics,
   renderDayInspector,
-  renderSystemSheet, renderQuickSystem, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet, renderMeterSheet, renderShareSheet,
+  renderSystemSheet, renderQuickSystem, renderHomeSheet, renderAccuracy, modelAccuracy, renderHandoverSheet, renderMeterSheet, renderFileWhenSheet, renderShareSheet,
   alertCount: () => { try { return unseenAlerts().length; } catch (e) { return 0; } },
 });
 
@@ -11247,7 +11275,7 @@ function modelAccuracy(){
           if (cov.days < 330) fileParts.push({ label: `Your meter file covers ${cov.days} day${cov.days === 1 ? '' : 's'}. We filled in the rest of the year`, err: Math.max(1, cov.err), tip: 'Add a whole year from ESB Networks', go: "v7Sheet('meter')" });
           const unread = +state._csv_unread_pct || 0;
           if (unread > 5) fileParts.push({ label: `We couldn’t read ${Math.round(unread)}% of the readings in your file`, err: Math.min(15, Math.round(unread / 4)), tip: 'Download the file again and add it unopened', go: "v7Sheet('meter')" });
-          if (fb && fb.ask) return { label: 'Meter file: before or after the panels?', err: 8, tip: 'Say when the panels went up', go: "flowEdit('filewhen')" };
+          if (fb && fb.ask) return { label: 'Meter file: before or after the panels?', err: 8, tip: 'Say when the panels went up', go: "v7Sheet('filewhen')" };
           // No panels said, and the file shows power sold from its first weeks:
           // what it shows bought is what was left after panels, a third or so
           // less than the home uses (tests/fixtures/meter-scenarios, B6: -34%).
@@ -11257,7 +11285,7 @@ function modelAccuracy(){
           // No sales on the file yet: the home's use and what the panels sell are both the model's.
           if (fb && fb.unsold) return { label: 'Your meter file has no sales on it yet. What the panels sell is our estimate', err: UNSOLD_ERR, tip: 'Add your file again once ESB records your sales', go: "v7Sheet('meter')" };
           // The months since the panels went in are worked back from what was bought and sold.
-          if (fb && fb.rebuilt) return { label: `Your meter data; from ${fmtDay(fb.rebuilt)}, when the panels began, worked back to what the home used`, err: 3 };
+          if (fb && fb.rebuilt) return { label: `Your meter data; from ${fmtDay(fb.rebuilt)}, when the ${fb.batteryFrom ? 'battery' : 'panels'} began, worked back to what the home used`, err: 3 };
           return { label: 'Your meter data', err: 1 }; })()
       : state.usage_input_mode === 'kwh'
         ? { label: 'Usage from your yearly kWh', err: 5, tip: 'Add your ESB meter file', go: "v7Sheet('meter')" }
@@ -13334,6 +13362,10 @@ function parseCsvHdf(text, filename){
     state._csv_imported = true;
     _meterReplace = false;
     delete state.ev_in_file;   // a new file: asked again on its card
+    // What was said about the old file's dates is not about this one: asked
+    // again, on the card or in setup (14 Oct 2026).
+    delete state.file_when;
+    if (state._flow) delete state._flow.filewhen;
     state._file_split = false;
     state._csv_filename = filename;
     state._csv_first = firstDay;
@@ -13376,6 +13408,12 @@ function parseCsvHdf(text, filename){
     // A car already in the home: is its charging in this file? Asked here, once.
     const carHtml = state.ev_active && state.ev_in_bill ? `<div data-ask="car" style="margin-top:10px;padding:10px 12px;background:var(--surface,#fff);border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--ink);line-height:1.6"><b>Is your car’s charging in this file?</b> It runs from ${fileMonths()}. Was the car charging at home then?
           <div class="fl-opts" style="margin-top:8px"><button class="btn-secondary" data-car-in="yes" onclick="setEvInFile(true, this)">Yes, it’s in the file</button> <button class="btn-secondary" data-car-in="no" onclick="setEvInFile(false, this)">No, I got it after</button></div></div>` : '';
+    // Panels whose sales begin partway through the file, outside setup (setup
+    // asks this itself): asked here, as the car is. Left for later, it sat as a
+    // to-do and the figures were marked less sure than they were.
+    const fbNow = (() => { try { return state.current_screen === 'flow' ? null : fileBasis(); } catch (e) { return null; } })();
+    const panelsHtml = fbNow && fbNow.ask === 'since' ? `<div data-ask="since" style="margin-top:10px;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--ink);line-height:1.6"><b>Did your panels go in around ${fmtDay(fbNow.since)}?</b> Your file shows power sent to the grid from then. A battery can hold winter’s spare solar, so they may have been up before.
+          <div class="fl-opts" style="margin-top:8px"><button class="btn-secondary" data-since="yes" onclick="setFileWhen('sinceyes', this)">Yes, around then</button> <button class="btn-secondary" data-since="no" onclick="setFileWhen('allyear', this)">No, they were up for the whole file</button></div></div>` : '';
     if (resultEl) resultEl.innerHTML = `
       <div class="card" style="background:var(--accent-faint);border-color:var(--accent)">
         <div class="card-label" style="color:var(--accent)">✓ Imported ${rowsRead.toLocaleString()} readings</div>
@@ -13390,6 +13428,7 @@ function parseCsvHdf(text, filename){
         ${readHtml}
         ${(() => { try { const t = fileSummary(); return t ? `<div style="margin-top:8px;font-size:12px;color:var(--ink-soft);line-height:1.6">${esc(t)}</div>` : ''; } catch (e) { return ''; } })()}
         ${typedHtml}
+        ${panelsHtml}
         ${carHtml}
         <div style="margin-top:12px;font-size:13px;font-weight:600;color:var(--ink)">Is this file from the home you live in now?</div>
         <button class="switch-cta" style="margin-top:8px;font-size:13px;padding:12px 16px" data-filehome="yes"${typedOff ? ' data-keep-typed="no"' : ''} onclick="applyImportedBills()">Yes, use this data →</button>
@@ -13703,6 +13742,7 @@ window.anPick = anPick;
 window.removeEv = removeEv;
 window.toggleEvModel = toggleEvModel;
 window.setEvInFile = setEvInFile;
+window.setFileWhen = setFileWhen;
 window.planCount = planCount;
 window.meterReplace = meterReplace;
 window.undoLast = undoLast;
