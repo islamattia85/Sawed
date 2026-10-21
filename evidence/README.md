@@ -1,4 +1,4 @@
-# Supplier price evidence — captured 2026-10-20
+# Supplier price evidence — captured 2026-10-21
 
 Raw capture by scraper/audit_dump.py; one JSON per supplier. Nothing here is interpreted.
 
@@ -14,4 +14,4 @@ Raw capture by scraper/audit_dump.py; one JSON per supplier. Nothing here is int
 | PrePayPower | 18/18 | 35 | 38 | 3/3 | 33 |
 | SSE Airtricity | 16/18 | 22 | 46 | 4/4 | 0 |
 | Waterpower | 6/6 | 11 | 0 | 0/10 | 1 |
-| Yuno Energy | 14/18 | 127 | 36 | 0/0 | 73 |
+| Yuno Energy | 14/18 | 127 | 36 | 0/0 | 71 |
