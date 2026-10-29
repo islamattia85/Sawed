@@ -10,7 +10,7 @@ Raw capture by scraper/audit_dump.py; one JSON per supplier. Nothing here is int
 | Electric Ireland | 16/18 | 47 | 0 | 0/1 | 22 |
 | Energia | 18/18 | 43 | 90 | 4/4 | 10 |
 | Flogas | 18/18 | 2 | 38 | 1/1 | 0 |
-| Pinergy | 17/18 | 50 | 1 | 1/5 | 5 |
+| Pinergy | 17/18 | 50 | 1 | 1/5 | 6 |
 | PrePayPower | 18/18 | 35 | 38 | 3/3 | 33 |
 | SSE Airtricity | 16/18 | 22 | 46 | 4/4 | 0 |
 | Waterpower | 0/1 | 0 | 0 | 0/0 | 0 |
