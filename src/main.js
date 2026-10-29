@@ -2549,7 +2549,8 @@ function trackEvent(name, props, clickId){
     body: JSON.stringify({ name, props, session_id: sid, click_id: clickId || null }) }).catch(() => {});
 }
 /**
- * The private test (FEATURES.testVersion): a line under the top bar saying so,
+ * The private test (FEATURES.testVersion): a line under every screen's top bar
+ * (the website's, setup's and the app's) saying so,
  * and a way to tell us what confused you. Feedback goes by email to the
  * company's contact address, once it has one (CONTROLLER.email); the screen and
  * build are filled in, nothing else.
@@ -3284,6 +3285,7 @@ function renderSite(){
         ${done ? '' : renderProfileNavBtn()}
         <button class="wl-btn wl-btn-p" onclick="${go}">${done ? 'My answer' : 'Check my home'}</button></div>
     </header>
+    ${testLine()}
 
     <section class="wl-hero">
       <div class="wl-copy">
@@ -3524,6 +3526,7 @@ function renderWelcome(){
         ${done ? `<button class="wl-btn wl-btn-p" onclick="setScreen('result')">My answer</button>` : renderProfileNavBtn()}
       </div>
     </header>
+    ${testLine()}
     <section class="wl-app-head">
       <h1 class="wl-h1">Let's find your cheapest plan.</h1>
       <p class="wl-lede">Pick where to start. You can add solar, a battery or a car at any time.</p>
@@ -5410,6 +5413,7 @@ function guideFrame(inner, leave, title, rows){
         <button class="web-theme" onclick="setTheme(state.theme==='dark'?'light':'dark')" aria-label="Switch light or dark">${ic('contrast', 20)}</button>
         <button class="fl-exit" onclick="${leave}">Leave without saving</button></span>
     </div>
+    ${testLine()}
     <div class="fl-grid"><div class="fl-body">${inner}</div>
       <aside class="fl-side" aria-label="${title}"><div class="fl-card"><b class="fl-card-h">${title}</b><small>Nothing changes on your answer until you keep it.</small>
         <div class="fl-sofar">${rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div></div>
@@ -6266,6 +6270,7 @@ function renderFlow(){
         <button class="web-theme" onclick="setTheme(state.theme==='dark'?'light':'dark')" aria-label="Switch light or dark">${ic('contrast', 20)}</button>
         <button class="fl-exit" onclick="${leave}">${state.onboarding_complete ? 'Back to my answer' : 'Leave'}</button></span>` : ''}
     </div>
+    ${testLine()}
     ${WEB ? flowChapters(steps, f, open) : ''}
     <div class="sg-progress fl-prog"><i style="width:${finished ? 100 : Math.round((pi + (() => { const ks = steps.filter((k) => flowChap(k) === parts[pi]); return ks.filter((k) => k in f && k !== open).length / Math.max(1, ks.length); })()) / Math.max(1, parts.length) * 100)}%"></i></div>
     ${WEB ? `<div class="fl-grid"><div class="fl-body">${h}</div>${flowSide(steps, f, open, shown)}</div>` : `<div class="fl-body">${h}</div>`}
