@@ -6,7 +6,9 @@
  */
 import { guard, readBody, adminDb } from './_server.js';
 
-export const EVENT_NAMES = ['switch_click', 'lead_submitted', 'quote_uploaded', 'report_downloaded', 'pro_viewed'];
+export const EVENT_NAMES = ['switch_click', 'lead_submitted', 'quote_uploaded', 'report_downloaded', 'pro_viewed',
+  // How far people get (29 Oct 2026): the screens opened, setup, a meter file, the report, a share.
+  'screen_viewed', 'setup_started', 'setup_finished', 'meter_file_added', 'result_shared'];
 
 export default async function handler(req, res) {
   if (guard(req, res)) return;
