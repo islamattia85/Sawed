@@ -6,7 +6,9 @@
  */
 export const FEATURES = {
   // "Get 3 quotes": quote requests passed to SEAI-registered installers, the
-  // installer portal, and the requests listed in Updates and Profile.
+  // installer portal, and the requests listed in Updates and Profile. Off, its
+  // database functions are closed: run the grant in
+  // supabase/portal_locked_2026_10.sql before switching it on.
   installerQuotes: false,
   // Suppliers that pay us for a switch: "Switch with Peakless", the
   // commission note, and referral links with a click ID.
@@ -18,4 +20,11 @@ export const FEATURES = {
   // buttons, the file picker in the quote sheet, and the endpoint. Off, a
   // quote is checked from the figures the person types in.
   quoteReader: false,
+  // Signing in or up, and every prompt to. Off for the private test (29 Oct
+  // 2026): each home stays on its own device, and nothing of it reaches the
+  // database. Someone already signed in keeps their account.
+  accounts: false,
+  // The private test: a line under the top bar saying so, with a button to
+  // send feedback to the company's contact address (CONTROLLER.email).
+  testVersion: true,
 };

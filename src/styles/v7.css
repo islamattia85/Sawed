@@ -460,6 +460,13 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
   box-shadow: 0 8px 24px rgba(0,0,0,.12); font-size: var(--text-caption); color: var(--ink-soft); max-width: 560px; margin: 0 auto;
 }
 .consent-btns { display: flex; gap: var(--space-2); margin-left: auto; }
+/* The private test's line under the top bar (FEATURES.testVersion). */
+.test-line {
+  display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; justify-content: center;
+  padding: 6px var(--space-3); background: var(--panel-2); border-bottom: 1px solid var(--hair);
+  font-size: var(--text-caption); color: var(--ink-soft); text-align: center;
+}
+.test-line a { color: var(--ink); font-weight: 600; text-decoration: underline; }
 .consent-btns button { padding: 8px 14px; border-radius: var(--radius-pill); border: 1px solid var(--hair); background: transparent; color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
 /* The two answers weigh the same: the DPC asks that refusing be as easy and as visible as accepting. */
 .lead-field { display: block; margin-bottom: var(--space-2); }

@@ -57,6 +57,7 @@ test('inline handlers assigning module-scoped PRIMITIVES work', async ({ page })
   // _authModalOpen and _authEmailView are bare `let` bindings in module scope.
   // Without the accessor bridge an inline `_authModalOpen=true` writes a dead
   // global and nothing on screen changes.
+  await page.addInitScript(() => { window.__SAWED_FEATURES = { accounts: true }; });   // off for the private test
   const errors = await boot(page);
   await page.route('**/*', (r) => (/supabase\.co|jsdelivr/.test(r.request().url()) ? r.abort() : r.continue()));
 
