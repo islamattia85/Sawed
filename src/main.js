@@ -7898,6 +7898,9 @@ async function doGeneratePdf(){
         scenario.npv20 = Math.round(cum);
       } catch(e){ scenario = null; }
     }
+    // Profile's picture of the home, on the plan this report is about, before
+    // the what-ifs below move anything.
+    const housePic = scenario ? householdPicture(best.plan.id) : null;
 
     const vdates = (TARIFFS||[]).map(t => t.verified_date).filter(Boolean).sort();
     const guide = (typeof SWITCH_GUIDES !== 'undefined' && getSupplierKey)
@@ -8052,7 +8055,14 @@ async function doGeneratePdf(){
     // less on a first visit (jspdf, html2canvas and the fonts were already
     // loaded on demand; 13 Oct 2026).
     const { buildReportData, renderReport } = await import('./pdf/index.js');
+    // The picture painted for print. A report without it is still a report.
+    let house = null;
+    if (housePic){
+      try { house = await (await import('./ui/house-print.js')).housePrint(housePic); }
+      catch (e){ console.warn('Report picture not drawn', e); }
+    }
     const data = buildReportData({
+      house,
       ladder, accuracy,
       bestBands: bandsFor(best.plan), currentBands: bandsFor(baselinePlan),
       hourly: (best.sim || sim(best.plan.id)),
@@ -10176,6 +10186,30 @@ function meOpenAuth(view){
  * the EV sheet, the grid the plans.
  */
 function householdScene(){
+  const pic = householdPicture();
+  const { solar: sys, battery: batt, ev } = pic.scene;
+  return `<section class="hs" aria-label="Your household and its energy over a year">
+    <div class="hs-top">
+      <span>${pic.title} · a typical year</span>
+      <span class="hs-badge">${pic.badge}</span>
+    </div>
+    ${houseScene(pic.scene)}
+    <div class="hs-actions">
+      ${sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('sun', 14)} Plan solar</button>`}
+      ${batt || !sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('battery', 14)} Add a battery</button>`}
+      ${ev ? '' : `<button class="me-mini" onclick="startEvGuide()">${ic('car', 14)} Add an EV</button>`}
+      <span class="hs-hint">Tap any part to change it</span>
+    </div>
+  </section>`;
+}
+
+/**
+ * What the household picture shows on a plan: the parts the home has, what
+ * moves between them and the figures beside each. Profile shows the plan the
+ * home is on; the report shows the plan it is about, so the picture's figures
+ * are the report's own.
+ */
+function householdPicture(planId = state.baseline){
   if (CACHE.dirty) rebuildBase();
   const sys = !!state.has_solar && totalPanels() > 0;
   const batt = sys && (state.battery_kwh || 0) > 0;
@@ -10184,7 +10218,7 @@ function householdScene(){
   const evKwh = ev ? (state.ev_km_per_year || 0) * (state.ev_kwh_per_100km || 17) / 100 : 0;
   let gen = 0, use = 0, imp = 0, exp = 0, cyc = 0;
   try {
-    const s = sim(state.baseline);
+    const s = sim(planId);
     imp = sumF(s.grid_import);
     if (fileIsNet()){
       // A meter file of this home with its panels up is priced as it reads:
@@ -10208,12 +10242,10 @@ function householdScene(){
   const hw = { smart: 'Hot water heated 2–5am', legacy: 'Hot water on an immersion timer', none: hp ? 'Hot water from the heat pump' : 'Hot water from the boiler' }[state.hot_water_strategy] || 'Hot water';
   const planned = sys && (state.solar_planned || state.solar_is_estimate);
 
-  return `<section class="hs" aria-label="Your household and its energy over a year">
-    <div class="hs-top">
-      <span>${planned ? 'Your home with the planned system' : 'Your home'} · a typical year</span>
-      <span class="hs-badge">${planned ? 'planned' : sys ? 'installed' : 'no solar'}</span>
-    </div>
-    ${houseScene({ solar: sys, planned, panels: totalPanels(), battery: batt, ev, heatPump: hp,
+  return {
+    title: planned ? 'Your home with the planned system' : 'Your home',
+    badge: planned ? 'planned' : sys ? 'installed' : 'no solar',
+    scene: { solar: sys, planned, panels: totalPanels(), battery: batt, ev, heatPump: hp,
       flows: { sun: gen > 0, buy: imp > 0, sell: exp > 0, battery: cyc > 0, ev },
       labels: {
         grid: ['Grid', `${k(imp)} bought`, exp > 0 ? `${k(exp)} sold` : ''],
@@ -10222,14 +10254,8 @@ function householdScene(){
         home: ['Home', `${k(use)} used`, esc(hw)],
         ev: ['EV', k(evKwh), `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year`],
       },
-      taps: { system: 'openMySystem()', home: 'openMyHome()', grid: "setScreen('plans')", ev: 'startEvGuide()' } })}
-    <div class="hs-actions">
-      ${sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('sun', 14)} Plan solar</button>`}
-      ${batt || !sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('battery', 14)} Add a battery</button>`}
-      ${ev ? '' : `<button class="me-mini" onclick="startEvGuide()">${ic('car', 14)} Add an EV</button>`}
-      <span class="hs-hint">Tap any part to change it</span>
-    </div>
-  </section>`;
+      taps: { system: 'openMySystem()', home: 'openMyHome()', grid: "setScreen('plans')", ev: 'startEvGuide()' } },
+  };
 }
 
 function renderMe(){
@@ -13834,6 +13860,11 @@ window.anMonth = anMonth;
 window.__clearSweep = () => { CACHE._goalSweep = null; CACHE._goalSweep_ck = null; };
 window.__df = () => dualFuel();
 window.__shareCard = (s, details) => makeShareCardCanvas(s, { details }).toDataURL();
+// Tests: the report's picture of the home, painted, with the markup it was painted from.
+window.__housePrint = async (planId) => {
+  const m = await import('./ui/house-print.js'), pic = householdPicture(planId);
+  return { ...(await m.housePrint(pic)), svg: m.printMarkup(pic).svg };
+};
 window.__sim = { annualKwh: () => sumF(CACHE.cons), pso: PSO_LEVY, plannedLadder, noSolarBest, baselineNet: () => baselineNet(state.baseline), dualFuel, installCost: () => state.install_cost };
 window.setGrantEligible = setGrantEligible;
 window.sysConfirmRoof = sysConfirmRoof;
