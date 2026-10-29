@@ -74,6 +74,7 @@ test('the usage-counts question: No thanks weighs the same as Allow, and the ans
 });
 
 test('making an account says it is for people 18 and over', async ({ page }) => {
+  await page.addInitScript(() => { window.__SAWED_FEATURES = { accounts: true }; });   // off for the private test
   await boot(page);
   const ok = await page.evaluate(() => typeof window.meOpenAuth === 'function');
   test.skip(!ok, 'no account sign-up in this build');

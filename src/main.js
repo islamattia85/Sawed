@@ -304,6 +304,8 @@ async function sbResetPassword(email){
 }
 
 function sbInitialized(){ return !!(SUPABASE_URL && SUPABASE_ANON_KEY); }
+/** Whether a signed-out reader is offered an account (FEATURES.accounts). */
+function accountsOffered(){ return sbInitialized() && FEATURES.accounts; }
 
 /**
  * Report an OAuth attempt that came back refused.
@@ -516,6 +518,7 @@ function renderAuthSection(){
 function renderAuthModal(){
   if (!_authModalOpen) return '';
   if (!sbInitialized()) return '';
+  if (!_sbUser && !FEATURES.accounts) return '';
   if (!_sbUser){
     return `
     <div class="auth-modal-backdrop" onclick="if(event.target===this){_authModalOpen=false;renderApp()}">
@@ -560,7 +563,7 @@ function accountMenuLink(){
   const close = "event.preventDefault();this.closest('details').open=false;";
   return _sbUser
     ? `<a href="#account" onclick="${close}setScreen('account')">${ic('user', 16)} Account</a>`
-    : `<a href="#" onclick="${close}_authModalOpen=true;window._authEmailOpen=false;renderApp()">${ic('shield', 16)} Sign in</a>`;
+    : accountsOffered() ? `<a href="#" onclick="${close}_authModalOpen=true;window._authEmailOpen=false;renderApp()">${ic('shield', 16)} Sign in</a>` : '';
 }
 function renderProfileNavBtn(){
   if (!sbInitialized()) return '';
@@ -572,7 +575,7 @@ function renderProfileNavBtn(){
       <div class="profile-nav-avatar">${initials}</div>
     </button>`;
   }
-  if (!sbInitialized()) return '';
+  if (!accountsOffered()) return '';
   return `<button class="profile-nav-btn" onclick="_authModalOpen=true;window._authEmailOpen=false;renderApp()" aria-label="Sign in" style="font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px;gap:5px">
     ${ic('shield',15)} <span>Sign in</span>
   </button>`;
@@ -2545,6 +2548,21 @@ function trackEvent(name, props, clickId){
   fetch('/api/event', { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, props, session_id: sid, click_id: clickId || null }) }).catch(() => {});
 }
+/**
+ * The private test (FEATURES.testVersion): a line under the top bar saying so,
+ * and a way to tell us what confused you. Feedback goes by email to the
+ * company's contact address, once it has one (CONTROLLER.email); the screen and
+ * build are filled in, nothing else.
+ */
+function testLine(){
+  if (!FEATURES.testVersion) return '';
+  const to = CONTROLLER.email;
+  const subject = encodeURIComponent(`${BRAND.name} test: feedback`);
+  const body = encodeURIComponent(`\n\n(Screen: ${state.current_screen || ''}. Version ${__APP_VERSION__}, build ${__BUILD_ID__}.)`);
+  return `<div class="test-line" role="note"><span>Test version. Figures are estimates, and things may change.</span>${to
+    ? `<a href="mailto:${to}?subject=${subject}&amp;body=${body}">Send feedback</a>` : ''}</div>`;
+}
+
 /** One-line consent bar, shown until answered. */
 function renderConsentBar(){
   if (analyticsConsent()) return '';
@@ -2989,7 +3007,7 @@ function renderIntro(){
     footerHTML = `
       <div class="intro-footer">
         <button class="intro-cta" onclick="introNext()">Get started</button>
-        <button class="intro-ghost" onclick="_authModalOpen=false;${sbInitialized() && _sbUser ? "introFinish()" : "introSignInEmail()"}">Have an account? <strong>Sign in</strong></button>
+        ${_sbUser || accountsOffered() ? `<button class="intro-ghost" onclick="_authModalOpen=false;${sbInitialized() && _sbUser ? "introFinish()" : "introSignInEmail()"}">Have an account? <strong>Sign in</strong></button>` : ''}
       </div>`;
 
   } else if (s === 2){
@@ -3045,7 +3063,7 @@ function renderIntro(){
           ${GOOGLE_SVG} Continue with Google
         </button>
         <div class="intro-or">or</div>
-        <button class="intro-email-btn" onclick="introSignInEmail()">Continue with Email</button>
+        ${accountsOffered() ? `<button class="intro-email-btn" onclick="introSignInEmail()">Continue with Email</button>` : ''}
         <div id="auth-msg" class="auth-msg" style="margin-top:8px"></div>
         <button class="intro-ghost" style="margin-top:12px" onclick="state.current_screen=state.onboarding_complete?'result':'welcome';renderApp()">Continue as guest</button>
       </div>`;
@@ -6233,7 +6251,7 @@ function renderFlow(){
       ${state._flow_mode === 'quick' ? `<button class="fl-upgrade" onclick="flowUpgrade()">${ic('sun', 16)} Thinking about solar or an EV? Get the full picture ${ic('chevR', 14)}</button>` : ''}
       </div>
     </section>
-    ${sbInitialized() && !_sbUser ? `<section class="fl-save">
+    ${accountsOffered() && !_sbUser ? `<section class="fl-save">
       <span class="fl-save-ico">${ic('shield', 20)}</span>
       <div><b>Free account (optional)</b>
         <span>Your home is only saved on this device. With an account it’s backed up, works on any device, and we’ll tell you when a cheaper plan comes along.</span>
@@ -9667,7 +9685,7 @@ function renderAlertsBlock(){
   const email = _sbUser
     ? `<label class="sy-toggle al-email"><span><b>Email me these</b><small>Price changes on my plan and my contract ending. No marketing.</small></span>
         <input type="checkbox" role="switch" ${state.alerts_email ? 'checked' : ''} onchange="state.alerts_email=this.checked;saveState();renderApp()"></label>`
-    : `<div class="al-email-guest">Sign in to get these by email too.</div>`;
+    : accountsOffered() ? `<div class="al-email-guest">Sign in to get these by email too.</div>` : '';
   return `<section class="me-list al-list">${body}${email}</section>`;
 }
 
@@ -10229,8 +10247,8 @@ function renderMe(){
       </section>`
     : `<section class="me-head me-guest">
         <div class="me-guest-top">${wordmarkHtml('pk-word-top')}<span class="me-badge">Guest</span></div>
-        <p class="me-p">Your home is only saved on this device. A free account backs it up and opens it on any device. Rankings are the same either way.</p>
-        ${sbInitialized() ? `<div class="me-auth">
+        <p class="me-p">Your home is only saved on this device.${FEATURES.accounts ? ' A free account backs it up and opens it on any device. Rankings are the same either way.' : ''}</p>
+        ${accountsOffered() ? `<div class="me-auth">
           <button class="v7-cta-2" onclick="meOpenAuth('signup')">Create a free account</button>
           <button class="me-ghost" onclick="meOpenAuth('login')">I have an account</button>
         </div>` : ''}
@@ -10374,7 +10392,7 @@ function renderProfile(){
     ${leads}
     <section class="me-list">
       <button class="me-row me-link" onclick="startFlow('full')"><span><b>Go through setup again</b><small>One question at a time, starting from your answers</small></span>${ic('chevR', 16)}</button>
-      <button class="me-row me-link" onclick="setScreen('account')"><span><b>Account and settings</b><small>${_sbUser ? 'Your account, privacy, help' : 'Sign in, privacy, help'}</small></span>${ic('chevR', 16)}</button>
+      <button class="me-row me-link" onclick="setScreen('account')"><span><b>Account and settings</b><small>${_sbUser ? 'Your account, privacy, help' : accountsOffered() ? 'Sign in, privacy, help' : 'Privacy, help'}</small></span>${ic('chevR', 16)}</button>
     </section>
   </div>
   ${bottomNav()}`;
@@ -10387,8 +10405,8 @@ function renderAccount(){
     ? `<section class="me-head"><div class="me-avatar" aria-hidden="true">${esc((name || '?').slice(0, 1).toUpperCase())}</div>
         <div class="me-who"><b>${esc(name)}</b><small>${esc(_sbUser.email || '')}</small><small class="me-sync" id="me-sync">${ic('checkC', 12)} ${esc(syncLine())}</small></div></section>`
     : `<section class="me-head me-guest"><div class="me-guest-top">${wordmarkHtml('pk-word-top')}<span class="me-badge">Guest</span></div>
-        <p class="me-p">Saved on this device only. A free account backs it up and works on any device.</p>
-        ${sbInitialized() ? `<div class="me-auth"><button class="v7-cta-2" onclick="meOpenAuth('signup')">Create a free account</button><button class="me-ghost" onclick="meOpenAuth('login')">I have an account</button></div>` : ''}</section>`;
+        <p class="me-p">Saved on this device only.${FEATURES.accounts ? ' A free account backs it up and works on any device.' : ''}</p>
+        ${accountsOffered() ? `<div class="me-auth"><button class="v7-cta-2" onclick="meOpenAuth('signup')">Create a free account</button><button class="me-ghost" onclick="meOpenAuth('login')">I have an account</button></div>` : ''}</section>`;
   const link = (go, title, sub) => `<button class="me-row me-link" onclick="${go}"><span><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span>${ic('chevR', 16)}</button>`;
   return `${topbar('Account', 'sage', true)}
   <div class="screen me account">
@@ -10851,7 +10869,7 @@ function v7ResultEmpty(){
 const V7 = createV7({
   brand: BRAND.name, wordmark: wordmarkHtml,
   state: () => state,
-  ic, IRISH_REGIONS, renderProfileNavBtn, accountMenuLink,
+  ic, IRISH_REGIONS, renderProfileNavBtn, accountMenuLink, testLine,
   annualKwh: v7AnnualKwh, setupLabel: v7SetupLabel,
   plansData: v7PlansData, solarData: v7SolarData, monthlyTotals: v7MonthlyTotals, monthDetail: v7MonthDetail,
   getBestPlan, exportTaxFree: () => EXPORT_TAX_FREE * Math.max(1, +state.bill_names || 1),
@@ -11121,7 +11139,11 @@ async function downloadMyData(){
   const out = { exported_at: new Date().toISOString(), app: BRAND.name, on_this_phone: cloudCopy(state) };
   if (_sb && _sbUser){
     out.account = { email: _sbUser.email || null, created_at: _sbUser.created_at || null, profile: _sbProfile || null };
-    try { const { data } = await _sb.rpc('my_quote_requests'); out.quote_requests = data || []; } catch (e) { out.quote_requests = 'could not be loaded'; }
+    // Quote requests only while they are switched on: off, their database
+    // function is closed (supabase/portal_locked_2026_10.sql).
+    if (FEATURES.installerQuotes){
+      try { const { data } = await _sb.rpc('my_quote_requests'); out.quote_requests = data || []; } catch (e) { out.quote_requests = 'could not be loaded'; }
+    }
   }
   const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
