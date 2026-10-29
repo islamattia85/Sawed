@@ -149,8 +149,7 @@ export function buildReportData(ctx) {
       cumulative: npvSeries || [],
       breakevenYear: breakevenYear ?? null,
       batteryReplacementYear: state.battery_kwh > 0 ? 12 : undefined,
-      panelCount: panels,
-      batteryKwh: state.battery_kwh || 0,
+      house: ctx.house || undefined,
     };
   }
 

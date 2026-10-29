@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { jsPDF } from 'jspdf';
 import { renderReport, type ReportData } from '../../src/pdf/report.js';
 import { PAGE, TEXT_LEFT, TEXT_RIGHT } from '../../src/pdf/theme.js';
-import { eur } from '../../src/pdf/blocks.js';
+import { eur, type HousePicture } from '../../src/pdf/blocks.js';
 
 /**
  * The report renderer takes plain data and no globals, so the whole document
@@ -11,6 +11,31 @@ import { eur } from '../../src/pdf/blocks.js';
  * throws and silently degrades the user to a text file), and content drawn
  * outside its container.
  */
+
+/** A 1×1 PNG: the app paints the real picture, so any image will do here. */
+const PIXEL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+/** Profile's picture as src/ui/house-print.js hands it over: the card and its words, in CSS pixels. */
+function picture(): HousePicture {
+  const mist = [143, 176, 184], paper = [238, 243, 244];
+  const label = (x: number, y: number, anchor: 'start' | 'end', l: [string, string, string]) => [
+    { text: l[0], x, y, anchor, size: 12, weight: 700, color: mist },
+    { text: l[1], x, y: y + 19, anchor, size: 15, weight: 700, color: paper },
+    { text: l[2], x, y: y + 36, anchor, size: 12, weight: 400, color: mist },
+  ];
+  return {
+    image: PIXEL, width: 388, height: 376,
+    words: [
+      { text: 'Your home · a typical year', x: 18, y: 29, anchor: 'start', size: 12, weight: 400, color: mist },
+      { text: 'installed', x: 330, y: 29, anchor: 'middle', size: 12, weight: 700, color: mist },
+      ...label(28, 62, 'start', ['Grid', '4,090 kWh bought', '3,247 kWh sold']),
+      ...label(360, 62, 'end', ['Solar', '4,252 kWh made', '12 panels · 5.3 kWp']),
+      ...label(362, 138, 'end', ['Battery', '5 kWh', 'gives 1,120 kWh']),
+      ...label(28, 318, 'start', ['Home', '5,000 kWh used', 'Hot water from the boiler']),
+      ...label(360, 318, 'end', ['EV', '2,805 kWh', '16,500 km a year']),
+    ],
+  };
+}
 
 function fixture(over: Partial<ReportData> = {}): ReportData {
   const cumulative = [-10200];
@@ -64,7 +89,7 @@ function fixture(over: Partial<ReportData> = {}): ReportData {
       grossCost: 12000, grant: 1800, netCost: 10200,
       year1Saving: 1132, paybackYears: 9, npv20: 4672,
       cumulative, breakevenYear: 12, batteryReplacementYear: 12,
-      panelCount: 12, batteryKwh: 5,
+      house: picture(),
     },
     ev: {
       electricityIncrease: 264, petrolAvoided: 1812, netSaving: 1547,
@@ -284,73 +309,75 @@ describe('document conventions', () => {
   });
 });
 
-describe('the system illustration', () => {
+describe('the picture of the home', () => {
   /**
-   * The figure is drawn, not laid out by a chart routine, so the failure modes
-   * are geometric: a panel that overhangs the roof it is supposed to sit on, or
-   * a degenerate shape from an array size the author never tried.
+   * The app draws and paints the picture (src/ui/house-print.js; the browser
+   * tests compare it with Profile's). What is left here is placing it: the card
+   * inside the measure and on one page, and every word on the card.
    */
-  const sizes = [0, 1, 4, 12, 40];
-
-  it.each(sizes)('renders a %i-panel array without invalid geometry', (panelCount) => {
-    const { doc, problems } = auditedDoc();
-    const f = fixture();
-    renderReport(doc as never, fixture({ solar: { ...f.solar!, panelCount, batteryKwh: 5 } }));
-    expect(problems).toEqual([]);
-  });
-
-  it('renders with no battery, so the battery box and its label are skipped', () => {
-    const { doc, problems } = auditedDoc();
-    const f = fixture();
-    expect(() => renderReport(doc as never,
-      fixture({ solar: { ...f.solar!, panelCount: 8, batteryKwh: 0 } }))).not.toThrow();
-    expect(problems).toEqual([]);
-  });
-
-  /**
-   * Every panel is a quad drawn as two triangles. The array sits on the left
-   * roof slope, so no vertex may fall outside the triangle formed by the eaves
-   * and the ridge — the first draft put the lowest tiles out in mid-air below
-   * the eave, because near the corner the roof is shallower than a panel.
-   */
-  it('keeps every panel on the roof', () => {
+  function placed(data: ReportData) {
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-    const tris: number[][] = [];
-    const origTri = doc.triangle.bind(doc);
-    (doc as unknown as Record<string, unknown>).triangle =
-      (...a: unknown[]) => { tris.push(a.slice(0, 6) as number[]); return (origTri as (...z: unknown[]) => unknown)(...a); };
-
-    const f = fixture();
-    renderReport(doc as never, fixture({ solar: { ...f.solar!, panelCount: 12, batteryKwh: 5 } }));
-
-    // The roof is the widest triangle drawn: identify it by its span.
-    const span = (t: number[]) => Math.max(t[0]!, t[2]!, t[4]!) - Math.min(t[0]!, t[2]!, t[4]!);
-    const roof = tris.reduce((a, b) => (span(b) > span(a) ? b : a));
-    const [rx1, ry1, rx2, ry2, rx3, ry3] = roof as [number, number, number, number, number, number];
-
-    const sign = (px: number, py: number, ax: number, ay: number, bx: number, by: number) =>
-      (px - bx) * (ay - by) - (ax - bx) * (py - by);
-    const inside = (px: number, py: number) => {
-      const d1 = sign(px, py, rx1, ry1, rx2, ry2);
-      const d2 = sign(px, py, rx2, ry2, rx3, ry3);
-      const d3 = sign(px, py, rx3, ry3, rx1, ry1);
-      const neg = d1 < -0.01 || d2 < -0.01 || d3 < -0.01;
-      const pos = d1 > 0.01 || d2 > 0.01 || d3 > 0.01;
-      return !(neg && pos);
+    const raw = doc as unknown as Record<string, (...a: unknown[]) => unknown>;
+    const images: { page: number; x: number; y: number; w: number; h: number }[] = [];
+    const words: { page: number; s: string; x: number; y: number; w: number; align: string }[] = [];
+    const addImage = raw.addImage!.bind(doc), text = raw.text!.bind(doc);
+    raw.addImage = (...a: unknown[]) => {
+      const [, , x, y, w, h] = a as number[];
+      images.push({ page: doc.getNumberOfPages(), x: x!, y: y!, w: w!, h: h! });
+      return addImage(...a);
     };
+    raw.text = (...a: unknown[]) => {
+      const [t, x, y, o] = a as [string, number, number, { align?: string } | undefined];
+      words.push({ page: doc.getNumberOfPages(), s: String(t), x, y, w: doc.getTextWidth(String(t)), align: o?.align ?? 'left' });
+      return text(...a);
+    };
+    renderReport(doc as never, data);
+    return { images, words };
+  }
 
-    // Select by draw order rather than by size: the arrow heads are small
-    // triangles too, and a size filter cannot tell them from a panel. The scene
-    // draws the roof, then two triangles per panel, then the flow arrows.
-    const tiles = Math.min(8, 12);
-    const roofAt = tris.indexOf(roof);
-    const panels = tris.slice(roofAt + 1, roofAt + 1 + tiles * 2);
-    expect(panels.length, 'no panel geometry found').toBe(tiles * 2);
+  it('sits inside the measure, on one page, at the shape the app painted it', () => {
+    const { images } = placed(fixture());
+    expect(images.length).toBe(1);
+    const [im] = images as [typeof images[0]];
+    expect(im.x).toBeGreaterThanOrEqual(TEXT_LEFT - 0.01);
+    expect(im.x + im.w).toBeLessThanOrEqual(TEXT_RIGHT + 0.01);
+    expect(im.y).toBeGreaterThan(0);
+    expect(im.y + im.h).toBeLessThan(PAGE.height - PAGE.marginBottom);
+    expect(im.h / im.w).toBeCloseTo(376 / 388, 6);
+  });
 
-    const escaped = panels.filter((t) =>
-      !(inside(t[0]!, t[1]!) && inside(t[2]!, t[3]!) && inside(t[4]!, t[5]!)));
-    expect(escaped.map((t) => t.map((n) => n.toFixed(1)).join(',')),
-      'panel vertices outside the roof').toEqual([]);
+  it('sets every word of the picture on it, where the app put it', () => {
+    const pic = picture();
+    const { images, words } = placed(fixture());
+    const [im] = images as [typeof images[0]];
+    const k = im.w / pic.width;
+    for (const t of pic.words) {
+      const hit = words.find((w) => w.page === im.page && w.s === t.text);
+      expect(hit, `"${t.text}" not set`).toBeTruthy();
+      expect(hit!.x).toBeCloseTo(im.x + t.x * k, 6);
+      expect(hit!.y).toBeCloseTo(im.y + t.y * k, 6);
+      expect(hit!.align).toBe({ start: 'left', middle: 'center', end: 'right' }[t.anchor]);
+      const x0 = hit!.align === 'right' ? hit!.x - hit!.w : hit!.align === 'center' ? hit!.x - hit!.w / 2 : hit!.x;
+      expect(x0, `"${t.text}" runs off the left of the card`).toBeGreaterThanOrEqual(im.x);
+      expect(x0 + hit!.w, `"${t.text}" runs off the right of the card`).toBeLessThanOrEqual(im.x + im.w);
+      expect(hit!.y).toBeLessThan(im.y + im.h);
+    }
+  });
+
+  it('leaves it out, and nothing else, when the app could not paint it', () => {
+    const f = fixture();
+    const { images, words } = placed(fixture({ solar: { ...f.solar!, house: undefined } }));
+    expect(images).toEqual([]);
+    expect(words.some((w) => w.s === 'Where the generation goes')).toBe(true);
+  });
+
+  it('passes no invalid geometry, with or without the picture', () => {
+    for (const house of [picture(), undefined]) {
+      const { doc, problems } = auditedDoc();
+      const f = fixture();
+      renderReport(doc as never, fixture({ solar: { ...f.solar!, house } }));
+      expect(problems).toEqual([]);
+    }
   });
 });
 
