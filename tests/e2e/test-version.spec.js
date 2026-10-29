@@ -29,15 +29,29 @@ test('no one is offered an account, anywhere', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('every screen says it is a test version, under the top bar', async ({ page }) => {
+test('every screen says it is a test version, right under its top bar', async ({ page }) => {
+  const check = async (name) => {
+    const line = page.locator('.test-line');
+    await expect(line, name).toHaveCount(1);
+    await expect(line, name).toContainText('Test version. Figures are estimates');
+    expect(await line.evaluate((el) => !!el.previousElementSibling
+      && el.previousElementSibling.matches('header.topbar, header.wl-bar, .fl-top')), name).toBe(true);
+  };
+  // Where a neighbour lands first: the website, then the start of setup, then setup itself.
+  await boot(page, { onboarding_complete: false, current_screen: 'welcome' }, '/');
+  await check('front page');
+  await boot(page, { onboarding_complete: false, current_screen: 'welcome' });
+  await check('welcome');
+  await page.evaluate(() => window.startFlow('full'));
+  await check('setup');
+  // And every screen of the answer.
   await boot(page, UPDATES);
   for (const screen of ['result', 'plans', 'updates', 'myhome']) {
     await page.evaluate((s) => window.setScreen(s), screen);
-    const line = page.locator('.test-line');
-    await expect(line, screen).toHaveCount(1);
-    await expect(line).toContainText('Test version. Figures are estimates');
-    expect(await line.evaluate((el) => el.previousElementSibling && el.previousElementSibling.matches('header.topbar')), screen).toBe(true);
+    await check(screen);
   }
+  await page.evaluate(() => window.anTab('bill'));
+  await check('analytics');
 });
 
 test('with the switches back on, accounts return and the line goes', async ({ page }) => {

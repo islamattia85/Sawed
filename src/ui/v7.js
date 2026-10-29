@@ -796,7 +796,7 @@ export function createV7(api) {
       <nav class="ax-tabs" aria-label="Analytics">
         ${tabs.map((t) => `<button class="ax-tab ${t.id === tab ? 'on' : ''}" ${t.id === tab ? 'aria-current="page"' : ''} onclick="anTab('${t.id}')">${api.ic(t.icon, 18)}<span>${t.label}</span></button>`).join('')}
       </nav>
-    </header>`;
+    </header>${api.testLine()}`;
   }
 
   /** What the home being simulated includes, in words. */
