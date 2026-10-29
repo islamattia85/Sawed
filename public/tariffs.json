@@ -1731,7 +1731,7 @@
       ],
       "fields": {
         "day": "24hr meter",
-        "standing": "Urban 24hr meter"
+        "standing": "Urban 24hr"
       },
       "col": 1,
       "read": "2026-10-13"
