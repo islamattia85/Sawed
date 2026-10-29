@@ -3384,7 +3384,10 @@ function webDecorate(html){
       : head('Your answer', 'Your plan is already the best value.', 'Nothing on sale costs less for your home.');
     end = nx([[...toPlans, 1], toSolar]);
     const dash = webDash();
-    if (dash) html = html.replace(/<section class="ax-doors-wrap"[\s\S]*?<\/section>/, '');
+    // The dashboard stands in for the doors to the figures, not for Download
+    // report and Share beside them: those went with the doors, and the
+    // website, phone or computer, had no way to share an answer (29 Oct 2026).
+    if (dash) html = html.replace(/<section class="ax-doors-wrap"[\s\S]*?<\/section>/, (s) => (s.match(/<div class="ax-two hm-take">[\s\S]*?<\/div>/) || [''])[0]);
     end = dash + end;
   } else if (scr === 'plans'){
     end = nx([[...toAnswer, 1], toSolar]);
@@ -6029,7 +6032,7 @@ function renderFlow(){
     heat: (v) => ({ gas: 'Gas or oil', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heaters' })[v],
     gas: (v) => (v === 'yes' ? `Gas with ${plan.supplier} too` : 'Gas with another supplier'),
     gasbill: (v) => (+v > 0 ? `Gas €${v} / 2 months` : 'Gas bill: typical home'),
-    solar: (v) => ({ no: 'No solar', have: 'Solar', thinking: 'Solar planned' })[v],
+    solar: (v) => ({ no: 'No solar', have: 'Panels on the roof', thinking: 'Solar planned' })[v],
     roof: (v) => ({ S: 'South', SE: 'South-east', SW: 'South-west', E: 'East', W: 'West', N: 'North', NE: 'North-east', NW: 'North-west', EW: 'East and west', SESW: 'South-east and south-west', unsure: 'Not sure, south assumed' })[v] || `Facing ${v}°`,
     panels: (v) => `${v} panels`, battery: (v) => +v ? `${v} kWh` : 'No battery',
     gridnow: (v) => v === 'yes' ? 'Tops up at night' : v === 'no' ? 'Solar only' : 'Not sure how it charges',
