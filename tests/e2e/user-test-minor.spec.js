@@ -68,6 +68,7 @@ test('setup: the map waits for an answer, the stages are text, and the euro sign
 });
 
 test('in the website menu, Sign in is a line like the others', async ({ page }) => {
+  await page.addInitScript(() => { window.__SAWED_FEATURES = { accounts: true }; });   // off for the private test
   await page.setViewportSize({ width: 390, height: 844 });
   await boot(page, {}, '/#result');
   await page.locator('.web-menu summary').click();

@@ -17,6 +17,11 @@ import { boot } from './support.js';
  * These tests drive the controls a user actually presses.
  */
 
+// Accounts are switched off for the private test (src/features.js); these are the account tests.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => { window.__SAWED_FEATURES = { accounts: true }; });
+});
+
 /** The bundled client is present but the API host is unreachable here. */
 const blockApi = (page) => page.route('**/*', (route) => (
   /supabase\.co|jsdelivr/.test(route.request().url()) ? route.abort() : route.continue()));

@@ -54,7 +54,7 @@ export function createV7(api) {
       ${title ? `<div class="v7-top-title">${esc(title)}</div>` : `<div class="v7-top-title">${api.wordmark('pk-word-top')}</div>`}
       ${webLinks()}
       <div class="v7-top-end">${api.renderProfileNavBtn()}</div>
-    </header>`;
+    </header>${api.testLine()}`;
   }
 
   /**
