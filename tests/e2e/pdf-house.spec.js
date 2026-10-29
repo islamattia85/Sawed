@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { boot } from './support.js';
+import { runScenario, SCENARIOS } from './run-scenario.js';
 
 /**
  * The report's picture of the home is Profile's (29 Oct 2026). The report used
@@ -99,4 +100,54 @@ test('a picture that can\'t be painted leaves the rest of the report whole', asy
   const raw = readFileSync(path).toString('latin1');
   expect(raw).not.toContain('/DCTDecode');
   expect(errors).toEqual([]);
+});
+
+test.describe('a meter file with the panels in all of it', () => {
+  // The service worker would serve the report's typeface past the block below.
+  test.use({ serviceWorkers: 'block' });
+
+  /**
+   * The model doesn't run the panels for such a file: what they made is the
+   * home's use, less what it bought, plus what it sold. The report said "Of 0
+   * kWh generated a year" and sold 947 kWh of 2,640 under a picture saying
+   * 4,694 kWh made, which was itself worked out from the plan's buying,
+   * battery top-ups included; the share card said "Makes 0 kWh".
+   */
+  test('the panels made what the readings show: on the report\'s picture, in its words and on the share card', async ({ page }, testInfo) => {
+    test.setTimeout(150000);
+    await runScenario(page, SCENARIOS.find((s) => s.id === 'B2-hp_solar_batt'));
+    // The report in the PDF's own faces, so its words can be read back from
+    // the file. Added after the page's own routes, so it is the one asked first.
+    await page.route('**/assets/fonts-*.js', (r) => r.abort());
+    const f = await page.evaluate(async () => {
+      const st = window.state, best = window.getBestPlan();
+      const sum = (a) => Array.from(a).reduce((x, y) => x + y, 0);
+      const num = (t, re) => { const m = t.match(re); return m ? +m[1].replace(/,/g, '') : null; };
+      const pic = (await window.__housePrint(best.plan.id)).words.map((w) => w.text).join('\n');
+      const share = window.__shareText(true);
+      return {
+        readings: Math.round(Object.values(st.bills).reduce((a, b) => a + b, 0) - sum(window.CACHE.cons) + st._csv_export_kwh),
+        made: num(pic, /([\d,]+) kWh made/), sold: num(pic, /([\d,]+) kWh sold/), bought: num(pic, /([\d,]+) kWh bought/),
+        shareMade: num(share, /Makes: ([\d,]+) kWh/), shareSold: num(share, /Sells: ([\d,]+) kWh/),
+      };
+    });
+    expect(f.readings).toBeGreaterThan(1000);
+    expect(f.made, JSON.stringify(f)).toBe(f.readings);
+    expect(f.shareMade).toBe(f.readings);
+    expect(f.shareSold).toBe(f.sold);
+
+    const download = page.waitForEvent('download', { timeout: 45_000 });
+    await page.evaluate(() => window.doGeneratePdf(''));
+    const file = await download;
+    const path = testInfo.outputPath('report.pdf');
+    await file.saveAs(path);
+    const raw = readFileSync(path).toString('latin1');
+    const m = raw.match(/Of ([\d,]+) kWh generated a year\. You still import ([\d,]+) kWh/);
+    expect(m, 'the report says what the panels made and what is still bought').toBeTruthy();
+    expect([+m[1].replace(/,/g, ''), +m[2].replace(/,/g, '')]).toEqual([f.made, f.bought]);
+    const out = raw.match(/Exported to the grid \W+ ([\d,]+) kWh/);
+    expect(out && +out[1].replace(/,/g, '')).toBe(f.sold);
+    // The panels' size in whole watts, not "461.53846153846155W".
+    expect(raw).not.toMatch(/\d\.\d{3,}W/);
+  });
 });
