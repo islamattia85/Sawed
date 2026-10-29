@@ -1956,14 +1956,26 @@ function anTab(t, from){
 }
 
 // The savings figure that's honest to publish (share card / PDF): for planned
-// solar, switch-now only; otherwise the full figure.
+// solar, switch-now only; otherwise the switch on the home as it is.
 function publishableSavings(){
   const split = plannedSolarSplit();
   if (split) return split.switchNow;
-  const best = getBestPlan();
-  const basePlan = getPlanById(state.baseline);
-  const baseCost = baselineNet(state.baseline);
-  return Math.max(0, Math.round(baseCost - best.net));
+  return Math.max(0, Math.round(nowPlanCost() - getBestPlan().net));
+}
+
+/**
+ * What the home pays on its plan today, as Home measures a switch against it:
+ * with the panels it has, and without panels only planned (those have their
+ * own four-bill comparison). The share card and the report measured from the
+ * plan without the panels a home already has, and called the panels' worth a
+ * saving from switching: "€1,598 less a year" for a home whose switch was
+ * worth a few hundred (29 Oct 2026).
+ */
+function nowPlanCost(){
+  return panelsInstalled() ? myPlanCost() : baselineNet(state.baseline);
+}
+function panelsInstalled(){
+  return !!(state.has_solar && totalPanels() > 0 && !state.solar_planned && !state.solar_is_estimate);
 }
 
 /* ============================================================
@@ -3384,7 +3396,10 @@ function webDecorate(html){
       : head('Your answer', 'Your plan is already the best value.', 'Nothing on sale costs less for your home.');
     end = nx([[...toPlans, 1], toSolar]);
     const dash = webDash();
-    if (dash) html = html.replace(/<section class="ax-doors-wrap"[\s\S]*?<\/section>/, '');
+    // The dashboard stands in for the doors to the figures, not for Download
+    // report and Share beside them: those went with the doors, and the
+    // website, phone or computer, had no way to share an answer (29 Oct 2026).
+    if (dash) html = html.replace(/<section class="ax-doors-wrap"[\s\S]*?<\/section>/, (s) => (s.match(/<div class="ax-two hm-take">[\s\S]*?<\/div>/) || [''])[0]);
     end = dash + end;
   } else if (scr === 'plans'){
     end = nx([[...toAnswer, 1], toSolar]);
@@ -6029,7 +6044,7 @@ function renderFlow(){
     heat: (v) => ({ gas: 'Gas or oil', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heaters' })[v],
     gas: (v) => (v === 'yes' ? `Gas with ${plan.supplier} too` : 'Gas with another supplier'),
     gasbill: (v) => (+v > 0 ? `Gas €${v} / 2 months` : 'Gas bill: typical home'),
-    solar: (v) => ({ no: 'No solar', have: 'Solar', thinking: 'Solar planned' })[v],
+    solar: (v) => ({ no: 'No solar', have: 'Panels on the roof', thinking: 'Solar planned' })[v],
     roof: (v) => ({ S: 'South', SE: 'South-east', SW: 'South-west', E: 'East', W: 'West', N: 'North', NE: 'North-east', NW: 'North-west', EW: 'East and west', SESW: 'South-east and south-west', unsure: 'Not sure, south assumed' })[v] || `Facing ${v}°`,
     panels: (v) => `${v} panels`, battery: (v) => +v ? `${v} kWh` : 'No battery',
     gridnow: (v) => v === 'yes' ? 'Tops up at night' : v === 'no' ? 'Solar only' : 'Not sure how it charges',
@@ -6385,7 +6400,8 @@ function shareDetails(){
   if (state.has_solar && totalPanels() > 0 && s){
     const planned = state.solar_planned || state.solar_is_estimate;
     const faces = [[state.count_A, state.azimuth_A, state.tilt_A], [state.count_B, state.azimuth_B, state.tilt_B]].filter((f) => f[0] > 0);
-    const gen = sumF(s.gen), exp = sumF(s.grid_export), curt = s.curtailed ? sumF(s.curtailed) : 0;
+    const ny = fileIsNet() ? netFileYear(best.plan.id) : null;
+    const gen = ny ? ny.made : sumF(s.gen), exp = ny ? ny.sold : sumF(s.grid_export), curt = !ny && s.curtailed ? sumF(s.curtailed) : 0;
     const d = v7SolarData();
     const rows = [
       ['Panels', `${totalPanels()} × ${Math.round(state.panel_w)} W · ${totalKwp().toFixed(1)} kWp`],
@@ -6474,7 +6490,7 @@ function makeShareCardCanvas(savings, opts = {}){
         ['Current plan + solar', full(mine), pl.mine, '#2F7A56'],
         ['Cheapest plan + solar', full(pl.best.plan), pl.best.net, '#4CCB8C'],
       ];
-      else rungs = [['Current plan', full(mine), rec.baseCost, '#7A847E'], ['Cheapest plan', full(rec.best.plan), rec.best.net, '#4CCB8C']];
+      else rungs = [['Current plan', full(mine), nowPlanCost(), '#7A847E'], ['Cheapest plan', full(rec.best.plan), rec.best.net, '#4CCB8C']];
     }
   } catch (e) { rungs = []; }
 
@@ -7859,7 +7875,11 @@ async function doGeneratePdf(){
     const best         = getBestPlan();
     const baselinePlan = getPlanById(state.baseline);
     const baseSim      = baselineSim(state.baseline);
-    const baseCost     = baselineNet(state.baseline);
+    // The plan as the home pays it today, panels it has included, as Home
+    // and the share card measure a switch (nowPlanCost).
+    const installed    = panelsInstalled();
+    const nowSim       = installed ? sim(state.baseline) : baseSim;
+    const baseCost     = nowPlanCost();
     const saving       = Math.max(0, baseCost - best.net);
     const annualKwh    = Object.values(state.bills).reduce((a,b)=>a+b,0);
     const econ         = state.ev_active ? evEconomics(best.plan.id) : null;
@@ -7874,13 +7894,16 @@ async function doGeneratePdf(){
         const range = computeScenarioRange();
         const sc = range.realistic;
         const bp = best.sim || sim(best.plan.id);
-        const gen = sumF(CACHE.solar && CACHE.solar.total);
-        const exported = sumF(bp && bp.grid_export);
+        // A meter file with the panels in all of it: its year as the readings
+        // show it, as the picture beside these figures has it (netFileYear).
+        const ny = fileIsNet() ? netFileYear(best.plan.id) : null;
+        const gen = ny ? ny.made : sumF(CACHE.solar && CACHE.solar.total);
+        const exported = ny ? ny.sold : sumF(bp && bp.grid_export);
         scenario = {
           generated: gen,
           exported,
           selfConsumed: Math.max(0, gen - exported),
-          gridImport: sumF(bp && bp.grid_import),
+          gridImport: ny ? ny.bought : sumF(bp && bp.grid_import),
           solarBenefit: sc ? Math.round(sc.solarBenefit || 0) : 0,
           payback: sc && sc.payback != null && sc.payback < 50 ? sc.payback : null,
           npv20: 0,
@@ -7898,6 +7921,9 @@ async function doGeneratePdf(){
         scenario.npv20 = Math.round(cum);
       } catch(e){ scenario = null; }
     }
+    // Profile's picture of the home, on the plan this report is about, before
+    // the what-ifs below move anything.
+    const housePic = scenario ? householdPicture(best.plan.id) : null;
 
     const vdates = (TARIFFS||[]).map(t => t.verified_date).filter(Boolean).sort();
     const guide = (typeof SWITCH_GUIDES !== 'undefined' && getSupplierKey)
@@ -7926,7 +7952,7 @@ async function doGeneratePdf(){
         invalidate(); rebuildBase();
         const b = getBestPlan();
         const bs = baselineSim(state.baseline);
-        const cur = sumF(bs.cost) + baselinePlan.standing + PSO_LEVY;
+        const cur = installed ? annualCost(sim(state.baseline), baselinePlan).net : sumF(bs.cost) + baselinePlan.standing + PSO_LEVY;
         state.bills = saved;
         return { best: b.net, current: cur };
       };
@@ -8035,8 +8061,9 @@ async function doGeneratePdf(){
         { label: 'Best plan + panels', plan: `${pl.best.plan.supplier} · ${pl.best.plan.plan}`, value: pl.best.net, solar: true, best: true },
       ];
       else ladder = [
-        { label: 'Current plan', plan: `${mine.supplier} · ${mine.plan}`, value: baseCost, solar: false },
-        ...(state.has_solar && totalPanels() > 0 ? [{ label: 'Current plan, with your panels', plan: `${mine.supplier} · ${mine.plan}`, value: annualCost(sim(mine.id), mine).net, solar: true }] : []),
+        installed
+          ? { label: 'Current plan, with your panels', plan: `${mine.supplier} · ${mine.plan}`, value: baseCost, solar: true }
+          : { label: 'Current plan', plan: `${mine.supplier} · ${mine.plan}`, value: baseCost, solar: false },
         { label: rec.isManualChoice ? 'Your chosen plan' : 'Cheapest plan', plan: `${best.plan.supplier} · ${best.plan.plan}`, value: best.net, solar: !!(state.has_solar && totalPanels() > 0), best: true },
       ];
     } catch(e){ ladder = null; }
@@ -8052,7 +8079,14 @@ async function doGeneratePdf(){
     // less on a first visit (jspdf, html2canvas and the fonts were already
     // loaded on demand; 13 Oct 2026).
     const { buildReportData, renderReport } = await import('./pdf/index.js');
+    // The picture painted for print. A report without it is still a report.
+    let house = null;
+    if (housePic){
+      try { house = await (await import('./ui/house-print.js')).housePrint(housePic); }
+      catch (e){ console.warn('Report picture not drawn', e); }
+    }
     const data = buildReportData({
+      house,
       ladder, accuracy,
       bestBands: bandsFor(best.plan), currentBands: bandsFor(baselinePlan),
       hourly: (best.sim || sim(best.plan.id)),
@@ -8072,9 +8106,11 @@ async function doGeneratePdf(){
       currentDayProfile: profileFor(baselinePlan),
       sensitivity,
       supplierUrl: supplierUrl(best.plan.id),
-      baseEnergy: sumF(baseSim.cost),
+      baseEnergy: sumF(nowSim.cost),
       bestEnergy: best.energy_cost,
-      bestExport: best.export_revenue,
+      // What selling pays more on the new plan: all of it against a home that
+      // sells nothing now, the difference against panels already selling.
+      bestExport: best.export_revenue - (installed ? sumF(nowSim.revenue) : 0),
       scenario, npvSeries, breakevenYear,
       regionName: (IRISH_REGIONS[state.region] || IRISH_REGIONS.east).name,
       usageBasis: state._csv_imported
@@ -10176,6 +10212,50 @@ function meOpenAuth(view){
  * the EV sheet, the grid the plans.
  */
 function householdScene(){
+  const pic = householdPicture();
+  const { solar: sys, battery: batt, ev } = pic.scene;
+  return `<section class="hs" aria-label="Your household and its energy over a year">
+    <div class="hs-top">
+      <span>${pic.title} · a typical year</span>
+      <span class="hs-badge">${pic.badge}</span>
+    </div>
+    ${houseScene(pic.scene)}
+    <div class="hs-actions">
+      ${sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('sun', 14)} Plan solar</button>`}
+      ${batt || !sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('battery', 14)} Add a battery</button>`}
+      ${ev ? '' : `<button class="me-mini" onclick="startEvGuide()">${ic('car', 14)} Add an EV</button>`}
+      <span class="hs-hint">Tap any part to change it</span>
+    </div>
+  </section>`;
+}
+
+/**
+ * What the household picture shows on a plan: the parts the home has, what
+ * moves between them and the figures beside each. Profile shows the plan the
+ * home is on; the report shows the plan it is about, so the picture's figures
+ * are the report's own.
+ */
+/**
+ * A meter file with the panels in all of it, on a plan: its year as the
+ * readings show it. The model doesn't run the panels for such a file, so what
+ * they make is the home's use, less what it bought, plus what it sold: the
+ * same on every plan. A plan's simulation is the readings plus the change its
+ * battery setting makes, so what the home buys is the simulation's, and what
+ * it sells is the file's sales plus that change. The report read what the
+ * panels made off the model (0 kWh) and what they sold off the change alone
+ * (947 kWh of 2,640), and the share card the same; the picture worked out
+ * what they made from a plan's buying, battery top-ups included (29 Oct 2026).
+ */
+function netFileYear(planId){
+  const s = sim(planId), sold = +state._csv_export_kwh || 0;
+  return {
+    made: Math.max(0, v7AnnualKwh() - sumF(CACHE.cons) + sold),
+    bought: sumF(s.grid_import),
+    sold: Math.max(0, sold + sumF(s.grid_export)),
+  };
+}
+
+function householdPicture(planId = state.baseline){
   if (CACHE.dirty) rebuildBase();
   const sys = !!state.has_solar && totalPanels() > 0;
   const batt = sys && (state.battery_kwh || 0) > 0;
@@ -10184,17 +10264,18 @@ function householdScene(){
   const evKwh = ev ? (state.ev_km_per_year || 0) * (state.ev_kwh_per_100km || 17) / 100 : 0;
   let gen = 0, use = 0, imp = 0, exp = 0, cyc = 0;
   try {
-    const s = sim(state.baseline);
+    const s = sim(planId);
     imp = sumF(s.grid_import);
     if (fileIsNet()){
       // A meter file of this home with its panels up is priced as it reads:
-      // bought and sold are the readings, its own use is worked back (the
-      // yearly figure), and the panels made the difference. The model's
-      // panels and battery are not run, so they cannot be read from it (the
-      // picture said "Solar makes 0 kWh" and "Home uses" what was bought).
-      exp = +state._csv_export_kwh || 0;
+      // its own use is worked back (the yearly figure), and the panels made
+      // the difference (netFileYear). The model's panels and battery are not
+      // run, so they cannot be read from it (the picture said "Solar makes
+      // 0 kWh" and "Home uses" what was bought).
+      const y = netFileYear(planId);
+      imp = y.bought; exp = y.sold;
       use = v7AnnualKwh();
-      gen = sys ? Math.max(0, use - imp + exp) : 0;
+      gen = sys ? y.made : 0;
     } else {
       gen = sys ? sumF(CACHE.solar.total) : 0;
       // The home's own use, as its yearly figure counts it: a car still being
@@ -10208,12 +10289,10 @@ function householdScene(){
   const hw = { smart: 'Hot water heated 2–5am', legacy: 'Hot water on an immersion timer', none: hp ? 'Hot water from the heat pump' : 'Hot water from the boiler' }[state.hot_water_strategy] || 'Hot water';
   const planned = sys && (state.solar_planned || state.solar_is_estimate);
 
-  return `<section class="hs" aria-label="Your household and its energy over a year">
-    <div class="hs-top">
-      <span>${planned ? 'Your home with the planned system' : 'Your home'} · a typical year</span>
-      <span class="hs-badge">${planned ? 'planned' : sys ? 'installed' : 'no solar'}</span>
-    </div>
-    ${houseScene({ solar: sys, planned, panels: totalPanels(), battery: batt, ev, heatPump: hp,
+  return {
+    title: planned ? 'Your home with the planned system' : 'Your home',
+    badge: planned ? 'planned' : sys ? 'installed' : 'no solar',
+    scene: { solar: sys, planned, panels: totalPanels(), battery: batt, ev, heatPump: hp,
       flows: { sun: gen > 0, buy: imp > 0, sell: exp > 0, battery: cyc > 0, ev },
       labels: {
         grid: ['Grid', `${k(imp)} bought`, exp > 0 ? `${k(exp)} sold` : ''],
@@ -10222,14 +10301,8 @@ function householdScene(){
         home: ['Home', `${k(use)} used`, esc(hw)],
         ev: ['EV', k(evKwh), `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year`],
       },
-      taps: { system: 'openMySystem()', home: 'openMyHome()', grid: "setScreen('plans')", ev: 'startEvGuide()' } })}
-    <div class="hs-actions">
-      ${sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('sun', 14)} Plan solar</button>`}
-      ${batt || !sys ? '' : `<button class="me-mini" onclick="openMySystem()">${ic('battery', 14)} Add a battery</button>`}
-      ${ev ? '' : `<button class="me-mini" onclick="startEvGuide()">${ic('car', 14)} Add an EV</button>`}
-      <span class="hs-hint">Tap any part to change it</span>
-    </div>
-  </section>`;
+      taps: { system: 'openMySystem()', home: 'openMyHome()', grid: "setScreen('plans')", ev: 'startEvGuide()' } },
+  };
 }
 
 function renderMe(){
@@ -13834,6 +13907,11 @@ window.anMonth = anMonth;
 window.__clearSweep = () => { CACHE._goalSweep = null; CACHE._goalSweep_ck = null; };
 window.__df = () => dualFuel();
 window.__shareCard = (s, details) => makeShareCardCanvas(s, { details }).toDataURL();
+// Tests: the report's picture of the home, painted, with the markup it was painted from.
+window.__housePrint = async (planId) => {
+  const m = await import('./ui/house-print.js'), pic = householdPicture(planId);
+  return { ...(await m.housePrint(pic)), svg: m.printMarkup(pic).svg };
+};
 window.__sim = { annualKwh: () => sumF(CACHE.cons), pso: PSO_LEVY, plannedLadder, noSolarBest, baselineNet: () => baselineNet(state.baseline), dualFuel, installCost: () => state.install_cost };
 window.setGrantEligible = setGrantEligible;
 window.sysConfirmRoof = sysConfirmRoof;

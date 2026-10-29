@@ -25,6 +25,7 @@ export interface PdfDoc {
   roundedRect(x: number, y: number, w: number, h: number, rx: number, ry: number, style?: string): void;
   line(x1: number, y1: number, x2: number, y2: number): void;
   triangle(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, style?: string): void;
+  addImage(data: string, format: string, x: number, y: number, w: number, h: number): void;
   text(txt: string | string[], x: number, y: number, opts?: Record<string, unknown>): void;
   getTextWidth(txt: string): number;
   addPage(): void;
@@ -68,6 +69,8 @@ export function toWinAnsi(txt: string): string {
 export interface TextRun extends Partial<Spec> {
   align?: 'left' | 'center' | 'right';
   maxWidth?: number;
+  /** Bold at any size: the app's 700 weight, which the PDF otherwise keeps for large type. */
+  heavy?: boolean;
 }
 
 export interface Chapter { title: string; page: number; }
@@ -116,7 +119,7 @@ export class Doc {
     if (this.inter) {
       // The app's weights: 400 for text, 600 for emphasis, 800 for big figures.
       const big = (s.size ?? 9.8) >= 13;
-      this.doc.setFont('Inter', s.style === 'bold' ? (big ? 'heavy' : 'bold') : 'normal');
+      this.doc.setFont('Inter', s.style === 'bold' ? (big || s.heavy ? 'heavy' : 'bold') : 'normal');
     } else this.doc.setFont(s.face ?? 'times', s.style ?? 'normal');
     this.doc.setFontSize(s.size ?? 9.8);
     const c = s.color ?? INK;

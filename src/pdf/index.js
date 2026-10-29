@@ -133,7 +133,7 @@ export function buildReportData(ctx) {
     const grant = state.grant_seai || 0;
     data.solar = {
       kwp,
-      panels: `${panels} × ${state.panel_w || 440}W`,
+      panels: `${panels} × ${Math.round(state.panel_w || 440)}W`,
       battery: state.battery_kwh > 0 ? `${state.battery_kwh} kWh battery` : 'No battery',
       orientation: `${state.azimuth_A ?? 180}° · ${state.tilt_A ?? 35}° tilt`,
       generated: scenario.generated || 0,
@@ -149,8 +149,7 @@ export function buildReportData(ctx) {
       cumulative: npvSeries || [],
       breakevenYear: breakevenYear ?? null,
       batteryReplacementYear: state.battery_kwh > 0 ? 12 : undefined,
-      panelCount: panels,
-      batteryKwh: state.battery_kwh || 0,
+      house: ctx.house || undefined,
     };
   }
 

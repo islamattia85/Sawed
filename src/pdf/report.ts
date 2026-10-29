@@ -17,7 +17,7 @@ import {
 import {
   chapter, heading, label, pullFigure, table, cellBar, definitions, callout,
   columnChart, rateProfile, cashFlow, splitBar, eur, kwh, signed, type Column,
-  monthlyEnergyChart, dayChart, dayChartLegend, barBreakdown, houseScene,
+  monthlyEnergyChart, dayChart, dayChartLegend, barBreakdown, housePicture, type HousePicture,
 } from './blocks.js';
 import {
   NAVY, NAVY_2, GOLD, GREEN, CARD, NIGHT, DAY, PEAK, MADE, KEPT, FIXED, BAND_COLOR, BAND_NAME,
@@ -74,9 +74,8 @@ export interface ReportData {
     grossCost: number; grant: number; netCost: number;
     year1Saving: number; paybackYears: number | null; npv20: number;
     cumulative: number[]; breakevenYear: number | null; batteryReplacementYear?: number;
-    /** Array size, for the illustration. */
-    panelCount?: number;
-    batteryKwh?: number;
+    /** Profile's picture of the home, painted by the app (src/ui/house-print.js). */
+    house?: HousePicture;
   };
   ev?: {
     electricityIncrease: number; petrolAvoided: number; netSaving: number;
@@ -452,18 +451,15 @@ function chSolar(d: Doc, r: ReportData) {
   chapter(d, 'Solar', 'Your solar and battery',
     `A ${s.kwp.toFixed(2)} kWp array — ${s.panels}, ${s.orientation} — with ${s.battery}.`);
 
-  houseScene(d, {
-    generated: s.generated,
-    selfConsumed: s.selfConsumed,
-    exported: s.exported,
-    gridImport: s.gridImport,
-    panelCount: s.panelCount ?? 0,
-    batteryKwh: s.batteryKwh ?? 0,
-  }, {
-    caption: `Your system and its four annual flows.${
-      s.panelCount && s.panelCount > 8 ? ` The roof is drawn with eight panels; yours has ${s.panelCount}.` : ''
-    } Every figure is from the same 8,760-hour simulation used throughout this report.`,
-  });
+  // The picture is Profile's, on this report's plan: Profile shows the plan the
+  // home is on, so where the two differ its figures do too, and the caption says why.
+  if (s.house) {
+    housePicture(d, s.house, {
+      caption: `Your home and the energy moving through it in a typical year, on ${r.best.name}, ${
+        r.choice ? 'the plan you chose' : 'the plan this report recommends'}.${
+        r.best.name !== r.current.name ? ' The picture in the app shows the plan you are on now.' : ''}`,
+    });
+  }
 
   heading(d, 'Where the generation goes');
   splitBar(d, [
