@@ -75,3 +75,31 @@ test('desktop keeps the same content beside the two-column hero', async ({ page 
   const card = await page.locator('.wl-hero .wl-shot').boundingBox();
   expect(card.x, 'the four-bill card sits beside the words').toBeGreaterThan(copy.x + copy.width - 1);
 });
+
+/**
+ * On a phone the four-bill card comes after the three ways in, so the first
+ * screen was all words (29 Oct 2026). A line of it goes first, above the ways
+ * in, and takes you to the card; from 900px the card sits beside the words.
+ */
+test('on a phone a line of the four-bill card leads the ways in, with its figures, and takes you to it', async ({ page }) => {
+  await open(page, 390, 844);
+  const t = page.locator('.wl-teaser');
+  await expect(t).toBeVisible();
+  const r = await page.evaluate(() => {
+    const top = (s) => document.querySelector(s).getBoundingClientRect().top;
+    const v = [...document.querySelectorAll('.wl-bills .wl-pb-track em')].map((e) => e.textContent);
+    return { order: top('.wl-teaser') < top('.wl-j-k'), onScreen: document.querySelector('.wl-teaser').getBoundingClientRect().bottom <= innerHeight,
+      first: v[0], last: v[v.length - 1], says: document.querySelector('.wl-teaser b').textContent };
+  });
+  expect(r.order, 'above the ways in').toBe(true);
+  expect(r.onScreen, 'on the first screen').toBe(true);
+  expect(r.says).toBe(`${r.first} → ${r.last} a year`);
+  await t.click();
+  await expect.poll(() => page.evaluate(() => { const b = document.querySelector('.wl-bills').getBoundingClientRect(); return b.top >= 0 && b.top < innerHeight / 2; })).toBe(true);
+});
+
+test('on a computer the four-bill card sits beside the words, with no line of it above the ways in', async ({ page }) => {
+  await open(page, 1440, 900);
+  await expect(page.locator('.wl-teaser')).toBeHidden();
+  await expect(page.locator('.wl-bills')).toBeInViewport();
+});

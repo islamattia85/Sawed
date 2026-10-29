@@ -1775,6 +1775,18 @@ html.web .plan-card.is-sel { border-color: var(--accent); box-shadow: 0 0 0 1px 
 /* "with or without" is one thought: on a phone it broke as "with or /
    without", which read as a slip. Kept whole, the line breaks before it. */
 .wl-site .wl-h1 em { white-space: nowrap; }
+/* The example home in a line, above the ways in, on a phone (heroTeaser). */
+.wl-teaser { display: grid; width: 100%; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 14px; margin: -2px 0 22px; padding: 12px 14px; border-radius: var(--radius-lg); background: var(--panel); border: 1px solid var(--hair); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.wl-tz-bars { display: grid; gap: 6px; }
+.wl-tz-bars i { display: block; height: 8px; border-radius: 999px; }
+.wl-tz-bars .is-now { width: 100%; background: var(--ink-dim); opacity: .55; }
+.wl-tz-bars .is-good { background: var(--accent); }
+.wl-tz-t { display: grid; gap: 2px; }
+.wl-tz-t b { font: 750 17px var(--display); font-variant-numeric: tabular-nums; }
+.wl-tz-t small { font-size: 13px; color: var(--ink-soft); line-height: 1.4; }
+.wl-tz-t small svg { vertical-align: -2px; color: var(--accent); }
+.wl-bills { scroll-margin-top: 96px; }
+@media (min-width: 900px) { .wl-teaser { display: none; } }
 .wl-lede { font-size: 17px; line-height: 1.55; color: var(--ink-soft); margin: 0 0 18px; max-width: 36em; }
 .wl-trust { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13px; color: var(--ink-soft); }
 .wl-trust b { color: var(--ink); }
