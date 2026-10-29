@@ -1,12 +1,16 @@
 import { test, expect } from '@playwright/test';
-import { boot, isolate } from './support.js';
+import { readFileSync } from 'node:fs';
+import { boot, isolate, esbKwFile } from './support.js';
 
 /**
  * What the owner saw on peakless.ie on a phone (29 Oct 2026): the car
  * questions' cards ran their words under the tick ("8k km" over two lines,
  * "Family" behind the ring), the distance box read "e.g. 120" for
  * "e.g. 12000", the summary said "Solar: Solar", and the website had no way
- * to share an answer or download the report.
+ * to share an answer or download the report. And after setting up a home
+ * whose meter file showed its panels, the share card said "€1,598 less a
+ * year": the plan it is on, priced without those panels, against the
+ * cheapest plan with them.
  */
 /** Setup from the start, in the app ('/app') or on the website ('/'), where the photos were taken. */
 const fresh = async (page, path = '/app') => {
@@ -99,3 +103,46 @@ for (const [name, size] of [['a phone', { width: 393, height: 851 }], ['a comput
     expect(errors).toEqual([]);
   });
 }
+
+test.describe('a home with panels', () => {
+  // The service worker would serve the report's typeface past the block below.
+  test.use({ serviceWorkers: 'block' });
+test('panels found in the meter file and confirmed: the share card and the report give Home\'s saving, the switch alone', async ({ page }, testInfo) => {
+  test.setTimeout(120000);
+  await fresh(page, '/');
+  // The report in the PDF's own faces, so its words can be read back from the
+  // file. Added after the page's own routes, so it is the one asked first.
+  await page.route('**/assets/fonts-*.js', (r) => r.abort());
+  await page.locator('.fl-upload input[type=file]').setInputFiles({ name: 'esb.csv', mimeType: 'text/csv',
+    buffer: Buffer.from(esbKwFile('2026-09-30', 365, '2026-04-01')) });
+  await page.getByRole('button', { name: /use this data/i }).click();
+  // As the owner went: thinking about solar, then "Yes, I have panels" when the file showed them.
+  expect(await toQuestion(page, null, { ...ANS, solar: 'thinking', fileexp: 'have', filewhen: 'sinceyes', plan: 'EN-EVSD', heat: 'heatpump',
+    roof: 'S', tilt: 35, panels: 10, battery: 9, price: 11200, grant: 'no', ev: 'thinking', km: 16000, car: 17 })).toBe(null);
+  const f = await page.evaluate(() => {
+    const st = window.state;
+    window.flowFinish(); window.setScreen('result');
+    const rec = window.getRecommendation();
+    return {
+      flags: [st.has_solar, !!st.solar_planned, !!st.solar_is_estimate],
+      home: +document.querySelector('[data-countup]').dataset.countup,
+      share: +window.__shareText(false).match(/€([\d,]+) a year less/)[1].replace(/,/g, ''),
+      withoutPanels: Math.round(window.__sim.baselineNet() - rec.best.net),
+    };
+  });
+  expect(f.flags).toEqual([true, false, false]);
+  expect(f.share).toBe(f.home);
+  // The panels' own worth is not a saving from switching.
+  expect(f.withoutPanels - f.home, JSON.stringify(f)).toBeGreaterThan(300);
+
+  const download = page.waitForEvent('download', { timeout: 45_000 });
+  await page.evaluate(() => window.doGeneratePdf(''));
+  const file = await download;
+  const path = testInfo.outputPath('report.pdf');
+  await file.saveAs(path);
+  const raw = readFileSync(path).toString('latin1');
+  const m = raw.match(/a year less than now/) && raw.match(/Switch to [^)]*?: \x80([\d,]+) a year less than now/);
+  expect(m, 'the report states the switch and its saving').toBeTruthy();
+  expect(Math.abs(+m[1].replace(/,/g, '') - f.home)).toBeLessThanOrEqual(1);
+});
+});

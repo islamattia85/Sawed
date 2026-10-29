@@ -1956,14 +1956,26 @@ function anTab(t, from){
 }
 
 // The savings figure that's honest to publish (share card / PDF): for planned
-// solar, switch-now only; otherwise the full figure.
+// solar, switch-now only; otherwise the switch on the home as it is.
 function publishableSavings(){
   const split = plannedSolarSplit();
   if (split) return split.switchNow;
-  const best = getBestPlan();
-  const basePlan = getPlanById(state.baseline);
-  const baseCost = baselineNet(state.baseline);
-  return Math.max(0, Math.round(baseCost - best.net));
+  return Math.max(0, Math.round(nowPlanCost() - getBestPlan().net));
+}
+
+/**
+ * What the home pays on its plan today, as Home measures a switch against it:
+ * with the panels it has, and without panels only planned (those have their
+ * own four-bill comparison). The share card and the report measured from the
+ * plan without the panels a home already has, and called the panels' worth a
+ * saving from switching: "€1,598 less a year" for a home whose switch was
+ * worth a few hundred (29 Oct 2026).
+ */
+function nowPlanCost(){
+  return panelsInstalled() ? myPlanCost() : baselineNet(state.baseline);
+}
+function panelsInstalled(){
+  return !!(state.has_solar && totalPanels() > 0 && !state.solar_planned && !state.solar_is_estimate);
 }
 
 /* ============================================================
@@ -6477,7 +6489,7 @@ function makeShareCardCanvas(savings, opts = {}){
         ['Current plan + solar', full(mine), pl.mine, '#2F7A56'],
         ['Cheapest plan + solar', full(pl.best.plan), pl.best.net, '#4CCB8C'],
       ];
-      else rungs = [['Current plan', full(mine), rec.baseCost, '#7A847E'], ['Cheapest plan', full(rec.best.plan), rec.best.net, '#4CCB8C']];
+      else rungs = [['Current plan', full(mine), nowPlanCost(), '#7A847E'], ['Cheapest plan', full(rec.best.plan), rec.best.net, '#4CCB8C']];
     }
   } catch (e) { rungs = []; }
 
@@ -7862,7 +7874,11 @@ async function doGeneratePdf(){
     const best         = getBestPlan();
     const baselinePlan = getPlanById(state.baseline);
     const baseSim      = baselineSim(state.baseline);
-    const baseCost     = baselineNet(state.baseline);
+    // The plan as the home pays it today, panels it has included, as Home
+    // and the share card measure a switch (nowPlanCost).
+    const installed    = panelsInstalled();
+    const nowSim       = installed ? sim(state.baseline) : baseSim;
+    const baseCost     = nowPlanCost();
     const saving       = Math.max(0, baseCost - best.net);
     const annualKwh    = Object.values(state.bills).reduce((a,b)=>a+b,0);
     const econ         = state.ev_active ? evEconomics(best.plan.id) : null;
@@ -7929,7 +7945,7 @@ async function doGeneratePdf(){
         invalidate(); rebuildBase();
         const b = getBestPlan();
         const bs = baselineSim(state.baseline);
-        const cur = sumF(bs.cost) + baselinePlan.standing + PSO_LEVY;
+        const cur = installed ? annualCost(sim(state.baseline), baselinePlan).net : sumF(bs.cost) + baselinePlan.standing + PSO_LEVY;
         state.bills = saved;
         return { best: b.net, current: cur };
       };
@@ -8038,8 +8054,9 @@ async function doGeneratePdf(){
         { label: 'Best plan + panels', plan: `${pl.best.plan.supplier} · ${pl.best.plan.plan}`, value: pl.best.net, solar: true, best: true },
       ];
       else ladder = [
-        { label: 'Current plan', plan: `${mine.supplier} · ${mine.plan}`, value: baseCost, solar: false },
-        ...(state.has_solar && totalPanels() > 0 ? [{ label: 'Current plan, with your panels', plan: `${mine.supplier} · ${mine.plan}`, value: annualCost(sim(mine.id), mine).net, solar: true }] : []),
+        installed
+          ? { label: 'Current plan, with your panels', plan: `${mine.supplier} · ${mine.plan}`, value: baseCost, solar: true }
+          : { label: 'Current plan', plan: `${mine.supplier} · ${mine.plan}`, value: baseCost, solar: false },
         { label: rec.isManualChoice ? 'Your chosen plan' : 'Cheapest plan', plan: `${best.plan.supplier} · ${best.plan.plan}`, value: best.net, solar: !!(state.has_solar && totalPanels() > 0), best: true },
       ];
     } catch(e){ ladder = null; }
@@ -8075,9 +8092,11 @@ async function doGeneratePdf(){
       currentDayProfile: profileFor(baselinePlan),
       sensitivity,
       supplierUrl: supplierUrl(best.plan.id),
-      baseEnergy: sumF(baseSim.cost),
+      baseEnergy: sumF(nowSim.cost),
       bestEnergy: best.energy_cost,
-      bestExport: best.export_revenue,
+      // What selling pays more on the new plan: all of it against a home that
+      // sells nothing now, the difference against panels already selling.
+      bestExport: best.export_revenue - (installed ? sumF(nowSim.revenue) : 0),
       scenario, npvSeries, breakevenYear,
       regionName: (IRISH_REGIONS[state.region] || IRISH_REGIONS.east).name,
       usageBasis: state._csv_imported
