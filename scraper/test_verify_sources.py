@@ -171,3 +171,49 @@ def test_a_unit_under_a_figure_keeps_the_row_going_to_the_yearly_figure():
     src = {"url": ECO["url"], "anchor": ["SST Smart Meter", "(Including VAT)"], "whole": True,
            "fields": {"standing": {"label": "Urban Smart Meter", "col": 2}}}
     assert vs.read_recipe(src, EPAGES) == {"values": {"standing": 302.37}}
+
+
+def test_a_plan_unread_for_a_week_says_so_and_the_note_goes_once_it_reads():
+    plan = {"id": "SSE-EVDAY", "verified_date": "2026-10-13", "notes": "Smart plan."}
+    assert not vs.mark_unread(dict(plan), "2026-10-19")   # six days: not yet
+    assert vs.mark_unread(plan, "2026-10-20")
+    assert plan["notes"] == "Smart plan. UNVERIFIED since 2026-10-13: the daily check could not read the supplier's page."
+    assert not vs.mark_unread(plan, "2026-10-21")         # said once
+    vs.clear_unread(plan)
+    assert plan["notes"] == "Smart plan."
+
+
+def test_a_note_a_person_wrote_stays_when_the_plan_reads_again():
+    plan = {"notes": "UNVERIFIED from 1 Oct 2026: no later list is published yet."}
+    vs.clear_unread(plan)
+    assert plan["notes"] == "UNVERIFIED from 1 Oct 2026: no later list is published yet."
+
+
+def test_one_unreadable_plan_is_marked_and_the_others_still_update(tmp_path, monkeypatch):
+    # 21 Oct 2026: one relabelled standing charge held back every supplier's prices.
+    plans = [
+        {"id": "READS", "supplier": "A", "rates": {"day": 0.30}, "verified_date": "2026-10-13",
+         "source": {"url": PAGE["url"], "anchor": ["EV Plan", "24hr Urban"], "col": 2, "fields": {"day": "24Hr Unit Rate"}}},
+        {"id": "RENAMED", "supplier": "A", "rates": {"day": 0.30}, "verified_date": "2026-10-13", "notes": "",
+         "source": {"url": PAGE["url"], "fields": {"day": "Standard Unit Rate"}}},
+    ]
+    tariffs = tmp_path / "tariffs.json"
+    tariffs.write_text(json.dumps(plans))
+    monkeypatch.setattr(vs, "TARIFFS", tariffs)
+    monkeypatch.setattr(vs, "ROOT", tmp_path)
+    monkeypatch.setattr(vs, "load_evidence", lambda folder: PAGES)
+    monkeypatch.setattr(vs, "write_embedded", lambda t: None)
+    monkeypatch.setattr(vs, "fill_unused_bands", lambda t: None)
+    monkeypatch.setattr(vs, "coverage", lambda t, p: [])
+
+    class Day(vs.date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 10, 21)
+    monkeypatch.setattr(vs, "date", Day)
+    vs.main(["verify", str(tmp_path), "--apply"])
+    out = {p["id"]: p for p in json.loads(tariffs.read_text())}
+    assert out["READS"]["rates"]["day"] == 0.367 and out["READS"]["verified_date"] == "2026-10-21"
+    assert out["RENAMED"]["verified_date"] == "2026-10-13"
+    assert "UNVERIFIED since 2026-10-13" in out["RENAMED"]["notes"]
+    assert "(marked unverified)" in (tmp_path / "verify_report.md").read_text()

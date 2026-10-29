@@ -16,6 +16,12 @@ reported as UNREADABLE, never silently kept as verified. The report is written
 to verify_report.md and the exit status is 1 when anything changed or could not
 be read, so a scheduled run surfaces it.
 
+With --apply, a plan left unread for UNREAD_DAYS says so in its notes
+(UNVERIFIED, which the app shows on the plan), and the note goes once the plan
+reads again. Without it, one renamed label held back every other supplier's
+prices: SSE relabelled one standing charge on 13 Oct 2026, the registry checks
+refused each day's update from 21 Oct, and Yuno's and Ecopower's rises waited.
+
 Recipe shape (all rates in the page are c/kWh inc VAT, standing €/yr inc VAT):
 
     "source": {
@@ -79,6 +85,10 @@ EURO = ("standing", "standing_rural", "welcome_credit")       # euro a year, two
 PLAN_LEVEL = ("standing", "standing_rural", "export_rate", "welcome_credit")
 # A price row a page carries as data: a flat JSON object with a price in it.
 DATA_ROW = re.compile(r'\{"[^{}]{0,2000}?(?:Standing|Unit Rate)[^{}]{0,2000}?\}')
+# How long a plan may go unread before it is marked unverified: the registry
+# checks allow a plan to trail its supplier's other plans by a week.
+UNREAD_DAYS = 7
+UNREAD_NOTE = re.compile(r"\s*UNVERIFIED since \d{4}-\d{2}-\d{2}: the daily check could not read the supplier's page\.")
 
 
 def norm_url(u: str) -> str:
@@ -432,6 +442,30 @@ def write_embedded(tariffs: list) -> None:
     MAIN_JS.write_text(text)
 
 
+def mark_unread(plan: dict, today: str) -> bool:
+    """A plan the check has not read for UNREAD_DAYS says so in its notes, once."""
+    last = plan.get("verified_date")
+    if not last or UNREAD_NOTE.search(plan.get("notes") or ""):
+        return False
+    if (date.fromisoformat(today) - date.fromisoformat(last)).days < UNREAD_DAYS:
+        return False
+    note = f"UNVERIFIED since {last}: the daily check could not read the supplier's page."
+    plan["notes"] = f"{plan['notes']} {note}" if plan.get("notes") else note
+    return True
+
+
+def clear_unread(plan: dict) -> None:
+    """Read again: the check's own note goes; a note a person wrote stays."""
+    if UNREAD_NOTE.search(plan.get("notes") or ""):
+        plan["notes"] = UNREAD_NOTE.sub("", plan["notes"]).strip()
+
+
+def unread_row(plan: dict, error: str, apply: bool, today: str) -> str:
+    """The report's row for a plan that could not be read, marking it when due."""
+    marked = apply and mark_unread(plan, today)
+    return f"| {plan['id']} | UNREADABLE | {error}{' (marked unverified)' if marked else ''} |"
+
+
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
         print(__doc__)
@@ -453,7 +487,7 @@ def main(argv: list[str]) -> int:
         res = read_recipe(src, pages)
         if "error" in res:
             unreadable += 1
-            rows.append(f"| {plan['id']} | UNREADABLE | {res['error']} |")
+            rows.append(unread_row(plan, res["error"], apply, today))
             continue
         vals = dict(res["values"])
         # Figures the supplier prints on another page (standing charges, mostly).
@@ -466,7 +500,7 @@ def main(argv: list[str]) -> int:
             vals.update(r2["values"])
         if more_err:
             unreadable += 1
-            rows.append(f"| {plan['id']} | UNREADABLE | {more_err} |")
+            rows.append(unread_row(plan, more_err, apply, today))
             continue
         # Weekend bands that simply take another band's weekday rate
         # (Bord Gáis: no peak at weekends, so peak is charged at the day rate).
@@ -479,7 +513,7 @@ def main(argv: list[str]) -> int:
             w = read_welcome(welcome, pages)
             if "error" in w:
                 unreadable += 1
-                rows.append(f"| {plan['id']} | UNREADABLE | {w['error']} |")
+                rows.append(unread_row(plan, w["error"], apply, today))
                 continue
             vals["welcome_credit"] = w["value"]
         diffs = []
@@ -497,6 +531,7 @@ def main(argv: list[str]) -> int:
         if apply:
             plan["verified_date"] = today
             plan.setdefault("source", {})["read"] = today
+            clear_unread(plan)
             # A change that has started is now in the figures just read from the
             # page, so its announcement goes. Left on, the app would count it a
             # second time, and the registry checks refuse the update (12 Oct 2026).
