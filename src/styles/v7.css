@@ -1772,6 +1772,9 @@ html.web .plan-card.is-sel { border-color: var(--accent); box-shadow: 0 0 0 1px 
 .wl-eyebrow { font: 700 13px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
 .wl-h1 { font: 600 40px/1.04 var(--serif); letter-spacing: -.02em; margin: 12px 0 16px; text-wrap: balance; color: var(--ink); }
 .wl-h1 em { font-style: italic; color: var(--accent); }
+/* "with or without" is one thought: on a phone it broke as "with or /
+   without", which read as a slip. Kept whole, the line breaks before it. */
+.wl-site .wl-h1 em { white-space: nowrap; }
 .wl-lede { font-size: 17px; line-height: 1.55; color: var(--ink-soft); margin: 0 0 18px; max-width: 36em; }
 .wl-trust { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13px; color: var(--ink-soft); }
 .wl-trust b { color: var(--ink); }

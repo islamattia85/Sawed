@@ -3304,9 +3304,9 @@ function renderSite(){
         <div class="wl-eyebrow wl-motto">${ic('sun', 15)} Solar and electricity plans, priced on your home</div>
         <h1 class="wl-h1">The right plan, <em>with or without</em> solar.</h1>
         <p class="wl-lede">${n} plans from ${nSup} Irish suppliers, ${planCount('smart').n} of them for smart meters, priced hour by hour on your own home. Free. No supplier pays to be ranked.</p>
-        <div class="wl-j-k">Where are you?</div>
-        <div class="wl-journeys" role="group" aria-label="Where are you?">
-          <button class="wl-journey is-plan" onclick="siteGo('solar')"><span class="wl-j-ic">${ic('battery', 22)}</span><span><b>I’m thinking about solar</b><small>Will it pay back, what size, and on which plan?</small></span>${ic('chevR', 18)}</button>
+        <div class="wl-j-k">Where are you with solar?</div>
+        <div class="wl-journeys" role="group" aria-label="Where are you with solar?">
+          <button class="wl-journey is-plan" onclick="siteGo('solar')"><span class="wl-j-ic">${ic('spark', 22)}</span><span><b>I’m thinking about solar</b><small>Will it pay back, what size, and on which plan?</small></span>${ic('chevR', 18)}</button>
           <button class="wl-journey is-have" onclick="siteGo('have')"><span class="wl-j-ic">${ic('sun', 22)}</span><span><b>I have solar</b><small>Am I on the best plan for my panels?</small></span>${ic('chevR', 18)}</button>
           <button class="wl-journey is-bill" onclick="siteGo('plans')"><span class="wl-j-ic">${ic('plans', 22)}</span><span><b>Just a better plan</b><small>No solar: every plan priced on my bill, in a minute</small></span>${ic('chevR', 18)}</button>
         </div>
