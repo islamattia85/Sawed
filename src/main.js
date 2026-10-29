@@ -6385,7 +6385,8 @@ function shareDetails(){
   if (state.has_solar && totalPanels() > 0 && s){
     const planned = state.solar_planned || state.solar_is_estimate;
     const faces = [[state.count_A, state.azimuth_A, state.tilt_A], [state.count_B, state.azimuth_B, state.tilt_B]].filter((f) => f[0] > 0);
-    const gen = sumF(s.gen), exp = sumF(s.grid_export), curt = s.curtailed ? sumF(s.curtailed) : 0;
+    const ny = fileIsNet() ? netFileYear(best.plan.id) : null;
+    const gen = ny ? ny.made : sumF(s.gen), exp = ny ? ny.sold : sumF(s.grid_export), curt = !ny && s.curtailed ? sumF(s.curtailed) : 0;
     const d = v7SolarData();
     const rows = [
       ['Panels', `${totalPanels()} × ${Math.round(state.panel_w)} W · ${totalKwp().toFixed(1)} kWp`],
@@ -7874,13 +7875,16 @@ async function doGeneratePdf(){
         const range = computeScenarioRange();
         const sc = range.realistic;
         const bp = best.sim || sim(best.plan.id);
-        const gen = sumF(CACHE.solar && CACHE.solar.total);
-        const exported = sumF(bp && bp.grid_export);
+        // A meter file with the panels in all of it: its year as the readings
+        // show it, as the picture beside these figures has it (netFileYear).
+        const ny = fileIsNet() ? netFileYear(best.plan.id) : null;
+        const gen = ny ? ny.made : sumF(CACHE.solar && CACHE.solar.total);
+        const exported = ny ? ny.sold : sumF(bp && bp.grid_export);
         scenario = {
           generated: gen,
           exported,
           selfConsumed: Math.max(0, gen - exported),
-          gridImport: sumF(bp && bp.grid_import),
+          gridImport: ny ? ny.bought : sumF(bp && bp.grid_import),
           solarBenefit: sc ? Math.round(sc.solarBenefit || 0) : 0,
           payback: sc && sc.payback != null && sc.payback < 50 ? sc.payback : null,
           npv20: 0,
@@ -10209,6 +10213,26 @@ function householdScene(){
  * home is on; the report shows the plan it is about, so the picture's figures
  * are the report's own.
  */
+/**
+ * A meter file with the panels in all of it, on a plan: its year as the
+ * readings show it. The model doesn't run the panels for such a file, so what
+ * they make is the home's use, less what it bought, plus what it sold: the
+ * same on every plan. A plan's simulation is the readings plus the change its
+ * battery setting makes, so what the home buys is the simulation's, and what
+ * it sells is the file's sales plus that change. The report read what the
+ * panels made off the model (0 kWh) and what they sold off the change alone
+ * (947 kWh of 2,640), and the share card the same; the picture worked out
+ * what they made from a plan's buying, battery top-ups included (29 Oct 2026).
+ */
+function netFileYear(planId){
+  const s = sim(planId), sold = +state._csv_export_kwh || 0;
+  return {
+    made: Math.max(0, v7AnnualKwh() - sumF(CACHE.cons) + sold),
+    bought: sumF(s.grid_import),
+    sold: Math.max(0, sold + sumF(s.grid_export)),
+  };
+}
+
 function householdPicture(planId = state.baseline){
   if (CACHE.dirty) rebuildBase();
   const sys = !!state.has_solar && totalPanels() > 0;
@@ -10222,13 +10246,14 @@ function householdPicture(planId = state.baseline){
     imp = sumF(s.grid_import);
     if (fileIsNet()){
       // A meter file of this home with its panels up is priced as it reads:
-      // bought and sold are the readings, its own use is worked back (the
-      // yearly figure), and the panels made the difference. The model's
-      // panels and battery are not run, so they cannot be read from it (the
-      // picture said "Solar makes 0 kWh" and "Home uses" what was bought).
-      exp = +state._csv_export_kwh || 0;
+      // its own use is worked back (the yearly figure), and the panels made
+      // the difference (netFileYear). The model's panels and battery are not
+      // run, so they cannot be read from it (the picture said "Solar makes
+      // 0 kWh" and "Home uses" what was bought).
+      const y = netFileYear(planId);
+      imp = y.bought; exp = y.sold;
       use = v7AnnualKwh();
-      gen = sys ? Math.max(0, use - imp + exp) : 0;
+      gen = sys ? y.made : 0;
     } else {
       gen = sys ? sumF(CACHE.solar.total) : 0;
       // The home's own use, as its yearly figure counts it: a car still being
