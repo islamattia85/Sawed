@@ -460,6 +460,20 @@ body { background: var(--bg); font-family: var(--display); font-feature-settings
   box-shadow: 0 8px 24px rgba(0,0,0,.12); font-size: var(--text-caption); color: var(--ink-soft); max-width: 560px; margin: 0 auto;
 }
 .consent-btns { display: flex; gap: var(--space-2); margin-left: auto; }
+/* Before setup is done (the front page, setup) there is no bottom bar. On the
+   front page the question holds to the foot of the screen, and at the end of
+   the page takes its own room. In setup on a phone it sits below the question,
+   where it can't cover Next on a short screen. */
+.consent-bar.is-early {
+  position: sticky; left: auto; right: auto; bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+  width: calc(100% - 2 * var(--space-3)); margin: var(--space-3) auto;
+}
+.consent-bar.is-setup { position: static; box-shadow: none; }
+/* On a computer, in the corner: setup's question and answers fill the left. */
+@media (min-width: 900px) {
+  .consent-bar.is-early { width: 420px; margin: var(--space-3) var(--space-4) var(--space-3) auto; }
+  .consent-bar.is-setup { position: sticky; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+}
 /* The private test's line under the top bar (FEATURES.testVersion). */
 .test-line {
   display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; justify-content: center;

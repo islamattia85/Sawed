@@ -2587,11 +2587,17 @@ function testLine(){
     ? `<a href="mailto:${to}?subject=${subject}&amp;body=${body}">Send feedback</a>` : ''}</div>`;
 }
 
-/** One-line consent bar, shown until answered. */
-function renderConsentBar(){
+/**
+ * One-line consent bar, shown until answered. `where`: a screen with no bottom
+ * bar, 'front' (the front page) or 'setup'. It was asked only in the app's
+ * bottom bar, after setup, so setup itself was never counted (30 Oct 2026).
+ * From setup, Privacy's Back returns to the same question.
+ */
+function renderConsentBar(where){
   if (analyticsConsent()) return '';
-  return `<div class="consent-bar" role="region" aria-label="Usage measurement">
-    <span>May we count anonymous usage (which screens and buttons are used) to improve ${BRAND.name}? No ads, and you can change your mind in <a href="#privacy" onclick="event.preventDefault();setScreen('privacy')">Privacy</a>.</span>
+  const back = where === 'setup' ? 'const r=state.current_screen;setScreen(\'privacy\');state._return_to=r' : 'setScreen(\'privacy\')';
+  return `<div class="consent-bar${where ? ` is-early is-${where}` : ''}" role="region" aria-label="Usage measurement">
+    <span>May we count anonymous usage (which screens and buttons are used) to improve ${BRAND.name}? No ads, and you can change your mind in <a href="#privacy" onclick="event.preventDefault();${back}">Privacy</a>.</span>
     <span class="consent-btns"><button onclick="setAnalyticsConsent(false)">No thanks</button><button onclick="setAnalyticsConsent(true)">Allow</button></span>
   </div>`;
 }
@@ -12468,14 +12474,14 @@ function renderApp(){
   // Landing page — first thing new users see; also reachable via the logo
   if (state.current_screen === 'welcome'){
     root.setAttribute('data-chrome','bare');
-    root.innerHTML = WEB ? renderSite() : renderWelcome();
+    root.innerHTML = (WEB ? renderSite() : renderWelcome()) + renderConsentBar('front');
     paintAuthModal();
     return;
   }
   // Fast-path activation (30-second simple setup)
   if (state.current_screen === 'flow'){
     root.setAttribute('data-chrome','bare');
-    root.innerHTML = renderFlow();
+    root.innerHTML = renderFlow() + renderConsentBar('setup');
     paintAuthModal();
     return;
   }
@@ -12490,7 +12496,7 @@ function renderApp(){
     return;
   }
   if (state.current_screen === 'fastpath'){
-    root.innerHTML = renderFastPath();
+    root.innerHTML = renderFastPath() + renderConsentBar('setup');
     return;
   }
   // Onboarding flow — also re-enterable after completion (guided re-setup from Home)
@@ -12515,7 +12521,7 @@ function renderApp(){
   if (!state.onboarding_complete && !OPEN_SCREENS.includes(state.current_screen)){
     state.current_screen = 'fastpath';
     root.setAttribute('data-chrome','bare');
-    root.innerHTML = renderFastPath();
+    root.innerHTML = renderFastPath() + renderConsentBar('setup');
     enhanceA11y();
     return;
   }
