@@ -9,7 +9,8 @@ import { boot } from './support.js';
  * them) and what the same panels take to pay back on the old plan and on the
  * best one. "Why the plan matters" names the withdrawn plan it describes. The
  * pictures under "What you get" draw a smaller home: 12 panels, no battery,
- * no car, its payback and its four cheapest plans.
+ * no car, its payback, its four cheapest plans, its months on its plan now
+ * and on the best one, and its report's length.
  *
  * They are worked out here, on the app's own model, through the same setup a
  * visitor goes through. The page reads them from src/data/front-figures.json.
@@ -50,8 +51,24 @@ async function costs(page) {
       .sort((a, b) => (b.export_rate || 0) - (a.export_rate || 0))[0];
     const top = R().ranked.slice(0, 4).map((x) => [x.plan.id, Math.round(x.net)]);
     return { withSys, without, best, top, gone: gone && gone.id, net: Math.round((st.install_cost || 0) - (st.grant_seai || 0)),
-      payback: +window.v7SolarData().cur.payback.toFixed(1) };
+      grant: Math.round(st.grant_seai || 0), payback: +window.v7SolarData().cur.payback.toFixed(1) };
   });
+}
+
+/** The home's months: its plan now without the system, and the best plan with it (below zero: in credit). */
+async function months(page, now, best) {
+  return page.evaluate(([n, b]) => ({
+    now: window.withSimState({ has_solar: false, battery_kwh: 0 }, () => window.__sim.monthNet(n)).map(Math.round),
+    best: window.__sim.monthNet(b).map(Math.round),
+  }), [now, best]);
+}
+
+/** How many pages the home's report runs to. */
+async function reportPages(page) {
+  const download = page.waitForEvent('download', { timeout: 60_000 });
+  await page.evaluate(() => window.doGeneratePdf(''));
+  const pdf = readFileSync(await (await download).path()).toString('latin1');
+  return (pdf.match(/\/Type\s*\/Page\b(?!s)/g) || []).length;
 }
 
 const yrs = (net, save) => +(net / save).toFixed(1);
@@ -63,7 +80,8 @@ test('the front page’s figures match the model on today’s plans', async ({ p
   // 12 panels, no battery, no car: the pictures.
   await page.evaluate(setup({ panels: 12, battery: 0, ev: false }));
   const t = await costs(page);
-  const typical = { panels: 12, net: t.net, payback: t.payback, top: t.top };
+  const typical = { panels: 12, plan: 'EI-24', grant: t.grant, net: t.net, payback: t.payback, now: t.without['EI-24'], top: t.top,
+    months: await months(page, 'EI-24', t.best), report_pages: await reportPages(page) };
 
   // 16 panels, a 10 kWh battery and an electric car: the four-bill card.
   await page.evaluate(setup({ panels: 16, battery: 10, ev: true }));
@@ -90,9 +108,64 @@ test('the front page’s figures match the model on today’s plans', async ({ p
   const near = (a, b, tol, what) => expect(Math.abs(a - b), `${what}: page says ${b}, the model now says ${a}. Refresh with FRONT_FIGURES=write`).toBeLessThanOrEqual(tol);
   near(typical.payback, saved.typical.payback, 0.6, 'typical.payback');
   near(typical.net, saved.typical.net, 400, 'typical.net');
+  near(typical.now, saved.typical.now, 120, 'typical.now');
   for (const [i, [, c]] of saved.typical.top.entries()) near(typical.top[i][1], c, 120, `typical.top.${i}`);
+  for (const k of ['now', 'best']) for (const [i, v] of saved.typical.months[k].entries()) near(typical.months[k][i], v, 20, `typical.months.${k}.${i}`);
+  expect(typical.grant, 'typical.grant').toBe(saved.typical.grant);
+  expect(typical.report_pages, 'typical.report_pages').toBe(saved.typical.report_pages);
   near(big.net, saved.big.net, 600, 'big.net');
   for (const k of ['now', 'switch', 'solar_stay', 'solar_best']) near(big.ladder[k], saved.big.ladder[k], 120, `big.ladder.${k}`);
   for (const k of ['stay_payback', 'best_payback']) near(big.ladder[k], saved.big.ladder[k], 0.6, `big.ladder.${k}`);
   expect(big.gone_plan, 'a withdrawn plan with an EV window is still on file').toBeTruthy();
+});
+
+/**
+ * The pictures under "What you get" draw the example home from the file, not
+ * from typed-in numbers (30 Oct 2026): the month chart's bars added up to
+ * €896 a year under a "−€1,260" heading, no month went into credit under a
+ * caption about summer credit, the report card said "Could save €1,822" and
+ * "13 pages", and the ranking read "Cheaper at night" three times. The front
+ * page names no supplier, so the ranking tells its plans apart by their prices.
+ */
+test('the front page’s pictures show the example home’s own figures', async ({ page }) => {
+  const fig = JSON.parse(readFileSync(FILE, 'utf8')).typical;
+  const eur = (n) => `€${Math.round(n).toLocaleString('en-IE')}`;
+  const save = fig.now - fig.top[0][1];
+  await boot(page, { onboarding_complete: false, current_screen: 'welcome' }, '/');
+  const card = (h) => page.locator('.wl-showcard', { has: page.locator('h3', { hasText: h }) }).locator('svg');
+
+  await expect(card('Solar payback')).toContainText(`${fig.panels} panels, after the ${eur(fig.grant)} grant`);
+  await expect(card('Solar payback')).toContainText(`pays back · ${fig.payback.toFixed(1)} yrs`);
+
+  // The month chart: the heading is what its bars add up to, and the months in credit go below the line.
+  const month = card('Your bill, month by month');
+  await expect(month).toContainText(`${eur(save)} less a year`);
+  const sums = fig.months.now.reduce((a, b) => a + b) - fig.months.best.reduce((a, b) => a + b);
+  expect(Math.abs(sums - save), 'the bars add up to the heading').toBeLessThanOrEqual(20);
+  const below = await month.evaluate((svg) => {
+    const y0 = +svg.querySelector('line.axis').getAttribute('y1');
+    return [...svg.querySelectorAll('rect.acc')].filter((r) => +r.getAttribute('y') >= y0 - 0.01 && +r.getAttribute('height') > 1.5).length;
+  });
+  expect(below).toBe(fig.months.best.filter((v) => v < 0).length);
+  expect(below, 'the example home is in credit in summer').toBeGreaterThan(0);
+
+  // The report card: the same saving, and the report's own length.
+  await expect(card('The report')).toContainText(`Could save${eur(save)}a year`);
+  await expect(card('The report')).toContainText(`${fig.report_pages} pages`);
+
+  // The ranking, cheapest first: no two rows read the same, each gives its
+  // plan's day price, and the home's own plan is marked.
+  const ranked = card('Every plan, ranked');
+  const rows = await ranked.evaluate((svg) => {
+    const t = [...svg.querySelectorAll('text')].map((e) => e.textContent);
+    return t.filter((s) => /^\d\. /.test(s)).map((s) => `${s} | ${t[t.indexOf(s) + 1]}`);
+  });
+  expect(rows).toHaveLength(3);
+  expect(new Set(rows).size).toBe(3);
+  const days = await page.evaluate((ids) => ids.map((id) => `${Math.round(window.getPlanById(id).rates.day * 100)}c`), fig.top.slice(0, 3).map(([id]) => id));
+  for (const [i, d] of days.entries()) expect(rows[i]).toContain(d);
+  for (const [i, [id, c]] of fig.top.slice(0, 3).entries()) {
+    await expect(ranked).toContainText(eur(c));
+    expect(rows[i].includes('its plan now')).toBe(id === fig.plan);
+  }
 });
