@@ -19,6 +19,7 @@ import { dualFuelChoices, gasPlanFor, gasKwhFromBill, inFirstYear, supplierKey }
 import { GAS_TARIFFS } from './gas-tariffs.js';
 import { BRAND, CONTROLLER, MARK_PATHS, iconDataUri, wordmarkHtml } from './brand';
 import { FEATURES } from './features.js';
+import { worthSwitching } from './switching';
 import { LEGAL_SCREENS, companyLine, termsHtml, privacyHtml, rankingHtml, accessibilityHtml, complaintsHtml } from './legal.js';
 import { IC, ic } from './icons';
 import FIG from './data/front-figures.json';
@@ -3410,9 +3411,13 @@ function webDecorate(html){
     const n = m ? +m[1] : 0;
     let b = null; try { b = getRecommendation().best; } catch (e) {}
     const planned = !!(state.has_solar && state.solar_planned && totalPanels() > 0);
-    top = n > 10
+    // The rule Home's card and the answer use: under it, a cheaper plan is
+    // there but not worth the switch, and "nothing costs less" isn't true.
+    let cheaper = 0; try { cheaper = publishableSavings(); } catch (e) {}
+    top = (planned ? n > 10 : worthSwitching(n))
       ? head('Your answer', planned ? `Your home could pay <em>${eur(n)} less</em> a year.` : `Switch${b && b.plan ? ` to <em>${b.plan.supplier}</em>` : ''} and pay ${eur(n)} less a year.`,
         planned ? 'Switching plan now, then adding the panels you are planning.' : b && b.plan ? `${b.plan.plan}, priced on every hour of your year.` : '')
+      : cheaper >= 1 ? head('Your answer', 'Your plan is as good as any.', 'No plan saves enough to be worth a switch.')
       : head('Your answer', 'Your plan is already the best value.', 'Nothing on sale costs less for your home.');
     end = nx([[...toPlans, 1], toSolar]);
     const dash = webDash();
@@ -6266,7 +6271,8 @@ function renderFlow(){
     const top = pl ? Math.max(pl.today, pl.noSolar.net, pl.mine, pl.best.net, 1) : 1;
     const bar = (label, v, best) => `<div><span>${label}</span><b>${eur(v)}</b><i${best ? ' class="is-best"' : ''} style="width:${Math.max(8, Math.round(Math.max(0, v) / top * 100))}%"></i></div>`;
     const bars4 = pl ? `<div class="fl-bars">${bar('Now, no solar', pl.today)}${bar(`On ${esc(pl.noSolar.plan.supplier)} ${esc(pl.noSolar.plan.plan)}, no solar`, pl.noSolar.net)}${bar('Now, with the planned panels', pl.mine)}${bar(`On ${esc(pl.best.plan.supplier)} ${esc(pl.best.plan.plan)}, with the planned panels`, pl.best.net, true)}</div>` : '';
-    const bars = rec && save > 10 ? `<div class="fl-bars">
+    const worth = worthSwitching(save);
+    const bars = rec && worth ? `<div class="fl-bars">
         <div><span>Now${state.baseline_known && bp ? `, ${esc(bp.supplier)} ${esc(bp.plan)}` : ''}</span><b>${eur(mine)}</b><i style="width:100%"></i></div>
         <div><span>On ${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}${pl ? ', with the solar' : ''}</span><b>${eur(rec.best.net)}</b><i class="is-best" style="width:${Math.max(8, Math.round(rec.best.net / mine * 100))}%"></i></div>
       </div>` : '';
@@ -6280,9 +6286,10 @@ function renderFlow(){
       <div class="fl-r-k">Your answer</div>
       ${pl && lead > 10 ? `<div class="fl-r-line">Your planned panels would cut your bill by</div>
         <div class="fl-r-big is-saving">${eur(lead)}<span> a year</span></div>
-        <div class="fl-r-line">${switchNow > 10 ? `Switching plan saves <b>${eur(switchNow)}</b> a year today: <b>${esc(pl.noSolar.plan.supplier)} ${esc(pl.noSolar.plan.plan)}</b>` : 'Your plan is already the cheapest without the panels.'}</div>${bars4}`
-        : !pl && save > 10 ? `<div class="fl-r-big is-saving">${eur(save)}<span> less a year</span></div>
+        <div class="fl-r-line">${worthSwitching(switchNow) ? `Switching plan saves <b>${eur(switchNow)}</b> a year today: <b>${esc(pl.noSolar.plan.supplier)} ${esc(pl.noSolar.plan.plan)}</b>` : switchNow > 0.5 ? 'Without the panels, your plan is as good as any.' : 'Your plan is already the cheapest without the panels.'}</div>${bars4}`
+        : !pl && worth ? `<div class="fl-r-big is-saving">${eur(save)}<span> less a year</span></div>
         <div class="fl-r-line">by switching to <b>${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}</b></div>${bars}`
+        : !pl && save >= 1 ? `<div class="fl-r-line"><b>You’re already on a good plan.</b> The cheapest, ${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}, would save only ${eur(save)} a year: not worth a switch.</div>`
         : `<div class="fl-r-line"><b>You’re already on a good plan.</b> Nothing on sale beats it for your home.</div>`}
       <div class="fl-r-act"><div class="fl-r-list">
         ${sd ? `<span>${state.solar_planned ? 'Solar would pay back in' : 'Your panels bring back'} <b>${state.solar_planned ? `${sd.cur.payback < 50 ? sd.cur.payback.toFixed(1) : '—'} years` : `${eur(sd.cur.solarBenefit)} a year`}</b></span>` : ''}
@@ -6461,7 +6468,8 @@ function shareDetails(){
 /** The share card's words, for pasting into a message. */
 function shareText(savings, details, df){
   const n0 = (v) => Math.round(v).toLocaleString('en-IE');
-  const lines = [`My home energy analysis: €${n0(Math.max(0, savings))} a year less${df ? ' on gas and electricity' : ''}.`];
+  const lines = [worthSwitching(savings) ? `My home energy analysis: €${n0(savings)} a year less${df ? ' on gas and electricity' : ''}.`
+    : `My home energy analysis: my plan is as good as any. A switch would save €${n0(Math.max(0, savings))} a year at most.`];
   if (details){
     let det = null; try { det = shareDetails(); } catch (e) { det = null; }
     if (det && det.solar) lines.push('', det.solar.title, ...det.solar.rows.map(([k, v]) => `${k}: ${v}`));
@@ -6584,10 +6592,13 @@ function makeShareCardCanvas(savings, opts = {}){
   t('My home energy analysis', W - 72, 122, 28, '#A2ACA6', 500, 'right');
 
   // The answer.
-  t('THE MOST I COULD SAVE', 72, 250, 28, '#ffd166', 700);
+  // Under the rule Home uses, a few euro less isn't a saving to share: the
+  // card says the plan is as good as any, and what a switch would save.
+  const worth = worthSwitching(savings);
+  t(worth ? 'THE MOST I COULD SAVE' : savings >= 1 ? 'MY PLAN IS AS GOOD AS ANY' : 'MY PLAN IS ALREADY THE BEST VALUE', 72, 250, 28, '#ffd166', 700);
   const big = eurS(Math.max(0, savings));
-  t(big, 64, big.length > 4 ? 400 : 420, big.length > 4 ? 160 : 190, '#4CCB8C', 800);   // a comma at 190px reaches the line below
-  t(dfOpts ? 'less a year, gas and electricity' : 'less a year', 72, 480, 40, '#A2ACA6', 600);
+  t(big, 64, big.length > 4 ? 400 : 420, big.length > 4 ? 160 : 190, worth ? '#4CCB8C' : '#EEF1EE', 800);   // a comma at 190px reaches the line below
+  t(!worth ? 'the most a switch would save' : dfOpts ? 'less a year, gas and electricity' : 'less a year', 72, 480, 40, '#A2ACA6', 600);
 
   // The bars, as Home shows them: what, the exact plan, the yearly figure.
   rr(56, top, W - 112, boxH, 36, '#171C19');
@@ -13818,7 +13829,8 @@ function openPdfReportModal(){
       <h3>Download your report</h3>
       <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;line-height:1.6">
         Your report has your plans, solar payback, the grant and how to switch.
-        ${best ? `<br><br><b style="color:var(--accent)">Save ${fmtCurrency(publishableSavings())}/yr by switching to ${best.plan.supplier}${state.solar_planned ? ' (excludes your planned solar)' : ''}</b>` : ''}
+        ${best && worthSwitching(publishableSavings()) ? `<br><br><b style="color:var(--accent)">Save ${fmtCurrency(publishableSavings())}/yr by switching to ${best.plan.supplier}${state.solar_planned ? ' (excludes your planned solar)' : ''}</b>`
+          : best ? '<br><br><b>Your plan is as good as any: no switch saves enough to be worth it.</b>' : ''}
       </p>
       ${FEATURES.emailCapture ? `<input id="pdf-email" class="modal-input" type="email" placeholder="you@example.com (optional)" autocomplete="email" value="${escAttr(state.user_email || '')}">` : ''}
       <button class="modal-btn" id="pdf-submit-btn" onclick="submitPdfRequest()">Download PDF</button>

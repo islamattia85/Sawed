@@ -15,6 +15,7 @@
 import {
   savingsLadder, rateStrip, monthBars, paybackCurve, dayProfile, eur, billAmt,
 } from './charts.js';
+import { worthSwitching } from '../switching';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -257,7 +258,7 @@ export function createV7(api) {
 
     // When nothing on the market beats the plan this home is on, the answer
     // is "stay" — not a €0 saving with a button to switch to something dearer.
-    let stay = saving < 20 && !chosen;
+    let stay = !worthSwitching(saving) && !chosen;
     // The plan to name beside "stay" is another one: the best was often the
     // home's own plan, which read as "the closest is your plan, €0 more".
     const next = stay && !pl ? (rec.ranked || []).find((r) => r.plan.id !== st.baseline) : null;
@@ -271,9 +272,9 @@ export function createV7(api) {
       : `
         <div class="v7-eyebrow">${pl ? 'Your planned panels would cut your bill by' : saving > 10 ? (withSolar ? 'Switching plan could save, with your solar' : 'You could pay less') : 'Your cheapest plan'}</div>
         <div class="qr-value v7-figure ${lead > 10 ? 'is-saving' : ''}" data-countup="${Math.round(Math.max(0, lead))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, lead))}</span><span class="v7-figure-unit">${pl ? 'a year' : saving > 10 ? 'less a year' : 'a year'}</span></div>
-        ${pl ? `<div class="v7-headline">${switchToday > 10
+        ${pl ? `<div class="v7-headline">${worthSwitching(switchToday)
             ? `Switching plan saves ${eur(switchToday)} a year today: <b>${esc(pl.noSolar.plan.supplier)}</b> ${esc(pl.noSolar.plan.plan)}`
-            : 'Your plan is already the cheapest without the panels.'}</div>`
+            : switchToday > 0.5 ? 'Without the panels, your plan is as good as any.' : 'Your plan is already the cheapest without the panels.'}</div>`
           : `<div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Cheapest for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`}
         ${(() => {
           // An answer that rests on charging the battery from the grid says so,
@@ -323,7 +324,7 @@ export function createV7(api) {
       const dSave = dfh.stay.total - low.value;
       rungs = opts.map((o) => ({ label: o.label, value: o.value, token: o === low ? '--accent' : o.stay ? '--ink-dim' : '--v7-mid' }));
       ladderK = 'Gas and electricity, a year';
-      stay = dSave <= 10;
+      stay = !worthSwitching(dSave);
       const rise = (() => { const mp = api.getPlanById(st.baseline), pc = mp && mp.price_change;
         return pc && pc.effective_date && Date.parse(pc.effective_date) > Date.now()
           ? `<div class="v7-evnote">${api.ic('trendUp', 14)} ${esc(mp.supplier)}’s prices rise on ${fmtDate(pc.effective_date)}. That’s counted.</div>` : ''; })();
@@ -1609,18 +1610,18 @@ export function createV7(api) {
     let d = null; if (!pl) { try { d = api.dualFuel(); } catch (e) {} }
     if (pl) {
       const nowSave = pl.today - pl.noSolar.net;
-      if (pl.noSolar.plan.id !== st.baseline && nowSave >= 20)
+      if (pl.noSolar.plan.id !== st.baseline && worthSwitching(nowSave))
         opts.push({ plan: pl.noSolar.plan, top: `Now: switch to ${esc(pl.noSolar.plan.supplier)}`, sub: `${eur(nowSave)} less a year, before the panels` });
       if (pl.best.plan.id !== pl.noSolar.plan.id && pl.best.plan.id !== st.baseline)
         opts.push({ plan: pl.best.plan, top: `With the panels: ${esc(pl.best.plan.supplier)}`, sub: `${eur(pl.mine - pl.best.net)} less a year once they’re in` });
       if (!opts.length) return `<button class="switch-cta v7-cta" onclick="setScreen('plans')">See every plan compared ${api.ic('chevR', 18)}</button>`;
     } else if (d) {
       const byKey = new Map((rec.ranked || []).map((r) => [api.supplierKey(r.plan.supplier), r]).reverse());
-      if (d.moveBoth && d.stay.total - d.moveBoth.total > 10) {
+      if (d.moveBoth && worthSwitching(d.stay.total - d.moveBoth.total)) {
         const r = byKey.get(api.supplierKey(d.moveBoth.supplier));
         if (r) opts.push({ plan: r.plan, top: `Switch both to ${esc(d.moveBoth.supplier)}`, sub: `Gas and electricity, ${eur(d.stay.total - d.moveBoth.total)} less a year`, save: d.stay.total - d.moveBoth.total });
       }
-      if (d.moveElec && d.stay.total - d.moveElec.total > 10)
+      if (d.moveElec && worthSwitching(d.stay.total - d.moveElec.total))
         opts.push({ plan: bestPlan, top: `Switch electricity to ${esc(d.moveElec.supplier)}`, sub: `Gas stays, ${eur(d.stay.total - d.moveElec.total)} less a year`, save: d.stay.total - d.moveElec.total });
       opts.sort((a, b) => b.save - a.save);
     }
