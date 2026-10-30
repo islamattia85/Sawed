@@ -19,6 +19,10 @@ test('quick route: bill, plan and heating only, then the answer with a way into 
   await page.locator('.fl-upgrade').click();
   // Straight on to the solar question, every answer kept.
   await expect(page.locator('.fl-q h2')).toHaveText('Solar panels?');
+  // Seven answers: the last three, and one chip that opens the other four.
+  await expect(page.locator('.fl-chip')).toHaveCount(4);
+  await expect(page.locator('.fl-chip-more')).toHaveText('4 more answers');
+  await page.locator('.fl-chip-more').click();
   await expect(page.locator('.fl-chip')).toHaveCount(7);
 });
 

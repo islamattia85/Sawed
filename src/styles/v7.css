@@ -1959,7 +1959,7 @@ html.web .fl-bill span, html.web .fl-bill input { font: 600 40px/1.1 "Fraunces",
 html.web[data-theme="dark"] {
   --bg: #121816; --panel: #1B2420; --well: #26312C; --hair: rgba(255,255,255,.07); --hair-strong: rgba(255,255,255,.12);
   --line: #2C3832; --track: #2C3832; --track-soft: #222C27;
-  --ink: #ECEFEA; --ink-soft: #A9B3AC; --ink-dim: #7C877F;
+  --ink: #ECEFEA; --ink-soft: #A9B3AC; --ink-dim: #86918A;   /* 4.5:1 on the cards: #7C877F was 4.26 */
   --accent: #5BCF96; --accent-soft: rgba(91,207,150,.14); --on-accent: #082015;
 }
 html.web[data-theme="dark"] body, html.web[data-theme="dark"] .fl, html.web[data-theme="dark"] .pk-land { background: #121816 !important; }
@@ -2422,6 +2422,28 @@ html.web { scrollbar-gutter: stable; }
 .wl-pb-row.is-now i { background: var(--ink-dim); opacity: .55; }
 .wl-pb-note b { color: var(--ink); font-weight: 650; }
 .wl-pb-row.is-part i { background: var(--accent); opacity: .45; }
+
+/* ---------- user test, 30 Oct 2026 ---------- */
+/* The answers row folds past four; the chip that opens it changes nothing itself. */
+.fl-chip-more { color: var(--accent); }
+.fl-chip-more::after { content: none; }
+/* Once a meter file is read, its own "Yes, use this data" is the way on: the
+   bill box and a big Next stood above it, a second way forward. */
+.fl-q:has(#csv-parse-result [data-filehome]) :is(.fl-unit, .fl-bill, .fl-row, .fl-next, .fl-or, .fl-note) { display: none; }
+/* Things to tap are 24px at least (WCAG 2.2): the pencils, the crumb, the tips, Edit, the footer. */
+.fl-sofar button { min-width: 24px; min-height: 24px; place-items: center; }
+.fl-crumb, .sy-acc-tip, .web-strip-in button { min-height: 24px; }
+.wl-foot a { display: inline-block; padding-block: 2px; min-height: 24px; }
+/* "yours now" on one line beside the supplier. */
+.plan-supplier .v7-tag { white-space: nowrap; }
+/* The chip has its own dot; the tick beside it said the same thing twice. */
+.fresh-chip.plan-verified::before { content: none; }
+/* A dialog on a computer, not a sheet: no handle to drag. */
+@media (min-width: 900px) { .modal-overlay .modal-handle { display: none; } }
+/* A tablet's setup keeps a reading width: a label at the left edge and its box at the right. */
+@media (min-width: 600px) and (max-width: 899px) { .fl-grid { max-width: 640px; } }
+/* The showcase scrolls sideways: it takes keyboard focus, and shows it. */
+.wl-show:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 
 /* ---------- Home: the conditions folded (30 Oct 2026) ----------
    One quiet line under the plan; the conditions open on a tap. */
