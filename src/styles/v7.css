@@ -2183,8 +2183,6 @@ html.web .screen.v7.v7-home .ax-doors-wrap { display: none; }
 .wl-mini text.g { fill: var(--accent); font-weight: 750; }
 .wl-mini text.pk { fill: var(--bandink-peak); font-weight: 750; }
 .wl-mini text.mute-t { fill: var(--ink-dim); }
-.wl-mini text.acc-t { fill: var(--accent); }
-.wl-mini text.au-t { fill: var(--brand-gold); }
 .wl-mini .mute { fill: var(--ink-dim); opacity: .45; }
 .wl-mini .acc { fill: var(--accent); }
 .wl-mini .axis { stroke: var(--ink-dim); stroke-opacity: .5; }
