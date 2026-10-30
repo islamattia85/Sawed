@@ -277,25 +277,25 @@ export function createV7(api) {
             : switchToday > 0.5 ? 'Without the panels, your plan is as good as any.' : 'Your plan is already the cheapest without the panels.'}</div>`
           : `<div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Cheapest for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`}
         ${(() => {
-          // An answer that rests on charging the battery from the grid says so,
-          // with what it would be if the battery only takes solar.
+          // The conditions the answer rests on, one short line each, folded
+          // under one tap. Four notes stacked under the figure made Home a
+          // wall of text (owner, 30 Oct 2026); the saving and the plan lead.
+          const conds = [];
+          // Charging the battery from the grid, and the plan if it only takes solar.
           let ng = null; try { ng = api.withoutGridCharge(); } catch (e) {}
-          if (!ng || chosen) return '';
-          const same = ng.plan.id === best.plan.id;
-          return `<div class="v7-note is-check gc-note">${api.ic('battery', 16)}<div><b>This needs your battery to charge from the grid at night.</b> Set it in your inverter app. ${same ? `If it only takes solar, this plan is still the best, ${atYear(ng.net)}.` : `If it only takes solar, the cheapest plan is <b>${esc(ng.plan.supplier)} ${esc(ng.plan.plan)}</b>, ${atYear(ng.net)}.`}</div></div>`;
-        })()}
-        ${(() => {
-          // A battery that only stores solar today: every figure here assumes
-          // it tops up at night, so say so, and what that setting is worth.
+          if (ng && !chosen) conds.push(`<li class="gc-note">${api.ic('battery', 14)}<span><b>Your battery charges from the grid at night</b>, set in your inverter app. If it only takes solar: ${ng.plan.id === best.plan.id ? 'this plan still' : `${esc(ng.plan.supplier)} ${esc(ng.plan.plan)}`}, ${atYear(ng.net)}.</span></li>`);
+          // A battery that only stores solar today: the figures have it topping up at night.
           let g = null; try { g = api.currentGridGain(); } catch (e) {}
-          return g ? `<div class="v7-note gc-note gc-now">${api.ic('battery', 16)}<div><b>These figures have your battery topping up on night power.</b> You said it only stores solar now. Set it in your inverter app: that alone is worth <b>${eur(g)} a year</b> on your current plan.</div></div>` : '';
+          if (g) conds.push(`<li class="gc-note gc-now">${api.ic('battery', 14)}<span><b>Your battery tops up on night power.</b> Set it in your inverter app: worth ${eur(g)} a year on your current plan.</span></li>`);
+          const mp = api.getPlanById(st.baseline), pc = mp && mp.price_change;
+          if (pc && pc.effective_date && Date.parse(pc.effective_date) > Date.now()) conds.push(`<li class="v7-evnote">${api.ic('trendUp', 14)}<span>${esc(mp.supplier)}’s prices rise on ${fmtDate(pc.effective_date)}, counted.</span></li>`);
+          if (!pl && best.plan.type === 'ev' && !st.ev_active) conds.push(`<li class="v7-evnote">${api.ic('info', 14)}<span>No car needed: this EV plan’s cheap night hours suit ${st.battery_kwh > 0 ? 'your battery' : 'your home'}.</span></li>`);
+          return conds.length ? `<details class="v7-conds"><summary>${api.ic('info', 14)} Based on ${conds.length === 1 ? 'one condition' : `${conds.length} conditions`}</summary><ul>${conds.join('')}</ul></details>` : '';
         })()}
-        ${(() => { const mp = api.getPlanById(st.baseline), pc = mp && mp.price_change;
-          return pc && pc.effective_date && Date.parse(pc.effective_date) > Date.now()
-            ? `<div class="v7-evnote">${api.ic('trendUp', 14)} ${esc(mp.supplier)}’s prices rise on ${fmtDate(pc.effective_date)}. That’s counted.</div>` : ''; })()}
         ${(() => {
           // Dual fuel: say where gas and electricity together come out best,
           // so the electricity answer above and the gas card below agree.
+          // A verdict, not a condition: it stays in view.
           let d = null; try { d = api.dualFuel(); } catch (e) {}
           if (d) {
             const opts = [{ k: 'staying with ' + esc(d.supplier), v: d.stay.total, stay: true },
@@ -306,8 +306,7 @@ export function createV7(api) {
             return low.stay ? `<div class="v7-evnote is-warn">${api.ic('flame', 14)} With gas too, staying with ${esc(d.supplier)} is cheapest.</div>` : '';
           }
           return saving > 10 && api.dualFuelNote(best.plan) ? `<div class="v7-evnote is-warn">${api.ic('flame', 14)} ${api.dualFuelNote(best.plan)}</div>` : '';
-        })()}
-        ${!pl && best.plan.type === 'ev' && !st.ev_active ? `<div class="v7-evnote">${api.ic('info', 14)} You don’t need an EV for this plan. It’s named for cars, but its cheap night hours suit ${st.battery_kwh > 0 ? 'your battery' : 'your home'} too.</div>` : ''}`;
+        })()}`;
     // Dual fuel (gas with the same supplier): Home tells one story, gas and
     // electricity together. The figure, the bars and the tiles below all come
     // from the same three choices, so nothing points two ways.
