@@ -9,16 +9,20 @@ import { isolate, esbKwFile } from './support.js';
  */
 const ANS = { plan: 'EI-24', disc: 0, meter: 'smart', area: 'urban', heat: 'gas', gas: 'no', night: 'no', solar: 'no', ev: 'no' };
 
-/** Setup from the start with a meter file, to the answer; then the report, a copied result and the plans. */
+/**
+ * A first visit answers the usage question on the front page, as a visitor
+ * would (the answer used to be set behind the scenes, which hid that the
+ * question only came after setup); then setup from the start with a meter
+ * file, to the answer; then the report, a copied result and the plans.
+ */
 async function useTheApp(page, consent) {
   const sent = [];
   await isolate(page);
   await page.route('**/api/event', async (r) => { sent.push(r.request().postDataJSON()); await r.fulfill({ status: 200, json: { ok: true } }); });
+  await page.route('**/api/consent', (r) => r.fulfill({ status: 200, json: { ok: true } }));
   await page.goto('/?fresh');
   await page.waitForFunction(() => window.__bootSettled === true);
-  await page.evaluate((c) => localStorage.setItem('sawed_analytics', c), consent);
-  await page.reload();
-  await page.waitForFunction(() => window.__bootSettled === true);
+  await page.locator('.consent-bar').getByRole('button', { name: consent === 'yes' ? 'Allow' : 'No thanks' }).click();
   await page.evaluate(() => window.startFlow('full'));
   await page.locator('.fl-upload input[type=file]').setInputFiles({ name: 'esb.csv', mimeType: 'text/csv',
     buffer: Buffer.from(esbKwFile('2026-09-30', 365)) });
