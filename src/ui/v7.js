@@ -363,7 +363,7 @@ export function createV7(api) {
     if (pl) {
       let d = null; try { d = api.solarData(); } catch (e) {}
       const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
-      solarRow = `<div class="v7-solar-ctl"><span><b>${api.ic('sun', 16)} Planned solar</b><small>${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}${d ? ` · ${eur(d.sysCost)} after grant` : ''}${pb ? ` · pays back in ${pb.toFixed(1)} yrs` : ''}</small>${(() => { const t = api.stressHomeLine && api.stressHomeLine(); return t ? `<button class="ax-inline st-home" onclick="anTab('solar','result')">${api.ic('trendUp', 13)} ${t}</button>` : ''; })()}</span>
+      solarRow = `<div class="v7-solar-ctl"><span><b>${api.ic('sun', 16)} Planned solar</b><small>${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}${d ? ` · ${eur(d.sysCost)} ${(st.grant_seai || 0) > 0 ? 'after grant' : 'no grant'}` : ''}${pb ? ` · pays back in ${pb.toFixed(1)} yrs` : ''}</small>${(() => { const t = api.stressHomeLine && api.stressHomeLine(); return t ? `<button class="ax-inline st-home" onclick="anTab('solar','result')">${api.ic('trendUp', 13)} ${t}</button>` : ''; })()}</span>
         <button onclick="toggleSolarModel()">Leave out</button></div>`;
     }
     const steps = solarRow || evRow ? `<div class="v7-steps">
@@ -505,7 +505,7 @@ export function createV7(api) {
         <span class="hc-fig">${planned ? `${pb ? pb.toFixed(1) : '—'}<small>years to pay for itself</small>` : `${eur(d ? d.cur.solarBenefit : 0)}<small>a year from your panels</small>`}</span>
         <span class="hc-facts">
           ${planned ? `<span><b>${eur(d ? d.cur.solarBenefit : 0)}</b>back a year</span>` : `<span><b>${pb ? pb.toFixed(1) : '—'} yrs</b>to pay back</span>`}
-          <span><b>${eur(d ? d.sysCost : 0)}</b>after grant</span>
+          <span><b>${eur(d ? d.sysCost : 0)}</b>${(st.grant_seai || 0) > 0 ? 'after grant' : 'no grant'}</span>
           <span><b>${eur(d ? d.npv : 0)}</b>over 20 years</span>
         </span>
         <span class="hc-sub">${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''} · at today’s prices</span>
