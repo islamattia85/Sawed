@@ -2524,9 +2524,13 @@ if (typeof window !== 'undefined') {
 }
 
 /* ---- Consent-gated, first-party event tracking ---------------------------
- * Counts of what is used (screens, switch clicks), recorded on our own server,
- * and only when the person has said yes to anonymous usage measurement. No
- * personal data is sent with an event. */
+ * Counts of what is used, recorded on our own server, and only when the
+ * person has said yes to anonymous usage measurement: the screens opened,
+ * setup started and finished, a meter file added, the report downloaded, a
+ * result shared, a switch clicked. No personal data is sent with an event:
+ * no amounts, no place, no answers beyond a yes or no. The steps were counted
+ * only for analytics tools the app doesn't load, so nobody could see how
+ * many people got through setup (29 Oct 2026). */
 const escAttr = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 function analyticsConsent(){ try { return localStorage.getItem('sawed_analytics'); } catch (e) { return null; } }
 function analyticsSession(){
@@ -2635,7 +2639,7 @@ function trackLeadSubmit(source){
 }
 
 function trackPageView(screen){
-  fireEvent('page_view', { screen, region: state.region || 'unknown' });
+  trackEvent('screen_viewed', { screen });
 }
 
 /* ============================================================
@@ -3169,6 +3173,21 @@ function heroArt(){
   </figure>`;
 }
 
+/**
+ * On a phone the hero's picture comes after the three ways in, so the first
+ * screen was all words. A line of it goes first: the example home's bill
+ * today and with panels on the plan that suits them, and a way down to all
+ * four bills (29 Oct 2026). From 900px the picture sits beside the words.
+ */
+function heroTeaser(){
+  const L = FIG.big.ladder;
+  const best = Math.max(4, Math.round(Math.max(0, L.solar_best) / L.now * 100));
+  return `<button class="wl-teaser" onclick="document.querySelector('.wl-bills').scrollIntoView({ behavior: 'smooth', block: 'start' })">
+    <span class="wl-tz-bars" aria-hidden="true"><i class="is-now"></i><i class="is-good" style="width:${best}%"></i></span>
+    <span class="wl-tz-t"><b>${eur(L.now)} → ${eur(L.solar_best)} a year</b><small>One home’s bill today, and with panels on the plan that suits them. See all four ${ic('chevD', 14)}</small></span>
+  </button>`;
+}
+
 /** The questions people bring, in their words, each opening the part of Peakless that answers it. */
 function askList(){
   const Q = [
@@ -3304,9 +3323,10 @@ function renderSite(){
         <div class="wl-eyebrow wl-motto">${ic('sun', 15)} Solar and electricity plans, priced on your home</div>
         <h1 class="wl-h1">The right plan, <em>with or without</em> solar.</h1>
         <p class="wl-lede">${n} plans from ${nSup} Irish suppliers, ${planCount('smart').n} of them for smart meters, priced hour by hour on your own home. Free. No supplier pays to be ranked.</p>
-        <div class="wl-j-k">Where are you?</div>
-        <div class="wl-journeys" role="group" aria-label="Where are you?">
-          <button class="wl-journey is-plan" onclick="siteGo('solar')"><span class="wl-j-ic">${ic('battery', 22)}</span><span><b>I’m thinking about solar</b><small>Will it pay back, what size, and on which plan?</small></span>${ic('chevR', 18)}</button>
+        ${heroTeaser()}
+        <div class="wl-j-k">Where are you with solar?</div>
+        <div class="wl-journeys" role="group" aria-label="Where are you with solar?">
+          <button class="wl-journey is-plan" onclick="siteGo('solar')"><span class="wl-j-ic">${ic('spark', 22)}</span><span><b>I’m thinking about solar</b><small>Will it pay back, what size, and on which plan?</small></span>${ic('chevR', 18)}</button>
           <button class="wl-journey is-have" onclick="siteGo('have')"><span class="wl-j-ic">${ic('sun', 22)}</span><span><b>I have solar</b><small>Am I on the best plan for my panels?</small></span>${ic('chevR', 18)}</button>
           <button class="wl-journey is-bill" onclick="siteGo('plans')"><span class="wl-j-ic">${ic('plans', 22)}</span><span><b>Just a better plan</b><small>No solar: every plan priced on my bill, in a minute</small></span>${ic('chevR', 18)}</button>
         </div>
@@ -5614,6 +5634,7 @@ function startFlow(mode, intent){
   delete state._st;
   state._flow_mode = mode === 'quick' ? 'quick' : 'full';
   state._flow_intent = FLOW_INTENT[intent] ? intent : null;
+  trackEvent('setup_started', { route: it || m });
   if (!state.region) state.region = 'east';
   state.usage_input_mode = 'bill';
   if (!state.baseline){ state.baseline = 'EI-24'; state.baseline_known = false; }
@@ -5960,7 +5981,9 @@ function flowFinish(then){
   // A solar question gets its answer on the Solar page; everything else on Home.
   state.current_screen = ['solar', 'quote', 'stress'].includes(intent) && state.has_solar && totalPanels() > 0 ? 'solar' : 'result';
   saveState();
-  fireEvent('flow_complete', { bill: state.bimonthly_bill_eur, solar: !!state.has_solar, ev: !!state.ev_active });
+  trackEvent('setup_finished', { route: intent || state._flow_mode || 'full',
+    solar: state.has_solar && totalPanels() > 0 ? (state.solar_planned || state.solar_is_estimate ? 'planned' : 'installed') : 'none',
+    ev: !!state.ev_active, meter_file: !!state._csv_imported });
   if (then === 'save') meOpenAuth('signup'); else renderApp();
   if (intent === 'stress' && state.current_screen === 'solar') toStressCard();
 }
@@ -6663,7 +6686,7 @@ function shareToggleDetails(){ _shareDetailsOn = !_shareDetailsOn; renderApp(); 
 function shareCardCopy(){
   const { savings, df } = shareSavings();
   const text = shareText(savings, _shareDetailsOn, df);
-  const done = () => showToast('Copied. Paste it into your message.', { type: 'accent', icon: ic('checkC', 16) });
+  const done = () => { showToast('Copied. Paste it into your message.', { type: 'accent', icon: ic('checkC', 16) }); trackEvent('result_shared', { how: 'text', details: _shareDetailsOn }); };
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(() => {});
   else { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }
 }
@@ -6676,13 +6699,15 @@ function shareCardGo(){
     if (!blob){ copyShareUrl(); return; }
     const file = new File([blob], 'peakless-analysis.png', { type: 'image/png' });
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })){
-      navigator.share({ files: [file], text }).catch(() => {});
+      // Counted when the share sheet says it went, not when it opened.
+      navigator.share({ files: [file], text }).then(() => trackEvent('result_shared', { how: 'picture', details: _shareDetailsOn })).catch(() => {});
     } else {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = 'peakless-analysis.png';
       a.click();
       showToast('Saved. Share it anywhere.', { type:'accent', icon:ic('spark',16) });
+      trackEvent('result_shared', { how: 'picture_saved', details: _shareDetailsOn });
     }
   }, 'image/png');
 }
@@ -8141,7 +8166,7 @@ async function doGeneratePdf(){
         : how === 'opened' ? 'Report opened in a new tab. Use Share to save it.'
         : 'Report downloaded',
       { type:'accent', icon:ic('checkC',16) });
-    fireEvent('pdf_generated', { has_solar: !!state.has_solar, ev: !!state.ev_active });
+    trackEvent('report_downloaded', { solar: !!(state.has_solar && totalPanels() > 0), ev: !!state.ev_active });
   } catch (err){
     console.error('PDF generation failed', err);
     showToast('Couldn’t make the PDF, so we downloaded a text version instead',
@@ -12259,7 +12284,7 @@ function copyShareUrl(){
     ta.remove();
     showToast('Link copied');
   }
-  fireEvent('share_link_copied', { region: state.region, has_solar: state.has_solar });
+  trackEvent('result_shared', { how: 'link' });
 }
 
 function tryRestoreFromUrl(){
@@ -13546,6 +13571,7 @@ function parseCsvHdf(text, filename){
 
 function applyImportedBills(){
   _csvBefore = null;   // the file is accepted: nothing to put back
+  trackEvent('meter_file_added', {});
   invalidate();
   saveState();
   if (state.current_screen === 'onboarding' || state.current_screen === 'fastpath'){
