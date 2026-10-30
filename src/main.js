@@ -2524,9 +2524,13 @@ if (typeof window !== 'undefined') {
 }
 
 /* ---- Consent-gated, first-party event tracking ---------------------------
- * Counts of what is used (screens, switch clicks), recorded on our own server,
- * and only when the person has said yes to anonymous usage measurement. No
- * personal data is sent with an event. */
+ * Counts of what is used, recorded on our own server, and only when the
+ * person has said yes to anonymous usage measurement: the screens opened,
+ * setup started and finished, a meter file added, the report downloaded, a
+ * result shared, a switch clicked. No personal data is sent with an event:
+ * no amounts, no place, no answers beyond a yes or no. The steps were counted
+ * only for analytics tools the app doesn't load, so nobody could see how
+ * many people got through setup (29 Oct 2026). */
 const escAttr = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 function analyticsConsent(){ try { return localStorage.getItem('sawed_analytics'); } catch (e) { return null; } }
 function analyticsSession(){
@@ -2635,7 +2639,7 @@ function trackLeadSubmit(source){
 }
 
 function trackPageView(screen){
-  fireEvent('page_view', { screen, region: state.region || 'unknown' });
+  trackEvent('screen_viewed', { screen });
 }
 
 /* ============================================================
@@ -5614,6 +5618,7 @@ function startFlow(mode, intent){
   delete state._st;
   state._flow_mode = mode === 'quick' ? 'quick' : 'full';
   state._flow_intent = FLOW_INTENT[intent] ? intent : null;
+  trackEvent('setup_started', { route: it || m });
   if (!state.region) state.region = 'east';
   state.usage_input_mode = 'bill';
   if (!state.baseline){ state.baseline = 'EI-24'; state.baseline_known = false; }
@@ -5960,7 +5965,9 @@ function flowFinish(then){
   // A solar question gets its answer on the Solar page; everything else on Home.
   state.current_screen = ['solar', 'quote', 'stress'].includes(intent) && state.has_solar && totalPanels() > 0 ? 'solar' : 'result';
   saveState();
-  fireEvent('flow_complete', { bill: state.bimonthly_bill_eur, solar: !!state.has_solar, ev: !!state.ev_active });
+  trackEvent('setup_finished', { route: intent || state._flow_mode || 'full',
+    solar: state.has_solar && totalPanels() > 0 ? (state.solar_planned || state.solar_is_estimate ? 'planned' : 'installed') : 'none',
+    ev: !!state.ev_active, meter_file: !!state._csv_imported });
   if (then === 'save') meOpenAuth('signup'); else renderApp();
   if (intent === 'stress' && state.current_screen === 'solar') toStressCard();
 }
@@ -6663,7 +6670,7 @@ function shareToggleDetails(){ _shareDetailsOn = !_shareDetailsOn; renderApp(); 
 function shareCardCopy(){
   const { savings, df } = shareSavings();
   const text = shareText(savings, _shareDetailsOn, df);
-  const done = () => showToast('Copied. Paste it into your message.', { type: 'accent', icon: ic('checkC', 16) });
+  const done = () => { showToast('Copied. Paste it into your message.', { type: 'accent', icon: ic('checkC', 16) }); trackEvent('result_shared', { how: 'text', details: _shareDetailsOn }); };
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(() => {});
   else { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }
 }
@@ -6676,13 +6683,15 @@ function shareCardGo(){
     if (!blob){ copyShareUrl(); return; }
     const file = new File([blob], 'peakless-analysis.png', { type: 'image/png' });
     if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })){
-      navigator.share({ files: [file], text }).catch(() => {});
+      // Counted when the share sheet says it went, not when it opened.
+      navigator.share({ files: [file], text }).then(() => trackEvent('result_shared', { how: 'picture', details: _shareDetailsOn })).catch(() => {});
     } else {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = 'peakless-analysis.png';
       a.click();
       showToast('Saved. Share it anywhere.', { type:'accent', icon:ic('spark',16) });
+      trackEvent('result_shared', { how: 'picture_saved', details: _shareDetailsOn });
     }
   }, 'image/png');
 }
@@ -8141,7 +8150,7 @@ async function doGeneratePdf(){
         : how === 'opened' ? 'Report opened in a new tab. Use Share to save it.'
         : 'Report downloaded',
       { type:'accent', icon:ic('checkC',16) });
-    fireEvent('pdf_generated', { has_solar: !!state.has_solar, ev: !!state.ev_active });
+    trackEvent('report_downloaded', { solar: !!(state.has_solar && totalPanels() > 0), ev: !!state.ev_active });
   } catch (err){
     console.error('PDF generation failed', err);
     showToast('Couldn’t make the PDF, so we downloaded a text version instead',
@@ -12259,7 +12268,7 @@ function copyShareUrl(){
     ta.remove();
     showToast('Link copied');
   }
-  fireEvent('share_link_copied', { region: state.region, has_solar: state.has_solar });
+  trackEvent('result_shared', { how: 'link' });
 }
 
 function tryRestoreFromUrl(){
@@ -13546,6 +13555,7 @@ function parseCsvHdf(text, filename){
 
 function applyImportedBills(){
   _csvBefore = null;   // the file is accepted: nothing to put back
+  trackEvent('meter_file_added', {});
   invalidate();
   saveState();
   if (state.current_screen === 'onboarding' || state.current_screen === 'fastpath'){
