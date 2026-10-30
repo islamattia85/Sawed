@@ -612,6 +612,7 @@ test('first visit: one revealing page, answers fold into lines you can change, t
   await expect(page.locator('.fl-reveal')).toContainText('Solar would pay back in');
   await expect(page.locator('.fl-reveal')).toContainText('less than petrol');
   // Change an earlier answer in place: the heating question reopens, the rest stays.
+  await page.locator('.fl-chip-more').click();
   await page.locator('.fl-chip', { hasText: 'Heat pump' }).click();
   await page.locator('.fl-opt', { hasText: 'Gas or oil' }).click();
   await page.locator('.fl-opt', { hasText: /^No/ }).first().click();          // a gas home is asked about night use
