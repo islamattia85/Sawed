@@ -80,7 +80,7 @@ test('the front page’s figures match the model on today’s plans', async ({ p
   // 12 panels, no battery, no car: the pictures.
   await page.evaluate(setup({ panels: 12, battery: 0, ev: false }));
   const t = await costs(page);
-  const typical = { panels: 12, grant: t.grant, net: t.net, payback: t.payback, now: t.without['EI-24'], top: t.top,
+  const typical = { panels: 12, plan: 'EI-24', grant: t.grant, net: t.net, payback: t.payback, now: t.without['EI-24'], top: t.top,
     months: await months(page, 'EI-24', t.best), report_pages: await reportPages(page) };
 
   // 16 panels, a 10 kWh battery and an electric car: the four-bill card.
@@ -124,7 +124,8 @@ test('the front page’s figures match the model on today’s plans', async ({ p
  * from typed-in numbers (30 Oct 2026): the month chart's bars added up to
  * €896 a year under a "−€1,260" heading, no month went into credit under a
  * caption about summer credit, the report card said "Could save €1,822" and
- * "13 pages", and the ranking read "Cheaper at night" three times.
+ * "13 pages", and the ranking read "Cheaper at night" three times. The front
+ * page names no supplier, so the ranking tells its plans apart by their prices.
  */
 test('the front page’s pictures show the example home’s own figures', async ({ page }) => {
   const fig = JSON.parse(readFileSync(FILE, 'utf8')).typical;
@@ -152,10 +153,19 @@ test('the front page’s pictures show the example home’s own figures', async 
   await expect(card('The report')).toContainText(`Could save${eur(save)}a year`);
   await expect(card('The report')).toContainText(`${fig.report_pages} pages`);
 
-  // The ranking names each plan's supplier, cheapest first.
+  // The ranking, cheapest first: no two rows read the same, each gives its
+  // plan's day price, and the home's own plan is marked.
   const ranked = card('Every plan, ranked');
-  const suppliers = await page.evaluate((ids) => ids.map((id) => window.getPlanById(id).supplier), fig.top.slice(0, 3).map(([id]) => id));
-  for (const [i, s] of suppliers.entries()) await expect(ranked).toContainText(`${i + 1}. ${s}`);
-  await expect(ranked).toContainText(eur(fig.top[0][1]));
-  await expect(ranked).not.toContainText('Cheaper at night');
+  const rows = await ranked.evaluate((svg) => {
+    const t = [...svg.querySelectorAll('text')].map((e) => e.textContent);
+    return t.filter((s) => /^\d\. /.test(s)).map((s) => `${s} | ${t[t.indexOf(s) + 1]}`);
+  });
+  expect(rows).toHaveLength(3);
+  expect(new Set(rows).size).toBe(3);
+  const days = await page.evaluate((ids) => ids.map((id) => `${Math.round(window.getPlanById(id).rates.day * 100)}c`), fig.top.slice(0, 3).map(([id]) => id));
+  for (const [i, d] of days.entries()) expect(rows[i]).toContain(d);
+  for (const [i, [id, c]] of fig.top.slice(0, 3).entries()) {
+    await expect(ranked).toContainText(eur(c));
+    expect(rows[i].includes('its plan now')).toBe(id === fig.plan);
+  }
 });

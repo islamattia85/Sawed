@@ -2,6 +2,7 @@
   "worked_out": "2026-10-30",
   "typical": {
     "panels": 12,
+    "plan": "EI-24",
     "grant": 1800,
     "net": 6300,
     "payback": 4.9,

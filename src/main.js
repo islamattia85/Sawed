@@ -3279,15 +3279,18 @@ function showDay(){
 }
 /**
  * The example home's three cheapest plans with its 12 panels, from the model's
- * figures: the supplier, and the plan's name under it. By kind alone, three
- * rows read "Cheaper at night".
+ * figures: the kind of plan, and its prices under it. By kind alone, three rows
+ * read "Cheaper at night". The front page names no supplier.
  */
 function showPlans(){
   const rows = (FIG.typical.top || []).map(([id, c]) => ({ p: getPlanById(id), c })).filter((r) => r.p).slice(0, 3);
   const mx = Math.max(...rows.map((r) => r.c));
+  const ct = (v) => `${Math.round((v || 0) * 100)}c`;
+  const prices = (p) => planCategory(p) === 'flat' ? `${ct(p.rates.day)} every hour, ${ct(p.export_rate)} for export`
+    : `${ct(Math.min(p.rates.night ?? 9, p.rates.ev ?? 9))} ${planCategory(p) === 'ev' ? 'for the car' : 'at night'}, ${ct(p.rates.day)} by day, ${ct(p.export_rate)} for export`;
   return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
     ${T(4, 12, `A year with ${FIG.typical.panels} panels`, 'class="h"')}
-    ${rows.map((r, i) => { const y = 26 + i * 32, w = Math.max(6, r.c / mx * 48); return `${T(4, y + 8, `${i + 1}. ${esc(r.p.supplier)}`, i ? '' : 'class="g"')}${T(16, y + 21, esc(r.p.plan), 'class="mute-t"')}
+    ${rows.map((r, i) => { const y = 26 + i * 32, w = Math.max(6, r.c / mx * 48); return `${T(4, y + 8, `${i + 1}. ${planCategoryLabel(planCategory(r.p))}${r.p.id === FIG.typical.plan ? ', its plan now' : ''}`, i ? '' : 'class="g"')}${T(16, y + 21, prices(r.p), 'class="mute-t"')}
       <rect x="196" y="${y}" width="${w}" height="9" rx="4.5" class="${i ? 'mute' : 'acc'}"/>${T(296, y + 8, eur(r.c), `text-anchor="end" ${i ? '' : 'class="g"'}`)}`; }).join('')}
     ${T(4, 130, `The example home, ${planCount('smart').n} plans for its meter`, 'class="mute-t"')}</svg>`;
 }
