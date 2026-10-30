@@ -3240,18 +3240,27 @@ function howStrip(){
 
 
 /**
- * Small previews of what the app shows: real plans and a typical home
- * (gas heating, 12 panels, a car), drawn with labels, so each card
- * shows what the feature finds, not just a shape.
+ * Small previews of what the app shows: real plans and one example home (gas
+ * heating, 12 panels, no battery, no car), drawn with labels, so each card
+ * shows what the feature finds, not just a shape. Every figure on them is the
+ * model's, from src/data/front-figures.json (30 Oct 2026: the month chart's
+ * bars, its "−€1,260" and the report's "€1,822" were typed in, and disagreed).
  */
 const T = (x, y, t, o = '') => `<text x="${x}" y="${y}" ${o}>${t}</text>`;
+/** A small colour key: a square in the series' colour, its words in ink. */
+const K = (x, y, t, fill) => `<rect x="${x}" y="${y - 8}" width="8" height="8" rx="2" ${fill}/>${T(x + 12, y, t, 'class="mute-t"')}`;
+/** What the example home saves a year: its standard plan without panels, against the best plan with them. */
+const figSave = () => FIG.typical.now - FIG.typical.top[0][1];
 function showAnalysis(){
-  const now = [212, 190, 168, 136, 112, 96, 92, 98, 120, 150, 184, 210], best = [150, 128, 96, 52, 22, 6, 4, 12, 44, 86, 124, 148];
-  const y = (v) => 104 - v * .42, M = 'JFMAMJJASOND';
+  const { now, best } = FIG.typical.months, M = 'JFMAMJJASOND';
+  // Months in credit go below the line.
+  const hi = Math.max(0, ...now, ...best), lo = Math.min(0, ...now, ...best), k = 82 / (hi - lo), y0 = 22 + hi * k;
+  const bar = (x, v, c) => { const h = Math.max(1.5, Math.abs(v) * k); return `<rect x="${x}" y="${v < 0 ? y0 : y0 - h}" width="7" height="${h}" rx="2" class="${c}"/>`; };
   return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
-    ${T(4, 12, 'A year, month by month', 'class="h"')}${T(256, 12, eur(-FIG.typical.net / FIG.typical.payback), 'class="g" text-anchor="end"')}
-    ${now.map((v, i) => `<rect x="${10 + i * 20.5}" y="${y(v)}" width="7" height="${104 - y(v)}" rx="2" class="mute"/><rect x="${18 + i * 20.5}" y="${y(best[i])}" width="7" height="${104 - y(best[i])}" rx="2" class="acc"/>${T(17 + i * 20.5, 118, M[i], 'text-anchor="middle"')}`).join('')}
-    ${T(4, 130, '■ your plan now   ', 'class="mute-t"')}${T(96, 130, '■ cheapest plan, with panels', 'class="acc-t"')}</svg>`;
+    ${T(4, 12, 'A year, month by month', 'class="h"')}${T(296, 12, `${eur(figSave())} less a year`, 'class="g" text-anchor="end"')}
+    <line x1="8" x2="256" y1="${y0}" y2="${y0}" class="axis"/>
+    ${now.map((v, i) => `${bar(10 + i * 20.5, v, 'mute')}${bar(18 + i * 20.5, best[i], 'acc')}${T(17 + i * 20.5, 118, M[i], 'text-anchor="middle"')}`).join('')}
+    ${K(4, 130, 'your plan now', 'class="mute"')}${K(100, 130, 'cheapest plan, with panels', 'class="acc"')}</svg>`;
 }
 /** A typical home's day with an electric car charging at 2 and 3am, coloured by an EV plan's prices. */
 function showDay(){
@@ -3266,24 +3275,31 @@ function showDay(){
     ${v.map((x, h) => { const hh = Math.max(2, x / mx * 78); return `<rect x="${8 + h * 10.3}" y="${104 - hh}" width="8" height="${hh}" rx="2" fill="${C[bandAt(h, p)] || C.day}"/>`; }).join('')}
     ${T(56, 58, `← car ${r('ev')}`, 'class="g"')}${T(190, 46, `peak ${r('peak')}`, 'class="pk"')}
     ${['00', '06', '12', '18', '24'].map((t, i) => T(8 + i * 61.8, 118, t, 'text-anchor="middle"')).join('')}
-    ${T(4, 130, 'kWh each hour, coloured by price', 'class="mute-t"')}</svg>`;
+    ${K(4, 130, `night ${r('night')}`, `fill="${C.night}"`)}${K(84, 130, `day ${r('day')}`, `fill="${C.day}"`)}${T(152, 130, '· kWh each hour', 'class="mute-t"')}</svg>`;
 }
-/** The example home's four cheapest plans with its 12 panels, from the model's figures, by kind. */
+/**
+ * The example home's three cheapest plans with its 12 panels, from the model's
+ * figures: the kind of plan, and its prices under it. By kind alone, three rows
+ * read "Cheaper at night". The front page names no supplier.
+ */
 function showPlans(){
-  const rows = (FIG.typical.top || []).map(([id, c]) => ({ p: getPlanById(id), c })).filter((r) => r.p);
+  const rows = (FIG.typical.top || []).map(([id, c]) => ({ p: getPlanById(id), c })).filter((r) => r.p).slice(0, 3);
   const mx = Math.max(...rows.map((r) => r.c));
+  const ct = (v) => `${Math.round((v || 0) * 100)}c`;
+  const prices = (p) => planCategory(p) === 'flat' ? `${ct(p.rates.day)} every hour, ${ct(p.export_rate)} for export`
+    : `${ct(Math.min(p.rates.night ?? 9, p.rates.ev ?? 9))} ${planCategory(p) === 'ev' ? 'for the car' : 'at night'}, ${ct(p.rates.day)} by day, ${ct(p.export_rate)} for export`;
   return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
-    ${T(4, 12, 'A year with 12 panels', 'class="h"')}
-    ${rows.map((r, i) => { const y = 24 + i * 26, w = Math.max(6, r.c / mx * 80); return `${T(4, y + 8, `${i + 1}. ${planCategoryLabel(planCategory(r.p))}`, i ? '' : 'class="g"')}
-      <rect x="142" y="${y}" width="${w}" height="9" rx="4.5" class="${i ? 'mute' : 'acc'}"/>${T(266, y + 8, eur(r.c), `text-anchor="end" ${i ? '' : 'class="g"'}`)}`; }).join('')}
-    ${T(4, 130, `The example home, ${TARIFFS.filter(onOffer).length} plans checked this week`, 'class="mute-t"')}</svg>`;
+    ${T(4, 12, `A year with ${FIG.typical.panels} panels`, 'class="h"')}
+    ${rows.map((r, i) => { const y = 26 + i * 32, w = Math.max(6, r.c / mx * 48); return `${T(4, y + 8, `${i + 1}. ${planCategoryLabel(planCategory(r.p))}${r.p.id === FIG.typical.plan ? ', its plan now' : ''}`, i ? '' : 'class="g"')}${T(16, y + 21, prices(r.p), 'class="mute-t"')}
+      <rect x="196" y="${y}" width="${w}" height="9" rx="4.5" class="${i ? 'mute' : 'acc'}"/>${T(296, y + 8, eur(r.c), `text-anchor="end" ${i ? '' : 'class="g"'}`)}`; }).join('')}
+    ${T(4, 130, `The example home, ${planCount('smart').n} plans for its meter`, 'class="mute-t"')}</svg>`;
 }
 function showPayback(){
   const cost = FIG.typical.net, save = cost / FIG.typical.payback, Y = 20, x = (t) => 22 + t * 11.4, y = (v) => 70 - v / 300;
   let d = `M${x(0)},${y(-cost)}`; for (let t = 1; t <= Y; t++) d += ` L${x(t)},${y(save * t - cost)}`;
   const pb = cost / save;
   return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
-    ${T(4, 12, '12 panels, after the €1,800 grant', 'class="h"')}
+    ${T(4, 12, `${FIG.typical.panels} panels, after the ${eur(FIG.typical.grant)} grant`, 'class="h"')}
     <line x1="22" x2="250" y1="${y(0)}" y2="${y(0)}" class="axis"/>${T(18, y(0) + 3, '€0', 'text-anchor="end"')}
     <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
     <circle cx="${x(pb)}" cy="${y(0)}" r="4.5" fill="var(--panel)" stroke="var(--accent)" stroke-width="2.5"/>
@@ -3299,18 +3315,18 @@ function showStress(){
     <circle cx="${40 + 4 * 26 + 11}" cy="${20 + 1 * 18 + 7}" r="6" fill="none" stroke="var(--ink)" stroke-width="2"/>
     ${['40c', '30c', '20c', '10c', '5c'].map((t, i) => T(34, 30 + i * 18, t, 'text-anchor="end"')).join('')}
     ${['0', '5', '10', '15', '20', '25'].map((t, i) => T(51 + i * 26, 118, t, 'text-anchor="middle"')).join('')}
-    ${T(206, 34, '■ same', 'class="acc-t"')}${T(206, 50, '■ +1–4 yrs', 'class="au-t"')}${T(206, 66, '■ longer', 'class="pk"')}
+    ${[['same', 2], ['+1–4 yrs', 1], ['longer', 0]].map(([t, g], i) => K(206, 34 + i * 16, t, `fill="${C[g]}" opacity=".85"`)).join('')}
     ${T(4, 130, 'export pay (c) → · night price ↑', 'class="mute-t"')}</svg>`;
 }
 function showReport(){
   return `<svg viewBox="0 0 300 150" width="100%" aria-hidden="true" class="wl-mini">
     <rect x="58" y="4" width="92" height="124" rx="6" fill="var(--brand-ink)"/>
     ${T(66, 22, 'peakless', 'style="fill:#E8EFEB;font-weight:700"')}${T(66, 44, 'Your home', 'style="fill:#fff;font-weight:800"')}${T(66, 57, 'energy report', 'style="fill:#fff;font-weight:800"')}
-    ${T(66, 78, 'Could save', 'style="fill:var(--brand-gold)"')}${T(66, 100, '€1,822', 'style="fill:#6EE7A8;font-weight:800;font-size:20px"')}
+    ${T(66, 78, 'Could save', 'style="fill:var(--brand-gold)"')}${T(66, 100, eur(figSave()), 'style="fill:#6EE7A8;font-weight:800;font-size:20px"')}${T(66, 116, 'a year', 'style="fill:var(--brand-gold)"')}
     <rect x="156" y="14" width="96" height="110" rx="6" fill="var(--panel)" stroke="var(--hair-strong)"/>
     ${T(164, 30, 'At a glance', 'class="h"')}
     ${[[100, 'mute'], [86, 'mute'], [28, 'acc'], [14, 'acc']].map(([w, c], i) => `<rect x="164" y="${42 + i * 16}" width="${w * .78}" height="7" rx="3.5" class="${c}"/>`).join('')}
-    ${T(164, 116, '13 pages', 'class="mute-t"')}</svg>`;
+    ${T(164, 116, `${FIG.typical.report_pages} pages`, 'class="mute-t"')}</svg>`;
 }
 
 /** The website at "/": what Peakless is, shown and taught, then a way in. */
@@ -13998,7 +14014,7 @@ window.__housePrint = async (planId) => {
   const m = await import('./ui/house-print.js'), pic = householdPicture(planId);
   return { ...(await m.housePrint(pic)), svg: m.printMarkup(pic).svg };
 };
-window.__sim = { annualKwh: () => sumF(CACHE.cons), pso: PSO_LEVY, plannedLadder, netFileYear, noSolarBest, baselineNet: () => baselineNet(state.baseline), dualFuel, installCost: () => state.install_cost };
+window.__sim = { annualKwh: () => sumF(CACHE.cons), pso: PSO_LEVY, plannedLadder, netFileYear, noSolarBest, monthNet, baselineNet: () => baselineNet(state.baseline), dualFuel, installCost: () => state.install_cost };
 window.setGrantEligible = setGrantEligible;
 window.sysConfirmRoof = sysConfirmRoof;
 window.quickOutcome = quickOutcome;
