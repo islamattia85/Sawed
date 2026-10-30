@@ -3173,6 +3173,21 @@ function heroArt(){
   </figure>`;
 }
 
+/**
+ * On a phone the hero's picture comes after the three ways in, so the first
+ * screen was all words. A line of it goes first: the example home's bill
+ * today and with panels on the plan that suits them, and a way down to all
+ * four bills (29 Oct 2026). From 900px the picture sits beside the words.
+ */
+function heroTeaser(){
+  const L = FIG.big.ladder;
+  const best = Math.max(4, Math.round(Math.max(0, L.solar_best) / L.now * 100));
+  return `<button class="wl-teaser" onclick="document.querySelector('.wl-bills').scrollIntoView({ behavior: 'smooth', block: 'start' })">
+    <span class="wl-tz-bars" aria-hidden="true"><i class="is-now"></i><i class="is-good" style="width:${best}%"></i></span>
+    <span class="wl-tz-t"><b>${eur(L.now)} → ${eur(L.solar_best)} a year</b><small>One home’s bill today, and with panels on the plan that suits them. See all four ${ic('chevD', 14)}</small></span>
+  </button>`;
+}
+
 /** The questions people bring, in their words, each opening the part of Peakless that answers it. */
 function askList(){
   const Q = [
@@ -3308,6 +3323,7 @@ function renderSite(){
         <div class="wl-eyebrow wl-motto">${ic('sun', 15)} Solar and electricity plans, priced on your home</div>
         <h1 class="wl-h1">The right plan, <em>with or without</em> solar.</h1>
         <p class="wl-lede">${n} plans from ${nSup} Irish suppliers, ${planCount('smart').n} of them for smart meters, priced hour by hour on your own home. Free. No supplier pays to be ranked.</p>
+        ${heroTeaser()}
         <div class="wl-j-k">Where are you with solar?</div>
         <div class="wl-journeys" role="group" aria-label="Where are you with solar?">
           <button class="wl-journey is-plan" onclick="siteGo('solar')"><span class="wl-j-ic">${ic('spark', 22)}</span><span><b>I’m thinking about solar</b><small>Will it pay back, what size, and on which plan?</small></span>${ic('chevR', 18)}</button>
