@@ -8,6 +8,7 @@
  */
 
 import { BRAND } from '../brand';
+import { worthSwitching } from '../switching';
 import { Doc, type PdfDoc } from './doc.js';
 import {
   PAGE, TYPE, lines, LW, TEXT_LEFT, TEXT_RIGHT,
@@ -167,12 +168,14 @@ function cover(d: Doc, r: ReportData) {
   d.text(`${r.home.annualKwh.toLocaleString('en-IE')} kWh a year · ${r.home.heating} heating · ${r.home.region}`, M, 84, { ...W('', 10), color: [190, 208, 212] });
 
   const saving = r.ladder && r.ladder.length ? r.ladder[0]!.value - Math.min(...r.ladder.map((x) => x.value)) : r.savings.total;
-  d.text(r.choice ? 'ON YOUR CHOSEN PLAN' : 'THE MOST YOU COULD SAVE', M, 112, { ...W('', 8, 'bold'), color: GOLD, tracking: 0.8 });
-  d.text(eur(Math.max(0, saving)), M, 134, { ...W('', 52, 'bold'), color: saving > 1 ? [118, 222, 165] : PAPER });
-  d.text(saving > 1 ? 'less a year' : 'a year, already on the best value', M, 143, { ...W('', 11), color: [190, 208, 212] });
+  // The rule the app uses: under it, the cheaper plan isn't worth a switch.
+  const worth = r.choice || worthSwitching(saving);
+  d.text(r.choice ? 'ON YOUR CHOSEN PLAN' : worth ? 'THE MOST YOU COULD SAVE' : 'YOUR PLAN IS AS GOOD AS ANY', M, 112, { ...W('', 8, 'bold'), color: GOLD, tracking: 0.8 });
+  d.text(eur(Math.max(0, saving)), M, 134, { ...W('', 52, 'bold'), color: worth && saving > 1 ? [118, 222, 165] : PAPER });
+  d.text(saving <= 1 ? 'a year, already on the best value' : worth ? 'less a year' : 'a year at most from switching: not worth it', M, 143, { ...W('', 11), color: [190, 208, 212] });
   const how = r.ladder && r.ladder.some((x) => x.solar && x.best) && r.ladder.length > 3
     ? `By switching to ${r.ladder.find((x) => x.best)!.plan} and adding the planned panels.`
-    : `By moving to ${r.best.name}.`;
+    : worth ? `By moving to ${r.best.name}.` : `The cheapest is ${r.best.name}.`;
   d.y = 153;
   d.paragraph(how, { ...W('', 10), color: PAPER, leading: 4.8 }, { x: M, width: PAGE.width - 2 * M });
 
@@ -229,13 +232,15 @@ function contents(d: Doc, r: ReportData) {
     const Lh = r.ladder || [];
     const planned = Lh.length > 3;
     const most = planned ? Lh[1]!.value - Lh[3]!.value : r.savings.total;
-    const say = planned ? 'Your planned panels would cut your bill by' : most > 1 ? 'Switch plan to save' : 'You are already on the best value plan';
+    const worth = planned || worthSwitching(most);
+    const say = planned ? 'Your planned panels would cut your bill by' : worth ? 'Switch plan to save'
+      : most > 1 ? 'Your plan is as good as any. The cheapest would save only' : 'You are already on the best value plan';
     const top = d.y - 2, hh = 30;
     box(d, d.left, top, d.width, hh, ACCENT_TINT, 4);
     d.text(say, d.left + 6, top + 8, { ...TYPE.body!, color: INK_MID });
     if (most > 1) {
       const w = d.text(eur(most), d.left + 6, top + 22, { face: 'helvetica', style: 'bold', size: 30, color: ACCENT });
-      d.text(planned ? 'a year' : 'less a year', d.left + 9 + w, top + 22, { ...TYPE.lead!, color: INK_MID });
+      d.text(planned ? 'a year' : worth ? 'less a year' : 'a year: not worth a switch', d.left + 9 + w, top + 22, { ...TYPE.lead!, color: INK_MID });
     }
     d.y = top + hh + lines(1.6);
   }
@@ -250,9 +255,12 @@ function contents(d: Doc, r: ReportData) {
   const pts: string[] = [];
   const L = r.ladder || [];
   if (L.length > 3) {
-    pts.push(`Switch today to ${L[1]!.plan}: ${eur(L[0]!.value - L[1]!.value)} a year less, with nothing to buy.`);
+    const today = L[0]!.value - L[1]!.value;
+    pts.push(worthSwitching(today) ? `Switch today to ${L[1]!.plan}: ${eur(today)} a year less, with nothing to buy.`
+      : `Stay on your plan for now: switching today would save ${eur(Math.max(0, today))} a year at most.`);
     pts.push(`Add the planned panels: ${eur(L[1]!.value - L[3]!.value)} a year more off, on ${L[3]!.plan}.`);
-  } else if (r.savings.total > 1) pts.push(`Switch to ${r.best.name}: ${eur(r.savings.total)} a year less than now.`);
+  } else if (worthSwitching(r.savings.total)) pts.push(`Switch to ${r.best.name}: ${eur(r.savings.total)} a year less than now.`);
+  else if (r.savings.total > 1) pts.push(`Stay on your plan: the cheapest, ${r.best.name}, would save only ${eur(r.savings.total)} a year.`);
   else pts.push(`You are already on the best value of ${r.tariffCount} plans for your home.`);
   if (r.choice) pts.push(`${r.best.name} is your own choice, ranked ${r.choice.rank ?? '-'}; it costs ${eur(r.choice.premium)} a year more than ${r.choice.cheapestName}.`);
   if (r.ev) pts.push(`The car: ${eur(r.ev.electricityIncrease)} a year to charge, ${eur(r.ev.netSaving)} less than petrol.`);
@@ -518,8 +526,11 @@ function chTransport(d: Doc, r: ReportData) {
 }
 
 function chAct(d: Doc, r: ReportData) {
+  // Under the app's rule there is nothing to switch for now; the steps stay
+  // for when a price change makes it worth it.
+  const stay = !r.choice && !(r.ladder && r.ladder.length > 3) && !worthSwitching(r.savings.total);
   chapter(d, 'Next steps', 'Acting on this',
-    'Switching supplier in Ireland is a short online process. Your supply is never interrupted and nobody visits the property.');
+    `${stay ? 'Your plan is as good as any for your home, so there is nothing to do now. If that changes, switching' : 'Switching'} supplier in Ireland is a short online process. Your supply is never interrupted and nobody visits the property.`);
 
   r.switchSteps.forEach((s, i) => {
     d.ensure(lines(4));

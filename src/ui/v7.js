@@ -15,6 +15,7 @@
 import {
   savingsLadder, rateStrip, monthBars, paybackCurve, dayProfile, eur, billAmt,
 } from './charts.js';
+import { worthSwitching } from '../switching';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -257,7 +258,7 @@ export function createV7(api) {
 
     // When nothing on the market beats the plan this home is on, the answer
     // is "stay" — not a €0 saving with a button to switch to something dearer.
-    let stay = saving < 20 && !chosen;
+    let stay = !worthSwitching(saving) && !chosen;
     // The plan to name beside "stay" is another one: the best was often the
     // home's own plan, which read as "the closest is your plan, €0 more".
     const next = stay && !pl ? (rec.ranked || []).find((r) => r.plan.id !== st.baseline) : null;
@@ -271,30 +272,30 @@ export function createV7(api) {
       : `
         <div class="v7-eyebrow">${pl ? 'Your planned panels would cut your bill by' : saving > 10 ? (withSolar ? 'Switching plan could save, with your solar' : 'You could pay less') : 'Your cheapest plan'}</div>
         <div class="qr-value v7-figure ${lead > 10 ? 'is-saving' : ''}" data-countup="${Math.round(Math.max(0, lead))}" data-prefix="€"><span data-countup-num>${api.fmtCurrency(Math.max(0, lead))}</span><span class="v7-figure-unit">${pl ? 'a year' : saving > 10 ? 'less a year' : 'a year'}</span></div>
-        ${pl ? `<div class="v7-headline">${switchToday > 10
+        ${pl ? `<div class="v7-headline">${worthSwitching(switchToday)
             ? `Switching plan saves ${eur(switchToday)} a year today: <b>${esc(pl.noSolar.plan.supplier)}</b> ${esc(pl.noSolar.plan.plan)}`
-            : 'Your plan is already the cheapest without the panels.'}</div>`
+            : switchToday > 0.5 ? 'Without the panels, your plan is as good as any.' : 'Your plan is already the cheapest without the panels.'}</div>`
           : `<div class="v7-headline">${chosen ? 'On the plan you picked — ' : 'Cheapest for your home: '}<b>${esc(best.plan.supplier)}</b> ${esc(best.plan.plan)}</div>`}
         ${(() => {
-          // An answer that rests on charging the battery from the grid says so,
-          // with what it would be if the battery only takes solar.
+          // The conditions the answer rests on, one short line each, folded
+          // under one tap. Four notes stacked under the figure made Home a
+          // wall of text (owner, 30 Oct 2026); the saving and the plan lead.
+          const conds = [];
+          // Charging the battery from the grid, and the plan if it only takes solar.
           let ng = null; try { ng = api.withoutGridCharge(); } catch (e) {}
-          if (!ng || chosen) return '';
-          const same = ng.plan.id === best.plan.id;
-          return `<div class="v7-note is-check gc-note">${api.ic('battery', 16)}<div><b>This needs your battery to charge from the grid at night.</b> Set it in your inverter app. ${same ? `If it only takes solar, this plan is still the best, ${atYear(ng.net)}.` : `If it only takes solar, the cheapest plan is <b>${esc(ng.plan.supplier)} ${esc(ng.plan.plan)}</b>, ${atYear(ng.net)}.`}</div></div>`;
-        })()}
-        ${(() => {
-          // A battery that only stores solar today: every figure here assumes
-          // it tops up at night, so say so, and what that setting is worth.
+          if (ng && !chosen) conds.push(`<li class="v7-conds-i gc-note">${api.ic('battery', 14)}<span><b>Your battery charges from the grid at night</b>, set in your inverter app. If it only takes solar: ${ng.plan.id === best.plan.id ? 'this plan still' : `${esc(ng.plan.supplier)} ${esc(ng.plan.plan)}`}, ${atYear(ng.net)}.</span></li>`);
+          // A battery that only stores solar today: the figures have it topping up at night.
           let g = null; try { g = api.currentGridGain(); } catch (e) {}
-          return g ? `<div class="v7-note gc-note gc-now">${api.ic('battery', 16)}<div><b>These figures have your battery topping up on night power.</b> You said it only stores solar now. Set it in your inverter app: that alone is worth <b>${eur(g)} a year</b> on your current plan.</div></div>` : '';
+          if (g) conds.push(`<li class="v7-conds-i gc-note gc-now">${api.ic('battery', 14)}<span><b>Your battery tops up on night power.</b> Set it in your inverter app: worth ${eur(g)} a year on your current plan.</span></li>`);
+          const mp = api.getPlanById(st.baseline), pc = mp && mp.price_change;
+          if (pc && pc.effective_date && Date.parse(pc.effective_date) > Date.now()) conds.push(`<li class="v7-conds-i v7-evnote">${api.ic('trendUp', 14)}<span>${esc(mp.supplier)}’s prices rise on ${fmtDate(pc.effective_date)}, counted.</span></li>`);
+          if (!pl && best.plan.type === 'ev' && !st.ev_active) conds.push(`<li class="v7-conds-i v7-evnote">${api.ic('info', 14)}<span>No car needed: this EV plan’s cheap night hours suit ${st.battery_kwh > 0 ? 'your battery' : 'your home'}.</span></li>`);
+          return conds.length ? `<details class="v7-conds"><summary>${api.ic('info', 14)} Based on ${conds.length === 1 ? 'one condition' : `${conds.length} conditions`}</summary><ul>${conds.join('')}</ul></details>` : '';
         })()}
-        ${(() => { const mp = api.getPlanById(st.baseline), pc = mp && mp.price_change;
-          return pc && pc.effective_date && Date.parse(pc.effective_date) > Date.now()
-            ? `<div class="v7-evnote">${api.ic('trendUp', 14)} ${esc(mp.supplier)}’s prices rise on ${fmtDate(pc.effective_date)}. That’s counted.</div>` : ''; })()}
         ${(() => {
           // Dual fuel: say where gas and electricity together come out best,
           // so the electricity answer above and the gas card below agree.
+          // A verdict, not a condition: it stays in view.
           let d = null; try { d = api.dualFuel(); } catch (e) {}
           if (d) {
             const opts = [{ k: 'staying with ' + esc(d.supplier), v: d.stay.total, stay: true },
@@ -305,8 +306,7 @@ export function createV7(api) {
             return low.stay ? `<div class="v7-evnote is-warn">${api.ic('flame', 14)} With gas too, staying with ${esc(d.supplier)} is cheapest.</div>` : '';
           }
           return saving > 10 && api.dualFuelNote(best.plan) ? `<div class="v7-evnote is-warn">${api.ic('flame', 14)} ${api.dualFuelNote(best.plan)}</div>` : '';
-        })()}
-        ${!pl && best.plan.type === 'ev' && !st.ev_active ? `<div class="v7-evnote">${api.ic('info', 14)} You don’t need an EV for this plan. It’s named for cars, but its cheap night hours suit ${st.battery_kwh > 0 ? 'your battery' : 'your home'} too.</div>` : ''}`;
+        })()}`;
     // Dual fuel (gas with the same supplier): Home tells one story, gas and
     // electricity together. The figure, the bars and the tiles below all come
     // from the same three choices, so nothing points two ways.
@@ -323,7 +323,7 @@ export function createV7(api) {
       const dSave = dfh.stay.total - low.value;
       rungs = opts.map((o) => ({ label: o.label, value: o.value, token: o === low ? '--accent' : o.stay ? '--ink-dim' : '--v7-mid' }));
       ladderK = 'Gas and electricity, a year';
-      stay = dSave <= 10;
+      stay = !worthSwitching(dSave);
       const rise = (() => { const mp = api.getPlanById(st.baseline), pc = mp && mp.price_change;
         return pc && pc.effective_date && Date.parse(pc.effective_date) > Date.now()
           ? `<div class="v7-evnote">${api.ic('trendUp', 14)} ${esc(mp.supplier)}’s prices rise on ${fmtDate(pc.effective_date)}. That’s counted.</div>` : ''; })();
@@ -362,7 +362,7 @@ export function createV7(api) {
     if (pl) {
       let d = null; try { d = api.solarData(); } catch (e) {}
       const pb = d && d.cur.payback < 50 ? d.cur.payback : null;
-      solarRow = `<div class="v7-solar-ctl"><span><b>${api.ic('sun', 16)} Planned solar</b><small>${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}${d ? ` · ${eur(d.sysCost)} after grant` : ''}${pb ? ` · pays back in ${pb.toFixed(1)} yrs` : ''}</small>${(() => { const t = api.stressHomeLine && api.stressHomeLine(); return t ? `<button class="ax-inline st-home" onclick="anTab('solar','result')">${api.ic('trendUp', 13)} ${t}</button>` : ''; })()}</span>
+      solarRow = `<div class="v7-solar-ctl"><span><b>${api.ic('sun', 16)} Planned solar</b><small>${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''}${d ? ` · ${eur(d.sysCost)} ${(st.grant_seai || 0) > 0 ? 'after grant' : 'no grant'}` : ''}${pb ? ` · pays back in ${pb.toFixed(1)} yrs` : ''}</small>${(() => { const t = api.stressHomeLine && api.stressHomeLine(); return t ? `<button class="ax-inline st-home" onclick="anTab('solar','result')">${api.ic('trendUp', 13)} ${t}</button>` : ''; })()}</span>
         <button onclick="toggleSolarModel()">Leave out</button></div>`;
     }
     const steps = solarRow || evRow ? `<div class="v7-steps">
@@ -504,7 +504,7 @@ export function createV7(api) {
         <span class="hc-fig">${planned ? `${pb ? pb.toFixed(1) : '—'}<small>years to pay for itself</small>` : `${eur(d ? d.cur.solarBenefit : 0)}<small>a year from your panels</small>`}</span>
         <span class="hc-facts">
           ${planned ? `<span><b>${eur(d ? d.cur.solarBenefit : 0)}</b>back a year</span>` : `<span><b>${pb ? pb.toFixed(1) : '—'} yrs</b>to pay back</span>`}
-          <span><b>${eur(d ? d.sysCost : 0)}</b>after grant</span>
+          <span><b>${eur(d ? d.sysCost : 0)}</b>${(st.grant_seai || 0) > 0 ? 'after grant' : 'no grant'}</span>
           <span><b>${eur(d ? d.npv : 0)}</b>over 20 years</span>
         </span>
         <span class="hc-sub">${api.totalPanels()} panels${st.battery_kwh > 0 ? ` · ${st.battery_kwh} kWh battery` : ''} · at today’s prices</span>
@@ -1528,27 +1528,28 @@ export function createV7(api) {
         ${plan.export_rate ? `<div class="v7-rate"><i class="v7-dot" style="background:var(--accent)"></i>Export<b>${api.fmtCent(plan.export_rate)}</b></div>` : ''}
       </div>
       ${(() => {
-        // The contract, from the registry: "12-month contract · €50 exit fee".
+        // The plan's details under one line, its contract in view, the rest a
+        // tap away: stacked, the discount, the battery, the levy, the source
+        // and a price change were a page of text under the figures (30 Oct 2026).
         const terms = [plan.length > 0 ? `${plan.length}-month contract` : '', plan.exit > 0 ? `${api.fmtCurrency(plan.exit)} exit fee` : ''].filter(Boolean);
-        return terms.length ? `<div class="v7-fine v7-terms">${terms.join(' · ')}</div>` : '';
-      })()}
-      ${plan.public_note ? `<div class="v7-fine">${esc(plan.public_note)}</div>` : ''}
-      ${(() => {
+        const items = [];
+        const item = (icon, html, cls = '') => items.push(`<li class="v7-conds-i ${cls}">${api.ic(icon, 14)}<span>${html}</span></li>`);
+        if (plan.public_note) item('info', esc(plan.public_note));
         const wc = welcomeFor(plan), intro = introDiscount(plan);
-        if (!wc && !intro) return '';
-        const lines = [];
-        if (wc) lines.push(`<b>+${api.fmtCurrency(wc)} welcome credit.</b> First year about <b>${api.fmtCurrency(c.net - wc)}</b>. Stay 12 months to keep it.`);
-        if (intro) lines.push(`${intro.pct}% discount already in the rates${intro.months ? ', for 12 months' : ''}.`);
-        return `<div class="v7-note is-gift">${api.ic('spark', 16)}<div>${lines.join(' ')}</div></div>`;
+        if (wc || intro) item('spark', [wc ? `<b>+${api.fmtCurrency(wc)} welcome credit.</b> First year about <b>${api.fmtCurrency(c.net - wc)}</b>; stay 12 months to keep it.` : '',
+          intro ? `${intro.pct}% discount already in the rates${intro.months ? ', for 12 months' : ''}.` : ''].filter(Boolean).join(' '), 'v7-note is-gift');
+        if (pc) item('trendUp', pcs.started
+          ? `<b>New prices since ${fmtDate(pc.effective_date)}.</b> The rates above are from before; the year counts the new ones.`
+          : `<b>Prices ${pcs.rising ? 'rise' : 'fall'} ${fmtDate(pc.effective_date)}.</b> Counted in the year above.`, `v7-note ${pcs.rising ? 'is-rise' : ''}`);
+        const we = weekendLine(plan, label); if (we) item('calendar', we);
+        const bl = batteryLine(s, plan); if (bl) item('battery', bl);
+        item('info', `PSO levy, ${eur(api.PSO_LEVY || 6.67)} a year, set by the regulator: in the figure above.`);
+        const src = sourceLine(plan); if (src) item('checkC', src);
+        const head = [terms.length ? `<span class="v7-terms">${terms.join(' · ')}</span>` : 'Plan details',
+          pc ? (pcs.started ? `new prices since ${fmtDate(pc.effective_date)}` : `prices ${pcs.rising ? 'rise' : 'fall'} ${fmtDate(pc.effective_date)}`) : ''].filter(Boolean).join(' · ');
+        return `<details class="v7-conds v7-plan-more"><summary>${head}</summary><ul>${items.join('')}</ul></details>`;
       })()}
       ${api.isPartnerPlan(plan.id) ? `<div class="v7-fine">We may earn a commission if you switch to this plan. It never changes the order plans are ranked in.</div>` : ''}
-      ${weekendLine(plan, label)}
-      ${batteryLine(s, plan)}
-      <div class="v7-fine">Every plan also carries the ${eur(api.PSO_LEVY || 6.67)} PSO levy, set by the regulator. It’s in the yearly figure above.</div>
-      ${sourceLine(plan)}
-      ${pc ? `<div class="v7-note ${pcs.rising ? 'is-rise' : ''}">${api.ic('trendUp', 16)}<div><b>${pcs.started
-        ? `New prices since ${fmtDate(pc.effective_date)}.</b> ${esc(pc.note || '')} The rates above are from before; the year above counts the new ones.`
-        : `Prices ${pcs.rising ? 'rise' : 'fall'} ${fmtDate(pc.effective_date)}.</b> ${esc(pc.note || '')} The year above already includes it for the months it applies.`}</div></div>` : ''}
       ${api.planDataFlag(plan) ? `<div class="v7-note is-check">${api.ic('warn', 16)}<div>These rates have not been re-checked recently. Confirm them with ${esc(plan.supplier)} before switching.</div></div>` : ''}
       ${switchButton(plan, '', 'v7-cta-2')}
       <div class="v7-sheet-links">
@@ -1571,7 +1572,7 @@ export function createV7(api) {
       .filter(([b, v]) => plan.rates[b] != null && v !== plan.rates[b])
       .map(([b, v]) => `${(label[b] || b).toLowerCase()} ${v === 0 ? 'free' : api.fmtCent(v)}`);
     if (!parts.length) return '';
-    return `<div class="v7-note is-check">${api.ic('calendar', 16)}<div><b>Weekends.</b> ${esc(when)}: ${esc(parts.join(', '))}. Included in the yearly figure.</div></div>`;
+    return `<b>Weekends.</b> ${esc(when)}: ${esc(parts.join(', '))}. In the yearly figure.`;
   }
 
   /**
@@ -1584,11 +1585,10 @@ export function createV7(api) {
     if (!(st.battery_kwh > 0) || !st.has_solar || !s?.strategy_used) return '';
     const auto = (st.strategy_mode || 'auto') === 'auto';
     const arb = s.strategy_used === 'arbitrage', asRun = s.strategy_used === 'as-run';
-    const what = arb
-      ? 'charge the battery from the grid in the cheap overnight window and use it at peak'
-      : asRun ? (s.as_run_fills ? 'run the battery as your meter file shows it running now, filling from the grid at night' : 'run the battery as your meter file shows it running now, storing your solar')
-      : 'fill the battery from your solar only (grid charging would not pay on this plan)';
-    return `<div class="v7-note is-check">${api.ic('battery', 16)}<div><b>Battery.</b> ${auto ? 'Costed to' : 'Set to'} ${what}.${auto && arb ? ' Set this in your inverter app when you switch.' : ''}</div></div>`;
+    const what = arb ? 'charged from the grid overnight, used at peak'
+      : asRun ? (s.as_run_fills ? 'run as your meter file shows, filling at night' : 'run as your meter file shows, storing solar')
+      : 'filled from your solar only';
+    return `<b>Battery:</b> ${what}.${auto && arb ? ' Set it in your inverter app when you switch.' : ''}`;
   }
 
   /**
@@ -1609,18 +1609,18 @@ export function createV7(api) {
     let d = null; if (!pl) { try { d = api.dualFuel(); } catch (e) {} }
     if (pl) {
       const nowSave = pl.today - pl.noSolar.net;
-      if (pl.noSolar.plan.id !== st.baseline && nowSave >= 20)
+      if (pl.noSolar.plan.id !== st.baseline && worthSwitching(nowSave))
         opts.push({ plan: pl.noSolar.plan, top: `Now: switch to ${esc(pl.noSolar.plan.supplier)}`, sub: `${eur(nowSave)} less a year, before the panels` });
       if (pl.best.plan.id !== pl.noSolar.plan.id && pl.best.plan.id !== st.baseline)
         opts.push({ plan: pl.best.plan, top: `With the panels: ${esc(pl.best.plan.supplier)}`, sub: `${eur(pl.mine - pl.best.net)} less a year once they’re in` });
       if (!opts.length) return `<button class="switch-cta v7-cta" onclick="setScreen('plans')">See every plan compared ${api.ic('chevR', 18)}</button>`;
     } else if (d) {
       const byKey = new Map((rec.ranked || []).map((r) => [api.supplierKey(r.plan.supplier), r]).reverse());
-      if (d.moveBoth && d.stay.total - d.moveBoth.total > 10) {
+      if (d.moveBoth && worthSwitching(d.stay.total - d.moveBoth.total)) {
         const r = byKey.get(api.supplierKey(d.moveBoth.supplier));
         if (r) opts.push({ plan: r.plan, top: `Switch both to ${esc(d.moveBoth.supplier)}`, sub: `Gas and electricity, ${eur(d.stay.total - d.moveBoth.total)} less a year`, save: d.stay.total - d.moveBoth.total });
       }
-      if (d.moveElec && d.stay.total - d.moveElec.total > 10)
+      if (d.moveElec && worthSwitching(d.stay.total - d.moveElec.total))
         opts.push({ plan: bestPlan, top: `Switch electricity to ${esc(d.moveElec.supplier)}`, sub: `Gas stays, ${eur(d.stay.total - d.moveElec.total)} less a year`, save: d.stay.total - d.moveElec.total });
       opts.sort((a, b) => b.save - a.save);
     }
@@ -1687,7 +1687,7 @@ export function createV7(api) {
     let host = src.url;
     try { host = new URL(src.url).hostname.replace(/^www\./, ''); } catch (e) { /* keep the raw url */ }
     const when = src.read || plan.verified_date;
-    return `<div class="v7-fine">Rates read from <a href="${esc(src.url)}" target="_blank" rel="noopener">${esc(host)}</a>${when ? ` on ${fmtDate(when)}` : ''}, inc VAT.</div>`;
+    return `Rates read from <a href="${esc(src.url)}" target="_blank" rel="noopener">${esc(host)}</a>${when ? ` on ${fmtDate(when)}` : ''}, inc VAT.`;
   }
 
   /**

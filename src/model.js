@@ -385,7 +385,7 @@ export function fileBasis(){
 }
 
 /** The stated system's output over the typical year, kWh an hour (as buildSolar, for given panels). */
-function systemGeneration(sys){
+export function systemGeneration(sys){
   const ghi = buildHourlyGHI(), two = sys.count_B > 0, inv = sys.inverter_kw || 5;
   const genA = anchorFace(buildPVGeneration(buildPOA(sys.azimuth_A, sys.tilt_A, ghi), sys.count_A, sys.panel_w, 0.86, Infinity), sys.azimuth_A, sys.tilt_A, sys.count_A * sys.panel_w / 1000);
   const genB = two ? anchorFace(buildPVGeneration(buildPOA(sys.azimuth_B, sys.tilt_B, ghi), sys.count_B, sys.panel_w, 0.86, Infinity), sys.azimuth_B, sys.tilt_B, sys.count_B * sys.panel_w / 1000) : null;
