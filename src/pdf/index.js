@@ -82,7 +82,8 @@ export function buildReportData(ctx) {
       name: `${best.plan.supplier} — ${best.plan.plan}`,
       supplier: best.plan.supplier,
       annualCost: best.net,
-      standing: best.plan.standing || 0,
+      standing: ctx.bestFixed ? ctx.bestFixed.standing : (best.plan.standing || 0),
+      pso: ctx.bestFixed ? ctx.bestFixed.pso : undefined,
       dayProfile: ctx.bestDayProfile || undefined,
       rates: [
         { label: 'Day', value: cents(r.day) },
