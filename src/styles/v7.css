@@ -2444,3 +2444,22 @@ html.web { scrollbar-gutter: stable; }
 @media (min-width: 600px) and (max-width: 899px) { .fl-grid { max-width: 640px; } }
 /* The showcase scrolls sideways: it takes keyboard focus, and shows it. */
 .wl-show:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+
+/* ---------- Home: the conditions folded (30 Oct 2026) ----------
+   One quiet line under the plan; the conditions open on a tap. */
+.v7-conds { font-size: 13px; color: var(--ink-soft); }
+.v7-conds summary { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; cursor: pointer; list-style: none; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.v7-conds summary::-webkit-details-marker { display: none; }
+.v7-conds summary::after { content: '▾'; font-size: 12px; transition: transform .15s; }
+.v7-conds[open] summary::after { transform: rotate(180deg); }
+.v7-conds ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+/* Items keep the classes tests and old notes use (v7-note, is-gift): a box
+   style from those must not reach them inside the fold. */
+.v7-conds li.v7-conds-i { display: grid; grid-template-columns: 16px 1fr; gap: 8px; align-items: start; line-height: 1.45; background: none; border: 0; padding: 0; margin: 0; font-size: 13px; color: var(--ink-soft); box-shadow: none; }
+.v7-conds li.v7-conds-i b { color: var(--ink); font-weight: 600; }
+.v7-conds li.v7-conds-i svg { margin-top: 2px; }
+.v7-conds li.v7-conds-i a { color: inherit; }
+.v7-plan-more { margin-top: 4px; }
+.v7-plan-more summary { text-decoration: none; }
+.v7-plan-more .v7-terms { font: inherit; color: inherit; }
+@media (prefers-reduced-motion: reduce) { .v7-conds summary::after { transition: none; } }

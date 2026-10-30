@@ -128,7 +128,7 @@ test.describe('a meter file with the panels in all of it', () => {
       return {
         readings: Math.round(Object.values(st.bills).reduce((a, b) => a + b, 0) - sum(window.CACHE.cons) + st._csv_export_kwh),
         made: num(pic, /([\d,]+) kWh made/), sold: num(pic, /([\d,]+) kWh sold/), bought: num(pic, /([\d,]+) kWh bought/),
-        shareMade: num(share, /Makes: ([\d,]+) kWh/), shareSold: num(share, /Sells: ([\d,]+) kWh/),
+        shareMade: num(share, /Makes: ([\d,]+) kWh/), shareSold: num(share, /Sells(?: \(cheapest plan\))?: ([\d,]+) kWh/),
       };
     });
     expect(f.readings).toBeGreaterThan(1000);

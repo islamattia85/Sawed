@@ -56,7 +56,13 @@ test('an answer that needs the battery to charge from the grid says so, with the
   await setup(page, { bill: 120, panels: 9, batt: 10 });
   const uses = await page.evaluate(() => window.sim(window.getRecommendation().best.plan.id).strategy_used);
   if (uses === 'arbitrage') {
-    await expect(page.locator('.gc-note')).toContainText('charge from the grid at night');
+    // Folded under one line with the answer's other conditions; it opens on a tap.
+    const conds = page.locator('.v7-conds');
+    await expect(conds.locator('summary')).toHaveText(/Based on (one condition|\d conditions)/);
+    await expect(page.locator('.gc-note')).toBeHidden();
+    await conds.locator('summary').click();
+    await expect(page.locator('.gc-note')).toBeVisible();
+    await expect(page.locator('.gc-note')).toContainText('charges from the grid at night');
     await expect(page.locator('.gc-note')).toContainText('If it only takes solar');
   } else {
     await expect(page.locator('.gc-note')).toHaveCount(0);

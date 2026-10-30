@@ -24,7 +24,7 @@ import { LEGAL_SCREENS, companyLine, termsHtml, privacyHtml, rankingHtml, access
 import { IC, ic } from './icons';
 import FIG from './data/front-figures.json';
 import {
-  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileIsNet, fileDays, fileOwnShape, shapeBuckets, seasonalShape, SEASONAL_SHAPE, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, onOffer, getPlanById, carInMeterFile, carSeenInFile, carFileState, carAddedOnTop, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, tidyNames, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
+  IRISH_REGIONS, LOCATION, currentLocation, buildHourlyGHI, buildPOA, buildPVGeneration, rateAt, simulateBaseline, applyRegion, WHOLESALE_MONTHLY_BASE, WHOLESALE_HOURLY_MULT, WHOLESALE_NEG_FLOOR, state, buildSolar, totalPanels, totalKwp, BIMONTHLY, bimonthlyFor, SHAPE_HEATPUMP_WINTER, SHAPE_HEATPUMP_SUMMER, SHAPE_GAS_WINTER, SHAPE_GAS_SUMMER, SHAPE_STORAGE_WINTER, SHAPE_STORAGE_SUMMER, SHAPE_DIRECT_WINTER, SHAPE_DIRECT_SUMMER, getShape, buildConsumption, annualCost, exportTax, EXPORT_TAX_FREE, meterYearDays, marketToday, plansIn, withPrices, benefitIn, pathValue, inverterFor, batteryRunsSolarOnlyNow, fileSolar, fileBasis, fileIsNet, fileDays, fileOwnShape, statedSystem, systemGeneration, shapeBuckets, seasonalShape, SEASONAL_SHAPE, batteryReplacement, batterySwapYear, buildWholesale, EMBEDDED_TARIFFS, TARIFFS, onOffer, getPlanById, carInMeterFile, carSeenInFile, carFileState, carAddedOnTop, simulate, CACHE, rebuildBase, sim, baselineSim, baselineNet, NUMERIC_STATE_FIELDS, coerceNumericState, _scenarioDepth, scenarioMemo, _solarExtrasReady, _solarExtrasPending, invalidate, effectiveStrategy, SIM_FIELDS, snapshotSim, restoreSim, withSimState, singleScenarioMemo, isRankablePlan, fitsMeter, applyArea, evaluateChosenPlan, getBestPlan, getRecommendation, baselineDiscountFactor, computeNpv20, GOAL_PANELS, GOAL_BATTS, goalPanels, ROOF_MAX_PANELS, goalSweepCk, estimateInstallCost, calcSeaiGrant, setState, setTariffs, tidyNames, setSolarExtrasReady, setSolarExtrasPending, adjScenarioDepth,
   outcomeAgainst, sweepSetup, evaluateDesign, finishSweep, readBillAsRun, syncFileBills,
 } from './model';
 
@@ -1820,10 +1820,16 @@ function _analyticsData(plan){
   const best = { plan: ap.best, net: bestAc.net };
   let solar = null;
   if (sys){
-    const gen = sumF(s.gen), exp = sumF(s.grid_export), curt = sumF(s.curtailed);
+    // A meter file with the panels in all of it: what they made and sold as
+    // the readings show it (netFileYear), and the home's own use, not what
+    // it bought. The model doesn't run those panels, so the Solar page said
+    // "Made by the panels · 0 kWh" and "0% used at home, 0% sold" beside a
+    // Profile with 5,721 kWh made (30 Oct 2026).
+    const ny = fileIsNet() ? netFileYear(plan.id) : null;
+    const gen = ny ? ny.made : sumF(s.gen), exp = ny ? ny.sold : sumF(s.grid_export), curt = ny ? 0 : sumF(s.curtailed);
     solar = { plan, gen, exp, curt, kept: Math.max(0, gen - exp - curt), revenue: sumF(s.revenue),
-      battIn: state.battery_kwh > 0 ? sumF(s.battery_charge) : 0, battOut: state.battery_kwh > 0 ? sumF(s.battery_discharge) : 0,
-      cons: sumF(s.cons), arbitrage: state.battery_kwh > 0 && arbitrageOn() };
+      battIn: !ny && state.battery_kwh > 0 ? sumF(s.battery_charge) : 0, battOut: !ny && state.battery_kwh > 0 ? sumF(s.battery_discharge) : 0,
+      cons: ny ? v7AnnualKwh() : sumF(s.cons), arbitrage: state.battery_kwh > 0 && arbitrageOn() };
   }
   return { sys, installed, plan, picked: ap.picked, bestIsChoice: ap.bestIsChoice, _t: t,
     today: { total: t.total, energy: t.energy, standing: t.standing, pso: t.pso, outlook: t.outlook, credit: t.credit, tax: t.tax,
@@ -6447,7 +6453,10 @@ function shareDetails(){
     rows.push(['Roof', faces.map(([c, az, t]) => `${faces.length > 1 ? `${c} ` : ''}facing ${dir(az)} at ${Math.round(t)}°`).join(' · ').replace(/^f/, 'F'), true]);
     rows.push([planned ? 'Would make' : 'Makes', `${n0(gen)} kWh a year`]);
     rows.push(['Used at home', `${Math.round(Math.max(0, gen - exp - curt) / Math.max(1, gen) * 100)}%`]);
-    rows.push([planned ? 'Would sell' : 'Sells', `${n0(exp)} kWh · ${eurS(sumF(s.revenue))}`]);
+    // A battery topping up at night on the cheapest plan sells more than the
+    // meter file shows (Profile's figure is what it sells now): say which.
+    const onBest = ny && Math.abs(exp - (+state._csv_export_kwh || 0)) > Math.max(20, exp * 0.02);
+    rows.push([planned ? 'Would sell' : onBest ? 'Sells (cheapest plan)' : 'Sells', `${n0(exp)} kWh · ${eurS(sumF(s.revenue))}`]);
     if (d.sysCost > 0) rows.push(['Cost', `${eurS(d.sysCost)}${(state.grant_seai || 0) > 0 ? ` after the ${eurS(state.grant_seai)} grant` : ''}${state.cost_is_manual ? '' : ' (guide price)'}`, true]);
     out.solar = { title: planned ? 'My planned solar' : 'My solar', rows };
   }
@@ -10984,8 +10993,26 @@ function v7MonthDetail(best){
   return out;
 }
 function v7MonthlyTotals(best){
+  if (fileIsNet() && state.has_solar && totalPanels() > 0) return netFileMonths(best && best.plan ? best.plan.id : state.baseline);
   const d = v7MonthDetail(best);
   return { gen: d.map(m => m.gen), cons: d.map(m => m.cons) };
+}
+/**
+ * netFileYear by month, for the Solar page's chart: what the panels made,
+ * spread over the year as the stated roof makes it, and the home's use, each
+ * two-month figure split by its days. The readings don't say what the panels
+ * made in a month, only what was bought and sold.
+ */
+function netFileMonths(planId){
+  const made = netFileYear(planId).made;
+  const g = systemGeneration(statedSystem()), gm = new Array(12).fill(0), use = new Array(12).fill(0);
+  for (let m = 0, i = 0; m < 12; m++) for (let h = 0; h < DAYS_IN_MONTH[m] * 24 && i < HOURS_IN_YEAR; h++, i++) gm[m] += g[i] || 0;
+  const tot = gm.reduce((a, b) => a + b, 0);
+  for (const p of BIMONTHLY){
+    const kwh = +((state.bills || {})[p.key]) || 0, days = p.months.reduce((a, m) => a + DAYS_IN_MONTH[m], 0);
+    p.months.forEach((m) => { use[m] += kwh * DAYS_IN_MONTH[m] / days; });
+  }
+  return { gen: gm.map((v) => (tot > 0 ? made * v / tot : made / 12)), cons: use };
 }
 function v7ResultEmpty(){
   return `${topbar('No plans available')}
@@ -13965,7 +13992,7 @@ window.__housePrint = async (planId) => {
   const m = await import('./ui/house-print.js'), pic = householdPicture(planId);
   return { ...(await m.housePrint(pic)), svg: m.printMarkup(pic).svg };
 };
-window.__sim = { annualKwh: () => sumF(CACHE.cons), pso: PSO_LEVY, plannedLadder, noSolarBest, baselineNet: () => baselineNet(state.baseline), dualFuel, installCost: () => state.install_cost };
+window.__sim = { annualKwh: () => sumF(CACHE.cons), pso: PSO_LEVY, plannedLadder, netFileYear, noSolarBest, baselineNet: () => baselineNet(state.baseline), dualFuel, installCost: () => state.install_cost };
 window.setGrantEligible = setGrantEligible;
 window.sysConfirmRoof = sysConfirmRoof;
 window.quickOutcome = quickOutcome;
