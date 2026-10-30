@@ -19,6 +19,7 @@ import { dualFuelChoices, gasPlanFor, gasKwhFromBill, inFirstYear, supplierKey }
 import { GAS_TARIFFS } from './gas-tariffs.js';
 import { BRAND, CONTROLLER, MARK_PATHS, iconDataUri, wordmarkHtml } from './brand';
 import { FEATURES } from './features.js';
+import { worthSwitching } from './switching';
 import { LEGAL_SCREENS, companyLine, termsHtml, privacyHtml, rankingHtml, accessibilityHtml, complaintsHtml } from './legal.js';
 import { IC, ic } from './icons';
 import FIG from './data/front-figures.json';
@@ -3410,9 +3411,13 @@ function webDecorate(html){
     const n = m ? +m[1] : 0;
     let b = null; try { b = getRecommendation().best; } catch (e) {}
     const planned = !!(state.has_solar && state.solar_planned && totalPanels() > 0);
-    top = n > 10
+    // The rule Home's card and the answer use: under it, a cheaper plan is
+    // there but not worth the switch, and "nothing costs less" isn't true.
+    let cheaper = 0; try { cheaper = publishableSavings(); } catch (e) {}
+    top = (planned ? n > 10 : worthSwitching(n))
       ? head('Your answer', planned ? `Your home could pay <em>${eur(n)} less</em> a year.` : `Switch${b && b.plan ? ` to <em>${b.plan.supplier}</em>` : ''} and pay ${eur(n)} less a year.`,
         planned ? 'Switching plan now, then adding the panels you are planning.' : b && b.plan ? `${b.plan.plan}, priced on every hour of your year.` : '')
+      : cheaper >= 1 ? head('Your answer', 'Your plan is as good as any.', 'No plan saves enough to be worth a switch.')
       : head('Your answer', 'Your plan is already the best value.', 'Nothing on sale costs less for your home.');
     end = nx([[...toPlans, 1], toSolar]);
     const dash = webDash();
@@ -6266,7 +6271,8 @@ function renderFlow(){
     const top = pl ? Math.max(pl.today, pl.noSolar.net, pl.mine, pl.best.net, 1) : 1;
     const bar = (label, v, best) => `<div><span>${label}</span><b>${eur(v)}</b><i${best ? ' class="is-best"' : ''} style="width:${Math.max(8, Math.round(Math.max(0, v) / top * 100))}%"></i></div>`;
     const bars4 = pl ? `<div class="fl-bars">${bar('Now, no solar', pl.today)}${bar(`On ${esc(pl.noSolar.plan.supplier)} ${esc(pl.noSolar.plan.plan)}, no solar`, pl.noSolar.net)}${bar('Now, with the planned panels', pl.mine)}${bar(`On ${esc(pl.best.plan.supplier)} ${esc(pl.best.plan.plan)}, with the planned panels`, pl.best.net, true)}</div>` : '';
-    const bars = rec && save > 10 ? `<div class="fl-bars">
+    const worth = worthSwitching(save);
+    const bars = rec && worth ? `<div class="fl-bars">
         <div><span>Now${state.baseline_known && bp ? `, ${esc(bp.supplier)} ${esc(bp.plan)}` : ''}</span><b>${eur(mine)}</b><i style="width:100%"></i></div>
         <div><span>On ${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}${pl ? ', with the solar' : ''}</span><b>${eur(rec.best.net)}</b><i class="is-best" style="width:${Math.max(8, Math.round(rec.best.net / mine * 100))}%"></i></div>
       </div>` : '';
@@ -6280,9 +6286,10 @@ function renderFlow(){
       <div class="fl-r-k">Your answer</div>
       ${pl && lead > 10 ? `<div class="fl-r-line">Your planned panels would cut your bill by</div>
         <div class="fl-r-big is-saving">${eur(lead)}<span> a year</span></div>
-        <div class="fl-r-line">${switchNow > 10 ? `Switching plan saves <b>${eur(switchNow)}</b> a year today: <b>${esc(pl.noSolar.plan.supplier)} ${esc(pl.noSolar.plan.plan)}</b>` : 'Your plan is already the cheapest without the panels.'}</div>${bars4}`
-        : !pl && save > 10 ? `<div class="fl-r-big is-saving">${eur(save)}<span> less a year</span></div>
+        <div class="fl-r-line">${worthSwitching(switchNow) ? `Switching plan saves <b>${eur(switchNow)}</b> a year today: <b>${esc(pl.noSolar.plan.supplier)} ${esc(pl.noSolar.plan.plan)}</b>` : switchNow > 0.5 ? 'Without the panels, your plan is as good as any.' : 'Your plan is already the cheapest without the panels.'}</div>${bars4}`
+        : !pl && worth ? `<div class="fl-r-big is-saving">${eur(save)}<span> less a year</span></div>
         <div class="fl-r-line">by switching to <b>${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}</b></div>${bars}`
+        : !pl && save >= 1 ? `<div class="fl-r-line"><b>You’re already on a good plan.</b> The cheapest, ${esc(rec.best.plan.supplier)} ${esc(rec.best.plan.plan)}, would save only ${eur(save)} a year: not worth a switch.</div>`
         : `<div class="fl-r-line"><b>You’re already on a good plan.</b> Nothing on sale beats it for your home.</div>`}
       <div class="fl-r-act"><div class="fl-r-list">
         ${sd ? `<span>${state.solar_planned ? 'Solar would pay back in' : 'Your panels bring back'} <b>${state.solar_planned ? `${sd.cur.payback < 50 ? sd.cur.payback.toFixed(1) : '—'} years` : `${eur(sd.cur.solarBenefit)} a year`}</b></span>` : ''}
@@ -6461,7 +6468,8 @@ function shareDetails(){
 /** The share card's words, for pasting into a message. */
 function shareText(savings, details, df){
   const n0 = (v) => Math.round(v).toLocaleString('en-IE');
-  const lines = [`My home energy analysis: €${n0(Math.max(0, savings))} a year less${df ? ' on gas and electricity' : ''}.`];
+  const lines = [worthSwitching(savings) ? `My home energy analysis: €${n0(savings)} a year less${df ? ' on gas and electricity' : ''}.`
+    : `My home energy analysis: my plan is as good as any. A switch would save €${n0(Math.max(0, savings))} a year at most.`];
   if (details){
     let det = null; try { det = shareDetails(); } catch (e) { det = null; }
     if (det && det.solar) lines.push('', det.solar.title, ...det.solar.rows.map(([k, v]) => `${k}: ${v}`));
@@ -6484,6 +6492,8 @@ function shareText(savings, details, df){
 // shareDetails: nothing that says who they are). Web Share API with download
 // fallback.
 function makeShareCardCanvas(savings, opts = {}){
+  // The card's own colours: a canvas can't read the page's tokens.
+  const C_INK = '#EEF1EE', C_DIM = '#A2ACA6', C_GREEN = '#4CCB8C', C_GOLD = '#ffd166';
   const cv = document.createElement('canvas');
   if (!cv || typeof cv.getContext !== 'function') return null;
   const full = (p) => (p ? `${p.supplier} · ${p.plan}` : '');
@@ -6504,16 +6514,16 @@ function makeShareCardCanvas(savings, opts = {}){
       ].filter(Boolean);
       dfBest = dfOpts.reduce((a, o) => (o.v < a.v ? o : a));
       savings = df.stay.total - dfBest.v;
-      rungs = dfOpts.map((o) => [o.label, o.plan, o.v, o === dfBest ? '#4CCB8C' : o === dfOpts[0] ? '#7A847E' : '#2F7A56']);
+      rungs = dfOpts.map((o) => [o.label, o.plan, o.v, o === dfBest ? C_GREEN : o === dfOpts[0] ? '#7A847E' : '#2F7A56']);
     } else {
       const pl = (state.solar_planned || state.solar_is_estimate) ? plannedLadder() : null;
       if (pl) rungs = [
         ['Current plan', full(mine), pl.today, '#7A847E'],
         ['Cheapest plan', full(pl.noSolar.plan), pl.noSolar.net, '#2F7A56'],
         ['Current plan + solar', full(mine), pl.mine, '#2F7A56'],
-        ['Cheapest plan + solar', full(pl.best.plan), pl.best.net, '#4CCB8C'],
+        ['Cheapest plan + solar', full(pl.best.plan), pl.best.net, C_GREEN],
       ];
-      else rungs = [['Current plan', full(mine), nowPlanCost(), '#7A847E'], ['Cheapest plan', full(rec.best.plan), rec.best.net, '#4CCB8C']];
+      else rungs = [['Current plan', full(mine), nowPlanCost(), '#7A847E'], ['Cheapest plan', full(rec.best.plan), rec.best.net, C_GREEN]];
     }
   } catch (e) { rungs = []; }
 
@@ -6578,26 +6588,29 @@ function makeShareCardCanvas(savings, opts = {}){
   rr(72, 70, 76, 76, 18, '#16343d');
   x.strokeStyle = '#8fb0b8'; x.lineWidth = 3; x.setLineDash([4, 7]);
   x.beginPath(); x.moveTo(84, 122); x.bezierCurveTo(100, 122, 104, 88, 110, 88); x.bezierCurveTo(116, 88, 120, 122, 136, 122); x.stroke();
-  x.setLineDash([]); x.strokeStyle = '#ffd166'; x.lineWidth = 6; x.lineCap = 'round';
+  x.setLineDash([]); x.strokeStyle = C_GOLD; x.lineWidth = 6; x.lineCap = 'round';
   x.beginPath(); x.moveTo(84, 124); x.lineTo(136, 124); x.stroke();
-  t('peakless', 168, 124, 46, '#EEF1EE', 700);
-  t('My home energy analysis', W - 72, 122, 28, '#A2ACA6', 500, 'right');
+  t('peakless', 168, 124, 46, C_INK, 700);
+  t('My home energy analysis', W - 72, 122, 28, C_DIM, 500, 'right');
 
   // The answer.
-  t('THE MOST I COULD SAVE', 72, 250, 28, '#ffd166', 700);
+  // Under the rule Home uses, a few euro less isn't a saving to share: the
+  // card says the plan is as good as any, and what a switch would save.
+  const worth = worthSwitching(savings);
+  t(worth ? 'THE MOST I COULD SAVE' : savings >= 1 ? 'MY PLAN IS AS GOOD AS ANY' : 'MY PLAN IS ALREADY THE BEST VALUE', 72, 250, 28, C_GOLD, 700);
   const big = eurS(Math.max(0, savings));
-  t(big, 64, big.length > 4 ? 400 : 420, big.length > 4 ? 160 : 190, '#4CCB8C', 800);   // a comma at 190px reaches the line below
-  t(dfOpts ? 'less a year, gas and electricity' : 'less a year', 72, 480, 40, '#A2ACA6', 600);
+  t(big, 64, big.length > 4 ? 400 : 420, big.length > 4 ? 160 : 190, worth ? C_GREEN : C_INK, 800);   // a comma at 190px reaches the line below
+  t(!worth ? 'the most a switch would save' : dfOpts ? 'less a year, gas and electricity' : 'less a year', 72, 480, 40, C_DIM, 600);
 
   // The bars, as Home shows them: what, the exact plan, the yearly figure.
   rr(56, top, W - 112, boxH, 36, '#171C19');
-  t(dfOpts ? 'Gas and electricity, a year' : 'What I’d pay a year', 96, top + 58, 28, '#A2ACA6', 600);
+  t(dfOpts ? 'Gas and electricity, a year' : 'What I’d pay a year', 96, top + 58, 28, C_DIM, 600);
   const max = Math.max(1, ...rungs.map((r) => r[2]));
   rungs.forEach(([label, plan, v, c], i) => {
     const y = top + 120 + i * RUNG;
-    t(fit(label, W - 192 - 180, 30, 700), 96, y, 30, '#EEF1EE', 700);
-    t(v < 0 ? `${eurS(-v)} credit` : eurS(v), W - 96, y, 32, c === '#4CCB8C' ? '#4CCB8C' : '#EEF1EE', 800, 'right');
-    t(fit(plan, W - 192, 24, 400), 96, y + 34, 24, '#A2ACA6', 400);
+    t(fit(label, W - 192 - 180, 30, 700), 96, y, 30, C_INK, 700);
+    t(v < 0 ? `${eurS(-v)} credit` : eurS(v), W - 96, y, 32, c === C_GREEN ? C_GREEN : C_INK, 800, 'right');
+    t(fit(plan, W - 192, 24, 400), 96, y + 34, 24, C_DIM, 400);
     rr(96, y + 52, W - 192, 20, 10, '#262D29');
     rr(96, y + 52, Math.max(20, (W - 192) * (Math.max(0, v) / max)), 20, 10, c);
   });
@@ -6606,27 +6619,27 @@ function makeShareCardCanvas(savings, opts = {}){
   let sy = fy;
   sections.forEach((sec) => {
     rr(56, sy, W - 112, sec.h, 36, '#171C19');
-    t(sec.title, 96, sy + 62, 28, '#A2ACA6', 600);
+    t(sec.title, 96, sy + 62, 28, C_DIM, 600);
     const colW = (W - 192 - 40) / 2;
     sec.lines.forEach((line, li) => {
       const ly = sy + 100 + li * LINE;
       line.forEach(([k, v, wide], ci) => {
         const lx = 96 + ci * (colW + 40), w = wide ? W - 192 : colW;
-        t(k, lx, ly + 30, 24, '#A2ACA6', 500);
+        t(k, lx, ly + 30, 24, C_DIM, 500);
         let size = 34; x.font = `700 ${size}px ${F}`;
         while (size > 24 && x.measureText(v).width > w){ size -= 2; x.font = `700 ${size}px ${F}`; }
-        t(fit(v, w, size, 700), lx, ly + 72, size, '#EEF1EE', 700);
+        t(fit(v, w, size, 700), lx, ly + 72, size, C_INK, 700);
       });
     });
     if (sec.split){
       const by = sy + 100 + sec.lines.length * LINE + 10, bw = W - 192;
-      const parts = [['Day', sec.split.day, '#A2ACA6'], ['Night', sec.split.night, '#4CCB8C'], ['Peak', sec.split.peak, '#ffd166']];
+      const parts = [['Day', sec.split.day, C_DIM], ['Night', sec.split.night, C_GREEN], ['Peak', sec.split.peak, C_GOLD]];
       let bx = 96;
       parts.forEach(([, f, c], i) => { if (f > 0) rr(bx, by, Math.max(10, bw * f - (i < 2 ? 4 : 0)), 20, 10, c); bx += bw * f; });
       let lx = 96;
       parts.forEach(([k, f, c]) => {
         const s = `${k} ${Math.round(f * 100)}%`;
-        rr(lx, by + 44, 18, 18, 9, c); t(s, lx + 28, by + 61, 24, '#A2ACA6', 600);
+        rr(lx, by + 44, 18, 18, 9, c); t(s, lx + 28, by + 61, 24, C_DIM, 600);
         x.font = `600 24px ${F}`; lx += 28 + x.measureText(s).width + 36;
       });
     }
@@ -6636,17 +6649,17 @@ function makeShareCardCanvas(savings, opts = {}){
   if (!sections.length) shown.forEach(([k, v], i) => {
     const fx = 56 + i * (fw + 24);
     rr(fx, fy, fw, 136, 28, '#171C19');
-    t(k, fx + 30, fy + 52, 26, '#A2ACA6', 600);
+    t(k, fx + 30, fy + 52, 26, C_DIM, 600);
     let size = 40; x.font = `800 ${size}px ${F}`;
     while (size > 24 && x.measureText(v).width > fw - 60){ size -= 2; x.font = `800 ${size}px ${F}`; }
-    t(fit(v, fw - 60, size, 800), fx + 30, fy + 104, size, '#EEF1EE', 800);
+    t(fit(v, fw - 60, size, 800), fx + 30, fy + 104, size, C_INK, 800);
   });
 
   // Footer.
   let live = 0; try { live = getRecommendation().ranked.length; } catch (e) { live = TARIFFS.filter(onOffer).length; }
   let acc = null; if (sections.length) try { acc = modelAccuracy().pct; } catch (e) { acc = null; }
-  t(fit('My whole year, priced on all ' + live + ' Irish plans' + (acc ? `, accurate to ±${acc}%.` : '.'), W - 144, 28, 500), 72, H - 96, 28, '#A2ACA6', 500);
-  t('Check yours free at peakless', 72, H - 52, 34, '#ffd166', 700);
+  t(fit('My whole year, priced on all ' + live + ' Irish plans' + (acc ? `, accurate to ±${acc}%.` : '.'), W - 144, 28, 500), 72, H - 96, 28, C_DIM, 500);
+  t('Check yours free at peakless', 72, H - 52, 34, C_GOLD, 700);
   return cv;
 }
 
@@ -13818,7 +13831,8 @@ function openPdfReportModal(){
       <h3>Download your report</h3>
       <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;line-height:1.6">
         Your report has your plans, solar payback, the grant and how to switch.
-        ${best ? `<br><br><b style="color:var(--accent)">Save ${fmtCurrency(publishableSavings())}/yr by switching to ${best.plan.supplier}${state.solar_planned ? ' (excludes your planned solar)' : ''}</b>` : ''}
+        ${best && worthSwitching(publishableSavings()) ? `<br><br><b style="color:var(--accent)">Save ${fmtCurrency(publishableSavings())}/yr by switching to ${best.plan.supplier}${state.solar_planned ? ' (excludes your planned solar)' : ''}</b>`
+          : best ? '<br><br><b>Your plan is as good as any: no switch saves enough to be worth it.</b>' : ''}
       </p>
       ${FEATURES.emailCapture ? `<input id="pdf-email" class="modal-input" type="email" placeholder="you@example.com (optional)" autocomplete="email" value="${escAttr(state.user_email || '')}">` : ''}
       <button class="modal-btn" id="pdf-submit-btn" onclick="submitPdfRequest()">Download PDF</button>
