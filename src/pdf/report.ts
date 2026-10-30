@@ -9,6 +9,7 @@
 
 import { BRAND } from '../brand';
 import { worthSwitching } from '../switching';
+import { PSO_LEVY } from '../engine/constants';
 import { Doc, type PdfDoc } from './doc.js';
 import {
   PAGE, TYPE, lines, LW, TEXT_LEFT, TEXT_RIGHT,
@@ -50,6 +51,8 @@ export interface ReportData {
   current: { name: string; annualCost: number; standing: number; bands?: string[] };
   best: {
     name: string; supplier: string; annualCost: number; standing: number;
+    /** The PSO levy on that plan, as the app counts it. */
+    pso?: number;
     rates: { label: string; value: string }[];
     dayProfile?: number[];
     bands?: string[];
@@ -390,7 +393,7 @@ function chComparison(d: Doc, r: ReportData) {
   const top = r.ranked.slice(0, 8);
   const mine = r.ranked.find((p) => p.name === r.current.name);
   const rows = mine && !top.includes(mine) ? [...top, mine] : top;
-  finding(d, `The cheapest ${top.length} of ${r.ranked.length} plans for your home${mine ? `, and yours (#${r.ranked.indexOf(mine) + 1})` : ''}`,
+  finding(d, `The cheapest ${top.length} of the ${r.ranked.length} ranked plans for your home${mine ? `, and yours (#${r.ranked.indexOf(mine) + 1})` : ''}`,
     'A year on each plan: what you use, plus the standing charge, less any export income.');
   hbars(d, rows.map((p) => ({ label: `${r.ranked.indexOf(p) + 1}. ${p.name}`, value: p.cost, text: eur(p.cost),
     color: p === r.ranked[0] ? GREEN : p === mine ? DEBIT : DAY, bold: p === r.ranked[0] })), { barH: 2.6, max: Math.max(...rows.map((p) => p.cost)) });
@@ -570,7 +573,7 @@ function chMethod(d: Doc, r: ReportData) {
 function appendix(d: Doc, r: ReportData) {
   d.newPage();
   chapter(d, 'Appendix', 'Every plan, ranked',
-    `All ${r.ranked.length} plans priced against your consumption. Cost is what you would pay in a year, including the standing charge and net of any export income.`);
+    `${r.ranked.length < r.tariffCount ? `The ${r.ranked.length} ranked plans of the ${r.tariffCount} for your meter` : `All ${r.ranked.length} plans`}, priced against your consumption. Cost is what you would pay in a year, including the standing charge and net of any export income.`);
 
   const worst = Math.max(...r.ranked.map((p) => p.cost));
   const best = Math.min(...r.ranked.map((p) => p.cost));
@@ -598,7 +601,7 @@ function appendix(d: Doc, r: ReportData) {
 
   table(d, numbered, cols, {
     emphasise: (row) => (row as { _n: number })._n === 1,
-    note: 'Dynamic wholesale-tracking plans are excluded from the ranking unless enabled in the app, because their real cost depends on market movements that cannot be forecast.',
+    note: `${r.ranked.length < r.tariffCount ? `The ${r.tariffCount - r.ranked.length} plan${r.tariffCount - r.ranked.length === 1 ? '' : 's'} whose prices follow the wholesale market hour by hour ${r.tariffCount - r.ranked.length === 1 ? 'is' : 'are'} left out of the ranking` : 'Plans whose prices follow the wholesale market hour by hour are left out of the ranking'} unless enabled in the app, because their real cost depends on market movements that cannot be forecast.`,
   });
 }
 
@@ -607,6 +610,26 @@ function appendix(d: Doc, r: ReportData) {
 
 function chYear(d: Doc, r: ReportData) {
   if (!r.months?.length) return;
+  // A home without panels: what it uses and what that costs, month by month.
+  // The solar page ran for it, "a swing of about 0.0:1" and "0 kWh for every
+  // kWp" over a table of zeros (30 Oct 2026).
+  if (!r.solar) {
+    const use = r.months.map((m) => m.consumed);
+    const hi = use.indexOf(Math.max(...use)), lo = use.indexOf(Math.min(...use));
+    chapter(d, 'Months', 'Your year, month by month',
+      `What the home uses each month, priced hour by hour on ${planWord(r)}.`);
+    finding(d, `${r.months[hi]!.month} uses the most electricity and ${r.months[lo]!.month} the least`, 'Electricity used each month, kWh.');
+    columns(d, use, use.map(() => DAY), { h: 30, labels: r.months.map((m) => m.month.slice(0, 3)) });
+    table(d, r.months, [
+      { head: 'Month', width: 0, cell: (row: never) => (row as { month: string }).month },
+      { head: 'Used, kWh', width: 30, align: 'right', cell: (row: never) => Math.round((row as { consumed: number }).consumed).toLocaleString('en-IE') },
+      { head: 'Electricity', width: 30, align: 'right', cell: (row: never) => eur((row as { cost: number }).cost) },
+    ] as Column[], {
+      caption: 'Use and cost by month',
+      note: 'The cost is the electricity alone; the standing charge and the PSO levy come on top.',
+    });
+    return;
+  }
   const y = r.year;
   chapter(d, 'Months', 'Your year, month by month',
     'A solar system in Ireland does not deliver evenly. These are the twelve months as the simulation produced them, hour by hour, on your own consumption.');
@@ -642,7 +665,9 @@ function chYear(d: Doc, r: ReportData) {
 }
 
 function chDays(d: Doc, r: ReportData) {
-  if (!r.days?.length) return;
+  // Four days of what the panels made against what the house drew: nothing
+  // to show without panels. "Your year, hour by hour" has when it uses power.
+  if (!r.days?.length || !r.solar) return;
   heading(d, 'Four days across the year', lines(30));
   d.paragraph(
     'Annual totals hide the thing that actually determines your bill: when the electricity arrives and when you need it. These are four real days from the simulation — the pale area is what the panels produced, the line is what the house drew.',
@@ -705,7 +730,9 @@ function chWhereMoneyGoes(d: Doc, r: ReportData) {
   chapter(d, 'Costs', 'Where the money actually goes',
     `Not every kilowatt-hour costs the same. This is your annual import cost split by the rate band it fell in, on ${planWord(r)}.`);
 
-  const fixed = r.best.standing + 19.1;
+  // As the app's Figures page has them; the report added a levy of €19.10,
+  // an old one, so its fixed charges read €270 beside the app's €257.
+  const fixed = r.best.standing + (r.best.pso ?? PSO_LEVY);
   const tot = r.bands.reduce((a, b) => a + b.cost, 0) + fixed;
   const top = r.bands.slice().sort((x, y) => y.cost - x.cost)[0]!;
   finding(d, `${BAND_NAME[top.band] || top.band} electricity is the biggest part of the bill: ${Math.round((top.cost / tot) * 100)}%`,

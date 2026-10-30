@@ -3544,7 +3544,7 @@ function webDash(){
       <nav class="wd-tabs" aria-label="More detail">${[['bill','Bill'],['hours','Hours'],['solar','Solar'],['accuracy','Accuracy']].map(([k, l]) => `<button onclick="state._an_from=null;anTab('${k}')">${l}</button>`).join('')}</nav></div>
     <div class="wd-grid">
       ${card('s8', hd('Your bill, month by month', now ? `${esc(base.supplier)} now and ${esc(plan.supplier)}, on this home` : `On ${esc(plan.supplier)} ${esc(plan.plan)}`), month + `<div class="wd-legend">${now ? `<span><i style="background:var(--ink-dim);opacity:.5"></i>${esc(base.supplier)} ${esc(base.plan)}</span>` : ''}<span><i style="background:var(--accent)"></i>${esc(plan.supplier)} ${esc(plan.plan)}</span></div>`)}
-      ${card('s4', hd(T.credit > 1 ? `You buy ${eur(spend)}, and are paid ${eur(T.credit)} back` : `Where ${eur(spend)} goes`, T.total < -0.5 ? `On ${esc(plan.supplier)} you’re paid ${eur(-T.total)} a year, all in` : `On ${esc(plan.supplier)}: ${eur(T.total)} a year once the export is taken off`), where)}
+      ${card('s4', hd(T.credit > 1 ? `You buy ${eur(spend)}, and are paid ${eur(T.credit)} back` : `Where ${eur(spend)} goes`, T.total < -0.5 ? `On ${esc(plan.supplier)} you’re paid ${eur(-T.total)} a year, all in` : T.credit > 1 ? `On ${esc(plan.supplier)}: ${eur(T.total)} a year once the export is taken off` : `On ${esc(plan.supplier)}: ${eur(T.total)} a year, all in`), where)}
       ${card('s8 wd-x', hd('Your day, hour by hour', 'average kWh, coloured by price band', `<button class="wd-link" onclick="state._an_from=null;anTab('hours')">Go through the year ${ic('chevR', 14)}</button>`), day + `<p class="wd-note">${dayLine}</p>`)}
       ${card('s4 wd-x', hd('Top plans for you', '', `<button class="wd-link" onclick="setScreen('plans')">All ${v7PlansData().counts.all} ${ic('chevR', 14)}</button>`), plans)}
       ${card('s4 wd-acc wd-x', hd('How sure we are', ''), `<div class="wd-big">±${acc.pct}%</div><div class="wd-bar"><i style="width:${Math.max(8, 100 - acc.pct * 4)}%"></i></div>${state._csv_imported ? '<p class="wd-note">Measured from your ESB meter file.</p>' : `<button class="wd-link" onclick="setScreen('csv-import')">Add your ESB meter file ${ic('chevR', 14)}</button>`}`)}
@@ -6656,9 +6656,10 @@ function makeShareCardCanvas(savings, opts = {}){
   });
 
   // Footer.
-  let live = 0; try { live = getRecommendation().ranked.length; } catch (e) { live = TARIFFS.filter(onOffer).length; }
+  // The count Plans and the report have: every plan on sale for this meter.
+  const live = planCount().n;
   let acc = null; if (sections.length) try { acc = modelAccuracy().pct; } catch (e) { acc = null; }
-  t(fit('My whole year, priced on all ' + live + ' Irish plans' + (acc ? `, accurate to ±${acc}%.` : '.'), W - 144, 28, 500), 72, H - 96, 28, C_DIM, 500);
+  t(fit('My whole year, priced on all ' + live + ' plans for my meter' + (acc ? `, accurate to ±${acc}%.` : '.'), W - 144, 28, 500), 72, H - 96, 28, C_DIM, 500);
   t('Check yours free at peakless', 72, H - 52, 34, C_GOLD, 700);
   return cv;
 }
@@ -8146,6 +8147,9 @@ async function doGeneratePdf(){
       supplierUrl: supplierUrl(best.plan.id),
       baseEnergy: sumF(nowSim.cost),
       bestEnergy: best.energy_cost,
+      // The fixed charges as the app shows them: the area's standing charge
+      // and today's PSO levy (the report had €19.10, an old levy).
+      bestFixed: (() => { try { const c = annualCost(best.sim || sim(best.plan.id), best.plan); return { standing: c.standing, pso: c.pso }; } catch (e) { return null; } })(),
       // What selling pays more on the new plan: all of it against a home that
       // sells nothing now, the difference against panels already selling.
       bestExport: best.export_revenue - (installed ? sumF(nowSim.revenue) : 0),
