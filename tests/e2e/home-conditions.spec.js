@@ -28,3 +28,27 @@ test('the saving and the plan lead; the conditions are one line that opens on a 
   expect(longest).toBeLessThan(160);
   await page.screenshot({ path: testInfo.outputPath('open.png') });
 });
+
+/**
+ * The plan sheet, the same way: under the rates, its contract on one line;
+ * the discount, the battery, the levy, the source and any price change open
+ * on a tap. Stacked, they were a page of text above the switch button.
+ */
+test('the plan sheet: its contract in view, the rest of its details a tap away, the switch button close', async ({ page }) => {
+  test.setTimeout(150000);
+  await runScenario(page, SCENARIOS.find((s) => s.id === 'B2-hp_solar_batt'));
+  await page.evaluate(() => { window.setScreen('plans'); window.v7Sheet('plan', window.getRecommendation().best.plan.id); });
+  const sheet = page.locator('#v7-sheet');
+  const more = sheet.locator('.v7-plan-more');
+  await expect(more).toHaveCount(1);
+  await expect(more.locator('summary')).toContainText(/contract|Plan details/);
+  await expect(more.locator('li').first()).toBeHidden();
+  // Closed, no note box stands between the rates and the switch button.
+  await expect(sheet.locator('div.v7-note:not(.is-check), div.v7-fine:has-text("PSO")')).toHaveCount(0);
+  await more.locator('summary').click();
+  await expect(sheet.locator('li', { hasText: 'PSO levy' })).toBeVisible();
+  await expect(sheet.locator('li', { hasText: 'Battery:' })).toBeVisible();
+  await expect(sheet.locator('li', { hasText: 'Rates read from' })).toBeVisible();
+  const longest = await more.locator('li').evaluateAll((ls) => Math.max(...ls.map((l) => l.textContent.trim().length)));
+  expect(longest).toBeLessThan(170);
+});

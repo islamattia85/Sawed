@@ -283,13 +283,13 @@ export function createV7(api) {
           const conds = [];
           // Charging the battery from the grid, and the plan if it only takes solar.
           let ng = null; try { ng = api.withoutGridCharge(); } catch (e) {}
-          if (ng && !chosen) conds.push(`<li class="gc-note">${api.ic('battery', 14)}<span><b>Your battery charges from the grid at night</b>, set in your inverter app. If it only takes solar: ${ng.plan.id === best.plan.id ? 'this plan still' : `${esc(ng.plan.supplier)} ${esc(ng.plan.plan)}`}, ${atYear(ng.net)}.</span></li>`);
+          if (ng && !chosen) conds.push(`<li class="v7-conds-i gc-note">${api.ic('battery', 14)}<span><b>Your battery charges from the grid at night</b>, set in your inverter app. If it only takes solar: ${ng.plan.id === best.plan.id ? 'this plan still' : `${esc(ng.plan.supplier)} ${esc(ng.plan.plan)}`}, ${atYear(ng.net)}.</span></li>`);
           // A battery that only stores solar today: the figures have it topping up at night.
           let g = null; try { g = api.currentGridGain(); } catch (e) {}
-          if (g) conds.push(`<li class="gc-note gc-now">${api.ic('battery', 14)}<span><b>Your battery tops up on night power.</b> Set it in your inverter app: worth ${eur(g)} a year on your current plan.</span></li>`);
+          if (g) conds.push(`<li class="v7-conds-i gc-note gc-now">${api.ic('battery', 14)}<span><b>Your battery tops up on night power.</b> Set it in your inverter app: worth ${eur(g)} a year on your current plan.</span></li>`);
           const mp = api.getPlanById(st.baseline), pc = mp && mp.price_change;
-          if (pc && pc.effective_date && Date.parse(pc.effective_date) > Date.now()) conds.push(`<li class="v7-evnote">${api.ic('trendUp', 14)}<span>${esc(mp.supplier)}’s prices rise on ${fmtDate(pc.effective_date)}, counted.</span></li>`);
-          if (!pl && best.plan.type === 'ev' && !st.ev_active) conds.push(`<li class="v7-evnote">${api.ic('info', 14)}<span>No car needed: this EV plan’s cheap night hours suit ${st.battery_kwh > 0 ? 'your battery' : 'your home'}.</span></li>`);
+          if (pc && pc.effective_date && Date.parse(pc.effective_date) > Date.now()) conds.push(`<li class="v7-conds-i v7-evnote">${api.ic('trendUp', 14)}<span>${esc(mp.supplier)}’s prices rise on ${fmtDate(pc.effective_date)}, counted.</span></li>`);
+          if (!pl && best.plan.type === 'ev' && !st.ev_active) conds.push(`<li class="v7-conds-i v7-evnote">${api.ic('info', 14)}<span>No car needed: this EV plan’s cheap night hours suit ${st.battery_kwh > 0 ? 'your battery' : 'your home'}.</span></li>`);
           return conds.length ? `<details class="v7-conds"><summary>${api.ic('info', 14)} Based on ${conds.length === 1 ? 'one condition' : `${conds.length} conditions`}</summary><ul>${conds.join('')}</ul></details>` : '';
         })()}
         ${(() => {
@@ -1528,27 +1528,28 @@ export function createV7(api) {
         ${plan.export_rate ? `<div class="v7-rate"><i class="v7-dot" style="background:var(--accent)"></i>Export<b>${api.fmtCent(plan.export_rate)}</b></div>` : ''}
       </div>
       ${(() => {
-        // The contract, from the registry: "12-month contract · €50 exit fee".
+        // The plan's details under one line, its contract in view, the rest a
+        // tap away: stacked, the discount, the battery, the levy, the source
+        // and a price change were a page of text under the figures (30 Oct 2026).
         const terms = [plan.length > 0 ? `${plan.length}-month contract` : '', plan.exit > 0 ? `${api.fmtCurrency(plan.exit)} exit fee` : ''].filter(Boolean);
-        return terms.length ? `<div class="v7-fine v7-terms">${terms.join(' · ')}</div>` : '';
-      })()}
-      ${plan.public_note ? `<div class="v7-fine">${esc(plan.public_note)}</div>` : ''}
-      ${(() => {
+        const items = [];
+        const item = (icon, html, cls = '') => items.push(`<li class="v7-conds-i ${cls}">${api.ic(icon, 14)}<span>${html}</span></li>`);
+        if (plan.public_note) item('info', esc(plan.public_note));
         const wc = welcomeFor(plan), intro = introDiscount(plan);
-        if (!wc && !intro) return '';
-        const lines = [];
-        if (wc) lines.push(`<b>+${api.fmtCurrency(wc)} welcome credit.</b> First year about <b>${api.fmtCurrency(c.net - wc)}</b>. Stay 12 months to keep it.`);
-        if (intro) lines.push(`${intro.pct}% discount already in the rates${intro.months ? ', for 12 months' : ''}.`);
-        return `<div class="v7-note is-gift">${api.ic('spark', 16)}<div>${lines.join(' ')}</div></div>`;
+        if (wc || intro) item('spark', [wc ? `<b>+${api.fmtCurrency(wc)} welcome credit.</b> First year about <b>${api.fmtCurrency(c.net - wc)}</b>; stay 12 months to keep it.` : '',
+          intro ? `${intro.pct}% discount already in the rates${intro.months ? ', for 12 months' : ''}.` : ''].filter(Boolean).join(' '), 'v7-note is-gift');
+        if (pc) item('trendUp', pcs.started
+          ? `<b>New prices since ${fmtDate(pc.effective_date)}.</b> The rates above are from before; the year counts the new ones.`
+          : `<b>Prices ${pcs.rising ? 'rise' : 'fall'} ${fmtDate(pc.effective_date)}.</b> Counted in the year above.`, `v7-note ${pcs.rising ? 'is-rise' : ''}`);
+        const we = weekendLine(plan, label); if (we) item('calendar', we);
+        const bl = batteryLine(s, plan); if (bl) item('battery', bl);
+        item('info', `PSO levy, ${eur(api.PSO_LEVY || 6.67)} a year, set by the regulator: in the figure above.`);
+        const src = sourceLine(plan); if (src) item('checkC', src);
+        const head = [terms.length ? `<span class="v7-terms">${terms.join(' · ')}</span>` : 'Plan details',
+          pc ? (pcs.started ? `new prices since ${fmtDate(pc.effective_date)}` : `prices ${pcs.rising ? 'rise' : 'fall'} ${fmtDate(pc.effective_date)}`) : ''].filter(Boolean).join(' · ');
+        return `<details class="v7-conds v7-plan-more"><summary>${head}</summary><ul>${items.join('')}</ul></details>`;
       })()}
       ${api.isPartnerPlan(plan.id) ? `<div class="v7-fine">We may earn a commission if you switch to this plan. It never changes the order plans are ranked in.</div>` : ''}
-      ${weekendLine(plan, label)}
-      ${batteryLine(s, plan)}
-      <div class="v7-fine">Every plan also carries the ${eur(api.PSO_LEVY || 6.67)} PSO levy, set by the regulator. It’s in the yearly figure above.</div>
-      ${sourceLine(plan)}
-      ${pc ? `<div class="v7-note ${pcs.rising ? 'is-rise' : ''}">${api.ic('trendUp', 16)}<div><b>${pcs.started
-        ? `New prices since ${fmtDate(pc.effective_date)}.</b> ${esc(pc.note || '')} The rates above are from before; the year above counts the new ones.`
-        : `Prices ${pcs.rising ? 'rise' : 'fall'} ${fmtDate(pc.effective_date)}.</b> ${esc(pc.note || '')} The year above already includes it for the months it applies.`}</div></div>` : ''}
       ${api.planDataFlag(plan) ? `<div class="v7-note is-check">${api.ic('warn', 16)}<div>These rates have not been re-checked recently. Confirm them with ${esc(plan.supplier)} before switching.</div></div>` : ''}
       ${switchButton(plan, '', 'v7-cta-2')}
       <div class="v7-sheet-links">
@@ -1571,7 +1572,7 @@ export function createV7(api) {
       .filter(([b, v]) => plan.rates[b] != null && v !== plan.rates[b])
       .map(([b, v]) => `${(label[b] || b).toLowerCase()} ${v === 0 ? 'free' : api.fmtCent(v)}`);
     if (!parts.length) return '';
-    return `<div class="v7-note is-check">${api.ic('calendar', 16)}<div><b>Weekends.</b> ${esc(when)}: ${esc(parts.join(', '))}. Included in the yearly figure.</div></div>`;
+    return `<b>Weekends.</b> ${esc(when)}: ${esc(parts.join(', '))}. In the yearly figure.`;
   }
 
   /**
@@ -1584,11 +1585,10 @@ export function createV7(api) {
     if (!(st.battery_kwh > 0) || !st.has_solar || !s?.strategy_used) return '';
     const auto = (st.strategy_mode || 'auto') === 'auto';
     const arb = s.strategy_used === 'arbitrage', asRun = s.strategy_used === 'as-run';
-    const what = arb
-      ? 'charge the battery from the grid in the cheap overnight window and use it at peak'
-      : asRun ? (s.as_run_fills ? 'run the battery as your meter file shows it running now, filling from the grid at night' : 'run the battery as your meter file shows it running now, storing your solar')
-      : 'fill the battery from your solar only (grid charging would not pay on this plan)';
-    return `<div class="v7-note is-check">${api.ic('battery', 16)}<div><b>Battery.</b> ${auto ? 'Costed to' : 'Set to'} ${what}.${auto && arb ? ' Set this in your inverter app when you switch.' : ''}</div></div>`;
+    const what = arb ? 'charged from the grid overnight, used at peak'
+      : asRun ? (s.as_run_fills ? 'run as your meter file shows, filling at night' : 'run as your meter file shows, storing solar')
+      : 'filled from your solar only';
+    return `<b>Battery:</b> ${what}.${auto && arb ? ' Set it in your inverter app when you switch.' : ''}`;
   }
 
   /**
@@ -1687,7 +1687,7 @@ export function createV7(api) {
     let host = src.url;
     try { host = new URL(src.url).hostname.replace(/^www\./, ''); } catch (e) { /* keep the raw url */ }
     const when = src.read || plan.verified_date;
-    return `<div class="v7-fine">Rates read from <a href="${esc(src.url)}" target="_blank" rel="noopener">${esc(host)}</a>${when ? ` on ${fmtDate(when)}` : ''}, inc VAT.</div>`;
+    return `Rates read from <a href="${esc(src.url)}" target="_blank" rel="noopener">${esc(host)}</a>${when ? ` on ${fmtDate(when)}` : ''}, inc VAT.`;
   }
 
   /**
