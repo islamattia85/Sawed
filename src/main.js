@@ -1263,7 +1263,7 @@ function renderStressCard(){
   const needLine = need === null ? '' : need.exp === null
     ? `At ${c(need.cheap)} night power, no export rate on the map keeps the payback within ${stressLimit()} years.`
     : need.exp === 0 ? `At ${c(need.cheap)} night power, it pays back within ${stressLimit()} years even if export pays nothing.`
-    : `At ${c(need.cheap)} night power, it pays back within ${stressLimit()} years while export pays at least about ${Math.round(need.exp * 100)}c.`;
+    : `At ${c(need.cheap)} night power, it pays back within ${stressLimit()} years as long as export pays about ${Math.round(need.exp * 100)}c or more.`;
   const preset = (k, t) => `<button class="v7-chip ${s.preset === k ? 'on' : ''}" onclick="stressSet('preset','${k}')">${t}</button>`;
   const when = [[0, 'Now'], [3, '3 yrs'], [6, '6 yrs'], [10, '10 yrs']].map(([y, t]) => `<button class="sy-stop ${years === y ? 'on' : ''}" onclick="stressSet('years',${y})">${t}</button>`).join('');
   return `<section class="ax-card st-card" id="stress-card">
@@ -1301,7 +1301,7 @@ function stressHomeLine(){
   const L = stressLimit();
   if (need === 0) return `Pays back within ${L} years even if export pays nothing`;
   if (need === null) return `Needs export near today’s rate to pay back within ${L} years`;
-  return `Pays back within ${L} years while export pays at least about ${Math.round(need * 100)}c`;
+  return `Pays back within ${L} years as long as export pays about ${Math.round(need * 100)}c or more`;
 }
 
 /** True when grid-charging arbitrage is genuinely running. */
@@ -3339,7 +3339,7 @@ function renderSite(){
 
     <section class="wl-band wl-tint" id="get"><div class="wl-in">
       <div class="wl-sh"><div class="wl-eyebrow">What you get</div><h2 class="wl-h2">An answer you can check, test and keep.</h2><p>Not just a ranked list. Every figure is backed by your own year, hour by hour.</p></div>
-      <div class="wl-show" role="list">
+      <div class="wl-show" role="list" tabindex="0" aria-label="What you get: six screens, scroll sideways">
         <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showPayback()}</div><h3>Solar payback</h3><p>Sized for your roof's faces and tilt, battery wear included, on the best plan once the panels are in.</p></div>
         <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showStress()}</div><h3>The stress test</h3><p>Move export pay and night prices, and how fast they change: see which futures still pay back.</p></div>
         <div class="wl-showcard" role="listitem"><div class="wl-showvis">${showPlans()}</div><h3>Every plan, ranked</h3><p>Every plan priced on your own year, with standing charges, price rises already announced and export pay counted.</p></div>
@@ -3543,7 +3543,7 @@ function webDash(){
     <div class="wd-head"><h2 class="web-title wd-t">Why these figures</h2>
       <nav class="wd-tabs" aria-label="More detail">${[['bill','Bill'],['hours','Hours'],['solar','Solar'],['accuracy','Accuracy']].map(([k, l]) => `<button onclick="state._an_from=null;anTab('${k}')">${l}</button>`).join('')}</nav></div>
     <div class="wd-grid">
-      ${card('s8', hd('Your bill, month by month', now ? `${esc(base.supplier)} now and ${esc(plan.supplier)}, on this home` : `On ${esc(plan.supplier)} ${esc(plan.plan)}`), month + `<div class="wd-legend">${now ? `<span><i style="background:var(--ink-dim);opacity:.5"></i>${esc(base.supplier)} ${esc(base.plan)}</span>` : ''}<span><i style="background:var(--accent)"></i>${esc(plan.supplier)} ${esc(plan.plan)}</span></div>`)}
+      ${card('s8', hd('Your bill, month by month', now ? (base.supplier === plan.supplier ? `${esc(base.plan)} now and ${esc(plan.plan)}, on this home` : `${esc(base.supplier)} now and ${esc(plan.supplier)}, on this home`) : `On ${esc(plan.supplier)} ${esc(plan.plan)}`), month + `<div class="wd-legend">${now ? `<span><i style="background:var(--ink-dim);opacity:.5"></i>${esc(base.supplier)} ${esc(base.plan)}</span>` : ''}<span><i style="background:var(--accent)"></i>${esc(plan.supplier)} ${esc(plan.plan)}</span></div>`)}
       ${card('s4', hd(T.credit > 1 ? `You buy ${eur(spend)}, and are paid ${eur(T.credit)} back` : `Where ${eur(spend)} goes`, T.total < -0.5 ? `On ${esc(plan.supplier)} you’re paid ${eur(-T.total)} a year, all in` : T.credit > 1 ? `On ${esc(plan.supplier)}: ${eur(T.total)} a year once the export is taken off` : `On ${esc(plan.supplier)}: ${eur(T.total)} a year, all in`), where)}
       ${card('s8 wd-x', hd('Your day, hour by hour', 'average kWh, coloured by price band', `<button class="wd-link" onclick="state._an_from=null;anTab('hours')">Go through the year ${ic('chevR', 14)}</button>`), day + `<p class="wd-note">${dayLine}</p>`)}
       ${card('s4 wd-x', hd('Top plans for you', '', `<button class="wd-link" onclick="setScreen('plans')">All ${v7PlansData().counts.all} ${ic('chevR', 14)}</button>`), plans)}
@@ -5959,7 +5959,7 @@ function flowSystemStep(opt){
         <span class="sys-part">${roof(d.panels)}<span><b>${d.panels}</b><small>panels · ${d.kwp} kWp</small></span></span>
         <span class="sys-part">${batt(d.batt)}<span><b>${d.batt ? d.batt + ' kWh' : 'No'}</b><small>battery</small></span></span>
       </span>
-      <span class="sys-foot"><span class="sys-price"><b>${eur(d.net)}</b><small>guide price</small></span><span class="sys-stats"><span><b>${pay}</b> payback</span><span><b>${eur(d.benefit)}</b> saved a year</span></span></span>
+      <span class="sys-foot"><span class="sys-price"><b>${eur(d.net)}</b><small>guide price after grant</small></span><span class="sys-stats"><span><b>${pay}</b> payback</span><span><b>${eur(d.benefit)}</b> back a year</span></span></span>
     </button>`; };
   return `<div class="fl-opts">${opt('system', 'custom', 'Model your own system', 'Your panel count and battery, or a quote you have')}</div>
     <div class="fl-group"><h3>Suggested by Peakless${infoTip('the suggested systems', 'Sized for your usage, roof and region, and priced on the cheapest plan for each. Prices are typical Irish installer prices for that size, after the SEAI grant. A quote for your roof can differ.')}</h3></div>
@@ -6025,7 +6025,7 @@ function renderFlow(){
     price: ['Do you have a price?', 'A quote makes the payback exact.'],
     grant: ['Does the home get the SEAI grant?', 'Homes built before 2021 that haven’t had one. Up to €1,800.'],
     roof: ['Which way does the roof face?', 'The side that gets the sun.'],
-    panels: ['How many panels?', `For your usage we suggest ${_flowSuggest()}.`],
+    panels: ['How many panels?', `About ${_flowSuggest()} cover your own use. More pay their way through what they sell.`],
     battery: ['A battery?', 'It stores the day’s solar for the evening.'],
     ...(state._flow_intent === 'meter' ? { bill: ['Add your ESB meter file', 'Your real half-hour readings. The closest figures we can give.'] } : {}),
     // Panels already on the roof: ask about them as bought, not as a purchase.
@@ -6070,7 +6070,7 @@ function renderFlow(){
     hotwater: (v) => (v === 'night' ? 'Water heated overnight' : 'Water heated through the day'),
     evtime: (v) => (v === 'evening' ? 'Car charges in the evening' : 'Car charges overnight'),
     heat: (v) => ({ gas: 'Gas or oil', heatpump: 'Heat pump', storage: 'Storage heaters', direct: 'Electric heaters' })[v],
-    gas: (v) => (v === 'yes' ? `Gas with ${plan.supplier} too` : 'Gas with another supplier'),
+    gas: (v) => (v === 'yes' ? `Gas with ${plan.supplier} too` : 'Gas elsewhere, or oil'),
     gasbill: (v) => (+v > 0 ? `Gas €${v} / 2 months` : 'Gas bill: typical home'),
     solar: (v) => ({ no: 'No solar', have: 'Panels on the roof', thinking: 'Solar planned' })[v],
     roof: (v) => ({ S: 'South', SE: 'South-east', SW: 'South-west', E: 'East', W: 'West', N: 'North', NE: 'North-east', NW: 'North-west', EW: 'East and west', SESW: 'South-east and south-west', unsure: 'Not sure, south assumed' })[v] || `Facing ${v}°`,
@@ -6244,9 +6244,12 @@ function renderFlow(){
   // question a third of the way down a phone.
   const R = FLOW_INTENT[state._flow_intent] || (!state.onboarding_complete ? FLOW_INTENT[state._flow_mode === 'quick' ? 'plans' : 'home'] : null);
   if (R && open && asked.every((k) => !(k in f) || k === open)) h = `<div class="fl-route"><b>${R.t}</b><span>${state.onboarding_complete ? 'Only the questions about this. Leave at any time and your answer stays as it was.' : R.s}</span></div>` + h;
-  // What's answered so far, as one row of chips: tap one to change it.
+  // What's answered so far, as one row of chips: tap one to change it. Past
+  // four, the last three and one chip for the rest: by the car questions the
+  // chips ran to six lines and pushed the question off a phone's screen.
   const answered = steps.filter((s) => s in f && s !== open);
-  if (answered.length) h = `<div class="fl-chips" aria-label="Your answers, tap to change">${answered.map((s) => `<button class="fl-chip" onclick="flowEdit('${s}')" aria-label="Change ${esc(label[s][0])}">${esc(shown[s](f[s]))}</button>`).join('')}</div>` + h;
+  const folded = answered.length > 4 && !state._flow_chips_all ? answered.length - 3 : 0;
+  if (answered.length) h = `<div class="fl-chips" aria-label="Your answers, tap to change">${folded ? `<button class="fl-chip fl-chip-more" onclick="state._flow_chips_all=true;renderApp()" aria-label="Show all ${answered.length} answers">${folded} more answers</button>` : ''}${answered.slice(folded).map((s) => `<button class="fl-chip" onclick="flowEdit('${s}')" aria-label="Change ${esc(label[s][0])}">${esc(shown[s](f[s]))}</button>`).join('')}</div>` + h;
   const finished = !open;
   if (finished){
     let rec = null, sd = null, ev = null;
@@ -6269,8 +6272,10 @@ function renderFlow(){
     // bars (direction 1.6).
     const switchNow = pl ? Math.max(0, pl.today - pl.noSolar.net) : 0, lead = pl ? Math.max(0, pl.noSolar.net - pl.best.net) : save;
     const top = pl ? Math.max(pl.today, pl.noSolar.net, pl.mine, pl.best.net, 1) : 1;
-    const bar = (label, v, best) => `<div><span>${label}</span><b>${eur(v)}</b><i${best ? ' class="is-best"' : ''} style="width:${Math.max(8, Math.round(Math.max(0, v) / top * 100))}%"></i></div>`;
-    const bars4 = pl ? `<div class="fl-bars">${bar('Now, no solar', pl.today)}${bar(`On ${esc(pl.noSolar.plan.supplier)} ${esc(pl.noSolar.plan.plan)}, no solar`, pl.noSolar.net)}${bar('Now, with the planned panels', pl.mine)}${bar(`On ${esc(pl.best.plan.supplier)} ${esc(pl.best.plan.plan)}, with the planned panels`, pl.best.net, true)}</div>` : '';
+    const bar = (label, v, best) => `<div><span>${label}</span><b>${billAmt(v)}</b><i${best ? ' class="is-best"' : ''} style="width:${Math.max(8, Math.round(Math.max(0, v) / top * 100))}%"></i></div>`;
+    // The best plan without panels is often the one the home is on: one row, not the same one twice.
+    const sameNow = pl && pl.noSolar.plan.id === state.baseline;
+    const bars4 = pl ? `<div class="fl-bars">${bar('Now, no solar', pl.today)}${sameNow ? '' : bar(`On ${esc(pl.noSolar.plan.supplier)} ${esc(pl.noSolar.plan.plan)}, no solar`, pl.noSolar.net)}${bar('Now, with the planned panels', pl.mine)}${bar(`On ${esc(pl.best.plan.supplier)} ${esc(pl.best.plan.plan)}, with the planned panels`, pl.best.net, true)}</div>` : '';
     const worth = worthSwitching(save);
     const bars = rec && worth ? `<div class="fl-bars">
         <div><span>Now${state.baseline_known && bp ? `, ${esc(bp.supplier)} ${esc(bp.plan)}` : ''}</span><b>${eur(mine)}</b><i style="width:100%"></i></div>
@@ -6348,7 +6353,7 @@ const FLOW_SHORT = { bill: 'Usage', plan: 'Plan now', disc: 'Discount', house: '
   meter: 'Meter', area: 'Area', switched: 'Last switch', heat: 'Heating', evfile: 'Car in the file', evtime: 'Car charging', heattime: 'Heating hours', hotwater: 'Hot water', night: 'Water at night',
   gas: 'Gas', gasbill: 'Gas bill', solar: 'Solar', tilt: 'Roof pitch', price: 'Price', grant: 'SEAI grant', roof: 'Roof faces',
   panels: 'Panels', battery: 'Battery', filewhen: 'Meter file date', fileexp: 'Power sold in the file', billwhen: 'Bill date', billmonths: 'Bill months',
-  gridnow: 'Battery charging', km: 'Driving', car: 'Car' };
+  gridnow: 'Battery charging', km: 'Driving', car: 'Car', ev: 'Electric car' };
 function flowSide(steps, f, open, shown){
   const got = steps.filter((k) => k in f && k !== open);
   const n = f.meter ? planCount(f.meter).n : openPlans().length;
@@ -6962,8 +6967,12 @@ function showToast(message, opts){
     stack.className = 'toast-stack';
     document.body.appendChild(stack);
   }
+  // A toast about the same thing replaces the one before: "Report downloaded"
+  // sat above a "Preparing your report…" that was no longer true.
+  if (opts.key) stack.querySelectorAll(`[data-key="${opts.key}"]`).forEach((x) => x.remove());
   const t = document.createElement('div');
   t.className = 'toast ' + (type !== 'accent' ? type : '');
+  if (opts.key) t.dataset.key = opts.key;
   t.innerHTML = `<span class="toast-icon">${icon}</span>
     <span class="toast-body">${title ? `<b>${title}</b>` : ''}${message}</span>`;
   stack.appendChild(t);
@@ -7901,7 +7910,7 @@ async function doGeneratePdf(){
   if (modal) modal.remove();
 
   if (typeof window.jspdf === 'undefined' && typeof window.jsPDF === 'undefined'){
-    showToast('Preparing your report\u2026', { type:'accent', icon:ic('doc',16) });
+    showToast('Preparing your report\u2026', { type:'accent', icon:ic('doc',16), key: 'report' });
     ensureJsPdf().then(ok => {
       if (ok) doGeneratePdf();   // fire and forget: the retry owns its own errors
       else showToast('Couldn’t make the PDF. Reload and try again.', { type:'amber', icon:ic('warn',16) });
@@ -8182,7 +8191,7 @@ async function doGeneratePdf(){
       how === 'shared' ? 'Report ready. Choose where to save it.'
         : how === 'opened' ? 'Report opened in a new tab. Use Share to save it.'
         : 'Report downloaded',
-      { type:'accent', icon:ic('checkC',16) });
+      { type:'accent', icon:ic('checkC',16), key: 'report' });
     trackEvent('report_downloaded', { solar: !!(state.has_solar && totalPanels() > 0), ev: !!state.ev_active });
   } catch (err){
     console.error('PDF generation failed', err);
@@ -10505,7 +10514,7 @@ function renderProfile(){
     <section class="me-list">
       ${row('openMyHome()', 'home', 'Home and usage', `${esc(region ? region.name : '')} · ${kwh.toLocaleString('en-IE')} kWh a year · ${state.baseline_known === false ? 'plan not sure' : esc(plan.supplier)}`, state._csv_imported ? 'meter data' : 'guess')}
       ${gasSub ? row('openMyHome()', 'flame', 'Gas', gasSub, state.gas_same_supplier === 'yes' && !(+state.gas_bill_eur > 0) ? 'guess' : '') : ''}
-      ${row('openMySystem()', 'sun', 'Solar and battery', hasSys ? `${totalPanels()} panels${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh battery` : ''}${quotes ? ` · ${quotes} quote${quotes > 1 ? 's' : ''}` : ''}${saved ? ` · ${saved} saved` : ''}` : 'No solar yet', hasSys ? (state.cost_is_manual ? 'quoted' : 'guess') : '')}
+      ${row('openMySystem()', 'sun', 'Solar and battery', hasSys ? `${totalPanels()} panels${state.battery_kwh > 0 ? ` · ${state.battery_kwh} kWh battery` : ''}${quotes ? ` · ${quotes} quote${quotes > 1 ? 's' : ''}` : ''}${saved ? ` · ${saved} saved` : ''}` : 'No solar yet', hasSys ? (state.cost_is_manual ? (panelsInstalled() ? 'your price' : 'quoted') : 'guess') : '')}
       ${row('startEvGuide()', 'car', 'EV', state.ev_active ? `${(state.ev_km_per_year || 0).toLocaleString('en-IE')} km a year` : 'No EV', '')}
       ${FEATURES.quoteReader ? `<button class="me-add" onclick="v7Sheet('quote')">${ic('clip', 16)} Upload an installer's quote</button>` : ''}
     </section>
