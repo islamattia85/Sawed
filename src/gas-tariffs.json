@@ -10,12 +10,12 @@
       "https://www.bordgaisenergy.ie/home/our-tariffs",
       "https://www.bordgaisenergy.ie/home/compare-dual-fuel-price-plans"
     ],
-    "verified_date": "2026-10-13"
+    "verified_date": "2026-10-31"
   },
   {
     "supplier": "Electric Ireland",
     "unit": 0.1224,
-    "standing": 149.59,
+    "standing": 117.59,
     "gas_discount": 0.1,
     "dual_discount": 0.16,
     "dual_welcome": 0,
@@ -24,7 +24,7 @@
       "https://www.electricireland.ie/residential/electricity-and-gas/gas-price-plans",
       "https://www.electricireland.ie/residential/electricity-and-gas/dual-fuel-price-plans"
     ],
-    "verified_date": "2026-10-13"
+    "verified_date": "2026-10-31"
   },
   {
     "supplier": "Energia",
@@ -64,6 +64,6 @@
     "source": [
       "https://www.flogas.ie/price-plans/"
     ],
-    "verified_date": "2026-10-13"
+    "verified_date": "2026-10-31"
   }
 ]
